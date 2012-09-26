@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+        http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.psddev</groupId>
+    <artifactId>dari-grandparent</artifactId>
+    <version>2.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Dari: Grandparent POM</name>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>2.4.1</version>
+                <configuration>
+                    <filesets>
+
+                        <!-- Clean up after war:inplace goal. -->
+                        <fileset>
+                            <directory>src/main/webapp/WEB-INF</directory>
+                            <includes>
+                                <include>classes/**</include>
+                                <include>lib/**</include>
+                            </includes>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                    <showDeprecation>true</showDeprecation>
+                    <showWarnings>true</showWarnings>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.3.1</version>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Dari-ClassFinder-Include>true</Dari-ClassFinder-Include>
+                            <Dari-SourceFilter-JavaSources>${project.build.sourceDirectory}</Dari-SourceFilter-JavaSources>
+                            <Dari-SourceFilter-WebappSources>${basedir}/src/main/webapp</Dari-SourceFilter-WebappSources>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>2.1.1</version>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Dari-ClassFinder-Include>true</Dari-ClassFinder-Include>
+                            <Dari-SourceFilter-JavaSources>${project.build.sourceDirectory}</Dari-SourceFilter-JavaSources>
+                            <Dari-SourceFilter-WebappSources>${basedir}/src/main/webapp</Dari-SourceFilter-WebappSources>
+                        </manifestEntries>
+                    </archive>
+
+                    <!--
+                    Remove version number when copying the JARs to the WAR
+                    to reduce possible conflicts during development.
+                    -->
+                    <outputFileNameMapping>@{artifactId}@@{dashClassifier?}@.@{extension}@</outputFileNameMapping>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.groovy.maven</groupId>
+                <artifactId>gmaven-plugin</artifactId>
+                <version>1.0</version>
+                <executions>
+                    <execution>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                        <configuration>
+                            <source><![CDATA[
+import java.io.*
+import java.util.*
+
+def packaging = project.packaging
+if (!(packaging == 'jar' || packaging == 'war')) {
+    return
+}
+
+def buildFile = 'build.properties'
+def env = System.getenv()
+try {
+    def map = new HashMap<String, String>()
+    log.info("Generating ${buildFile} file.")
+
+    map['name'] = project.name
+    map['version'] = project.version
+    map['buildDate'] = '' + new Date()
+
+    def im = project.issueManagement
+    if (im) {
+        map['issueManagementSystem'] = im.system
+        map['issueManagementUrl'] = im.url
+    }
+
+    def scm = project.scm
+    if (scm) {
+        map['scmConnection'] = scm.connection
+        map['scmDeveloperConnection'] = scm.developerConnection
+        map['scmUrl'] = scm.url
+    }
+
+    map['classFinder.include'] = 'true'
+    map['javaSourceDirectory'] = project.build.sourceDirectory
+    map['resourceDirectory'] = new File(pom.basedir, [ 'src', 'main', 'resources' ].join(File.separator)).getPath()
+    map['webappSourceDirectory'] = new File(pom.basedir, [ 'src', 'main', 'webapp' ].join(File.separator)).getPath()
+
+    map['sourceFilter.javaSources'] = project.build.sourceDirectory
+    map['sourceFilter.webappSources'] = new File(pom.basedir, [ 'src', 'main', 'webapp' ].join(File.separator)).getPath()
+
+    def properties = new Properties()
+    map.each { key, value ->
+        if (value) {
+            properties[key] = value
+            log.info("Property: ${key}=${value}")
+        }
+    }
+
+    if (env.BUILD_NUMBER) {
+        properties['buildNumber'] = env.BUILD_NUMBER
+
+        try {
+            def git = 'git'
+            if (env['OS'] =~ /^Windows/) {
+                git = "cmd /c ${git}"
+            }
+            properties['gitCommits'] = [ git, 'log', '-n 500', '--format=%H~|~%an~|~%at~|~%d~|~%s~|~%b~-~' ].execute().in.text
+        } catch (Exception ex) {
+            log.warn('Git not available!', ex)
+        }
+    }
+
+    def outputDirectory = new File(project.build.outputDirectory)
+    outputDirectory.mkdirs()
+    new File(outputDirectory, buildFile).withOutputStream { output ->
+        properties.store(output, null)
+    }
+
+} catch (Exception ex) {
+    log.warn("Failed to generate ${buildFile} file!", ex)
+}
+                            ]]></source>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>jspc-maven-plugin</artifactId>
+                <version>1.4.6</version>
+                <configuration>
+                    <source>1.5</source>
+                    <target>1.5</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>tomcat-maven-plugin</artifactId>
+                <version>1.0</version>
+                <configuration>
+                    <url>${tomcat.url}</url>
+                    <path>${tomcat.path}</path>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <distributionManagement>
+        <repository>
+            <id>psddev-releases</id>
+            <url>http://nexus.psddev.com/content/repositories/releases</url>
+        </repository>
+
+        <snapshotRepository>
+            <id>psddev-snapshots</id>
+            <url>http://nexus.psddev.com/content/repositories/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>psddev</id>
+            <url>http://psddev.com/maven</url>
+            <snapshots>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
+
+</project>

@@ -1,0 +1,25 @@
+ALTER TABLE Record
+DROP KEY k_type_name,
+DROP COLUMN name,
+MODIFY COLUMN createDate BIGINT(20) NOT NULL,
+MODIFY COLUMN updateDate BIGINT(20) NOT NULL,
+MODIFY COLUMN deleteDate BIGINT(20) NULL;
+
+ALTER TABLE RecordHistory
+DROP COLUMN name,
+MODIFY COLUMN updateDate BIGINT(20) NOT NULL;
+
+ALTER TABLE RecordInput
+MODIFY COLUMN updateDate BIGINT(20) NOT NULL;
+
+DROP TABLE IF EXISTS RecordName;
+CREATE TABLE RecordName (
+    recordId BIGINT(20) NOT NULL,
+    namespace VARCHAR(20) NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    KEY k_recordId (recordId),
+    KEY k_namespace_name (namespace, name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+
+ALTER TABLE RecordOutput
+MODIFY COLUMN updateDate BIGINT(20) NOT NULL;
