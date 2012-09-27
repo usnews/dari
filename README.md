@@ -8,6 +8,11 @@ best practices into every developer’s workflow.
 
 To learn more, take a look at the [documentation](http://www.dariframework.org/documentation.html).
 
+License
+=======
+
+Dari is released under the [BSD license](LICENSE).
+
 Bugs?
 =====
 
