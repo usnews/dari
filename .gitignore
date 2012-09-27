@@ -9,3 +9,6 @@ target
 /mysql/lib_mysqludf_dari.so
 /docs/documentation/javadocs
 /docs/documentation/_site
+
+# Jekyll
+_site
