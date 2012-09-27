@@ -11,7 +11,7 @@ To learn more, take a look at the [documentation](http://www.dariframework.org/d
 License
 =======
 
-Dari is released under the [BSD license](LICENSE).
+Dari is released under the BSD license.
 
 Bugs?
 =====
