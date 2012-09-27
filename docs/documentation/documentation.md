@@ -43,9 +43,3 @@ H2 database is provided along with a simple index page.
     src/main/java/com/yourcompany/DefaultWebPage.java
     src/main/resources/settings.properties
     src/main/webapp/WEB-INF/web.xml
-
-### Using Tomcat
-
-### Using MySQL Database Backend
-
-### Using Solr Database Backend
