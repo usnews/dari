@@ -75,7 +75,7 @@ public class Settings {
                     // JNDI.
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
-                    } catch (NamingException ex) {
+                    } catch (Throwable error) {
                     }
 
                     return Collections.unmodifiableMap(settings);
