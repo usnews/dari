@@ -281,7 +281,6 @@ public class WebPageContext {
      *
      * @param returnType Can't be {@code null}.
      * @param name Can be {@code null}.
-     * @param defaultValue Can be {@code null}.
      * @return May be {@code null}.
      */
     public Object param(Type returnType, String name) {
@@ -295,7 +294,6 @@ public class WebPageContext {
      *
      * @param returnClass Can't be {@code null}.
      * @param name Can be {@code null}.
-     * @param defaultValue Can be {@code null}.
      * @return May be {@code null}.
      */
     public <T> T param(Class<T> returnClass, String name) {
@@ -310,7 +308,6 @@ public class WebPageContext {
      *
      * @param returnTypeReference Can't be {@code null}.
      * @param name Can be {@code null}.
-     * @param defaultValue Can be {@code null}.
      * @return May be {@code null}.
      */
     public <T> T param(TypeReference<T> returnTypeReference, String name) {
