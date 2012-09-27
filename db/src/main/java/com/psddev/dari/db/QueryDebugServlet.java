@@ -168,6 +168,11 @@ public class QueryDebugServlet extends HttpServlet {
 
         @SuppressWarnings("unchecked")
         private void renderForm() throws IOException {
+            start("style", "type", "text/css");
+                write(".edit input[type=text], .edit textarea { width: 90%; }");
+                write(".edit textarea { min-height: 6em; }");
+            end();
+
             State state = State.getInstance(Query.from(Object.class).where("_id = ?", page.param(UUID.class, "id")).using(database).first());
 
             if (state == null) {
@@ -176,7 +181,7 @@ public class QueryDebugServlet extends HttpServlet {
             } else {
                 ObjectType type = state.getType();
 
-                start("div", "style", "padding: 10px;");
+                start("div", "class", "edit", "style", "padding: 10px;");
                     start("h2");
                         html(type != null ? type.getLabel() : "Unknown Type");
                         html(": ");
@@ -207,8 +212,10 @@ public class QueryDebugServlet extends HttpServlet {
                         }
 
                         start("form", "method", "post", "action", page.url(""));
-                            start("textarea", "name", "data", "style", "box-sizing: border-box; height: 40em; width: 100%;");
-                                html(ObjectUtils.toJson(state.getSimpleValues(), true));
+                            start("div", "class", "json");
+                                start("textarea", "name", "data", "style", "box-sizing: border-box; height: 40em; width: 100%;");
+                                    html(ObjectUtils.toJson(state.getSimpleValues(), true));
+                                end();
                             end();
                             start("div", "class", "form-actions");
                                 tag("input", "class", "btn btn-success", "type", "submit", "value", "Save");

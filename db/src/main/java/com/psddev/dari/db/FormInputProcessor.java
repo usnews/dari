@@ -27,11 +27,10 @@ public interface FormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
-            writer.start("textarea",
-                    "class", "json",
-                    "id", inputId,
-                    "name", inputName);
-                writer.html(ObjectUtils.toJson(value, true));
+            writer.start("span", "class", "json");
+                writer.start("textarea", "id", inputId, "name", inputName);
+                    writer.html(ObjectUtils.toJson(value, true));
+                writer.end();
             writer.end();
         }
 

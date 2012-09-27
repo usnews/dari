@@ -474,6 +474,8 @@ public class DebugFilter extends AbstractFilter {
                 write(".CodeMirror .selected { background-color: #FCF8E3; }");
                 write(".CodeMirror .errorLine { background-color: #F2DEDE; }");
                 write(".CodeMirror .errorColumn { background-color: #B94A48; color: white; }");
+                write(".json { position: relative; }");
+                write(".json:after { background: #ccc; content: 'JSON'; font-size: 9px; line-height: 9px; padding: 4px; position: absolute; right: 0; top: 0; }");
             end();
 
             includeScript("/_resource/jquery/jquery-1.7.1.min.js");
