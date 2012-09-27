@@ -137,10 +137,16 @@ footer div.blurb p {
 }
 
 .navbar .brand {
-    padding: 0;
-    margin: 0;
+    background: url(../img/bridge.png) no-repeat 55px 0;
     color: #fff;
-
+    float: left;
+    font-family: 'AauxNextMedium', sans-serif;
+    font-size: 30px;
+    height: 40px;
+    line-height: 40px;
+    margin: 0;
+    padding: 0 75px 0 0;
+    text-transform: uppercase;
 }
 
 .bs-docs-example {
