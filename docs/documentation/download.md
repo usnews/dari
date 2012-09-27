@@ -7,7 +7,7 @@ section: download
 ## Download
 
 The current release of Dari is 2.0-SNAPSHOT. Download the source code
-from [Github](#source-code) or include it in your maven project.
+from [Github](http://github.com/perfectsense/dari) or include it in your maven project.
 
 ### License
 
@@ -41,8 +41,8 @@ versions of Dari.  Add the following to your pom.xml:
 ### Source Code
 
 The Dari source code is hosted on
-[Github](http://github.com/psddev/dari). Use the following Git command to download it:
+[Github](http://github.com/perfectsense/dari). Use the following Git command to download it:
 
-    git clone https://github.com/psddev/dari.git
+    git clone https://github.com/perfectsense/dari.git
 
 

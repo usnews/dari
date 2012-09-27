@@ -47,15 +47,15 @@ Oracle each have their own DDL that is used to setup a Dari database. They can
 be found in the following locations:
 
 **MySQL**:
-[etc/mysql/schema-11.sql](https://github.com/psddev/dari/blob/master/etc/mysql/schema-11.sql)
+[etc/mysql/schema-11.sql](https://github.com/perfectsense/dari/blob/master/etc/mysql/schema-11.sql)
 
 **PostgreSQL**:
-[etc/postgress/schema-11.sql](https://github.com/psddev/dari/blob/master/etc/postgres/schema-11.sql)
+[etc/postgress/schema-11.sql](https://github.com/perfectsense/dari/blob/master/etc/postgres/schema-11.sql)
 
 **Oracle**:
-[etc/oracle/1-dari.sql](https://github.com/psddev/dari/blob/master/etc/oracle/1-dari.sql),
-[etc/oracle/2-schema.sql](https://github.com/psddev/dari/blob/master/etc/oracle/2-schema.sql),
-[etc/oracle/3-grants.sql](https://github.com/psddev/dari/blob/master/etc/oracle/3-grants.sql)
+[etc/oracle/1-dari.sql](https://github.com/perfectsense/dari/blob/master/etc/oracle/1-dari.sql),
+[etc/oracle/2-schema.sql](https://github.com/perfectsense/dari/blob/master/etc/oracle/2-schema.sql),
+[etc/oracle/3-grants.sql](https://github.com/perfectsense/dari/blob/master/etc/oracle/3-grants.sql)
 
 #### Indexing
 
