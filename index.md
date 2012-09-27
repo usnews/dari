@@ -4,6 +4,12 @@ title: Dari
 section: index
 ---
 
+<div class="row">
+    <div class="span12 blurb">
+        <h4>Dari is now open source! <a href="http://www.perfectsensedigital.com/about-us/news">Read the press release.</a></h4>
+    </div>
+</div>
+
 <div class="hero-unit">
     <img src="img/darilogo.png" align="right"/>
     <p style="margin-top: 1.5em;">
