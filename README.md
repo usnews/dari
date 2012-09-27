@@ -1,104 +1,22 @@
-Dari is an object persistence library. Read on for a quick tour, or see the
-full [API documentation](http://hudson.psddev.com/job/dari-master/ws/db/target/apidocs/index.html).
+Welcome to Dari!
+================
 
-Configuration
-=============
+Dari is an intuitive Java development framework that takes care of a wide
+range of peripheral tasks to let developers focus on their application.
+Crafted over years of large-scale problem solving, Dari brings professional
+best practices into every developer’s workflow.
 
-Ensure that a reference to the [PSD Maven repository](http://psddev.com/maven)
-exists in your project's [Apache Maven](http://maven.apache.org/) POM file:
+To learn more, take a look at the [documentation](http://www.dariframework.org/documentation.html).
 
-    <repository>
-        <id>psddev</id>
-        <url>http://psddev.com/maven</url>
-        <snapshots>
-            <updatePolicy>always</updatePolicy>
-        </snapshots>
-    </repository>
-   
-And add the following dependency:
+Bugs?
+=====
 
-    <dependency>
-        <groupId>com.psddev.dari</groupId>
-        <artifactId>dari-db</artifactId>
-        <version>1.5.0-SNAPSHOT</version>
-    </dependency>
+Feel free to submit any bug reports or feature requests to the
+[GitHub Issues](https://github.com/perfectsense/dari/issues).
 
-If you're creating a web application, you should add the following dependency
-as well:
 
-    <dependency>
-        <groupId>com.psddev.dari</groupId>
-        <artifactId>dari-servlet</artifactId>
-        <version>1.5.0-SNAPSHOT</version>
-    </dependency>
-    <dependency>
-        <groupId>com.psddev.dari</groupId>
-        <artifactId>dari-web-servlet</artifactId>
-        <version>1.5.0-SNAPSHOT</version>
-    </dependency>
+Contributing
+============
 
-Along with the following elements in your `web.xml`:
-
-    <filter>
-        <filter-name>DebugFilter</filter-name>
-        <filter-class>com.psddev.dari.servlet.DebugFilter</filter-class>
-    </filter>
-    <filter-mapping>
-        <filter-name>DebugFilter</filter-name>
-        <url-pattern>/*</url-pattern>
-    </filter-mapping>
-
-Modeling
-========
-
-Java classes should look like (getters and setters omitted for brevity):
-
-    import com.psddev.dari.db.Record;
-
-    public class Article extends Record {
-        private String headline;
-        private Topic topic;
-        private Author author;
-        private ReferentialText body;
-    }
-
-    public class Author extends Record {
-        private String name;
-        private StorageItem photo;
-        private String bio;
-    }
-
-    public class Topic extends Record {
-        private String name;
-        private List<Topic> subTopics;
-    }
-
-Writing to the database
-=======================
-
-To save a record:
-
-    Article article = new Article();
-    article.setHeadline("new headline");
-    article.save();
-
-To delete a record:
-
-    Article article = Query.findById(Article.class, id);
-    article.delete();
-
-Reading from the database
-=========================
-
-Generally, you can fetch records from the database using the `Query` class:
-
-    Query
-        .from(Article.class)
-        .where("author = ?", author)
-        .sortAscending("headline")
-        .select(0, 10);
-
-For more common operations:
-
-    Article article = Query.findById(Article.class, id);
-    Author author = Query.findUnique(Author.class, "name", name);
+* **Twitter:** [@dariframework](http://twitter.com/dariframework)
+* **Developers mailing list:** http://groups.google.com/a/dariframework.org/d/forum/dev
