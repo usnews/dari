@@ -1933,7 +1933,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 String sqlQuery,
                 List<? extends List<?>> parameters) throws SQLException {
 
-            PreparedStatement prepared = connection.prepareCall(sqlQuery);
+            PreparedStatement prepared = connection.prepareStatement(sqlQuery);
             List<?> currentRow = null;
 
             try {
