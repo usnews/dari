@@ -38,7 +38,7 @@ section: index
         <h2>Contextual Debugging</h2>
         <p>
         Contextual debugging brings all the information you need right
-        to the webpage your debugging. It will show you which modules are
+        to the webpage you're debugging. It will show you which modules are
         slow as well as which queries are slow.
         </p>
     </div>
