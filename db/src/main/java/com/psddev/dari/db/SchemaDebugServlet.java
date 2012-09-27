@@ -54,7 +54,7 @@ public class SchemaDebugServlet extends HttpServlet {
             startPage("Database", "Schema");
 
                 start("form", "method", "get");
-                    start("select", "multiple", "multiple", "name", "typeId", "style", "width: 50%;");
+                    start("select", "multiple", "multiple", "name", "typeId", "style", "width: 90%;");
                         for (ObjectType t : types) {
                             start("option",
                                     "selected", selectedTypes.contains(t) ? "selected" : null,
@@ -66,6 +66,14 @@ public class SchemaDebugServlet extends HttpServlet {
                     end();
                     tag("br");
                     tag("input", "class", "btn", "type", "submit", "value", "View");
+                end();
+
+                includeStylesheet("/_resource/chosen/chosen.css");
+                includeScript("/_resource/chosen/chosen.jquery.min.js");
+                start("script", "type", "text/javascript");
+                    write("(function() {");
+                        write("$('select[name=typeId]').chosen({ 'search_contains': true });");
+                    write("})();");
                 end();
 
                 start("style", "type", "text/css");
