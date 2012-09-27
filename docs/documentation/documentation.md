@@ -25,12 +25,13 @@ This archetype has been tested with Maven version 3.x.
 
 ### Running the Application
 
-You can run the application using the Jetty maven plugin.
+You can run the application using [Apache Tomcat](http://tomcat.apache.org)
+through the [Cargo Maven plugin](http://cargo.codehaus.org/Maven2+plugin).
 
-    mvn -Djetty.reload=manual org.mortbay.jetty:maven-jetty-plugin:run-war
+    mvn package cargo:run
 
-After Jetty starts up browse to
-[http://localhost:8080](http://localhost:8080) to see the
+After Tomcat starts up, browse to
+[http://localhost:8080/](http://localhost:8080/) to see the
 default Dari webpage.
 
 ### Maven Archetype Setup

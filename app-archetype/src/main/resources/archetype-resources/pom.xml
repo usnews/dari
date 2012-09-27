@@ -32,6 +32,13 @@
             <version>2.0-SNAPSHOT</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.psddev</groupId>
+            <artifactId>dari-reloader-tomcat6</artifactId>
+            <version>2.0-SNAPSHOT</version>
+            <type>war</type>
+        </dependency>
+
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -84,14 +91,32 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.mortbay.jetty</groupId>
-                <artifactId>maven-jetty-plugin</artifactId>
-                <version>6.1.26</version>
+                <groupId>org.codehaus.cargo</groupId>
+                <artifactId>cargo-maven2-plugin</artifactId>
+                <version>1.2.4</version>
                 <configuration>
-                    <reload>manual</reload>
-                    <webAppConfig>
-                        <contextPath>/</contextPath>
-                    </webAppConfig>
+                    <container>
+                        <containerId>tomcat6x</containerId>
+                        <zipUrlInstaller>
+                            <url>http://archive.apache.org/dist/tomcat/tomcat-6/v6.0.35/bin/apache-tomcat-6.0.35.zip</url>
+                            <downloadDir>${user.home}/.dari/cargo-downloads</downloadDir>
+                        </zipUrlInstaller>
+                    </container>
+                    <deployables>
+                        <deployable>
+                            <properties>
+                                <context>/</context>
+                            </properties>
+                        </deployable>
+                        <deployable>
+                            <groupId>com.psddev</groupId>
+                            <artifactId>dari-reloader-tomcat6</artifactId>
+                            <type>war</type>
+                            <properties>
+                                <context>/reloader</context>
+                            </properties>
+                        </deployable>
+                    </deployables>
                 </configuration>
             </plugin>
         </plugins>
