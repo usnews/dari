@@ -10,8 +10,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/** Enables various per-request caching. */
-public class CachingFilter extends AbstractFilter {
+/** Enables various per-request database result caching. */
+public class CachingDatabaseFilter extends AbstractFilter {
 
     public static final String CACHE_PARAMETER = "_cache";
 
@@ -33,7 +33,7 @@ public class CachingFilter extends AbstractFilter {
             throws IOException, ServletException {
 
         if (Settings.getOrDefault(boolean.class, "dari/isCachingFilterEnabled", true) &&
-                !Boolean.FALSE.toString().equals(request.getParameter("_cache"))) {
+                !Boolean.FALSE.toString().equals(request.getParameter(CACHE_PARAMETER))) {
 
             CachingDatabase caching = new CachingDatabase();
             caching.setDelegate(Database.Static.getDefault());

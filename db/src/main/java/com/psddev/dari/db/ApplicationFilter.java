@@ -20,7 +20,7 @@ import javax.servlet.Filter;
  * <li>{@link ResetFilter}</li>
  * <li>{@link StandardFilter}</li>
  * <li>{@link ProfilingDatabaseFilter}</li>
- * <li>{@link CachingFilter}</li>
+ * <li>{@link CachingDatabaseFilter}</li>
  * </ul>
  */
 public class ApplicationFilter extends AbstractFilter {
@@ -34,7 +34,7 @@ public class ApplicationFilter extends AbstractFilter {
         dependencies.add(ResetFilter.class);
         dependencies.add(StandardFilter.class);
         dependencies.add(ProfilingDatabaseFilter.class);
-        dependencies.add(CachingFilter.class);
+        dependencies.add(CachingDatabaseFilter.class);
         return dependencies;
     }
 }
