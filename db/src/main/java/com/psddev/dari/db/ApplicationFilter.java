@@ -19,6 +19,7 @@ import javax.servlet.Filter;
  * <li>{@link SourceFilter}</li>
  * <li>{@link ResetFilter}</li>
  * <li>{@link StandardFilter}</li>
+ * <li>{@link ProfilingDatabaseFilter}</li>
  * <li>{@link CachingFilter}</li>
  * </ul>
  */
@@ -32,6 +33,7 @@ public class ApplicationFilter extends AbstractFilter {
         dependencies.add(SourceFilter.class);
         dependencies.add(ResetFilter.class);
         dependencies.add(StandardFilter.class);
+        dependencies.add(ProfilingDatabaseFilter.class);
         dependencies.add(CachingFilter.class);
         return dependencies;
     }
