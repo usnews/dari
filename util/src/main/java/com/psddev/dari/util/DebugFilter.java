@@ -34,7 +34,18 @@ import javax.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Provides debugging tools for troubleshooting the application. */
+/**
+ * Provides debugging tools for troubleshooting the application.
+ *
+ * <p>This filter loads:</p>
+ *
+ * <ul>
+ * <li>{@link SettingsOverrideFilter}</li>
+ * <li>{@link SourceFilter}</li>
+ * <li>{@link LogCaptureFilter}</li>
+ * <li>{@link ResourceFilter}</li>
+ * </ul>
+ */
 public class DebugFilter extends AbstractFilter {
 
     public static final String DEFAULT_INTERCEPT_PATH = "/_debug/";
@@ -100,6 +111,8 @@ public class DebugFilter extends AbstractFilter {
     protected Iterable<Class<? extends Filter>> dependencies() {
         List<Class<? extends Filter>> dependencies = new ArrayList<Class<? extends Filter>>();
         dependencies.add(SettingsOverrideFilter.class);
+        dependencies.add(SourceFilter.class);
+        dependencies.add(LogCaptureFilter.class);
         dependencies.add(ResourceFilter.class);
         return dependencies;
     }
