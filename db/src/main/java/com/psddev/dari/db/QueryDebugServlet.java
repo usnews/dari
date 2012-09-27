@@ -277,8 +277,8 @@ public class QueryDebugServlet extends HttpServlet {
                     start("h2").html("Query").end();
                     start("div", "class", "row");
                         start("div", "class", "span6");
-                            start("select", "class", "span6", "name", "from", "style", "margin-bottom: 4px;");
-                                start("option", "value", "").html("- ALL TYPES -").end();
+                            start("select", "class", "span6", "name", "from");
+                                start("option", "value", "").html("ALL TYPES").end();
 
                                 List<ObjectType> types = new ArrayList<ObjectType>(database.getEnvironment().getTypes());
                                 Collections.sort(types, new ObjectFieldComparator("name", false));
@@ -297,12 +297,20 @@ public class QueryDebugServlet extends HttpServlet {
                                 }
                             end();
 
+                            includeStylesheet("/_resource/chosen/chosen.css");
+                            includeScript("/_resource/chosen/chosen.jquery.min.js");
+                            start("script", "type", "text/javascript");
+                                write("(function() {");
+                                    write("$('select[name=from]').chosen({ 'search_contains': true });");
+                                write("})();");
+                            end();
+
                             start("textarea",
                                     "class", "span6",
                                     "name", "where",
                                     "placeholder", "ID or Predicate (Leave Blank to Return All)",
                                     "rows", 4,
-                                    "style", "margin-bottom: 4px;");
+                                    "style", "margin-bottom: 4px; margin-top: 4px;");
                                 html(where);
                             end();
 
