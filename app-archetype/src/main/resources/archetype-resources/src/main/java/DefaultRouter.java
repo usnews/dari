@@ -22,13 +22,6 @@ public class DefaultRouter extends AbstractFilter {
             FilterChain chain)
             throws Exception {
 
-        // Renders welcome page in a non-production environment.
-        // This should be replaced with your own application logic.
-        if (Settings.isProduction() || !"/".equals(request.getServletPath())) {
-            chain.doFilter(request, response);
-
-        } else {
-            new DebugFilter.PageWriter(getServletContext(), request, response).welcome();
-        }
+        chain.doFilter(request, response);
     }
 }
