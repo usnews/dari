@@ -6,56 +6,46 @@ section: index
 
 <div class="row">
     <div class="span12 blurb">
-        <h4>Dari is now open source! <a href="http://www.perfectsensedigital.com/about-us/news">Read the press release.</a></h4>
-    </div>
-</div>
-
-<div class="hero-unit">
-    <img src="img/darilogo.png" align="right"/>
-    <p style="margin-top: 1.5em;">
-        Dari is an intuitive Java development framework that takes care of a wide range of peripheral tasks to
-        let developers focus on their application. Crafted over years of large-scale problem solving, Dari brings
-        professional best practices into every developer’s workflow.
-    </p>
-    <p><a class="btn btn-large" href="documentation.html">Learn more &raquo;</a></p>
-</div>
-
-<div class="row">
-    <div class="span6 blurb">
-        <h2>Data Modeling</h2>
-        <p>
-        Dari provides a powerful data modeling framework that makes it easy
-        to create complex data models that can persist to multiple database
-        backends. It also provides a powerful Query API for retrieving data.
+        <p class="alert">
+        Dari is now open sourced under the BSD license!
+        <a href="http://www.perfectsensedigital.com/about-us/news">Read the press release.</a>
         </p>
     </div>
-    <div class="span6 blurb">
+</div>
+
+<div class="hero-unit" style="margin-left: 20px;">
+    <img src="img/darilogo.png" style="float: right; margin: 0px 20px 50px 30px;">
+    <p style="padding-top: 8px;">
+    Dari is a powerful data modeling framework that makes it easy
+    to work with complex data structures and persist them to one or
+    more database backends. It's been carefully crafted over years of
+    experience with real-world challenges.
+    </p>
+    <p><a class="btn btn-large" href="documentation.html">Learn more &rarr;</a></p>
+</div>
+
+<div class="row" style="clear: both;">
+    <div class="span4 blurb">
         <h2>Automatic User Interface</h2>
         <p>
-        Dari will automatically present a user interface based on your
-        data model to allow you to query, create and edit your data.
+        See the data you're modeling. Create, query, and edit them with
+        ease in an interface that instantly adapts to the changes in
+        your schema.
         </p>
     </div>
-</div>
-<div class="row">&nbsp;</div>
-<div class="row">&nbsp;</div>
-<div class="row">
-    <div class="span6 blurb">
+    <div class="span4 blurb">
         <h2>Contextual Debugging</h2>
         <p>
-        Contextual debugging brings all the information you need right
-        to the webpage you're debugging. It will show you which modules are
-        slow as well as which queries are slow.
+        Troubleshoot how your data is being (mis)used in a debugging
+        and profiling interface embedded directly into your page.
         </p>
     </div>
-    <div class="span6 blurb">
-        <h2>Comprehensive Developer Tools</h2>
+    <div class="span4 blurb">
+        <h2>Comprehensive Dev Tools</h2>
         <p>
-            <ul>
-                <li>On-the-fly Code Compilation</li>
-                <li>Application Performance Monitoring</li>
-                <li>Database-agnostic Query Tool</li>
-            </ul>
+        Speed up your development with on-the-fly code compilation.
+        Monitor your application for potential issues with data usage
+        statistics.
         </p>
     </div>
 </div>

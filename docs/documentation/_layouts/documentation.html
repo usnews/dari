@@ -7,11 +7,10 @@ layout: basic
         <div class="well sidebar-nav">
             <ul class="nav nav-list">
                 <li class="nav-header">Overview</li>
-                <li class="{% if page.id == 'overview' %}active{% endif %}"><a href="documentation.html">Getting Started</a></li>
+                <li class="{% if page.id == 'overview' %}active{% endif %}"><a href="documentation.html">Introduction</a></li>
                 {% if page.id == 'overview' %}
                 <ul class="nav nav-list nav-sublist">
-                    <li><a href="documentation.html#ordering">Maven Archetype</a></li>
-                    <li><a href="documentation.html#grouping">Running the Application</a></li>
+                    <li><a href="documentation.html#getting-started">Getting Started</a></li>
                 </ul>
                 {% endif %}
                 <li class="{% if page.id == 'license' %}active{% endif %}"><a href="license.html">License</a></li>
