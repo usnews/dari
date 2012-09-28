@@ -419,4 +419,16 @@ public class TypeDefinition<T> {
             return Collections.unmodifiableMap(setters);
         }
     };
+
+    /** {@link TypeDefinition} utility methods. */
+    public static final class Static {
+
+        private Static() {
+        }
+
+        /** Invalidates all caches. */
+        public static void invalidateAll() {
+            INSTANCES.invalidate();
+        }
+    }
 }
