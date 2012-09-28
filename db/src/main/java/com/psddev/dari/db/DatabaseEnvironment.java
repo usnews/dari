@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+import com.psddev.dari.util.CodeUtils;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PeriodicCache;
 import com.psddev.dari.util.PullThroughValue;
@@ -30,6 +31,21 @@ public class DatabaseEnvironment implements ObjectStruct {
 
     private final Database database;
     private final boolean initializeClasses;
+
+    {
+        CodeUtils.addRedefineClassesListener(new CodeUtils.RedefineClassesListener() {
+            @Override
+            public void redefined(Set<Class<?>> classes) {
+                for (Class<?> c : classes) {
+                    if (Recordable.class.isAssignableFrom(c)) {
+                        TypeDefinition.Static.invalidateAll();
+                        refreshTypes();
+                        break;
+                    }
+                }
+            }
+        });
+    }
 
     /** Creates a new instance backed by the given {@code database}. */
     public DatabaseEnvironment(Database database, boolean initializeClasses) {
