@@ -13,12 +13,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -549,7 +551,8 @@ public class SourceFilter extends AbstractFilter {
         StandardJavaFileManager fileManager = COMPILER.getStandardFileManager(null, null, null);
         Set<JavaFileObject> newSourceFiles = new HashSet<JavaFileObject>();
         Map<JavaFileObject, String> expectedOutputFiles = new HashMap<JavaFileObject, String>();
-        Map<String, Date> newClasses = new HashMap<String, Date>();
+        Map<String, Date> notRedefinedClasses = new HashMap<String, Date>();
+        List<ClassDefinition> toBeRedefined = new ArrayList<ClassDefinition>();
 
         try {
             fileManager.setLocation(StandardLocation.SOURCE_PATH, javaSourcesSet);
@@ -624,7 +627,6 @@ public class SourceFilter extends AbstractFilter {
 
                     } else {
                         Set<Class<? extends ClassEnhancer>> enhancerClasses = ObjectUtils.findClasses(ClassEnhancer.class);
-                        Instrumentation instrumentation = CodeUtils.getInstrumentation();
 
                         for (JavaFileObject outputFile : fileManager.list(
                                 StandardLocation.CLASS_OUTPUT,
@@ -655,26 +657,32 @@ public class SourceFilter extends AbstractFilter {
                                 output.close();
                             }
 
-                            // Try to redefine the classes in place.
-                            REDEFINE: {
+                            String outputClassName = fileManager.inferBinaryName(StandardLocation.CLASS_OUTPUT, outputFile);
+                            notRedefinedClasses.put(outputClassName, new Date(outputFile.getLastModified()));
 
-                                String outputClassName = fileManager.inferBinaryName(StandardLocation.CLASS_OUTPUT, outputFile);
-                                if (instrumentation != null) {
-
-                                    Class<?> outputClass = ObjectUtils.getClassByName(outputClassName);
-                                    if (outputClass != null) {
-                                        try {
-                                            instrumentation.redefineClasses(new ClassDefinition(outputClass, bytecode));
-                                            LOGGER.info("Redefined [{}]", outputClassName);
-                                            break REDEFINE;
-                                        } catch (Exception ex) {
-                                        }
-                                    }
-                                }
-
-                                newClasses.put(outputClassName, new Date(outputFile.getLastModified()));
-                                LOGGER.info("Can't redefine [{}]", outputClassName);
+                            Class<?> outputClass = ObjectUtils.getClassByName(outputClassName);
+                            if (outputClass != null) {
+                                toBeRedefined.add(new ClassDefinition(outputClass, bytecode));
                             }
+                        }
+
+                        // Try to redefine the classes in place.
+                        List<ClassDefinition> failures = CodeUtils.redefineClasses(toBeRedefined);
+                        toBeRedefined.removeAll(failures);
+
+                        for (ClassDefinition success : toBeRedefined) {
+                            notRedefinedClasses.remove(success.getDefinitionClass().getName());
+                        }
+
+                        if (!failures.isEmpty() && LOGGER.isInfoEnabled()) {
+                            StringBuilder messageBuilder = new StringBuilder();
+                            messageBuilder.append("Can't redefine [");
+                            for (ClassDefinition failure : failures) {
+                                messageBuilder.append(failure.getDefinitionClass().getName());
+                                messageBuilder.append(", ");
+                            }
+                            messageBuilder.setLength(messageBuilder.length() - 2);
+                            messageBuilder.append("]!");
                         }
                     }
                 }
@@ -685,7 +693,7 @@ public class SourceFilter extends AbstractFilter {
         }
 
         // Remember all classes that's changed but not yet redefined.
-        changedClasses.putAll(newClasses);
+        changedClasses.putAll(notRedefinedClasses);
         return null;
     }
 
