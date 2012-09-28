@@ -152,7 +152,7 @@ To save a Dari object to the underlying database storage call the
     article.setImage(image)
     article.save();
 
-To delete a Dari object fro the underlying database storage call the
+To delete a Dari object from the underlying database storage call the
 [delete()](javadocs/com/psddev/dari/db/Record.html#delete%28%29) method on the object.
 
 
