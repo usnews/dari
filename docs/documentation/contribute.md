@@ -18,4 +18,4 @@ issue tracker.
 ### Get Involved
 
 Fork the source code from [Github](http://github.com/perfectsense/dari) and
-send use a pull request!
+send us a pull request!
