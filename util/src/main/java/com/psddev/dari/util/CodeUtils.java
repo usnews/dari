@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
+import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
@@ -531,6 +532,78 @@ public class CodeUtils {
      */
     public static Instrumentation getInstrumentation() {
         return INSTRUMENTATION;
+    }
+
+    /**
+     * For receiving notifications when classes are redefined through
+     * {@link #redefineClasses}.
+     */
+    public static interface RedefineClassesListener {
+        public void redefined(Set<Class<?>> classes);
+    }
+
+    private static final Set<RedefineClassesListener> REDEFINE_CLASSES_LISTENERS = new HashSet<RedefineClassesListener>();
+
+    /**
+     * Adds the given {@code listener} to be notified when classes
+     * are redefined through {@link #redefineClasses}.
+     *
+     * @param listener If {@code null}, does nothing.
+     */
+    public static void addRedefineClassesListener(RedefineClassesListener listener) {
+        if (listener != null) {
+            REDEFINE_CLASSES_LISTENERS.add(listener);
+        }
+    }
+
+    /**
+     * Removes the given {@code listener} so that it's no longer notified
+     * when classes are redefined through {@link #redefineClasses}.
+     *
+     * @param listener If {@code null}, does nothing.
+     */
+    public static void removeRedefineClassesListener(RedefineClassesListener listener) {
+        if (listener != null) {
+            REDEFINE_CLASSES_LISTENERS.remove(listener);
+        }
+    }
+
+    /**
+     * Redefines all classes according to the given {@code definitions}.
+     *
+     * @return Definitions that failed to redefine the class.
+     * @see Instrumentation#redefineClasses
+     */
+    public static List<ClassDefinition> redefineClasses(List<ClassDefinition> definitions) {
+        Set<Class<?>> successes = new HashSet<Class<?>>();
+        List<ClassDefinition> failures = new ArrayList<ClassDefinition>();
+        Instrumentation instrumentation = getInstrumentation();
+
+        if (instrumentation == null) {
+            failures.addAll(definitions);
+
+        } else {
+            for (ClassDefinition definition : definitions) {
+                try {
+                    instrumentation.redefineClasses(definition);
+                    Class<?> c = definition.getDefinitionClass();
+                    successes.add(c);
+
+                } catch (Exception error) {
+                    failures.add(definition);
+                }
+            }
+        }
+
+        if (!successes.isEmpty()) {
+            LOGGER.info("Redefined {}", successes);
+
+            for (RedefineClassesListener listener : REDEFINE_CLASSES_LISTENERS) {
+                listener.redefined(successes);
+            }
+        }
+
+        return failures;
     }
 
     public static String getJspServletPath(String className) {
