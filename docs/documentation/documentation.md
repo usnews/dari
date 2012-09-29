@@ -24,8 +24,10 @@ world. We hope you enjoy working with it as much as we do.
 ### Getting Started
 
 Dari provides a Maven archetype to help you quickly set up a new web
-application. After running the following command in a terminal, you'll
-have a project directory named after the `artifacedId` you provided.
+application. Replace the value for `groupId` with your company name, and the
+value for `artifactId` with your project's name. After running the following
+command in a terminal, you'll have a project directory named after the
+`artifactId` you provided.
 
     mvn archetype:generate -B \
         -DarchetypeRepository=http://public.psddev.com/maven \
@@ -57,10 +59,10 @@ as its default database.
 
 As part of the Dari distribution you are provided with a suite of debugging
 tools that will aide you in the development process. They can all be accessed
-from your browser at **http://localhost:8080/_debug/** and individually by appending
-the tool name to the end of the URL. A few key ones referenced in this tutorial
-are outlined below. For a full detailed list refer to the **debugging tools**
-section of the documentation.
+from your browser at **http://localhost:8080/_debug/** and individually by
+appending the tool name to the end of the URL. A few key ones referenced in
+this tutorial are outlined below. To get back to the debugging tools landing
+page, click the Dari logo in the top left corner of page.
 
 code
 : Execute arbitrary blocks of code, create new Java files, and edit existing
@@ -175,16 +177,7 @@ public class User extends Record {
 {% endhighlight %}
 
 All Dari objects must extend `com.psddev.dari.db.Record`. This is all that is
-needed to start persisting object data.
-
-In order for Dari to recognize newly created classes we have to reload the
-application.  This can be done without restarting the server by adding the
-parameter `_reload=true` to the current browser location and reloading the page
-like so:
-
-    http://localhost:8080/_debug/?_reload=true
-
-Dari is now aware of our new data model.  Lets see the visual representation of
+needed to start persisting object data. Lets see the visual representation of
 it using the **db-schema** debug tool. Once there select `demo.poll.Poll` and
 `demo.poll.User` from the dropdown and click View.  This is exactly what we
 expect so lets move on.
@@ -330,26 +323,6 @@ public class User extends Record {
     extra potentially unnecessary rows in the underlying database and can lead
     to poor performance in systems with large amounts of data. Only add the
     annotation to fields that you think you will query on.</p>
-</div>
-
-Before re-running our query we need to once again trigger the reloader to make
-sure Dari picks up our changes.  Add the `_reload=true` parameter to your current
-URL again like so:
-
-    http://localhost:8080/_debug/?_reload=true
-
-<div class="alert alert-block">
-    <strong>NOTE:</strong>
-    <p>With Dari, when you make changes to your code, it is compiled
-    automatically and reflected on the server.  Some changes require the
-    entire application to reload in order to reflect them properly, while
-    others do not and will be reflected immediately.  Changes that affect
-    Dari's internal representation of your classes but don't trigger an
-    application reload will cause Dari not to see those changes.  Adding new
-    Java files and adding annotations to fields are 2 such examples of this
-    which is why we must resort to manually reloading the app.  Most other
-    times reloading will happen automatically and there's no additional
-    effort on your part.</p>
 </div>
 
 Now let's try to re-run our query. (Don't forget to select User from dropdown
