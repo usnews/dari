@@ -16,10 +16,10 @@ application. It’s also the most difficult and frustrating, because the current
 generation of data access frameworks don’t do enough to provide you with all
 the information necessary to let you be productive as possible.
 
-Dari was created at PERFECT SENSE digital to make our work in handling data for
-a variety of clients in different industries easier and more efficient. We
-wanted to create a comprehensive toolset that spans every aspect of how data
-flows throughout your application.
+Dari was created at [PERFECT SENSE digital](http://www.perfectsensedigital.com/)
+to make our work in handling data for a variety of clients in different
+industries easier and more efficient. We wanted to create a comprehensive
+toolset that spans every aspect of how data flows throughout your application.
 
 This is the fruit of our work so far, and we wanted to share it with the world.
 We hope you enjoy working with it as much as we do.
