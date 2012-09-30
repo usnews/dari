@@ -465,8 +465,7 @@ public class Poll extends Record {
 }
 {% endhighlight %}
 
-Let's check out our updated model with the **db-schema** tool. Remember to
-manually reload the application if it does not do it automatically. Select
+Let's check out our updated model with the **db-schema** tool. Select
 `Poll` and `User Repsonse` from the dropdown. 
 
 ![Poll Example 10](img/tutorial/poll10.png)
