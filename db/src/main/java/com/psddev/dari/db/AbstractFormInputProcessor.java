@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.TypeReference;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -46,5 +47,11 @@ public abstract class AbstractFormInputProcessor implements FormInputProcessor {
         String value = request.getParameter(name);
         value = ObjectUtils.isBlank(value) ? null : value.trim();
         return ObjectUtils.to(returnClass, value);
+    }
+
+    protected <T> T param(TypeReference<T> returnTypeReference, HttpServletRequest request, String name) {
+        String value = request.getParameter(name);
+        value = ObjectUtils.isBlank(value) ? null : value.trim();
+        return ObjectUtils.to(returnTypeReference, value);
     }
 }

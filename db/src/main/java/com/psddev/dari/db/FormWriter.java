@@ -80,7 +80,13 @@ public class FormWriter extends HtmlWriter {
     public void putAllStandardInputProcessors() {
         Map<String, FormInputProcessor> inputProcessors = getInputProcessors();
         inputProcessors.put(ObjectField.BOOLEAN_TYPE, new FormInputProcessor.ForBoolean());
+        inputProcessors.put(ObjectField.DATE_TYPE, new FormInputProcessor.ForDate());
+        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForListRecord());
+        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForListText());
+        inputProcessors.put(ObjectField.NUMBER_TYPE, new FormInputProcessor.ForText());
         inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor.ForRecord());
+        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForSetRecord());
+        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForSetText());
         inputProcessors.put(ObjectField.TEXT_TYPE, new FormInputProcessor.ForText());
     }
 

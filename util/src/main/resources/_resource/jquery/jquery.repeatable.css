@@ -1,0 +1,10 @@
+.repeatable-item,
+.repeatable-template {
+    position: relative;
+}
+
+.repeatable-remove {
+    position: absolute;
+    right: 0;
+    top: 0;
+}
