@@ -84,7 +84,107 @@
 
     </div><!-- /container -->
 
+    <script src="js/jquery-1.8.2.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
+
+<script type="text/javascript">
+(function() {
+
+// Throttles the excution of a function to run at most every set interval.
+var throttle = function(interval, throttledFunction) {
+
+    if (interval <= 0) {
+        return throttledFunction;
+    }
+
+    var lastTrigger = 0;
+    var timeout;
+    var lastArguments;
+    return function() {
+
+        lastArguments = arguments;
+        if (timeout) {
+            return;
+        }
+
+        var context = this;
+        var now = +new Date();
+        var delay = interval - now + lastTrigger;
+
+        if (delay <= 0) {
+            lastTrigger = now;
+            throttledFunction.apply(context, lastArguments);
+
+        } else {
+            timeout = setTimeout(function() {
+                lastTrigger = now;
+                timeout = null;
+                throttledFunction.apply(context, lastArguments);
+            }, delay);
+        }
+    };
+};
+
+// Make sure that most elements are always in view.
+var $window = $(window);
+var lastScrollTop = $window.scrollTop();
+$window.scroll(throttle(100, function() {
+
+    var scrollTop = $window.scrollTop();
+    $('.dari-docs-sidebar').each(function() {
+
+        var $element = $(this);
+        var elementTop = $element.offset().top;
+        var initialElementTop = $element.data('initialElementTop');
+        if (!initialElementTop) {
+            initialElementTop = elementTop;
+            $element.data('initialElementTop', initialElementTop);
+            $element.css({
+                'position': 'relative',
+                'top': 0
+            });
+        }
+
+        var windowHeight = $window.height();
+        var elementHeight = $element.outerHeight();
+        var alignToTop = function() {
+            $element.stop(true);
+            $element.animate({
+                'top': Math.max(scrollTop, 0)
+            }, 'fast');
+        };
+
+        // The element height is less than the window height,
+        // so there's no need to account for the bottom alignment.
+        if (initialElementTop + elementHeight < windowHeight) {
+            alignToTop();
+        } else {
+
+            // The user is scrolling down.
+            if (lastScrollTop < scrollTop) {
+                var windowBottom = scrollTop + windowHeight;
+                var elementBottom = elementTop + elementHeight;
+                if (windowBottom > elementBottom) {
+                    $element.stop(true);
+                    $element.animate({
+                        'top': Math.min(windowBottom, $('body').height()) - elementHeight - initialElementTop
+                    }, 'fast');
+                }
+
+            // The user is scrolling up.
+            } else if (lastScrollTop > scrollTop) {
+                if (elementTop > scrollTop + initialElementTop) {
+                    alignToTop();
+                }
+            }
+        }
+    });
+
+    lastScrollTop = scrollTop;
+}));
+
+})();
+</script>
 
 </body>
 </html>
