@@ -175,18 +175,15 @@ public interface Database extends SettingsBackedObject {
          * @return Never {@code null}. Mutable.
          */
         public static List<Database> getAll() {
-            List<Database> all = new ArrayList<Database>();
             Map<String, Object> names = Settings.get(new TypeReference<Map<String, Object>>() { }, SETTING_PREFIX);
 
             if (names != null) {
                 for (String name : names.keySet()) {
-                    if (!ObjectUtils.isBlank(name)) {
-                        all.add(getInstance(name));
-                    }
+                    getInstance(name);
                 }
             }
 
-            return all;
+            return new ArrayList<Database>(INSTANCES.values());
         }
 
         /**
