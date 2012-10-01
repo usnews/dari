@@ -282,7 +282,9 @@ public class JsonProcessor {
                 Object item = transformedIterator.next();
                 if (!transformedIterator.hasNext() && transformed == item) {
                     if (!(transformed instanceof Map)) {
-                        transformed = converter.convert(Map.class, transformed);
+                        Map<?, ?> transformedMap = converter.convert(Map.class, transformed);
+                        transformedCache.put(transformed, transformedMap);
+                        transformed = transformedMap;
                     }
                     writeMap(generator, transformedCache, (Map<?, ?>) transformed);
 
