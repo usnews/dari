@@ -4,6 +4,7 @@ import com.psddev.dari.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.ListIterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -431,14 +433,28 @@ public class PredicateParser {
 
             if (keyValue == null) {
                 keyValue = Query.MISSING_VALUE;
+                return compare(state, keyValue, values);
+
+            } else if (keyValue instanceof Iterable) {
+                for (Object item : (Iterable<?>) keyValue) {
+                    if (evaluateOne(state, item, values)) {
+                        return true;
+                    }
+                }
+                return false;
 
             } else {
+                return compare(state, keyValue, values);
+            }
+        }
+
+        private boolean evaluateOne(State state, Object keyValue, List<Object> values) {
+            if (!(keyValue instanceof Recordable || keyValue instanceof UUID)) {
                 Class<?> keyValueClass = keyValue.getClass();
                 for (ListIterator<Object> i = values.listIterator(); i.hasNext(); ) {
                     i.set(ObjectUtils.to(keyValueClass, i.next()));
                 }
             }
-
             return compare(state, keyValue, values);
         }
 
@@ -460,13 +476,25 @@ public class PredicateParser {
 
             } else {
                 for (Object value : values) {
-                    if (keyValue.equals(value)) {
+                    if (getIdOrObject(keyValue).equals(getIdOrObject(value))) {
                         return true;
                     }
                 }
             }
 
             return false;
+        }
+
+        private Object getIdOrObject(Object object) {
+            if (object instanceof Recordable) {
+                return ((Recordable) object).getState().getId();
+
+            } else if (object instanceof State) {
+                return ((State) object).getId();
+
+            } else {
+                return object;
+            }
         }
     }
 
