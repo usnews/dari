@@ -444,7 +444,7 @@ public class PredicateParser {
                 return false;
 
             } else {
-                return compare(state, keyValue, values);
+                return evaluateOne(state, keyValue, values);
             }
         }
 
