@@ -58,6 +58,8 @@ public class ObjectType extends Record implements ObjectStruct {
     private String previewField;
     private boolean isAbstract;
     private boolean isEmbedded;
+    private boolean denormalized;
+    private Set<String> denormalizedFields;
     private Set<String> groups;
     private List<Map<String, Object>> fields;
     private List<Map<String, Object>> indexes;
@@ -333,6 +335,35 @@ public class ObjectType extends Record implements ObjectStruct {
      */
     public void setEmbedded(boolean isEmbedded) {
         this.isEmbedded = isEmbedded;
+    }
+
+    /**
+     * Returns {@code true} if the objects of this type is always denormalized
+     * within other objects.
+     */
+    public boolean isDenormalized() {
+        return denormalized;
+    }
+
+    /**
+     * Sets whether the objects of this type is always denormalized
+     * within other objects.
+     */
+    public void setDenormalized(boolean denormalized) {
+        this.denormalized = denormalized;
+    }
+
+    /** Returns the set of all denormalized field names. */
+    public Set<String> getDenormalizedFields() {
+        if (denormalizedFields == null) {
+            denormalizedFields = new HashSet<String>();
+        }
+        return denormalizedFields;
+    }
+
+    /** Sets the set of all denormalized field names. */
+    public void setDenormalizedFields(Set<String> denormalizedFields) {
+        this.denormalizedFields = denormalizedFields;
     }
 
     /**

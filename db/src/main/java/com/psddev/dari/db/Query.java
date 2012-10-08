@@ -556,7 +556,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return types;
     }
 
-    private MappedKey mapKey(DatabaseEnvironment environment, String key, boolean embeddedCheck) {
+    private MappedKey mapKey(DatabaseEnvironment environment, String key, boolean checkDenormalized) {
         MappedKey specialMappedKey = SPECIAL_MAPPED_KEYS.get(key);
         if (specialMappedKey != null) {
             return specialMappedKey;
@@ -612,57 +612,35 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                 }
 
                 if (field != null) {
-                    if (embeddedCheck) {
-                        if (hasMore && ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
-                            boolean isEmbedded = field.isEmbedded();
+                    if (hasMore && ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
+                        boolean isEmbedded = field.isEmbedded();
+
+                        if (!isEmbedded) {
+                            for (ObjectType fieldType : fieldTypes) {
+                                if (fieldType.isEmbedded()) {
+                                    isEmbedded = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (checkDenormalized && !isEmbedded) {
+                            isEmbedded = field.isDenormalized();
 
                             if (!isEmbedded) {
                                 for (ObjectType fieldType : fieldTypes) {
-                                    if (fieldType.isEmbedded()) {
+                                    if (fieldType.isDenormalized()) {
                                         isEmbedded = true;
                                         break;
                                     }
                                 }
                             }
-
-                            if (!isEmbedded) {
-                                hasMore = false;
-                                subQueryTypes = fieldTypes;
-                                subQueryKey = keyRest;
-                            }
                         }
 
-                    } else {
-                        boolean isEmbedded = false;
-
-                        if (hasMore && ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
-                            isEmbedded = field.isEmbedded();
-
-                            if (!isEmbedded) {
-                                for (ObjectType fieldType : fieldTypes) {
-                                    if (fieldType.isEmbedded()) {
-                                        isEmbedded = true;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (!isEmbedded) {
-                                hasMore = false;
-                                subQueryTypes = fieldTypes;
-                                subQueryKey = keyRest;
-                            }
-                        }
-
-                        if (!isEmbedded &&
-                                fields == null &&
-                                !ObjectField.RECORD_TYPE.equals(field.getInternalItemType()) &&
-                                fields != null &&
-                                !field.isDenormalized()) {
+                        if (!isEmbedded) {
                             hasMore = false;
                             subQueryTypes = fieldTypes;
                             subQueryKey = keyRest;
-                            break;
                         }
                     }
 
@@ -714,11 +692,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      *         {@code key} isn't indexed.
      */
     public MappedKey mapEmbeddedKey(DatabaseEnvironment environment, String key) {
-        return mapKey(environment, key, true);
+        return mapKey(environment, key, false);
     }
 
     public MappedKey mapDenormalizedKey(DatabaseEnvironment environment, String key) {
-        return mapKey(environment, key, false);
+        return mapKey(environment, key, true);
     }
 
     public interface MappedKey {

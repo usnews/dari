@@ -8,6 +8,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -67,9 +68,10 @@ public interface Recordable {
     @Inherited
     @ObjectField.AnnotationProcessorClass(DenormalizedProcessor.class)
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
+    @Target({ ElementType.FIELD, ElementType.TYPE })
     public @interface Denormalized {
         boolean value() default true;
+        String[] fields() default { };
     }
 
     /** Specifies the target's display name. */
@@ -466,10 +468,20 @@ class CollectionMinimumProcessor implements ObjectField.AnnotationProcessor<Anno
     }
 }
 
-class DenormalizedProcessor implements ObjectField.AnnotationProcessor<Recordable.Denormalized> {
+class DenormalizedProcessor implements
+        ObjectField.AnnotationProcessor<Recordable.Denormalized>,
+        ObjectType.AnnotationProcessor<Recordable.Denormalized> {
+
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.Denormalized annotation) {
         field.setDenormalized(annotation.value());
+        Collections.addAll(field.getDenormalizedFields(), annotation.fields());
+    }
+
+    @Override
+    public void process(ObjectType type, Recordable.Denormalized annotation) {
+        type.setDenormalized(annotation.value());
+        Collections.addAll(type.getDenormalizedFields(), annotation.fields());
     }
 }
 
@@ -477,12 +489,8 @@ class DenormalizedFieldsProcessor implements ObjectType.AnnotationProcessor<Anno
     @Override
     @SuppressWarnings({ "all", "deprecation" })
     public void process(ObjectType type, Annotation annotation) {
-        for (String fieldName : ((Recordable.DenormalizedFields) annotation).value()) {
-            ObjectField field = type.getField(fieldName);
-            if (field != null) {
-                field.setDenormalized(true);
-            }
-        }
+        type.setDenormalized(true);
+        Collections.addAll(type.getDenormalizedFields(), ((Recordable.DenormalizedFields) annotation).value());
     }
 }
 

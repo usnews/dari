@@ -5,6 +5,7 @@ import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.TypeReference;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
@@ -107,6 +108,7 @@ public class ObjectField extends Record {
     private static final String INTERNAL_NAME_KEY = "name";
     private static final String INTERNAL_TYPE_KEY = "type";
     private static final String IS_DENORMALIZED_KEY = "isDenormalized";
+    private static final String DENORMALIZED_FIELDS_KEY = "denormalizedFields";
     private static final String IS_EMBEDDED_KEY = "isEmbedded";
     private static final String IS_REQUIRED_KEY = "isRequired";
     private static final String MINIMUM_KEY = "minimum";
@@ -136,6 +138,7 @@ public class ObjectField extends Record {
     private String internalType;
 
     private boolean isDenormalized;
+    private Set<String> denormalizedFields;
     private boolean isEmbedded;
     private boolean isRequired;
     private Number minimum;
@@ -209,6 +212,7 @@ public class ObjectField extends Record {
         internalName = (String) definition.remove(INTERNAL_NAME_KEY);
         internalType = (String) definition.remove(INTERNAL_TYPE_KEY);
         isDenormalized = Boolean.TRUE.equals(definition.remove(IS_DENORMALIZED_KEY));
+        denormalizedFields = ObjectUtils.to(new TypeReference<Set<String>>() { }, definition.remove(DENORMALIZED_FIELDS_KEY));
         isEmbedded = Boolean.TRUE.equals(definition.remove(IS_EMBEDDED_KEY));
         isRequired = Boolean.TRUE.equals(definition.remove(IS_REQUIRED_KEY));
         minimum = (Number) definition.remove(MINIMUM_KEY);
@@ -276,6 +280,7 @@ public class ObjectField extends Record {
         definition.put(INTERNAL_NAME_KEY, internalName);
         definition.put(INTERNAL_TYPE_KEY, internalType);
         definition.put(IS_DENORMALIZED_KEY, isDenormalized);
+        definition.put(DENORMALIZED_FIELDS_KEY, denormalizedFields);
         definition.put(IS_EMBEDDED_KEY, isEmbedded);
         definition.put(IS_REQUIRED_KEY, isRequired);
         definition.put(MINIMUM_KEY, minimum);
@@ -369,6 +374,57 @@ public class ObjectField extends Record {
     /** Sets whether the field value should be denormalized. */
     public void setDenormalized(boolean isDenormalized) {
         this.isDenormalized = isDenormalized;
+    }
+
+    /**
+     * Returns the set of all field names that should be denormalized
+     * within this field value.
+     */
+    public Set<String> getDenormalizedFields() {
+        if (denormalizedFields == null) {
+            denormalizedFields = new HashSet<String>();
+        }
+        return denormalizedFields;
+    }
+
+    /**
+     * Returns the effective set of all field names that should be
+     * denormalized within this field value.
+     */
+    public Set<ObjectField> getEffectiveDenormalizedFields(ObjectType valueType) {
+        Set<ObjectField> denormalizedFields = null;
+
+        if (valueType != null) {
+            Set<String> denormalizedFieldNames =
+                    isDenormalized() ? getDenormalizedFields() :
+                    valueType.isDenormalized() ? valueType.getDenormalizedFields() :
+                    null;
+
+            if (denormalizedFieldNames != null) {
+                denormalizedFields = new HashSet<ObjectField>();
+
+                for (String fieldName : denormalizedFieldNames) {
+                    ObjectField field = valueType.getField(fieldName);
+                    if (field != null) {
+                        denormalizedFields.add(field);
+                    }
+                }
+
+                if (denormalizedFields.isEmpty()) {
+                    denormalizedFields.addAll(valueType.getFields());
+                }
+            }
+        }
+
+        return denormalizedFields;
+    }
+
+    /**
+     * Sets the set of all field names that should be denormalized
+     * within this field value.
+     */
+    public void setDenormalizedFields(Set<String> denormalizedFields) {
+        this.denormalizedFields = denormalizedFields;
     }
 
     /** Returns {@code true} if the field value should be embedded. */

@@ -1310,32 +1310,20 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
                     } else {
                         value = valueId;
+                        Set<ObjectField> denormFields = field.getEffectiveDenormalizedFields(getEnvironment().getTypeById(valueTypeId));
 
-                        ObjectType valueType = getEnvironment().getTypeById(valueTypeId);
-                        if (valueType != null) {
-                            Set<ObjectField> denormFields = null;
-                            for (ObjectField f : valueType.getFields()) {
-                                if (f.isDenormalized()) {
-                                    if (denormFields == null) {
-                                        denormFields = new HashSet<ObjectField>();
-                                    }
-                                    denormFields.add(f);
-                                }
-                            }
-
-                            if (denormFields != null) {
-                                State valueState = State.getInstance(Query.from(Object.class).where("_id = ?", valueId).first());
-                                if (valueState != null) {
-                                    Map<String, Object> valueValues = valueState.getSimpleValues();
-                                    for (ObjectField denormField : denormFields) {
-                                        String denormFieldName = denormField.getInternalName();
-                                        addDocumentValues(
-                                                document,
-                                                allBuilder,
-                                                denormField,
-                                                name + "/" + denormFieldName,
-                                                valueValues.get(denormFieldName));
-                                    }
+                        if (denormFields != null) {
+                            State valueState = State.getInstance(Query.from(Object.class).where("_id = ?", valueId).first());
+                            if (valueState != null) {
+                                Map<String, Object> valueValues = valueState.getSimpleValues();
+                                for (ObjectField denormField : denormFields) {
+                                    String denormFieldName = denormField.getInternalName();
+                                    addDocumentValues(
+                                            document,
+                                            allBuilder,
+                                            denormField,
+                                            name + "/" + denormFieldName,
+                                            valueValues.get(denormFieldName));
                                 }
                             }
                         }
