@@ -10,10 +10,8 @@ import java.util.Set;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 
-/**
- * Map of CGI environment values based on a {@linkplain HttpServletRequest
- * servlet request}.
- */
+/** @deprecated No replacement. */
+@Deprecated
 public class HttpServletRequestMap implements Map<String, String> {
 
     public static final String AUTHORIZATION_KEY = "AUTHORIZATION";
