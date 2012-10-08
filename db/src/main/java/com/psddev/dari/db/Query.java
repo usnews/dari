@@ -632,13 +632,38 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                             }
                         }
 
-                    } else if (!ObjectField.RECORD_TYPE.equals(field.getInternalItemType()) &&
-                            fields != null &&
-                            !field.isDenormalized()) {
-                        hasMore = false;
-                        subQueryTypes = fieldTypes;
-                        subQueryKey = keyRest;
-                        break;
+                    } else {
+                        boolean isEmbedded = false;
+
+                        if (hasMore && ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
+                            isEmbedded = field.isEmbedded();
+
+                            if (!isEmbedded) {
+                                for (ObjectType fieldType : fieldTypes) {
+                                    if (fieldType.isEmbedded()) {
+                                        isEmbedded = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!isEmbedded) {
+                                hasMore = false;
+                                subQueryTypes = fieldTypes;
+                                subQueryKey = keyRest;
+                            }
+                        }
+
+                        if (!isEmbedded &&
+                                fields == null &&
+                                !ObjectField.RECORD_TYPE.equals(field.getInternalItemType()) &&
+                                fields != null &&
+                                !field.isDenormalized()) {
+                            hasMore = false;
+                            subQueryTypes = fieldTypes;
+                            subQueryKey = keyRest;
+                            break;
+                        }
                     }
 
                     if (fields == null) {
