@@ -1,212 +1,204 @@
 package com.psddev.dari.util;
 
 import java.util.*;
-
 import org.junit.*;
 import static org.junit.Assert.*;
 
 public class CascadingMapTest {
 
-    private Map<String, String> _source1;
-    private Map<String, String> _source2;
-    private CascadingMap<String, String> _cascading;
-    private Map<String, String> _combined;
+    private Map<String, String> emptySource;
+    private Map<String, String> source1;
+    private Map<String, String> source2;
+    private List<Map<String, String>> sources;
+    private CascadingMap<String, String> cascading;
+    private Map<String, String> combined;
 
     @Before
     public void before() {
+        emptySource = Collections.emptyMap();
 
-        _source1 = new LinkedHashMap<String, String>();
-        _source1.put("key0", "key0_source1");
-        _source1.put("key1", "key1_source1");
-        _source1.put("null1", null);
+        source1 = new LinkedHashMap<String, String>();
+        source1.put("key0", "key0source1");
+        source1.put("key1", "key1source1");
+        source1.put("null1", null);
 
-        _source2 = new LinkedHashMap<String, String>();
-        _source2.put("key1", "key1_source2");
-        _source2.put("key2", "key2_source2");
-        _source2.put("null2", null);
+        source2 = new LinkedHashMap<String, String>();
+        source2.put("key1", "key1source2");
+        source2.put("key2", "key2source2");
+        source2.put("null2", null);
 
-        _cascading = new CascadingMap<String, String>(
-                Collections.<String, String>emptyMap(), _source1, _source2);
+        sources = new ArrayList<Map<String, String>>();
+        sources.add(emptySource);
+        sources.add(source1);
+        sources.add(source2);
 
-        _combined = new LinkedHashMap<String, String>();
-        _combined.putAll(_source2);
-        _combined.putAll(_source1);
+        cascading = new CascadingMap<String, String>(sources);
+
+        combined = new LinkedHashMap<String, String>();
+        combined.putAll(source2);
+        combined.putAll(source1);
+        combined.putAll(emptySource);
     }
 
     @After
     public void after() {
-        _source1 = null;
-        _source2 = null;
-        _cascading = null;
-        _combined = null;
+        emptySource = null;
+        source1 = null;
+        source2 = null;
+        sources = null;
+        cascading = null;
+        combined = null;
+    }
+
+    @Test
+    public void test_getSources() {
+        assertEquals(sources, cascading.getSources());
     }
 
     @Test(expected = UnsupportedOperationException.class)
     public void test_clear() {
-        _cascading.clear();
+        cascading.clear();
+    }
+    
+    @Test
+    public void test_containsKey_first() {
+    	assertTrue(cascading.containsKey("key0"));
+    }
+    
+    @Test
+    public void test_containsKey_second() {
+    	assertTrue(cascading.containsKey("key2"));
     }
 
-    
-    /**
-     * public boolean containsKey(Object key) {
-     */
-    
-    @Test // make sure a key from the first map is in the cascading
-    public void test_containsKey_first_only() {
-    	assertTrue(_cascading.containsKey("key0"));
-    }
-    
-    @Test // make sure a key from the second map is in the cascading
-    public void test_containsKey_second_only() {
-    	assertTrue(_cascading.containsKey("key2"));
-    }
-
-    @Test // make sure an overridden key is in the cascading
+    @Test
     public void test_containsKey_both() {
-    	assertTrue(_cascading.containsKey("key1"));
+    	assertTrue(cascading.containsKey("key1"));
     }
 
-    @Test // make sure a key in neither map is not in the second
+    @Test
     public void test_containsKey_missing() {
-    	assertFalse(_cascading.containsKey("key3"));
+    	assertFalse(cascading.containsKey("key3"));
     }
-
     
-    /**
-     * public boolean containsValue(Object value) {
-     */
-  
     @Test
-    public void test_containsValue_first_only() {
-        assertTrue(_cascading.containsValue("key0_source1"));
+    public void test_containsValue_first() {
+        assertTrue(cascading.containsValue("key0source1"));
     }
 
     @Test
-    public void test_containsValue_second_only() {
-        assertTrue(_cascading.containsValue("key2_source2"));
+    public void test_containsValue_second() {
+        assertTrue(cascading.containsValue("key2source2"));
     }
 
-    @Test // The first map on the list overrides the second map on the list
+    @Test
     public void test_containsValue_both() {
-    	System.out.println("values: " + _cascading.values());
-        assertTrue(_cascading.containsValue("key1_source1"));
+        assertTrue(cascading.containsValue("key1source1"));
     }
 
     @Test
     public void test_containsValue_overridden() {
-        assertTrue(_cascading.containsValue("key1_source1"));
-        assertFalse(_cascading.containsValue("key1_source2"));
+        assertFalse(cascading.containsValue("key1source2"));
     }
 
     @Test
     public void test_containsValue_unknown() {
-        assertFalse(_cascading.containsValue("unknown value"));
+        assertFalse(cascading.containsValue("unknown"));
     }
 
-    
-    /**
-     * public Set<Map.Entry<K, V>> entrySet()
-     */
+    @Test
+    public void test_containsValue_null() {
+        assertTrue(cascading.containsValue(null));
+    }
     
     @Test
     public void test_entrySet() {
-        assertEquals(_combined.entrySet(), _cascading.entrySet());
+        assertEquals(combined.entrySet(), cascading.entrySet());
     }
-
-    
-    /**
-     * public V get(Object key)
-     */
     
     @Test
-    public void test_get_first_only() {
-        assertEquals(_source1.get("key0"), _cascading.get("key0"));
+    public void test_get_first() {
+        assertEquals(source1.get("key0"), cascading.get("key0"));
     }
 
     @Test
-    public void test_get_second_only() {
-        assertEquals(_source2.get("key2"), _cascading.get("key2"));
+    public void test_get_second() {
+        assertEquals(source2.get("key2"), cascading.get("key2"));
     }
 
     @Test
     public void test_get_overridden() {
-        assertEquals(_source1.get("key1"), _cascading.get("key1"));
+        assertEquals(source1.get("key1"), cascading.get("key1"));
     }
 
     @Test
     public void test_get_unknown() {
-        assertEquals(_source1.get("keyUnknown"), _cascading.get("keyUnknown"));
+        assertEquals(source1.get("unknown"), cascading.get("unknown"));
     }
 
-    
-    /**
-     * public boolean isEmpty()
-     */
+    @Test
+    public void test_get_missing() {
+        assertEquals(null, cascading.get("missing"));
+    }
     
     @Test
     public void test_isEmpty_false() {
-        assertFalse(_cascading.isEmpty());
+        assertFalse(cascading.isEmpty());
     }
     
     @Test
     public void test_isEmpty_true() {
-        assertTrue((new CascadingMap<String, String>(Collections.<String, String>emptyMap())).isEmpty());
+        assertTrue(new CascadingMap<String, String>().isEmpty());
     }
 
-    /**
-     * public Set<K> keySet()
-     */
-    
     @Test
     public void test_keySet() {
-        assertEquals(_combined.keySet(), _cascading.keySet());
+        assertEquals(combined.keySet(), cascading.keySet());
     }
 
     @Test
     public void test_keySet_empty() {
-        assertEquals(Collections.<String>emptySet(), (new CascadingMap<String, String>(Collections.<String, String>emptyMap())).keySet());
+        assertEquals(Collections.<String>emptySet(), new CascadingMap<String, String>().keySet());
     }
-
 
     @Test(expected = UnsupportedOperationException.class)
     public void test_put() {
-        _cascading.put("foo", "bar");
+        cascading.put("foo", "bar");
     }
 
     @Test(expected = UnsupportedOperationException.class)
     public void test_putAll() {
-        _cascading.putAll(Collections.<String, String>emptyMap());
+        cascading.putAll(emptySource);
     }
 
     @Test(expected = UnsupportedOperationException.class)
     public void test_remove() {
-        _cascading.remove("foo");
+        cascading.remove("foo");
     }
 
-    /**
-     * public int size()
-     */
-    
     @Test
     public void test_size() {
-        assertEquals(_combined.size(), _cascading.size());
-    }
-    @Test
-    public void test_size_0() {
-        assertEquals(0, (new CascadingMap<String, String>(Collections.<String, String>emptyMap())).size());
+        assertEquals(combined.size(), cascading.size());
     }
 
-    /**
-     * public Collection<V> values()
-     */
     @Test
-    public void test_values() {
-        Set<String> keys = _cascading.keySet();
-        Collection<String> values = _cascading.values();
+    public void test_size_0() {
+        assertEquals(0, new CascadingMap<String, String>().size());
+    }
+
+    @Test
+    public void test_values_size() {
+        Set<String> keys = cascading.keySet();
+        Collection<String> values = cascading.values();
+
         assertEquals(keys.size(), values.size());
-        for (Iterator<String> ki = keys.iterator(), vi = values.iterator();
-                ki.hasNext() && vi.hasNext(); ) {
-            assertEquals(_cascading.get(ki.next()), vi.next());
+
+        for (Iterator<String> ki = keys.iterator(), vi = values.iterator(); ki.hasNext() && vi.hasNext(); ) {
+            assertEquals(cascading.get(ki.next()), vi.next());
         }
+    }
+
+    @Test
+    public void test_equals() {
+        assertEquals(combined, cascading);
     }
 }

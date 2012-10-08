@@ -1,44 +1,81 @@
 package com.psddev.dari.util;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Read-only map implementation that combines entries from multiple maps. */
+/**
+ * Combined and read-only view of multiple maps.
+ *
+ * <p>This class is thread-safe as long as the underlying source maps
+ * are thread-safe.</p>
+ */
 public class CascadingMap<K, V> implements Map<K, V> {
 
-    private final List<Map<K, V>>
-            _sources = new CopyOnWriteArrayList<Map<K, V>>();
-
-    /**
-     * Returns a modifiable list of all the sources that are used to query
-     * the entries. Items earlier in the list are queried first.
-     */
-    public List<Map<K, V>> getSources() {
-        return _sources;
-    }
+    private final List<Map<K, V>> sources = new CopyOnWriteArrayList<Map<K, V>>();
 
     /** Creates an instance without any sources. */
     public CascadingMap() {
     }
 
-    /** Creates an instance with the given array of {@code sources}. */
-    public CascadingMap(Map<K, V>... sources) {
-        for (Map<K, V> source : sources) {
-            _sources.add(source);
+    /**
+     * Creates an instance with the given {@code sources}.
+     *
+     * @param sources If {@code null}, creates an instance without any sources.
+     */
+    public CascadingMap(Iterable<Map<K, V>> sources) {
+        if (sources != null) {
+            for (Map<K, V> source : sources) {
+                this.sources.add(source);
+            }
         }
+    }
+
+    /**
+     * Creates an instance with the given array of {@code sources}.
+     *
+     * @param sources If {@code null}, creates an instance without any sources.
+     */
+    public CascadingMap(Map<K, V>... sources) {
+        if (sources != null) {
+            for (Map<K, V> source : sources) {
+                this.sources.add(source);
+            }
+        }
+    }
+
+    /**
+     * Returns the list of all sources that are used to look up the entries.
+     *
+     * <p>Maps earlier in the list are used first.</p>
+     *
+     * @return Never {@code null}. Mutable.
+     */
+    public List<Map<K, V>> getSources() {
+        return sources;
     }
 
     // Combines all the sources, for when an unified view is required.
     private Map<K, V> combine() {
-        Map<K, V> combined = new HashMap<K, V>();
-        for (int i = _sources.size() - 1; i >= 0; -- i) {
-            combined.putAll(_sources.get(i));
+
+        // The listIterator method without index argument of sources.size() - 1
+        // is used, because it's possible for the size to change between that
+        // get and calling the listIterator.
+        ListIterator<Map<K, V>> iterator = sources.listIterator();
+        while (iterator.hasNext()) {
+            iterator.next();
         }
-        return combined;
+
+        Map<K, V> combined = new HashMap<K, V>();
+        while (iterator.hasPrevious()) {
+            combined.putAll(iterator.previous());
+        }
+        return Collections.unmodifiableMap(combined);
     }
 
     // --- Map support ---
@@ -50,7 +87,7 @@ public class CascadingMap<K, V> implements Map<K, V> {
 
     @Override
     public boolean containsKey(Object key) {
-        for (Map<K, V> source : _sources) {
+        for (Map<K, V> source : sources) {
             if (source.containsKey(key)) {
                 return true;
             }
@@ -70,7 +107,7 @@ public class CascadingMap<K, V> implements Map<K, V> {
 
     @Override
     public V get(Object key) {
-        for (Map<K, V> source : _sources) {
+        for (Map<K, V> source : sources) {
             if (source.containsKey(key)) {
                 return source.get(key);
             }
@@ -80,7 +117,7 @@ public class CascadingMap<K, V> implements Map<K, V> {
 
     @Override
     public boolean isEmpty() {
-        for (Map<K, V> source : _sources) {
+        for (Map<K, V> source : sources) {
             if (!source.isEmpty()) {
                 return false;
             }
@@ -122,12 +159,17 @@ public class CascadingMap<K, V> implements Map<K, V> {
 
     @Override
     public boolean equals(Object object) {
-        return this == object
-                || (object instanceof Map && combine().equals(object));
+        return this == object ||
+                (object instanceof Map && combine().equals(object));
     }
 
     @Override
     public int hashCode() {
         return combine().hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return combine().toString();
     }
 }
