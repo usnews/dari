@@ -183,7 +183,7 @@ public class DistributedLock implements Lock {
                         using(database).
                         first());
                 if (key != null && lockId.equals(key.get("lockId"))) {
-                    key.delete();
+                    key.deleteImmediately();
                 }
 
             } finally {

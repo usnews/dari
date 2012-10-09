@@ -1378,6 +1378,21 @@ public class State implements Map<String, Object> {
         getDatabase().delete(this);
     }
 
+    /**
+     * Deletes this state {@linkplain Database#beginIsolatedWrites immediately}
+     * from the {@linkplain #getDatabase originating database}.
+     */
+    public void deleteImmediately() {
+        Database database = getDatabase();
+        database.beginIsolatedWrites();
+        try {
+            database.delete(this);
+            database.commitWrites();
+        } finally {
+            database.endWrites();
+        }
+    }
+
     // --- Deprecated ---
 
     /** @deprecated Use {@link #getSimpleValues} instead. */
