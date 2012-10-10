@@ -129,35 +129,25 @@ public class AmazonStorageItem extends AbstractStorageItem {
                     List<String> values = entry.getValue();
 
                     if (values != null && !values.isEmpty()) {
+                        String value = values.get(0);
+
                         if (key.equalsIgnoreCase("Content-Disposition")) {
-                            for (String value : values) {
-                                object.setContentDisposition(value);
-                                break;
-                            }
+                            object.setContentDisposition(value);
 
                         } else if (key.equalsIgnoreCase("Content-Language")) {
-                            for (String value : values) {
-                                object.setContentLanguage(value);
-                                break;
-                            }
+                            object.setContentLanguage(value);
 
                         } else if (key.equalsIgnoreCase("Content-Length")) {
-                            for (String value : values) {
-                                object.setContentLength(ObjectUtils.to(long.class, value));
-                                break;
-                            }
+                            object.setContentLength(ObjectUtils.to(long.class, value));
 
                         } else if (key.equalsIgnoreCase("Content-Encoding")) {
-                            for (String value : values) {
-                                object.setContentEncoding(value);
-                                break;
-                            }
+                            object.setContentEncoding(value);
 
                         } else if (key.equalsIgnoreCase("Content-Type")) {
-                            for (String value : values) {
-                                object.setContentType(value);
-                                break;
-                            }
+                            object.setContentType(value);
+
+                        } else {
+                            object.addMetadata(key, value);
                         }
                     }
                 }
