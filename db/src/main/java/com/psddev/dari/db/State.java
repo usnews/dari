@@ -54,7 +54,7 @@ public class State implements Map<String, Object> {
     private Map<String, Object> extras;
     private List<AtomicOperation> atomicOperations;
     private Map<ObjectField, List<String>> errors;
-    private int flags;
+    private volatile int flags;
 
     /**
      * Returns the state associated with the given {@code object}.
@@ -938,9 +938,17 @@ public class State implements Map<String, Object> {
             return;
         }
 
-        flags |= IS_ALL_RESOLVED_FLAG;
+        synchronized (this) {
+            if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+                return;
+            }
 
-        if (!linkedObjects.isEmpty()) {
+            flags |= IS_ALL_RESOLVED_FLAG;
+
+            if (linkedObjects.isEmpty()) {
+                return;
+            }
+
             Object object = linkedObjects.values().iterator().next();
             Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values());
             Map<String, Object> resolved = new HashMap<String, Object>();
