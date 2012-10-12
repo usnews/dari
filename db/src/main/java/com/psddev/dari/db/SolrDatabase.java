@@ -662,7 +662,11 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         @Override
         protected void addValue(StringBuilder comparisonBuilder, String solrField, Object value) {
             if (value == Query.MISSING_VALUE) {
-                comparisonBuilder.append("(*:* && -[* TO *])");
+                if (solrField.startsWith("_g_")) {
+                    comparisonBuilder.append("(*:* && -[-90,-180 TO 90,180])");
+                } else {
+                    comparisonBuilder.append("(*:* && -[* TO *])");
+                }
             } else {
                 addNonMissingValue(comparisonBuilder, solrField, value);
             }
