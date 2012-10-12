@@ -908,7 +908,16 @@ public abstract class AbstractDatabase<C> implements Database {
                             duplicateQuery.and(indexPrefix + fields.get(j) + " = ?", values[j]);
                         }
 
-                        Object duplicate = duplicateQuery.first();
+                        Object duplicate;
+                        boolean ignore = Database.Static.isIgnoreReadConnection();
+
+                        try {
+                            Database.Static.setIgnoreReadConnection(true);
+                            duplicate = duplicateQuery.first();
+                        } finally {
+                            Database.Static.setIgnoreReadConnection(ignore);
+                        }
+
                         if (duplicate == null) {
                             if (!beforeLocks) {
                                 continue;
