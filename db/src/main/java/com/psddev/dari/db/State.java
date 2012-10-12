@@ -9,6 +9,7 @@ import com.psddev.dari.util.UuidUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -1070,7 +1071,7 @@ public class State implements Map<String, Object> {
                 }
             }
 
-            Object converted = ObjectUtils.to(javaFieldType, value);
+            Object converted = javaFieldType instanceof TypeVariable ? value : ObjectUtils.to(javaFieldType, value);
             javaField.set(object, converted);
 
             if (converted == null) {
