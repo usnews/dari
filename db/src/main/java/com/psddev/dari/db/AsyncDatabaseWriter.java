@@ -20,8 +20,8 @@ public class AsyncDatabaseWriter<E> extends AsyncConsumer<E> {
     private double commitSizeJitter = DEFAULT_COMMIT_SIZE_JITTER;
 
     private transient int nextCommitSize;
-    private transient State lastState;
-    private final transient List<State> states = new ArrayList<State>();
+    private transient E lastItem;
+    private final transient List<E> toBeCommitted = new ArrayList<E>();
 
     /**
      * Creates a new instance that runs in the given {@code executor},
@@ -81,21 +81,47 @@ public class AsyncDatabaseWriter<E> extends AsyncConsumer<E> {
     // Commits all pending writes.
     private void commit() {
         try {
-            database.beginWrites();
+            try {
+                database.beginWrites();
 
-            for (State state : states) {
-                operation.execute(database, state);
+                for (E item : toBeCommitted) {
+                    operation.execute(database, State.getInstance(item));
+                }
+
+                if (isCommitEventually) {
+                    database.commitWritesEventually();
+                } else {
+                    database.commitWrites();
+                }
+
+            } finally {
+                database.endWrites();
             }
 
-            if (isCommitEventually) {
-                database.commitWritesEventually();
-            } else {
-                database.commitWrites();
+        // Can't write in batch so try one by one.
+        } catch (Exception error1) {
+            for (E item : toBeCommitted) {
+                try {
+                    database.beginWrites();
+
+                    operation.execute(database, State.getInstance(item));
+
+                    if (isCommitEventually) {
+                        database.commitWritesEventually();
+                    } else {
+                        database.commitWrites();
+                    }
+
+                } catch (Exception error2) {
+                    handleError(item, error2);
+
+                } finally {
+                    database.endWrites();
+                }
             }
 
         } finally {
-            states.clear();
-            database.endWrites();
+            toBeCommitted.clear();
         }
     }
 
@@ -114,9 +140,9 @@ public class AsyncDatabaseWriter<E> extends AsyncConsumer<E> {
 
     @Override
     protected void consume(E item) {
-        lastState = State.getInstance(item);
-        states.add(lastState);
-        if (states.size() >= nextCommitSize) {
+        lastItem = item;
+        toBeCommitted.add(item);
+        if (toBeCommitted.size() >= nextCommitSize) {
             calculateNextCommitSize();
             commit();
         }
@@ -127,10 +153,10 @@ public class AsyncDatabaseWriter<E> extends AsyncConsumer<E> {
         super.finished();
         commit();
 
-        if (lastState != null) {
+        if (lastItem != null) {
             database.beginWrites();
             try {
-                operation.execute(database, lastState);
+                operation.execute(database, State.getInstance(lastItem));
                 database.commitWrites();
             } finally {
                 database.endWrites();
