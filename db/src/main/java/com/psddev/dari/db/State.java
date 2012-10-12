@@ -1072,7 +1072,12 @@ public class State implements Map<String, Object> {
             }
 
             Object converted = javaFieldType instanceof TypeVariable ? value : ObjectUtils.to(javaFieldType, value);
-            javaField.set(object, converted);
+
+            try {
+                javaField.set(object, converted);
+            } catch (IllegalArgumentException error) {
+                converted = null;
+            }
 
             if (converted == null) {
                 rawValues.put("dari.trash." + key, value);
