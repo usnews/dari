@@ -175,7 +175,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         public final Set<String> addPrefixes;
         public final Set<String> setPrefixes;
 
-        private SolrField(String facetPrefix, String searchPrefix, String sortPrefix) {
+        public SolrField(String facetPrefix, String searchPrefix, String sortPrefix, boolean allMultiValued) {
             this.facetPrefix = facetPrefix;
             this.searchPrefix = searchPrefix;
             this.sortPrefix = sortPrefix;
@@ -183,12 +183,22 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             Set<String> addPrefixes = new HashSet<String>();
             addPrefixes.add(facetPrefix);
             addPrefixes.add(searchPrefix);
-            this.addPrefixes = Collections.unmodifiableSet(addPrefixes);
 
             Set<String> setPrefixes = new HashSet<String>();
             setPrefixes.add(sortPrefix);
-            setPrefixes.removeAll(addPrefixes);
+
+            if (allMultiValued) {
+                setPrefixes.removeAll(addPrefixes);
+            } else {
+                addPrefixes.removeAll(setPrefixes);
+            }
+
+            this.addPrefixes = Collections.unmodifiableSet(addPrefixes);
             this.setPrefixes = Collections.unmodifiableSet(setPrefixes);
+        }
+
+        public SolrField(String facetPrefix, String searchPrefix, String sortPrefix) {
+            this(facetPrefix, searchPrefix, sortPrefix, false);
         }
     }
 
@@ -230,10 +240,10 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             } else {
                 schema = new SolrSchema(6);
                 schema.setDefaultField(new SolrField("_s_", "_t_", "_s_"));
-                schema.mapFields(new SolrField("_b_", "_b_", "_b_"), ObjectField.BOOLEAN_TYPE);
-                schema.mapFields(new SolrField("_d_", "_d_", "_d_"), ObjectField.NUMBER_TYPE);
-                schema.mapFields(new SolrField("_l_", "_l_", "_l_"), ObjectField.DATE_TYPE);
-                schema.mapFields(new SolrField("_u_", "_u_", "_u_"), ObjectField.RECORD_TYPE, ObjectField.UUID_TYPE);
+                schema.mapFields(new SolrField("_b_", "_b_", "_b_", true), ObjectField.BOOLEAN_TYPE);
+                schema.mapFields(new SolrField("_d_", "_d_", "_d_", true), ObjectField.NUMBER_TYPE);
+                schema.mapFields(new SolrField("_l_", "_l_", "_l_", true), ObjectField.DATE_TYPE);
+                schema.mapFields(new SolrField("_u_", "_u_", "_u_", true), ObjectField.RECORD_TYPE, ObjectField.UUID_TYPE);
             }
 
             LOGGER.info("Using Solr schema version [{}]", schema.version);
