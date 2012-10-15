@@ -1,4 +1,4 @@
-package ${package};
+package ${package}.${artifactId};
 
 import com.psddev.dari.db.*;
 import com.psddev.dari.util.*;
