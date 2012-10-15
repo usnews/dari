@@ -25,7 +25,9 @@ world. We hope you enjoy working with it as much as we do.
 
 Dari provides a Maven archetype to help you quickly set up a new web
 application. Replace the value for `groupId` with your company name, and the
-value for `artifactId` with your project's name. After running the following
+value for `artifactId` with your project's name. *Note, your `artifactId` should not contain spaces.* 
+
+After running the following
 command in a terminal, you'll have a project directory named after the
 `artifactId` you provided.
 
