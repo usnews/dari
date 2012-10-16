@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import javax.servlet.ServletContext;
@@ -810,7 +811,7 @@ public class JspUtils {
         @SuppressWarnings("unchecked")
         Map<String, String> contextPaths = (Map<String, String>) context.getAttribute(EMBEDDED_CONTEXT_PATHS);
         if (contextPaths == null) {
-            contextPaths = new HashMap<String, String>();
+            contextPaths = new ConcurrentHashMap<String, String>();
             context.setAttribute(EMBEDDED_CONTEXT_PATHS, contextPaths);
         }
 
