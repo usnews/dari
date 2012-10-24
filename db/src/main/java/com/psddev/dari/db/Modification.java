@@ -58,8 +58,9 @@ class Rating extends Modification&lt;Object&gt; { ... }</pre></blockquote>
 public abstract class Modification<T> extends Record {
 
     /** Returns the original object. */
-    public final Object getOriginalObject() {
-        return getState().getOriginalObject();
+    @SuppressWarnings("unchecked")
+    public final T getOriginalObject() {
+        return (T) getState().getOriginalObject();
     }
 
     /**

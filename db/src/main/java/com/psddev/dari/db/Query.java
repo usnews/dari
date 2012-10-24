@@ -1068,13 +1068,27 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             String code = codeBuilder.toString();
             writer.html(code);
 
-            writer.html(" (");
-                writer.start("a",
-                        "href", StringUtils.addQueryParameters("/_debug/code", "query", code, "objectClass", objectClass),
+            // Use a form instead of a link if the URL will be too long.
+            if (code.length() > 2000) {
+                writer.start("form",
+                        "method", "post",
+                        "action", "/_debug/code",
                         "target", "query");
-                    writer.html("Execute");
+                    writer.tag("input", "type", "hidden", "name", "query", "value", code);
+                    writer.tag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
+                    writer.tag("input", "class", "btn", "type", "submit", "value", "Execute");
                 writer.end();
-            writer.html(")");
+
+            } else {
+                writer.html(" (");
+                    writer.start("a",
+                            "href", StringUtils.addQueryParameters("/_debug/code", "query", code, "objectClass", objectClass),
+                            "target", "query");
+                        writer.html("Execute");
+                    writer.end();
+                writer.html(")");
+            }
+
         writer.end();
     }
 

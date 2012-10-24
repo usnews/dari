@@ -9,6 +9,12 @@ import com.psddev.dari.util.Stats;
 import com.psddev.dari.util.UuidUtils;
 
 import java.io.IOException;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,6 +67,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public static final String FIELDS_FIELD = "_t__fields";
     public static final String ALL_FIELD = "all";
     public static final String SCORE_FIELD = "score";
+
+    public static final String SUGGESTION_FIELD = "_e_suggestField";
 
     public static final String SCORE_EXTRA = "solr.score";
     public static final String NORMALIZED_SCORE_EXTRA = "solr.normalizedScore";
@@ -212,7 +220,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             SolrSchema schema;
-            if (query("_query_:\"{!geofilt pt=0.0,0.0 sfield=_g_test d=1}\"") == null) {
+            if (query("_e_test:1") == null) {
+                schema = new SolrSchema(10);
+                schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
+                schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
+                schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
+                schema.mapFields(new SolrField("_l_", "_l_", "_ls_"), ObjectField.DATE_TYPE);
+                schema.mapFields(new SolrField("_u_", "_u_", "_us_"), ObjectField.RECORD_TYPE, ObjectField.UUID_TYPE);
+                schema.mapFields(new SolrField("_g_", "_g_", "_g_"), ObjectField.LOCATION_TYPE);
+
+            } else if (query("_query_:\"{!geofilt pt=0.0,0.0 sfield=_g_test d=1}\"") == null) {
                 schema = new SolrSchema(9);
                 schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
@@ -279,9 +296,21 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public SolrQuery buildQueryFacetByField(Query<?> query, String field) {
         SolrQuery solrQuery = buildQuery(query);
         Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, field);
+        String solrField = SPECIAL_FIELDS.get(mappedKey);
+
+        if (solrField == null) {
+            String internalType = mappedKey.getInternalType();
+            if (internalType != null) {
+                solrField = getSolrField(internalType).searchPrefix + mappedKey.getIndexKey(null);
+            }
+        }
+
+        if (solrField == null) {
+            throw new UnsupportedIndexException(this, field);
+        }
 
         solrQuery.setFacet(true);
-        solrQuery.addFacetField(getSolrField(mappedKey.getInternalType()).facetPrefix + mappedKey.getIndexKey(null));
+        solrQuery.addFacetField(solrField);
 
         return solrQuery;
     }
@@ -899,7 +928,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 count,
                 objects,
                 response.getLimitingFacets(),
-                query.getClass());
+                query.getClass(),
+                Settings.isDebug() ? solrQuery : null);
     }
 
 
@@ -1211,6 +1241,23 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 document.setField(DATA_FIELD, ObjectUtils.toJson(stateValues));
             }
 
+            if (schema.get().version >= 10) {
+                Set<String> typeAheadFields = type.as(TypeModification.class).getTypeAheadFields();
+
+                if (!typeAheadFields.isEmpty()) {
+                    for (String typeAheadField : typeAheadFields) {
+                        String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
+
+                        // Hack for a client.
+                        if (value != null) {
+                            value = value.replaceAll("\\{", "").replaceAll("\\}", "").replaceAll("\\-", "");
+                        }
+
+                        document.setField(SUGGESTION_FIELD, value);
+                    }
+                }
+            }
+
             for (Map.Entry<String, Object> entry : stateValues.entrySet()) {
                 String fieldName = entry.getKey();
 
@@ -1442,6 +1489,43 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
          */
         public static Float getNormalizedScore(Object object) {
             return (Float) State.getInstance(object).getExtra(NORMALIZED_SCORE_EXTRA);
+        }
+    }
+
+    /**
+     * Specifies all fields that are stored for type-ahead from an
+     * instance of the target type.
+     */
+    @Documented
+    @Inherited
+    @ObjectType.AnnotationProcessorClass(TypeAheadFieldsProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface TypeAheadFields {
+        String[] value();
+    }
+
+    private static class TypeAheadFieldsProcessor implements ObjectType.AnnotationProcessor<TypeAheadFields> {
+        @Override
+        public void process(ObjectType type, TypeAheadFields annotation) {
+            Collections.addAll(type.as(TypeModification.class).getTypeAheadFields(), annotation.value());
+        }
+    }
+
+    @TypeModification.FieldInternalNamePrefix("solr.")
+    public static class TypeModification extends Modification<ObjectType> {
+
+        private Set<String> typeAheadFields;
+
+        public Set<String> getTypeAheadFields() {
+            if (typeAheadFields == null) {
+                typeAheadFields = new HashSet<String>();
+            }
+            return typeAheadFields;
+        }
+
+        public void setTypeAheadFields(Set<String> typeAheadFields) {
+            this.typeAheadFields = typeAheadFields;
         }
     }
 

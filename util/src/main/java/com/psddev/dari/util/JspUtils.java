@@ -376,12 +376,28 @@ public class JspUtils {
             HttpServletRequest request,
             String name) {
 
+        return getSignedCookieWithExpiry(request, name, 0);
+    }
+
+    /**
+     * Returns the value of the signed cookie with the given {@code name} so
+     * long as the given {@code expirationDuration} has not been exceeded. A
+     * zero or negative {@code expirationDuration} signifies that the cookie
+     * does not expire.
+     *
+     * @see #setSignedCookie
+     */
+    public static String getSignedCookieWithExpiry(
+            HttpServletRequest request,
+            String name,
+            long expirationDuration) {
+
         Cookie cookie = getCookie(request, name);
         if (cookie == null) {
             return null;
 
         } else {
-            return unsignCookie(name, cookie.getValue());
+            return unsignCookieWithExpiry(name, cookie.getValue(), expirationDuration);
         }
     }
 
@@ -746,6 +762,17 @@ public class JspUtils {
      * cookie with the given {@code name}.
      */
     public static String unsignCookie(String name, String signedValue) {
+        return unsignCookieWithExpiry(name, signedValue, 0);
+    }
+
+    /**
+     * Unsigns the given {@code signedValue} that's associated to a
+     * cookie with the given {@code name} so long as the
+     * given {@code expirationDuration} has not been exceeded. A zero or
+     * negative {@code expirationDuration} signifies that the cookie does not
+     * expire.
+     */
+    public static String unsignCookieWithExpiry(String name, String signedValue, long expirationDuration) {
         String parts[] = StringUtils.split(signedValue, "\\|");
         if (parts.length != 3) {
             LOGGER.debug("Not a valid signed cookie! {}", signedValue);
@@ -762,8 +789,8 @@ public class JspUtils {
             return null;
         }
 
-        long expiration = System.currentTimeMillis() - 86400000;
-        if (timestamp < expiration) {
+        long expiration = System.currentTimeMillis() - expirationDuration;
+        if (expirationDuration > 0 && timestamp < expiration) {
             LOGGER.debug("Signature expired! {} < {}", timestamp, expiration);
             return null;
         }

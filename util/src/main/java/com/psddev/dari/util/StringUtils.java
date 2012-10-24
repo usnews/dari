@@ -479,19 +479,49 @@ public class StringUtils {
      * {@code uri}.
      */
     public static String addQueryParameters(String uri, Object... parameters) {
-        int parametersLength;
-        if (uri == null || parameters == null || (parametersLength = parameters.length) == 0) {
-            return uri;
+        if (uri == null) {
+            return null;
         }
 
         // Convert "path?a=b&c=d" to "&a=b&c=d".
         StringBuilder query = new StringBuilder();
         int questionAt = uri.indexOf("?");
         if (questionAt > -1) {
-            query.append("&");
-            query.append(uri.substring(questionAt + 1));
+
+            String queryString = uri.substring(questionAt + 1);
+            int beginAt = 0;
+
+            // make sure all the query parameters are encoded
+            while (true) {
+                int ampIndex = queryString.indexOf('&', beginAt);
+
+                String param = queryString.substring(beginAt, ampIndex > -1 ? ampIndex : queryString.length());
+
+                if (!param.isEmpty() || ampIndex > -1) {
+                    query.append("&");
+
+                    int equalsIndex = param.indexOf('=');
+                    if (equalsIndex > -1) {
+                        query.append(encodeUri(decodeUri(param.substring(0, equalsIndex))));
+                        query.append("=");
+                        query.append(encodeUri(decodeUri(param.substring(equalsIndex+1))));
+
+                    } else {
+                        query.append(encodeUri(decodeUri(param)));
+                    }
+                }
+
+                if (ampIndex > -1) {
+                    beginAt = ampIndex+1;
+                } else {
+                    break;
+                }
+            }
+
             uri = uri.substring(0, questionAt);
         }
+
+        int parametersLength = parameters != null ? parameters.length : 0;
 
         for (int i = 0; i < parametersLength; i += 2) {
 

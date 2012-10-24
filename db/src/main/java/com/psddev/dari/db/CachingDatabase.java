@@ -306,7 +306,7 @@ public class CachingDatabase extends ForwardingDatabase {
          * running the query.
          */
         public boolean isDisabled() {
-            Boolean old = ObjectUtils.to(Boolean.class, getState().get(IS_DISABLED_QUERY_OPTION));
+            Boolean old = ObjectUtils.to(Boolean.class, getOriginalObject().getOptions().get(IS_DISABLED_QUERY_OPTION));
             return old != null ? old : disabled;
         }
 

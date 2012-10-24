@@ -21,22 +21,60 @@ public final class Password {
     /**
      * Creates an instance that hashes the given {@code password} using
      * the given {@code algorithm} and {@code salt}.
+     *
+     * @param algorithm If {@code null}, uses {@value #DEFAULT_ALGORITHM}.
+     * @param salt If {@code null}, generates a random value.
+     * @param password If {@code null}, uses an empty string.
      */
     public static Password createCustom(String algorithm, String salt, String password) {
+        if (algorithm == null) {
+            algorithm = DEFAULT_ALGORITHM;
+        }
+
+        if (salt == null) {
+            byte[] saltBytes = new byte[8];
+            RANDOM.nextBytes(saltBytes);
+            salt = StringUtils.hex(saltBytes);
+        }
+
         if (password == null) {
             password = "";
         }
+
         return valueOf(algorithm + ":" + salt + ":" + hash(algorithm, salt, password));
     }
 
     /**
      * Creates an instance that hashes the given {@code password} using
-     * the the {@value DEFAULT_ALGORITHM} algorithm and a random salt.
+     * the the {@value #DEFAULT_ALGORITHM} algorithm and a random salt.
      */
     public static Password create(String password) {
-        byte[] salt = new byte[8];
-        RANDOM.nextBytes(salt);
-        return createCustom(DEFAULT_ALGORITHM, StringUtils.hex(salt), password);
+        return createCustom(null, null, password);
+    }
+
+    /**
+     * Creates an instance that validates the given {@code password} using
+     * the given {@code policy} and hashes it using the given {@code algorithm}
+     * and {@code salt}.
+     *
+     * @throws PasswordException If anything's wrong with the given {@code password}.
+     */
+    public static Password validateAndCreateCustom(
+            PasswordPolicy policy,
+            String algorithm,
+            String salt,
+            String password)
+            throws PasswordException {
+
+        if (password == null) {
+            password = "";
+        }
+
+        if (policy != null) {
+            policy.validate(password);
+        }
+
+        return createCustom(algorithm, salt, password);
     }
 
     /**

@@ -14,6 +14,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 @Record.LabelFields("name")
 public class ObjectType extends Record implements ObjectStruct {
 
+    private static final String MODIFICATION_NAME = "Modification";
     private static final Logger
             LOGGER = LoggerFactory.getLogger(ObjectType.class);
 
@@ -593,18 +595,27 @@ public class ObjectType extends Record implements ObjectStruct {
                 groups.add(type.getInternalName());
             }
 
+            ArrayDeque<Class<?>> interfaceClasses = new ArrayDeque<Class<?>>();
             for (Class<?> interfaceClass : objectClass.getInterfaces()) {
-                for (; interfaceClass != null; interfaceClass = interfaceClass.getSuperclass()) {
-                    interfaceClassName = interfaceClass.getName();
-                    groups.add(interfaceClassName);
-                    assignableClassNames.add(interfaceClassName);
+                interfaceClasses.add(interfaceClass);
+            }
 
-                    if (Recordable.class.isAssignableFrom(interfaceClass)) {
-                        type = environment.getTypeByClass(interfaceClass);
-                        if (type != null) {
-                            groups.add(type.getInternalName());
-                        }
+            while (!interfaceClasses.isEmpty()) {
+                Class<?> interfaceClass = interfaceClasses.poll();
+
+                interfaceClassName = interfaceClass.getName();
+                groups.add(interfaceClassName);
+                assignableClassNames.add(interfaceClassName);
+
+                if (Recordable.class.isAssignableFrom(interfaceClass)) {
+                    type = environment.getTypeByClass(interfaceClass);
+                    if (type != null) {
+                        groups.add(type.getInternalName());
                     }
+                }
+
+                for (Class<?> superInterfaceClass : interfaceClass.getInterfaces()) {
+                    interfaceClasses.add(superInterfaceClass);
                 }
             }
         }
@@ -620,7 +631,16 @@ public class ObjectType extends Record implements ObjectStruct {
             return;
         }
 
-        setDisplayName(StringUtils.toLabel(objectClass.getSimpleName()));
+        String simpleName = objectClass.getSimpleName();
+        if (Modification.class.isAssignableFrom(objectClass) &&
+                simpleName.endsWith(MODIFICATION_NAME)) {
+            int newLength = simpleName.length() - MODIFICATION_NAME.length();
+            if (newLength > 0) {
+                simpleName = simpleName.substring(0, newLength);
+            }
+        }
+
+        setDisplayName(StringUtils.toLabel(simpleName));
         setInternalName(objectClass.getName());
         getLabelFields().clear();
         setPreviewField(null);

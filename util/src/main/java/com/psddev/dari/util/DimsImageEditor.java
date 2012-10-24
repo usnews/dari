@@ -703,13 +703,27 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         @Override
         public Dimension getOutputDimension(Dimension dimension) {
+
             if (dimension != null &&
                     dimension.width != null && dimension.height != null &&
                     this.width != null && this.height != null) {
-                return new Dimension(this.width, this.height);
-            } else {
-                return null;
+
+                if (option == null || option.equals("!") || option.equals("^")) {
+                    return new Dimension(this.width, this.height);
+
+                } else if (option.equals(">")) { // only shrink larger images
+                    return new Dimension(
+                            Math.min(this.width, dimension.width),
+                            Math.min(this.height, dimension.height));
+
+                } else if (option.equals("<")) { // only enlarge smaller images
+                    return new Dimension(
+                            Math.max(this.width, dimension.width),
+                            Math.max(this.height, dimension.height));
+                }
             }
+
+            return null;
         }
     }
 
