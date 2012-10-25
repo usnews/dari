@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Profiler;
 
@@ -57,8 +58,11 @@ public class ProfilingDatabase extends ForwardingDatabase {
         for (int i = 2, length = elements.length; i < length; ++ i) {
             StackTraceElement element = elements[i];
             String className = element.getClassName();
-            if (!(className.equals(ProfilingDatabase.class.getName()) ||
-                    className.startsWith("com.psddev.dari."))) {
+            Class<?> c = ObjectUtils.getClassByName(className);
+
+            if (c == null ||
+                    !(Database.class.isAssignableFrom(c) ||
+                    Query.class.isAssignableFrom(c))) {
                 caller = element;
                 break;
             }
