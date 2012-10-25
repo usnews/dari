@@ -20,7 +20,7 @@ import com.psddev.dari.util.StringUtils;
 public class ProfilingDatabaseFilter extends AbstractFilter {
 
     @Override
-    protected void doDispatch(
+    protected void doRequest(
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain chain)
@@ -29,7 +29,7 @@ public class ProfilingDatabaseFilter extends AbstractFilter {
         Profiler profiler = Profiler.Static.getThreadProfiler();
 
         if (profiler == null) {
-            super.doDispatch(request, response, chain);
+            super.doRequest(request, response, chain);
 
         } else {
             ProfilingDatabase profiling = new ProfilingDatabase();
@@ -40,7 +40,7 @@ public class ProfilingDatabaseFilter extends AbstractFilter {
 
             try {
                 Database.Static.overrideDefault(profiling);
-                super.doDispatch(request, response, chain);
+                super.doRequest(request, response, chain);
 
             } finally {
                 Database.Static.restoreDefault();
