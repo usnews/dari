@@ -219,7 +219,7 @@ public class ProfilerFilter extends AbstractFilter {
         writer.start("script", "type", "text/javascript");
             writer.write("(function() {");
                 writer.write("var profileScript = document.createElement('script');");
-                writer.write("profileScript.src = '/_resource/cms/profile.js';");
+                writer.write("profileScript.src = '/_resource/dari/profiler.js';");
                 writer.write("document.body.appendChild(profileScript);");
             writer.write("})();");
         writer.end();
