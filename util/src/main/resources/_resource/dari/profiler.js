@@ -292,7 +292,6 @@
                                 // Copy the result from the editor to the page.
                                 $editor.load(function() {
                                     $editor.unbind('load');
-                                    console.log('binding');
 
                                     $editorContainer.data('copyResultInterval', setInterval(function() {
                                         var $resultContainer = $($editor[0].contentDocument.body).find('.resultContainer');
@@ -487,6 +486,17 @@
                         return false;
                     }
                 }));
+            });
+
+            $profileBody.find('#_profile-overview :checkbox').live('change', function() {
+                var $checkbox = $(this);
+                var $events = $profileBody.find('#_profile-eventTimeline .' + $checkbox.val());
+
+                if ($checkbox.is(':checked')) {
+                    $events.show();
+                } else {
+                    $events.hide();
+                }
             });
         });
 

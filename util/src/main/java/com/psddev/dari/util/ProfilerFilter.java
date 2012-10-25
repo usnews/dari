@@ -121,13 +121,17 @@ public class ProfilerFilter extends AbstractFilter {
             throws IOException {
 
         Map<String, String> nameColors = new HashMap<String, String>();
+        Map<String, String> nameClasses = new HashMap<String, String>();
         double goldenRatio = 0.618033988749895;
         double hue = Math.random();
+        int index = 1;
 
         for (String name : profiler.getEventStats().keySet()) {
             hue += goldenRatio;
             hue %= 1.0;
             nameColors.put(name, "hsl(" + (hue * 360) + ",50%,50%)");
+            nameClasses.put(name, "event" + index);
+            ++ index;
         }
 
         writer.start("div", "id", "_profile-result");
@@ -152,7 +156,7 @@ public class ProfilerFilter extends AbstractFilter {
 
                                 writer.start("thead");
                                     writer.start("tr");
-                                        writer.start("th").html("Event").end();
+                                        writer.start("th", "colspan", 2).html("Event").end();
                                         writer.start("th").html("Count").end();
                                         writer.start("th").html("Own Total").end();
                                         writer.start("th").html("Own Average").end();
@@ -167,6 +171,12 @@ public class ProfilerFilter extends AbstractFilter {
                                         double ownDuration = stats.getOwnDuration() / 1e6;
 
                                         writer.start("tr");
+                                            writer.start("td");
+                                                writer.tag("input",
+                                                        "type", "checkbox",
+                                                        "checked", "checked",
+                                                        "value", nameClasses.get(name));
+                                            writer.end();
                                             writer.start("td");
                                                 writer.start("span",
                                                         "class", "label",
@@ -203,7 +213,7 @@ public class ProfilerFilter extends AbstractFilter {
 
                         writer.start("tbody");
                             for (Profiler.Event rootEvent : profiler.getRootEvents()) {
-                                writeEvent(writer, eventIndexes, start, nameColors, 0, rootEvent);
+                                writeEvent(writer, eventIndexes, start, nameColors, nameClasses, 0, rootEvent);
                             }
                         writer.end();
 
@@ -230,11 +240,14 @@ public class ProfilerFilter extends AbstractFilter {
             Map<Profiler.Event, Integer> eventIndexes,
             long start,
             Map<String, String> nameColors,
+            Map<String, String> nameClasses,
             int depth,
             Profiler.Event event)
             throws IOException {
 
-        writer.start("tr");
+        String name = event.getName();
+
+        writer.start("tr", "class", nameClasses.get(name));
 
             writer.start("td").html(eventIndexes.get(event)).end();
             writer.start("td").object((event.getStart() - start) / 1e6).end();
@@ -243,7 +256,6 @@ public class ProfilerFilter extends AbstractFilter {
 
             writer.start("td", "class", "objects", "style", "padding-left: " + (depth * 30 + 5) + "px;");
 
-                String name = event.getName();
                 writer.start("span",
                         "class", "label",
                         "style", "background: " + nameColors.get(name) + ";");
@@ -258,7 +270,7 @@ public class ProfilerFilter extends AbstractFilter {
             writer.end();
 
             for (Profiler.Event child : event.getChildren()) {
-                writeEvent(writer, eventIndexes, start, nameColors, depth + 1, child);
+                writeEvent(writer, eventIndexes, start, nameColors, nameClasses, depth + 1, child);
             }
 
         writer.end();
