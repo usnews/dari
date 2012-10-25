@@ -120,6 +120,16 @@ public class ProfilerFilter extends AbstractFilter {
             long start)
             throws IOException {
 
+        Map<String, String> nameColors = new HashMap<String, String>();
+        double goldenRatio = 0.618033988749895;
+        double hue = Math.random();
+
+        for (String name : profiler.getEventStats().keySet()) {
+            hue += goldenRatio;
+            hue %= 1.0;
+            nameColors.put(name, "hsl(" + (hue * 360) + ",50%,50%)");
+        }
+
         writer.start("div", "id", "_profile-result");
 
             writer.start("div", "class", "navbar navbar-fixed-top");
@@ -151,12 +161,19 @@ public class ProfilerFilter extends AbstractFilter {
 
                                 writer.start("tbody");
                                     for (Map.Entry<String, Profiler.EventStats> entry : profiler.getEventStats().entrySet()) {
+                                        String name = entry.getKey();
                                         Profiler.EventStats stats = entry.getValue();
                                         int count = stats.getCount();
                                         double ownDuration = stats.getOwnDuration() / 1e6;
 
                                         writer.start("tr");
-                                            writer.start("td").start("span", "class", "label").html(entry.getKey()).end().end();
+                                            writer.start("td");
+                                                writer.start("span",
+                                                        "class", "label",
+                                                        "style", "background: " + nameColors.get(name) + ";");
+                                                    writer.html(name);
+                                                writer.end();
+                                            writer.end();
                                             writer.start("td").object(count).end();
                                             writer.start("td").object(ownDuration).end();
                                             writer.start("td").object(ownDuration / count).end();
@@ -186,7 +203,7 @@ public class ProfilerFilter extends AbstractFilter {
 
                         writer.start("tbody");
                             for (Profiler.Event rootEvent : profiler.getRootEvents()) {
-                                writeEvent(writer, eventIndexes, start, 0, rootEvent);
+                                writeEvent(writer, eventIndexes, start, nameColors, 0, rootEvent);
                             }
                         writer.end();
 
@@ -212,6 +229,7 @@ public class ProfilerFilter extends AbstractFilter {
             HtmlWriter writer,
             Map<Profiler.Event, Integer> eventIndexes,
             long start,
+            Map<String, String> nameColors,
             int depth,
             Profiler.Event event)
             throws IOException {
@@ -224,15 +242,23 @@ public class ProfilerFilter extends AbstractFilter {
             writer.start("td").object(event.getOwnDuration() / 1e6).end();
 
             writer.start("td", "class", "objects", "style", "padding-left: " + (depth * 30 + 5) + "px;");
-                writer.start("span", "class", "label").html(event.getName()).end();
+
+                String name = event.getName();
+                writer.start("span",
+                        "class", "label",
+                        "style", "background: " + nameColors.get(name) + ";");
+                    writer.html(name);
+                writer.end();
+
                 for (Object item : event.getObjects()) {
                     writer.html(" \u2192 ");
                     writer.object(item);
                 }
+
             writer.end();
 
             for (Profiler.Event child : event.getChildren()) {
-                writeEvent(writer, eventIndexes,  start, depth + 1, child);
+                writeEvent(writer, eventIndexes, start, nameColors, depth + 1, child);
             }
 
         writer.end();
