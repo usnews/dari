@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.Profiler;
 import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsException;
@@ -77,11 +78,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolrDatabase.class);
     private static final Pattern UUID_PATTERN = Pattern.compile("([A-Fa-f0-9]{8})-([A-Fa-f0-9]{4})-([A-Fa-f0-9]{4})-([A-Fa-f0-9]{4})-([A-Fa-f0-9]{12})");
 
-    private static final Stats STATS = new Stats("Solr");
-    private static final String ADD_OPERATION = "Add";
-    private static final String COMMIT_OPERATION = "Commit";
-    private static final String DELETE_OPERATION = "Delete";
-    private static final String QUERY_OPERATION = "Query";
+    private static final String SHORT_NAME = "Solr";
+    private static final Stats STATS = new Stats(SHORT_NAME);
+    private static final String ADD_STATS_OPERATION = "Add";
+    private static final String COMMIT_STATS_OPERATION = "Commit";
+    private static final String DELETE_STATS_OPERATION = "Delete";
+    private static final String QUERY_STATS_OPERATION = "Query";
+    private static final String ADD_PROFILER_EVENT = SHORT_NAME + " " + ADD_STATS_OPERATION;
+    private static final String COMMIT_PROFILER_EVENT = SHORT_NAME + " " + COMMIT_STATS_OPERATION;
+    private static final String DELETE_PROFILER_EVENT = SHORT_NAME + " " + DELETE_STATS_OPERATION;
+    private static final String QUERY_PROFILER_EVENT = SHORT_NAME + " " + QUERY_STATS_OPERATION;
 
     private volatile SolrServer server;
     private volatile SolrServer readServer;
@@ -880,6 +886,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         Stats.Timer timer = STATS.startTimer();
+        Profiler.Static.startThreadEvent(QUERY_PROFILER_EVENT);
+
         try {
             return openReadConnection().query(solrQuery, SolrRequest.METHOD.POST);
 
@@ -889,7 +897,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     solrQuery), ex);
 
         } finally {
-            double duration = timer.stop(QUERY_OPERATION);
+            double duration = timer.stop(QUERY_STATS_OPERATION);
+            Profiler.Static.stopThreadEvent(solrQuery);
+
             LOGGER.debug(
                     "Read from the Solr server using [{}] in [{}]ms",
                     solrQuery, duration);
@@ -988,12 +998,15 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     private void doCommit(SolrServer server) {
         try {
             Stats.Timer timer = STATS.startTimer();
+            Profiler.Static.startThreadEvent(COMMIT_PROFILER_EVENT);
 
             try {
                 server.commit();
 
             } finally {
-                double duration = timer.stop(COMMIT_OPERATION);
+                double duration = timer.stop(COMMIT_STATS_OPERATION);
+                Profiler.Static.stopThreadEvent();
+
                 LOGGER.debug("Solr commit time: [{}]ms", duration);
             }
 
@@ -1285,6 +1298,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         try {
             Stats.Timer timer = STATS.startTimer();
+            Profiler.Static.startThreadEvent(ADD_PROFILER_EVENT, documentsSize);
 
             try {
                 UpdateRequest update = new UpdateRequest();
@@ -1292,7 +1306,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 processUpdate(server, update, isImmediate);
 
             } finally {
-                double duration = timer.stop(ADD_OPERATION);
+                double duration = timer.stop(ADD_STATS_OPERATION);
+                Profiler.Static.stopThreadEvent();
+
                 LOGGER.debug("Solr add: [{}], Time: [{}]ms", documentsSize, duration);
             }
 
@@ -1434,6 +1450,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         try {
             Stats.Timer timer = STATS.startTimer();
+            Profiler.Static.startThreadEvent(DELETE_PROFILER_EVENT, statesSize);
 
             try {
                 UpdateRequest update = new UpdateRequest();
@@ -1441,7 +1458,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 processUpdate(openConnection(), update, isImmediate);
 
             } finally {
-                double duration = timer.stop(DELETE_OPERATION);
+                double duration = timer.stop(DELETE_STATS_OPERATION);
+                Profiler.Static.stopThreadEvent();
+
                 LOGGER.debug("Solr delete: [{}], Time: [{}]ms", statesSize, duration);
             }
 

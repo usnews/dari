@@ -5,6 +5,7 @@ import com.jolbox.bonecp.BoneCPDataSource;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.PeriodicValue;
+import com.psddev.dari.util.Profiler;
 import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsException;
@@ -101,9 +102,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
-    private static final Stats STATS = new Stats("SQL");
-    private static final String QUERY_OPERATION = "Query";
-    private static final String UPDATE_OPERATION = "Update";
+    private static final String SHORT_NAME = "SQL";
+    private static final Stats STATS = new Stats(SHORT_NAME);
+    private static final String QUERY_STATS_OPERATION = "Query";
+    private static final String UPDATE_STATS_OPERATION = "Update";
+    private static final String QUERY_PROFILER_EVENT = SHORT_NAME + " " + QUERY_STATS_OPERATION;
+    private static final String UPDATE_PROFILER_EVENT = SHORT_NAME + " " + UPDATE_STATS_OPERATION;
 
     private final static List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
 
@@ -625,11 +629,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         Stats.Timer timer = STATS.startTimer();
+        Profiler.Static.startThreadEvent(QUERY_PROFILER_EVENT);
+
         try {
             return statement.executeQuery(sqlQuery);
 
         } finally {
-            double duration = timer.stop(QUERY_OPERATION);
+            double duration = timer.stop(QUERY_STATS_OPERATION);
+            Profiler.Static.stopThreadEvent(sqlQuery);
+
             LOGGER.debug(
                     "Read from the SQL database using [{}] in [{}]ms",
                     sqlQuery, duration);
@@ -1951,12 +1959,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                 int[] affected = null;
                 Stats.Timer timer = STATS.startTimer();
+                Profiler.Static.startThreadEvent(UPDATE_PROFILER_EVENT);
 
                 try {
                     return (affected = prepared.executeBatch());
 
                 } finally {
-                    double time = timer.stop(UPDATE_OPERATION);
+                    double time = timer.stop(UPDATE_STATS_OPERATION);
+                    Profiler.Static.stopThreadEvent(sqlQuery);
+
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL batch update: [{}], Parameters: {}, Affected: {}, Time: [{}]ms",
@@ -2031,6 +2042,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                 Integer affected = null;
                 Stats.Timer timer = STATS.startTimer();
+                Profiler.Static.startThreadEvent(UPDATE_PROFILER_EVENT);
 
                 try {
                     return (affected = hasParameters ?
@@ -2038,7 +2050,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             statement.executeUpdate(sqlQuery));
 
                 } finally {
-                    double time = timer.stop(UPDATE_OPERATION);
+                    double time = timer.stop(UPDATE_STATS_OPERATION);
+                    Profiler.Static.stopThreadEvent(sqlQuery);
+
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL update: [{}], Affected: [{}], Time: [{}]ms",
