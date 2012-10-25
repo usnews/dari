@@ -1,16 +1,18 @@
 $(function() {
 
     // Try to assign a unique color to all different types.
-    var globalHue = 0;
+    var goldenRatio = 0.618033988749895;
+    var globalHue = Math.random();
     $('.type').each(function() {
         var $type = $(this);
         var typeColor = $type.attr('data-typeColor');
         if (!typeColor) {
-            typeColor = 'hsl(' + globalHue + ', 50%, 50%)';
+            globalHue += goldenRatio;
+            globalHue %= 1.0;
+            typeColor = 'hsl(' + (globalHue * 360) + ', 50%, 50%)';
             $type.attr('data-typeColor', typeColor);
             $type.css('border-color', typeColor);
             $type.find('h2').css('color', typeColor);
-            globalHue = (globalHue + 55) % 360;
         }
     });
 
