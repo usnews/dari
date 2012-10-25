@@ -52,6 +52,11 @@ public class ProfilingDatabaseFilter extends AbstractFilter {
 
         @Override
         public void format(HtmlWriter writer, Recordable recordable) throws IOException {
+            if (recordable instanceof Query) {
+                ((Query<?>) recordable).format(writer);
+                return;
+            }
+
             State recordableState = recordable.getState();
             ObjectType type = recordableState.getType();
 
