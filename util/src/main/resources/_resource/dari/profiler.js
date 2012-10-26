@@ -91,7 +91,7 @@
                 '-webkit-box-shadow': '0 3px 7px rgba(0, 0, 0, 0.3)',
                 'box-shadow': '0 3px 7px rgba(0, 0, 0, 0.3)',
                 'display': 'none',
-                'position': 'fixed',
+                'position': 'absolute',
                 'z-index': 1000000
             }
         });
@@ -124,22 +124,10 @@
                 $editorContainer.trigger('close');
             }
         });
-        var $editorShim = $('<div/>', {
-            'css': {
-                'background': 'transparent',
-                'display': 'none',
-                'left': '0px',
-                'height': '100%',
-                'position': 'absolute',
-                'top': '0px',
-                'width': '100%'
-            }
-        });
 
         $body.append($editorContainer);
         $editorContainer.append($editor);
         $editorContainer.append($editorClose);
-        $body.append($editorShim);
 
         // Tooltip that shows profile information around the element
         // under the mouse.
@@ -325,8 +313,6 @@
                                 $editor.attr('src', $(this).attr('href'));
 
                                 // Stop copying result when the editor is closed.
-                                var originalScrollLeft = $body.scrollLeft();
-                                var originalScrollTop = $body.scrollTop();
                                 $editorContainer.bind('close', function() {
                                     $editorContainer.unbind('close');
 
@@ -336,55 +322,21 @@
                                     }
 
                                     $editorContainer.fadeOut();
-                                    $body.animate({ 'scrollLeft': originalScrollLeft, 'scrollTop': originalScrollTop }, {
-                                        'complete': function() {
-                                            $editorShim.hide();
-                                            $('._profile-eventDisplay').fadeIn();
-                                        }
-                                    });
                                 });
 
-                                // Open to the right or bottom?
-                                var $win = $(window);
-                                var winWidth = $win.width();
-                                var winHeight = $win.height();
-                                var rightArea = (winWidth - boundary.width) * winHeight;
-                                var bottomArea = winWidth * (winHeight - boundary.height);
+                                // Show the editor below the link.
+                                var $win = $(window.top);
+                                var containerTop = boundary.top + boundary.height;
 
-                                if (rightArea > bottomArea) {
-                                    $editorShim.css({
-                                        'height': $body.height(),
-                                        'width': winWidth + boundary.left - 20
-                                    });
-                                    $editorContainer.css({
-                                        'height': winHeight - 40,
-                                        'left': winWidth,
-                                        'top': 20,
-                                        'width': winWidth - boundary.width - 60
-                                    });
+                                $editorContainer.css({
+                                    'height': $win.height()- 40,
+                                    'left': 20,
+                                    'top': containerTop + 20,
+                                    'width': $win.width() - 40
+                                });
 
-                                    $editorShim.show();
-                                    $editorContainer.show();
-                                    $body.animate({ 'scrollLeft': boundary.left - 20, 'scrollTop': boundary.top - 20 });
-                                    $editorContainer.animate({ 'left': boundary.width + 40 });
-
-                                } else {
-                                    $editorShim.css({
-                                        'height': $body.height(),
-                                        'width': $body.width()
-                                    });
-                                    $editorContainer.css({
-                                        'height': winHeight - (boundary.height) - 60,
-                                        'left': 20,
-                                        'top': winHeight,
-                                        'width': winWidth - 40
-                                    });
-
-                                    $editorShim.show();
-                                    $editorContainer.show();
-                                    $body.animate({ 'scrollTop': boundary.top - 20 });
-                                    $editorContainer.animate({ 'top': (boundary.height) + 40 });
-                                }
+                                $editorContainer.fadeIn();
+                                $body.animate({ 'scrollTop': containerTop });
 
                                 return false;
                             }
