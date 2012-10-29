@@ -198,7 +198,7 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
             Object key = objectIterator.next();
             if (!objectIterator.hasNext() && object == key) {
                 boolean hasPlan = false;
-                for (Class<? extends Object> c : TypeDefinition.getInstance(object.getClass()).getAssignableClasses()) {
+                for (Class<? extends Object> c : TypeDefinition.getInstance(object.getClass()).getAssignableClassesAndInterfaces()) {
                     if (c == Object.class && hasPlan) {
                         break;
                     } else {

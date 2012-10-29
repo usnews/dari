@@ -10,8 +10,8 @@ import java.lang.reflect.Type;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -125,17 +125,17 @@ public class TypeDefinition<T> {
         @Override
         protected Set<Class<?>> produce() {
             Class<T> objectClass = getObjectClass();
-            Set<Class<?>> classes = new HashSet<Class<?>>();
+            Set<Class<?>> classes = new LinkedHashSet<Class<?>>();
 
             classes.add(objectClass);
+
+            for (Class<?> interfaceClass : objectClass.getInterfaces()) {
+                classes.addAll(getInstance(interfaceClass).getAssignableClassesAndInterfaces());
+            }
 
             Class<?> superClass = objectClass.getSuperclass();
             if (superClass != null) {
                 classes.addAll(getInstance(superClass).getAssignableClassesAndInterfaces());
-            }
-
-            for (Class<?> interfaceClass : objectClass.getInterfaces()) {
-                classes.addAll(getInstance(interfaceClass).getAssignableClassesAndInterfaces());
             }
 
             return Collections.unmodifiableSet(classes);
