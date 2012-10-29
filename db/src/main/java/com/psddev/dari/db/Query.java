@@ -579,7 +579,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         String keyFirst;
         String keyRest = key;
         ObjectType type;
-        ObjectField field;
         Set<ObjectType> subQueryTypes = null;
         String subQueryKey = null;
 
@@ -600,7 +599,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                 fieldTypes = Collections.singleton(type);
 
             } else {
-                field = environment.getField(keyFirst);
+                ObjectField field = environment.getField(keyFirst);
+
                 if (field == null) {
                     for (ObjectType fieldType : fieldTypes) {
                         field = fieldType.getField(keyFirst);
@@ -660,17 +660,21 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             throw new NoFieldException(getGroup(), key);
         }
 
-        ObjectField lastField = fields.get(fields.size() - 1);
-        String lastFieldName = lastField.getInternalName();
         Set<ObjectIndex> indexes = new HashSet<ObjectIndex>();
-        for (ObjectIndex index : lastField.getParent().getIndexes()) {
-            if (index.getFields().contains(lastFieldName)) {
-                indexes.add(index);
-            }
-        }
 
-        if (indexes.isEmpty()) {
-            throw new NoIndexException(lastField);
+        for (ObjectField field : fields) {
+            String fieldName = field.getInternalName();
+            indexes.clear();
+
+            for (ObjectIndex index : field.getParent().getIndexes()) {
+                if (index.getFields().contains(fieldName)) {
+                    indexes.add(index);
+                }
+            }
+
+            if (indexes.isEmpty()) {
+                throw new NoIndexException(field);
+            }
         }
 
         StandardMappedKey standardMappedKey = new StandardMappedKey();
