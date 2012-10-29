@@ -110,10 +110,10 @@ public abstract class Task implements Comparable<Task>, Runnable {
     }
 
     /**
-     * Starts running this task. Does nothing if this task has already
-     * been started but hasn't begun running yet.
+     * Submits this task to run immediately. Does nothing if this task is
+     * already scheduled to run.
      */
-    public void start() {
+    public void submit() {
         synchronized (future) {
             if (isSubmittable()) {
                 future.set(getExecutor().submit(this));
@@ -123,10 +123,11 @@ public abstract class Task implements Comparable<Task>, Runnable {
 
     /**
      * Schedule this task to run after the given {@code initialDelay}.
-     * Does nothing if this task has already been scheduled but hasn't
-     * begun running yet.
+     * Does nothing if this task is already scheduled to run.
+     *
+     * @param initialDelay In seconds.
      */
-    public void scheduleOnce(double initialDelay) {
+    public void schedule(double initialDelay) {
         synchronized (future) {
             if (isSubmittable()) {
                 future.set(getExecutor().schedule(this, nano(initialDelay), TimeUnit.NANOSECONDS));
@@ -138,12 +139,12 @@ public abstract class Task implements Comparable<Task>, Runnable {
      * Schedule this task to run after the given {@code initialDelay} and
      * forever after. Each subsequent runs will be scheduled to execute after
      * the given {@code periodicDelay} once the current one finishes. Does
-     * nothing if this task has already been scheduled.
+     * nothing if this task is already scheduled to run.
      *
      * @param initialDelay In seconds.
      * @param periodicDelay In seconds.
      */
-    public void schedule(double initialDelay, double periodicDelay) {
+    public void scheduleWithFixedDelay(double initialDelay, double periodicDelay) {
         synchronized (future) {
             if (isSubmittable()) {
                 future.set(getExecutor().scheduleWithFixedDelay(this, nano(initialDelay), nano(periodicDelay), TimeUnit.NANOSECONDS));
@@ -154,7 +155,7 @@ public abstract class Task implements Comparable<Task>, Runnable {
     /**
      * Schedule this task to run after the given {@code initialDelay} and
      * forever after every given {@code periodicDelay}. Does nothing if this
-     * task has already been scheduled.
+     * task is already scheduled to run.
      *
      * @param initialDelay In seconds.
      * @param periodicDelay In seconds.
@@ -516,5 +517,23 @@ public abstract class Task implements Comparable<Task>, Runnable {
     @Deprecated
     public long getCount() {
         return runCount;
+    }
+
+    /** @deprecated Use {@link #submit} instead. */
+    @Deprecated
+    public void start() {
+        submit();
+    }
+
+    /** @deprecated Use {@link #schedule(double)} instead. */
+    @Deprecated
+    public void scheduleOnce(double initialDelay) {
+        schedule(initialDelay);
+    }
+
+    /** @deprecated Use {@link #scheduleWithFixedDelay} instead. */
+    @Deprecated
+    public void schedule(double initialDelay, double periodicDelay) {
+        scheduleWithFixedDelay(initialDelay, periodicDelay);
     }
 }
