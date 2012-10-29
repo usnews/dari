@@ -135,14 +135,34 @@ public abstract class Task implements Comparable<Task>, Runnable {
     }
 
     /**
-     * Schedule this task to run after the given {@code initialDelay}
-     * and forever after every {@code periodicDelay}. Does nothing if
-     * this task has already been scheduled.
+     * Schedule this task to run after the given {@code initialDelay} and
+     * forever after. Each subsequent runs will be scheduled to execute after
+     * the given {@code periodicDelay} once the current one finishes. Does
+     * nothing if this task has already been scheduled.
+     *
+     * @param initialDelay In seconds.
+     * @param periodicDelay In seconds.
      */
     public void schedule(double initialDelay, double periodicDelay) {
         synchronized (future) {
             if (isSubmittable()) {
                 future.set(getExecutor().scheduleWithFixedDelay(this, nano(initialDelay), nano(periodicDelay), TimeUnit.NANOSECONDS));
+            }
+        }
+    }
+
+    /**
+     * Schedule this task to run after the given {@code initialDelay} and
+     * forever after every given {@code periodicDelay}. Does nothing if this
+     * task has already been scheduled.
+     *
+     * @param initialDelay In seconds.
+     * @param periodicDelay In seconds.
+     */
+    public void scheduleAtFixedRate(double initialDelay, double periodicDelay) {
+        synchronized (future) {
+            if (isSubmittable()) {
+                future.set(getExecutor().scheduleAtFixedRate(this, nano(initialDelay), nano(periodicDelay), TimeUnit.NANOSECONDS));
             }
         }
     }
