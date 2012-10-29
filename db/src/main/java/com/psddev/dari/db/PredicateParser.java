@@ -1,10 +1,10 @@
 package com.psddev.dari.db;
 
+import com.psddev.dari.util.CollectionUtils;
 import com.psddev.dari.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -216,16 +216,33 @@ public class PredicateParser {
             tokens.add(tokenBuilder.toString());
         }
 
-        Queue<Object> parameterQueue = new LinkedList<Object>();
-        if (parameters != null) {
-            Collections.addAll(parameterQueue, parameters);
+        return readPredicate(tokens, new ParameterList(parameters));
+    }
+
+    @SuppressWarnings("serial")
+    private static class ParameterList extends ArrayList<Object> {
+
+        private int next;
+
+        public ParameterList(Object... parameters) {
+            if (parameters != null && parameters.length > 0) {
+                Collections.addAll(this, parameters);
+            }
         }
 
-        return readPredicate(tokens, parameterQueue);
+        public Object poll() {
+            if (next < size()) {
+                Object item = get(next);
+                ++ next;
+                return item;
+            } else {
+                return null;
+            }
+        }
     }
 
     // Reads: group (compoundOperator group)*
-    private Predicate readPredicate(Queue<String> tokens, Queue<Object> parameters) {
+    private Predicate readPredicate(Queue<String> tokens, ParameterList parameters) {
         Predicate predicate = readGroup(tokens, parameters);
 
         if (predicate != null) {
@@ -249,7 +266,7 @@ public class PredicateParser {
     }
 
     // Reads: '(' predicate ')'
-    private Predicate readGroup(Queue<String> tokens, Queue<Object> parameters) {
+    private Predicate readGroup(Queue<String> tokens, ParameterList parameters) {
         Predicate predicate = null;
         String nextToken = tokens.peek();
 
@@ -309,7 +326,7 @@ public class PredicateParser {
     }
 
     // Reads: key operator value
-    private Predicate readComparison(Queue<String> tokens, Queue<Object> parameters) {
+    private Predicate readComparison(Queue<String> tokens, ParameterList parameters) {
         String key = tokens.poll();
         if (key == null) {
             return null;
@@ -342,8 +359,42 @@ public class PredicateParser {
         } else if (value instanceof String) {
             String valueString = (String) value;
 
-            if ("?".equals(valueString)) {
-                value = parameters.poll();
+            if (valueString.startsWith("?")) {
+                if (valueString.length() == 1) {
+                    value = parameters.poll();
+
+                } else {
+                    String path = valueString.substring(1);
+                    int slashAt = path.indexOf('/');
+                    String splitIndex;
+                    String splitPath;
+
+                    if (slashAt > -1) {
+                        splitIndex = path.substring(0, slashAt);
+                        splitPath = path.substring(slashAt + 1);
+                    } else {
+                        splitIndex = path;
+                        splitPath = "";
+                    }
+
+                    Integer index = ObjectUtils.to(Integer.class, splitIndex);
+
+                    if (index == null) {
+                        index = 0;
+                    } else {
+                        path = splitPath;
+                    }
+
+                    value = index < parameters.size() ? parameters.get(index) : null;
+
+                    if (value != null && path.length() > 0) {
+                        if (value instanceof Recordable) {
+                            value = ((Recordable) value).getState().getValue(path);
+                        } else {
+                            value = CollectionUtils.getByPath(value, path);
+                        }
+                    }
+                }
 
             } else if ("true".equalsIgnoreCase(valueString)) {
                 value = Boolean.TRUE;
