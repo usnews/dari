@@ -292,7 +292,9 @@ public class DatabaseEnvironment implements ObjectStruct {
                     // Make the new root type available to other types.
                     temporaryTypes.add(rootType);
                     if (rootTypeState.isNew()) {
-                        putGlobal(ROOT_TYPE_FIELD, rootType);
+                        State globals = getGlobals();
+                        globals.put(ROOT_TYPE_FIELD, rootType);
+                        globals.save();
 
                     } else if (!rootTypeState.getSimpleValues().equals(rootTypeOriginals)) {
                         temporaryTypes.changed.add(rootTypeId);
@@ -452,25 +454,33 @@ public class DatabaseEnvironment implements ObjectStruct {
         }
     }
 
-    /** Returns the global value at the given {@code key}. */
-    public Object getGlobal(String key) {
+    /**
+     * Returns all global values.
+     *
+     * @return May be {@code null}.
+     */
+    public State getGlobals() {
         bootstrap();
-        return globals != null ? globals.getValue(key) : null;
+        return globals;
     }
 
-    /** Returns the root type from the globals. */
+    // Returns the root type from the globals.
     private ObjectType getRootType() {
-        Object rootType = getGlobal(ROOT_TYPE_FIELD);
-        return ObjectUtils.to(ObjectType.class, rootType != null ?
-                rootType :
-                getGlobal("rootRecordType"));
-    }
+        State globals = getGlobals();
 
-    /** Puts the given global {@code value} at the given {@code key}. */
-    public void putGlobal(String key, Object value) {
-        bootstrap();
-        globals.putValue(key, value);
-        globals.save();
+        if (globals != null) {
+            Object rootType = globals.get(ROOT_TYPE_FIELD);
+
+            if (rootType == null) {
+                rootType = globals.get("rootRecordType");
+            }
+
+            if (rootType instanceof ObjectType) {
+                return (ObjectType) rootType;
+            }
+        }
+
+        return null;
     }
 
     // --- ObjectStruct support ---
@@ -489,7 +499,8 @@ public class DatabaseEnvironment implements ObjectStruct {
         @Override
         @SuppressWarnings("unchecked")
         protected Map<String, ObjectField> produce() {
-            Object definitions = getGlobal(GLOBAL_FIELDS_FIELD);
+            State globals = getGlobals();
+            Object definitions = globals != null ? globals.get(GLOBAL_FIELDS_FIELD) : null;
             return ObjectField.Static.convertDefinitionsToInstances(
                     DatabaseEnvironment.this,
                     definitions instanceof List ?
@@ -505,7 +516,7 @@ public class DatabaseEnvironment implements ObjectStruct {
 
     @Override
     public void setFields(List<ObjectField> fields) {
-        putGlobal(GLOBAL_FIELDS_FIELD, ObjectField.Static.convertInstancesToDefinitions(fields));
+        getGlobals().put(GLOBAL_FIELDS_FIELD, ObjectField.Static.convertInstancesToDefinitions(fields));
         fieldsCache.invalidate();
     }
 
@@ -518,7 +529,8 @@ public class DatabaseEnvironment implements ObjectStruct {
         @Override
         @SuppressWarnings("unchecked")
         protected Map<String, ObjectIndex> produce() {
-            Object definitions = getGlobal(GLOBAL_INDEXES_FIELD);
+            State globals = getGlobals();
+            Object definitions = globals != null ? globals.get(GLOBAL_INDEXES_FIELD) : null;
             return ObjectIndex.Static.convertDefinitionsToInstances(
                     DatabaseEnvironment.this,
                     definitions instanceof List ?
@@ -534,7 +546,7 @@ public class DatabaseEnvironment implements ObjectStruct {
 
     @Override
     public void setIndexes(List<ObjectIndex> indexes) {
-        putGlobal(GLOBAL_INDEXES_FIELD, ObjectIndex.Static.convertInstancesToDefinitions(indexes));
+        getGlobals().put(GLOBAL_INDEXES_FIELD, ObjectIndex.Static.convertInstancesToDefinitions(indexes));
         indexesCache.invalidate();
     }
 
@@ -715,5 +727,22 @@ public class DatabaseEnvironment implements ObjectStruct {
         }
 
         return object;
+    }
+
+    // --- Deprecated ---
+
+    /** @deprecated Use {@link #getGlobals} instead. */
+    @Deprecated
+    public Object getGlobal(String key) {
+        State globals = getGlobals();
+        return globals != null ? globals.getValue(key) : null;
+    }
+
+    /** @deprecated Use {@link #getGlobals} instead. */
+    @Deprecated
+    public void putGlobal(String key, Object value) {
+        State globals = getGlobals();
+        globals.putValue(key, value);
+        globals.save();
     }
 }
