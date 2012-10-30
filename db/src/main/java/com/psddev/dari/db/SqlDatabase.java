@@ -747,7 +747,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             query = initialQuery;
 
             try {
-                connection = openConnection();
+                connection = openReadConnection();
                 statement = connection.createStatement();
                 statement.setFetchSize(
                         getVendor() instanceof SqlVendor.MySQL ? Integer.MIN_VALUE :
