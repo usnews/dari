@@ -647,7 +647,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             StringBuilder comparisonBuilder = new StringBuilder();
             for (Object value : values) {
-                if (value == null) {
+                if (ObjectUtils.isBlank(value)) {
                     comparisonBuilder.append("(*:* && -*:*)");
                 } else {
                     addValue(comparisonBuilder, solrField, value);
