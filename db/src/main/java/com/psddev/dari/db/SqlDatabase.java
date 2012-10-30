@@ -192,8 +192,19 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         synchronized (this) {
             try {
+                boolean writable = false;
+
                 if (vendor == null) {
-                    Connection connection = openConnection();
+                    Connection connection;
+
+                    try {
+                        connection = openConnection();
+                        writable = true;
+
+                    } catch (DatabaseException error) {
+                        LOGGER.debug("Can't read vendor information from the writable server!", error);
+                        connection = openReadConnection();
+                    }
 
                     try {
                         DatabaseMetaData meta = connection.getMetaData();
@@ -215,21 +226,23 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 tableNames.refresh();
                 symbols.invalidate();
 
-                vendor.createRecord(this);
-                vendor.createRecordUpdate(this);
-                vendor.createSymbol(this);
+                if (writable) {
+                    vendor.createRecord(this);
+                    vendor.createRecordUpdate(this);
+                    vendor.createSymbol(this);
 
-                for (SqlIndex index : SqlIndex.values()) {
-                    if (index != SqlIndex.CUSTOM) {
-                        vendor.createRecordIndex(
-                                this,
-                                index.getReadTable(this, null).getName(this, null),
-                                index);
+                    for (SqlIndex index : SqlIndex.values()) {
+                        if (index != SqlIndex.CUSTOM) {
+                            vendor.createRecordIndex(
+                                    this,
+                                    index.getReadTable(this, null).getName(this, null),
+                                    index);
+                        }
                     }
-                }
 
-                tableNames.refresh();
-                symbols.invalidate();
+                    tableNames.refresh();
+                    symbols.invalidate();
+                }
 
             } catch (SQLException ex) {
                 throw new SqlDatabaseException(this, "Can't check for required tables!", ex);
@@ -307,7 +320,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 return Collections.emptySet();
             }
 
-            Connection connection = openConnection();
+            Connection connection;
+
+            try {
+                connection = openConnection();
+
+            } catch (DatabaseException error) {
+                LOGGER.debug("Can't read table names from the writable server!", error);
+                connection = openReadConnection();
+            }
 
             try {
                 SqlVendor vendor = getVendor();
@@ -432,9 +453,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             vendor.appendIdentifier(selectBuilder, SYMBOL_TABLE);
 
             String selectSql = selectBuilder.toString();
-            Connection connection = openConnection();
+            Connection connection;
             Statement statement = null;
             ResultSet result = null;
+
+            try {
+                connection = openConnection();
+
+            } catch (DatabaseException error) {
+                LOGGER.debug("Can't read symbols from the writable server!", error);
+                connection = openReadConnection();
+            }
 
             try {
                 statement = connection.createStatement();
@@ -967,14 +996,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Override
     protected void doInitialize(String settingsKey, Map<String, Object> settings) {
         close();
-        setDataSource(createDataSource(
-                settings,
-                DATA_SOURCE_SETTING,
-                JDBC_DRIVER_CLASS_SETTING,
-                JDBC_URL_SETTING,
-                JDBC_USER_SETTING,
-                JDBC_PASSWORD_SETTING,
-                JDBC_POOL_SIZE_SETTING));
         setReadDataSource(createDataSource(
                 settings,
                 READ_DATA_SOURCE_SETTING,
@@ -983,6 +1004,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 READ_JDBC_USER_SETTING,
                 READ_JDBC_PASSWORD_SETTING,
                 READ_JDBC_POOL_SIZE_SETTING));
+        setDataSource(createDataSource(
+                settings,
+                DATA_SOURCE_SETTING,
+                JDBC_DRIVER_CLASS_SETTING,
+                JDBC_URL_SETTING,
+                JDBC_USER_SETTING,
+                JDBC_PASSWORD_SETTING,
+                JDBC_POOL_SIZE_SETTING));
 
         String vendorClassName = ObjectUtils.to(String.class, settings.get(VENDOR_CLASS_SETTING));
         Class<?> vendorClass = null;
