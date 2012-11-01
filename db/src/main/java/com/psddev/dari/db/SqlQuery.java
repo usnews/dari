@@ -292,10 +292,6 @@ class SqlQuery {
                 needsDistinct = true;
             }
 
-            whereBuilder.append("\nAND (");
-            whereBuilder.append(subSqlQuery.whereClause.substring(7));
-            whereBuilder.append(')');
-
             fromBuilder.append("\nINNER JOIN ");
             vendor.appendIdentifier(fromBuilder, "Record");
             fromBuilder.append(" ");
@@ -454,8 +450,9 @@ class SqlQuery {
                         whereBuilder.append(")");
 
                     } else {
-                        whereBuilder.append("1 = 1");
+                        SqlQuery subSqlQuery = getOrCreateSubSqlQuery(valueQuery);
                         subQueries.put(valueQuery, joinValueField + (isNotEqualsAll ? " != " : " = "));
+                        whereBuilder.append(subSqlQuery.whereClause.substring(7));
                     }
 
                     return;
