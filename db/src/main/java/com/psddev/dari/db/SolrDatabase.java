@@ -1263,7 +1263,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
                         // Hack for a client.
                         if (value != null) {
-                            value = value.replaceAll("\\{", "").replaceAll("\\}", "").replaceAll("\\-", "");
+                            value = value.replaceAll("\\{", "").replaceAll("\\}", "");
                         }
 
                         document.setField(SUGGESTION_FIELD, value);
