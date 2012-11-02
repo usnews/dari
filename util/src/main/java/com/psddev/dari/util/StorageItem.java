@@ -191,7 +191,7 @@ public interface StorageItem extends SettingsBackedObject {
 
         private static final String CACHE_CONTROL_KEY = "Cache-Control";
         private static final String CACHE_CONTROL_VALUE = "public, max-age=31536000";
-        private static final Pattern CSS_URL_PATTERN = Pattern.compile("(?i)url\\((['\"]?)([^)?#]+)([?#][^)]+)?\\1\\)");
+        private static final Pattern CSS_URL_PATTERN = Pattern.compile("(?i)url\\((['\"]?)([^)?#]*)([?#][^)]+)?\\1\\)");
 
         // Map of plain resources by storage, servlet context, and servlet path.
         private static final ResourceCache PLAIN_RESOURCES = new ResourceCache();
@@ -330,24 +330,31 @@ public interface StorageItem extends SettingsBackedObject {
                                         previous = urlMatcher.end();
                                         childPath = urlMatcher.group(2);
                                         extra = urlMatcher.group(3);
-                                        childUri = new URI(servletPath).resolve(childPath);
 
                                         newCssBuilder.append("url(");
 
-                                        if (childUri.isAbsolute()) {
-                                            newCssBuilder.append(childUri);
+                                        if (childPath.length() == 0) {
+                                            newCssBuilder.append("''");
 
                                         } else {
-                                            childItem = get(childUri.toString());
-                                            for (slashAt = 1; (slashAt = path.indexOf('/', slashAt)) > -1; ++ slashAt) {
-                                                newCssBuilder.append("../");
+                                            childUri = new URI(servletPath).resolve(childPath);
+
+                                            if (childUri.isAbsolute()) {
+                                                newCssBuilder.append(childUri);
+
+                                            } else {
+                                                childItem = get(childUri.toString());
+                                                for (slashAt = 1; (slashAt = path.indexOf('/', slashAt)) > -1; ++ slashAt) {
+                                                    newCssBuilder.append("../");
+                                                }
+                                                newCssBuilder.append(childItem != null ? childItem.getPath() : childPath);
                                             }
-                                            newCssBuilder.append(childItem != null ? childItem.getPath() : childPath);
+
+                                            if (extra != null) {
+                                                newCssBuilder.append(extra);
+                                            }
                                         }
 
-                                        if (extra != null) {
-                                            newCssBuilder.append(extra);
-                                        }
                                         newCssBuilder.append(")");
                                     }
 
