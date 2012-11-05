@@ -188,7 +188,7 @@ public class HtmlWriter extends Writer {
             }
         }
 
-        if (object.getClass().isArray()) {
+        if (object != null && object.getClass().isArray()) {
             start("ul");
                 for (int i = 0, length = Array.getLength(object); i < length; ++ i) {
                     start("li").object(Array.get(object, i)).end();
