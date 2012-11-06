@@ -1256,9 +1256,12 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             if (schema.get().version >= 10) {
                 Set<String> typeAheadFields = type.as(TypeModification.class).getTypeAheadFields();
+                Map<String, String> typeAheadFieldsMap = type.as(TypeModification.class).getTypeAheadFieldsMap();
 
                 if (!typeAheadFields.isEmpty()) {
                     for (String typeAheadField : typeAheadFields) {
+
+                        String solrField = typeAheadFieldsMap.get(typeAheadField);
                         String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
 
                         // Hack for a client.
@@ -1266,7 +1269,11 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                             value = value.replaceAll("\\{", "").replaceAll("\\}", "");
                         }
 
-                        document.setField(SUGGESTION_FIELD, value);
+                        if (!ObjectUtils.isBlank(solrField)) {
+                            document.setField("_e_" + solrField, value);
+                        } else {
+                            document.setField(SUGGESTION_FIELD, value);
+                        }
                     }
                 }
             }
@@ -1522,12 +1529,25 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     @Target(ElementType.TYPE)
     public @interface TypeAheadFields {
         String[] value();
+        TypeAheadFieldsMapping[] mappings();
+    }
+
+    public @interface TypeAheadFieldsMapping {
+        String field();
+        String solrField();
     }
 
     private static class TypeAheadFieldsProcessor implements ObjectType.AnnotationProcessor<TypeAheadFields> {
         @Override
         public void process(ObjectType type, TypeAheadFields annotation) {
+            Map <String, String> typeAheadFieldsMap = new HashMap<String, String>();
+
+            for (TypeAheadFieldsMapping mapping : annotation.mappings()) {
+                typeAheadFieldsMap.put(mapping.field(), mapping.solrField());
+            }
+
             Collections.addAll(type.as(TypeModification.class).getTypeAheadFields(), annotation.value());
+            type.as(TypeModification.class).setTypeAheadFieldsMap(typeAheadFieldsMap);
         }
     }
 
@@ -1535,6 +1555,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public static class TypeModification extends Modification<ObjectType> {
 
         private Set<String> typeAheadFields;
+        private Map<String, String> typeAheadFieldsMap;
 
         public Set<String> getTypeAheadFields() {
             if (typeAheadFields == null) {
@@ -1545,6 +1566,17 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         public void setTypeAheadFields(Set<String> typeAheadFields) {
             this.typeAheadFields = typeAheadFields;
+        }
+
+        public Map<String, String> getTypeAheadFieldsMap() {
+            if (null == typeAheadFieldsMap) {
+                typeAheadFieldsMap = new HashMap<String, String>();
+            }
+            return typeAheadFieldsMap;
+        }
+
+        public void setTypeAheadFieldsMap(Map<String, String> typeAheadFieldsMap) {
+            this.typeAheadFieldsMap = typeAheadFieldsMap;
         }
     }
 
