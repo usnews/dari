@@ -1269,7 +1269,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                             document.setField(SUGGESTION_FIELD, value);
                         }
                     }
-                } else if (!typeAheadFieldsMap.isEmpty()) {
+                } 
+                if (!typeAheadFieldsMap.isEmpty()) {
 
                     for (String typeAheadField : typeAheadFieldsMap.keySet()) {
                         String targetFields[] = typeAheadFieldsMap.get(typeAheadField);
