@@ -1539,8 +1539,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.TYPE)
     public @interface TypeAheadFields {
-        String[] value();
-        TypeAheadFieldsMapping[] mappings();
+        String[] value() default { };
+        TypeAheadFieldsMapping[] mappings() default { };
     }
 
     public @interface TypeAheadFieldsMapping {
