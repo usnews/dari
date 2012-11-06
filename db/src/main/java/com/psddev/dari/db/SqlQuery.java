@@ -41,6 +41,7 @@ class SqlQuery {
 
     private boolean needsDistinct;
     private Join mysqlIndexHint;
+    private boolean forceLeftJoins;
 
     /**
      * Creates an instance that can translate the given {@code query}
@@ -115,10 +116,11 @@ class SqlQuery {
         return fieldBuilder.toString();
     }
 
-    private SqlQuery getOrCreateSubSqlQuery(Query<?> subQuery) {
+    private SqlQuery getOrCreateSubSqlQuery(Query<?> subQuery, boolean forceLeftJoins) {
         SqlQuery subSqlQuery = subSqlQueries.get(subQuery);
         if (subSqlQuery == null) {
             subSqlQuery = new SqlQuery(database, subQuery, aliasPrefix + "s" + subSqlQueries.size());
+            subSqlQuery.forceLeftJoins = forceLeftJoins;
             subSqlQuery.initializeClauses();
             subSqlQueries.put(subQuery, subSqlQuery);
         }
@@ -209,7 +211,7 @@ class SqlQuery {
                 Query<?> subQuery = mappedKeys.get(queryKey).getSubQueryWithSorter(sorter, 0);
 
                 if (subQuery != null) {
-                    SqlQuery subSqlQuery = getOrCreateSubSqlQuery(subQuery);
+                    SqlQuery subSqlQuery = getOrCreateSubSqlQuery(subQuery, true);
                     subQueries.put(subQuery, joinValueField + " = ");
                     orderByBuilder.append(subSqlQuery.orderByClause.substring(9));
                     orderByBuilder.append(", ");
@@ -256,7 +258,7 @@ class SqlQuery {
 
             // e.g. JOIN RecordIndex AS i#
             fromBuilder.append("\n");
-            fromBuilder.append(join.type.token);
+            fromBuilder.append((forceLeftJoins ? JoinType.LEFT_OUTER : join.type).token);
             fromBuilder.append(" ");
             fromBuilder.append(join.table);
 
@@ -286,7 +288,7 @@ class SqlQuery {
 
         for (Map.Entry<Query<?>, String> entry : subQueries.entrySet()) {
             Query<?> subQuery = entry.getKey();
-            SqlQuery subSqlQuery = getOrCreateSubSqlQuery(subQuery);
+            SqlQuery subSqlQuery = getOrCreateSubSqlQuery(subQuery, false);
 
             if (subSqlQuery.needsDistinct) {
                 needsDistinct = true;
@@ -450,7 +452,7 @@ class SqlQuery {
                         whereBuilder.append(")");
 
                     } else {
-                        SqlQuery subSqlQuery = getOrCreateSubSqlQuery(valueQuery);
+                        SqlQuery subSqlQuery = getOrCreateSubSqlQuery(valueQuery, join.type == JoinType.LEFT_OUTER);
                         subQueries.put(valueQuery, joinValueField + (isNotEqualsAll ? " != " : " = "));
                         whereBuilder.append(subSqlQuery.whereClause.substring(7));
                     }
