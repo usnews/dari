@@ -1260,7 +1260,6 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
                 if (!typeAheadFields.isEmpty()) {
                     for (String typeAheadField : typeAheadFields) {
-
                         String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
 
                         // Hack for a client.
@@ -1269,12 +1268,12 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                             document.setField(SUGGESTION_FIELD, value);
                         }
                     }
-                } 
+                }
+
                 if (!typeAheadFieldsMap.isEmpty()) {
-
-                    for (String typeAheadField : typeAheadFieldsMap.keySet()) {
-                        List<String> targetFields = typeAheadFieldsMap.get(typeAheadField);
-
+                    for (Map.Entry<String, List<String> entry : typeAheadFieldsMap.entrySet()) {
+                        String typeAheadField = entry.getKey();
+                        List<String> targetFields = entry.getValue();
                         String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
 
                         if (!ObjectUtils.isBlank(targetFields)) {
@@ -1284,7 +1283,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                                     document.setField("_e_" + targetField, value);
                                 }
                             }
-                        } 
+                        }
                     }
                 }
             }
