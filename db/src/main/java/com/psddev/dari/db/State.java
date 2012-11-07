@@ -705,15 +705,39 @@ public class State implements Map<String, Object> {
         ObjectType type = getType();
         if (type != null) {
             for (ObjectField field : type.getFields()) {
-                Object value = getValue(field.getInternalName());
-                if (value instanceof Recordable) {
-                    State valueState = ((Recordable) value).getState();
-                    ObjectType valueType = valueState.getType();
-                    if ((field.isEmbedded() ||
-                            valueType.isEmbedded()) &&
-                            valueState.hasAnyErrors()) {
-                        return true;
-                    }
+                if (hasErrorsForValue(get(field.getInternalName()), field.isEmbedded())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasErrorsForValue(Object value, boolean embedded) {
+        if (value instanceof Map) {
+            value = ((Map<?, ?>) value).values();
+        }
+
+        if (value instanceof Iterable) {
+            for (Object item : (Iterable<?>) value) {
+                if (hasErrorsForValue(item, embedded)) {
+                    return true;
+                }
+            }
+
+        } else if (value instanceof Recordable) {
+            State valueState = ((Recordable) value).getState();
+
+            if (embedded) {
+                if (valueState.hasAnyErrors()) {
+                    return true;
+                }
+
+            } else {
+                ObjectType valueType = valueState.getType();
+                if (valueType.isEmbedded() && valueState.hasAnyErrors()) {
+                    return true;
                 }
             }
         }
@@ -977,15 +1001,7 @@ public class State implements Map<String, Object> {
         if (type != null) {
             for (ObjectField field : type.getFields()) {
                 field.validate(this);
-
-                Object value = getValue(field.getInternalName());
-                if (value instanceof Recordable) {
-                    State valueState = ((Recordable) value).getState();
-                    ObjectType valueType = valueState.getType();
-                    if (field.isEmbedded() || valueType.isEmbedded()) {
-                        valueState.validate();
-                    }
-                }
+                validateValue(get(field.getInternalName()), field.isEmbedded());
             }
         }
 
@@ -995,6 +1011,31 @@ public class State implements Map<String, Object> {
         }
 
         return !hasAnyErrors();
+    }
+
+    private void validateValue(Object value, boolean embedded) {
+        if (value instanceof Map) {
+            value = ((Map<?, ?>) value).values();
+        }
+
+        if (value instanceof Iterable) {
+            for (Object item : (Iterable<?>) value) {
+                validateValue(item, embedded);
+            }
+
+        } else if (value instanceof Recordable) {
+            State valueState = ((Recordable) value).getState();
+
+            if (embedded) {
+                valueState.validate();
+
+            } else {
+                ObjectType valueType = valueState.getType();
+                if (valueType.isEmbedded()) {
+                    valueState.validate();
+                }
+            }
+        }
     }
 
     private void copyJavaFieldsToRawValues() {
