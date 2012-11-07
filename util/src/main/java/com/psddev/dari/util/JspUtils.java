@@ -1081,13 +1081,13 @@ public class JspUtils {
     /** @deprecated Use {@link #getEmbeddedContextPath(ServletContext, String)} instead. */
     @Deprecated
     public static String getEmbeddedContextPath(ServletContext context, HttpServletRequest request) {
-        return getEmbeddedContextPath(context, request.getServletPath());
+        return getEmbeddedContextPath(context, getCurrentServletPath(request));
     }
 
     /** @deprecated Use {@link #getEmbeddedServletPath(ServletContext, String)} instead. */
     @Deprecated
     public static String getEmbeddedServletPath(ServletContext context, HttpServletRequest request) {
-        return getEmbeddedServletPath(context, request.getServletPath());
+        return getEmbeddedServletPath(context, getCurrentServletPath(request));
     }
 
     /** @deprecated Use {@link #getHost} instead. */
