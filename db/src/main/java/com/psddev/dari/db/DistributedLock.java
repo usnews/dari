@@ -91,11 +91,20 @@ public class DistributedLock implements Lock {
         }
 
         synchronized (holderRef) {
-            State key = State.getInstance(Query.
-                    from(Object.class).
-                    where("_id = ?", keyId).
-                    using(database).
-                    first());
+            boolean oldIgnore = Database.Static.isIgnoreReadConnection();
+            State key;
+
+            try {
+                Database.Static.setIgnoreReadConnection(true);
+                key = State.getInstance(Query.
+                        from(Object.class).
+                        where("_id = ?", keyId).
+                        using(database).
+                        first());
+
+            } finally {
+                Database.Static.setIgnoreReadConnection(oldIgnore);
+            }
 
             if (key == null) {
                 key = new State();
