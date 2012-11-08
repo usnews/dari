@@ -149,20 +149,17 @@ public class DistributedLock implements Lock {
      */
     @Override
     public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-        long remaining = unit.toMillis(time);
+        long end = System.currentTimeMillis() + unit.toMillis(time);
 
-        while (remaining > TRY_INTERVAL) {
+        do {
             if (tryLock()) {
                 return true;
-
             } else {
                 Thread.sleep(TRY_INTERVAL);
-                remaining -= TRY_INTERVAL;
             }
-        }
+        } while (System.currentTimeMillis() < end);
 
-        Thread.sleep(remaining);
-        return tryLock();
+        return false;
     }
 
     /**
