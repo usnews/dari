@@ -456,7 +456,7 @@ public class StringUtils {
             return null;
         }
         try {
-            return URLEncoder.encode(string, "UTF-8");
+            return URLEncoder.encode(string, "UTF-8").replace("+", "%20");
         } catch (UnsupportedEncodingException ex) {
             throw new IllegalStateException(ex);
         }
