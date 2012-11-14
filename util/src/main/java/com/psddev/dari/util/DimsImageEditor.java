@@ -239,6 +239,49 @@ public class DimsImageEditor extends AbstractImageEditor {
                 }
 
                 dimsUrl.resize(width, height, resizeOption);
+
+            } else if ("brightness".equals(command)) {
+                Double brightness = ObjectUtils.to(Double.class, arguments[0]);
+                if (brightness != null) {
+                    dimsUrl.addCommand(new BrightnessCommand((int) (brightness * 100 / 1.5), 0));
+                }
+
+            } else if ("contrast".equals(command)) {
+                Double contrast = ObjectUtils.to(Double.class, arguments[0]);
+                if (contrast != null) {
+                    dimsUrl.addCommand(new BrightnessCommand(0, (int) (contrast * 100)));
+                }
+
+            } else if ("flipH".equals(command)) {
+                if (ObjectUtils.to(boolean.class, arguments[0])) {
+                    dimsUrl.addCommand(new FlipFlopCommand("horizontal"));
+                }
+
+            } else if ("flipV".equals(command)) {
+                if (ObjectUtils.to(boolean.class, arguments[0])) {
+                    dimsUrl.addCommand(new FlipFlopCommand("vertical"));
+                }
+
+            } else if ("grayscale".equals(command)) {
+                if (ObjectUtils.to(boolean.class, arguments[0])) {
+                    dimsUrl.addCommand(new GrayscaleCommand(true));
+                }
+
+            } else if ("invert".equals(command)) {
+                if (ObjectUtils.to(boolean.class, arguments[0])) {
+                    dimsUrl.addCommand(new InvertCommand(true));
+                }
+
+            } else if ("rotate".equals(command)) {
+                Integer angle = ObjectUtils.to(Integer.class, arguments[0]);
+                if (angle != null) {
+                    dimsUrl.addCommand(new RotateCommand(angle));
+                }
+
+            } else if ("sepia".equals(command)) {
+                if (ObjectUtils.to(boolean.class, arguments[0])) {
+                    dimsUrl.addCommand(new SepiaCommand(0.8));
+                }
             }
 
             newImage = dimsUrl.toStorageItem();
@@ -355,6 +398,24 @@ public class DimsImageEditor extends AbstractImageEditor {
 
             } else if ("format".equals(name)) {
                 return new FormatCommand(value);
+
+            } else if ("brightness".equals(name)) {
+                return new BrightnessCommand(value);
+
+            } else if ("flipflop".equals(name)) {
+                return new FlipFlopCommand(value);
+
+            } else if ("grayscale".equals(name)) {
+                return new GrayscaleCommand(value);
+
+            } else if ("invert".equals(name)) {
+                return new InvertCommand(value);
+
+            } else if ("rotate".equals(name)) {
+                return new RotateCommand(value);
+
+            } else if ("sepia".equals(name)) {
+                return new SepiaCommand(value);
 
             } else {
                 return null;
@@ -969,6 +1030,191 @@ public class DimsImageEditor extends AbstractImageEditor {
         @Override
         public String getValue() {
             return format != null ? format.name() : null;
+        }
+
+        @Override
+        public Dimension getOutputDimension(Dimension dimension) {
+            return dimension;
+        }
+    }
+
+    private static class BrightnessCommand implements Command {
+
+        private Integer brightness;
+        private Integer contrast;
+
+        public BrightnessCommand(Integer brightness, Integer contrast) {
+            this.brightness = brightness;
+            this.contrast = contrast;
+        }
+
+        public BrightnessCommand(String argument) {
+            if (argument != null) {
+                int xAt = argument.indexOf('x');
+                if (xAt > -1) {
+                    brightness = ObjectUtils.to(Integer.class, argument.substring(0, xAt));
+                    contrast = ObjectUtils.to(Integer.class, argument.substring(xAt + 1));
+                }
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "brightness";
+        }
+
+        @Override
+        public String getValue() {
+            if (brightness == null) {
+                if (contrast == null) {
+                    return null;
+
+                } else {
+                    return "0x" + contrast;
+                }
+
+            } else if (contrast == null) {
+                return brightness + "x0";
+
+            } else {
+                return brightness + "x" + contrast;
+            }
+        }
+
+        @Override
+        public Dimension getOutputDimension(Dimension dimension) {
+            return dimension;
+        }
+    }
+
+    private static class FlipFlopCommand implements Command {
+
+        private String orientation;
+
+        public FlipFlopCommand(String orientation) {
+            this.orientation = orientation;
+        }
+
+        @Override
+        public String getName() {
+            return "flipflop";
+        }
+
+        @Override
+        public String getValue() {
+            return orientation;
+        }
+
+        @Override
+        public Dimension getOutputDimension(Dimension dimension) {
+            return dimension;
+        }
+    }
+
+    private static class GrayscaleCommand implements Command {
+
+        private Boolean grayscale;
+
+        public GrayscaleCommand(Boolean grayscale) {
+            this.grayscale = grayscale;
+        }
+
+        public GrayscaleCommand(String grayscale) {
+            this(ObjectUtils.to(Boolean.class, grayscale));
+        }
+
+        @Override
+        public String getName() {
+            return "grayscale";
+        }
+
+        @Override
+        public String getValue() {
+            return grayscale != null ? grayscale.toString() : null;
+        }
+
+        @Override
+        public Dimension getOutputDimension(Dimension dimension) {
+            return dimension;
+        }
+    }
+
+    private static class InvertCommand implements Command {
+
+        private Boolean invert;
+
+        public InvertCommand(Boolean invert) {
+            this.invert = invert;
+        }
+
+        public InvertCommand(String invert) {
+            this(ObjectUtils.to(Boolean.class, invert));
+        }
+
+        @Override
+        public String getName() {
+            return "invert";
+        }
+
+        @Override
+        public String getValue() {
+            return invert != null ? invert.toString() : null;
+        }
+
+        @Override
+        public Dimension getOutputDimension(Dimension dimension) {
+            return dimension;
+        }
+    }
+
+    private static class RotateCommand implements Command {
+
+        private Integer angle;
+
+        public RotateCommand(Integer angle) {
+            this.angle = angle;
+        }
+
+        public RotateCommand(String angle) {
+            this(ObjectUtils.to(Integer.class, angle));
+        }
+
+        @Override
+        public String getName() {
+            return "rotate";
+        }
+
+        @Override
+        public String getValue() {
+            return angle != null ? String.valueOf(angle) : null;
+        }
+
+        @Override
+        public Dimension getOutputDimension(Dimension dimension) {
+            return dimension;
+        }
+    }
+
+    private static class SepiaCommand implements Command {
+
+        private Double threshold;
+
+        public SepiaCommand(Double threshold) {
+            this.threshold = threshold;
+        }
+
+        public SepiaCommand(String threshold) {
+            this(ObjectUtils.to(Double.class, threshold));
+        }
+
+        @Override
+        public String getName() {
+            return "sepia";
+        }
+
+        @Override
+        public String getValue() {
+            return threshold != null ? String.valueOf(threshold) : null;
         }
 
         @Override
