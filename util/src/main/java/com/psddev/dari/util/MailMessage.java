@@ -9,7 +9,7 @@ public class MailMessage {
     private String subject;
     private String plainBody;
     private String htmlBody;
-    
+
     public MailMessage(String toAddress) {
         this.toAddress = toAddress;
     }
@@ -18,22 +18,22 @@ public class MailMessage {
         MailMessage msg = new MailMessage(toAddress);
         return msg;
     }
-    
+
     public MailMessage from(String fromAddress) {
         this.fromAddress = fromAddress;
         return this;
     }
-    
+
     public MailMessage replyTo(String replyToAddress) {
         this.replyToAddress = replyToAddress;
         return this;
-    }    
+    }
 
     public MailMessage subject(String subject) {
         this.subject = subject;
         return this;
     }
-    
+
     public MailMessage plain(String plainBody) {
         this.plainBody = plainBody;
         return this;
@@ -91,14 +91,13 @@ public class MailMessage {
     public void setHtmlBody(String htmlBody) {
         this.htmlBody = htmlBody;
     }
-    
+
     /**
      * Sends mail via MailProvider default, from settings.
-     * 
-     * @return 
+     *
+     * @return
      */
     public void send() {
         MailProvider.Static.getDefault().sendMail(this);
     }
-    
 }

@@ -5,7 +5,7 @@ public interface MailProvider extends SettingsBackedObject {
 
     /** Setting key for default mail provider name. */
     public static final String DEFAULT_MAIL_SETTING = "dari/defaultMailProvider";
-    
+
     /** Setting key prefix for all mail provider configuration. */
     public static final String SETTING_PREFIX = "dari/mailProvider";
 
@@ -46,22 +46,23 @@ public interface MailProvider extends SettingsBackedObject {
         public static MailProvider getInstance(String name) {
             if (ObjectUtils.isBlank(name)) {
                 name = Settings.get(String.class, DEFAULT_MAIL_SETTING);
+
                 if (ObjectUtils.isBlank(name)) {
                     throw new IllegalStateException(
                         "No default mail provider setting found!");
                 }
             }
+
             return INSTANCES.get(name);
         }
-        
+
         /**
          * Returns the default configured mail provider.
-         * 
-         * @return 
+         *
+         * @return
          */
         public static MailProvider getDefault() {
             return getInstance(null);
         }
     }
-        
 }
