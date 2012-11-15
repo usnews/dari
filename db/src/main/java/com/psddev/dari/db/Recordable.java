@@ -28,6 +28,12 @@ public interface Recordable {
      */
     public void setState(State state);
 
+    /**
+     * Returns an instance of the given {@code modificationClass} linked
+     * to this object.
+     */
+    public <T> T as(Class<T> modificationClass);
+
     // --- Annotations ---
 
     /**

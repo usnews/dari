@@ -108,6 +108,11 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         this.state.linkObject(this);
     }
 
+    @Override
+    public <T> T as(Class<T> modificationClass) {
+        return getState().as(modificationClass);
+    }
+
     // --- Object support ---
 
     @Override
@@ -208,11 +213,6 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
     /** @see State#saveEventually */
     public void saveEventually() {
         getState().saveEventually();
-    }
-
-    /** @see State#as */
-    public <T> T as(Class<T> modificationClass) {
-        return getState().as(modificationClass);
     }
 
     // --- JSTL support ---
