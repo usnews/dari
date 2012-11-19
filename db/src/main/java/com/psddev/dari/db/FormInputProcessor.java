@@ -67,13 +67,12 @@ public interface FormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
-            State valueState = State.getInstance(value);
             writer.tag("input",
                     "type", "text",
                     "class", "date",
                     "id", inputId,
                     "name", inputName,
-                    "value", valueState != null ? valueState.getId() : null);
+                    "value", value);
         }
 
         @Override
