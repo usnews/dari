@@ -31,8 +31,8 @@ public class ApplicationFilter extends AbstractFilter {
     protected Iterable<Class<? extends Filter>> dependencies() {
         List<Class<? extends Filter>> dependencies = new ArrayList<Class<? extends Filter>>();
         dependencies.add(SourceFilter.class);
-        dependencies.add(ResetFilter.class);
         dependencies.add(StandardFilter.class);
+        dependencies.add(ResetFilter.class);
         dependencies.add(ProfilingDatabaseFilter.class);
         dependencies.add(CachingDatabaseFilter.class);
         return dependencies;
