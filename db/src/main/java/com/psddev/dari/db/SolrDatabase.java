@@ -938,7 +938,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 count,
                 objects,
                 response.getLimitingFacets(),
-                query.getClass(),
+                query != null ? query.getClass() : null,
                 Settings.isDebug() ? solrQuery : null);
     }
 
