@@ -47,7 +47,7 @@ public class Author extends Record {
 ### Indexes
 
 In order to query an object by one of its fields the fields must be marked
-with the `@Index` annotation.  This lets Dari know that these fields can be
+with the `@Indexed` annotation.  This lets Dari know that these fields can be
 queried against. Without this annotation Dari will not allow queries against a field.
 
 <div class="alert alert-block">
