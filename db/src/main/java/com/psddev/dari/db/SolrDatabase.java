@@ -42,6 +42,8 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.MoreLikeThisParams;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -872,6 +874,46 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             comparisonBuilder.append("\"");
             comparisonBuilder.append(suffix);
         }
+    }
+
+    public SolrQuery buildSimilarQuery(Object object, String fieldName) {
+        State state = State.getInstance(object);
+        SolrQuery solrQuery = new SolrQuery();
+
+        solrQuery.setQueryType("/mlt");
+        solrQuery.set(CommonParams.STREAM_BODY, ObjectUtils.toJson(state.getSimpleValues()));
+        solrQuery.set(MoreLikeThisParams.MLT, true);
+        solrQuery.set(MoreLikeThisParams.SIMILARITY_FIELDS, ALL_FIELD);
+        solrQuery.set(MoreLikeThisParams.MIN_WORD_LEN, 2);
+
+        ObjectType type = state.getType();
+
+        if (type != null) {
+            ObjectField field = type.getField(fieldName);
+
+            if (field != null) {
+                StringBuilder filter = new StringBuilder();
+                String fieldClass = field.getJavaDeclaringClassName();
+
+                for (ObjectType t : state.getDatabase().getEnvironment().getTypes()) {
+                    ObjectField f = t.getField(fieldName);
+
+                    if (f != null && ObjectUtils.equals(fieldClass, f.getJavaDeclaringClassName())) {
+                        filter.append(Static.escapeValue(t.getId()));
+                        filter.append(" || ");
+                    }
+                }
+
+                if (filter.length() > 0) {
+                    filter.setLength(filter.length() - 4);
+                    filter.insert(0, "typeId:(");
+                    filter.append(")");
+                    solrQuery.set(MoreLikeThisParams.QF, filter.toString());
+                }
+            }
+        }
+
+        return solrQuery;
     }
 
     /**
