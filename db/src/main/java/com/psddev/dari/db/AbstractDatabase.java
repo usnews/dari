@@ -590,51 +590,71 @@ public abstract class AbstractDatabase<C> implements Database {
 
         protected abstract void doExecute(Record record);
 
+        @SuppressWarnings("unchecked")
         public final void execute(State state) {
             ObjectType type = state.getType();
+
             if (type == null) {
                 return;
             }
 
+            // Global modifications.
+            for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
+                Class<?> modClass = modType.getObjectClass();
+
+                if (modClass != null &&
+                        Modification.class.isAssignableFrom(modClass) &&
+                        Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class)) {
+                    executeForModClass(state, modClass);
+                }
+            }
+
+            // Type-specific modifications.
             for (String modClassName : type.getModificationClassNames()) {
                 Class<?> modClass = ObjectUtils.getClassByName(modClassName);
-                if (modClass == null) {
-                    continue;
+
+                if (modClass != null) {
+                    executeForModClass(state, modClass);
+                }
+            }
+        }
+
+        private void executeForModClass(State state, Class<?> modClass) {
+            Object modObject;
+
+            try {
+                modObject = state.as(modClass);
+
+                if (!(modObject instanceof Record)) {
+                    return;
                 }
 
-                Object modObject;
-                try {
-                    modObject = state.as(modClass);
-                    if (!(modObject instanceof Record)) {
-                        continue;
-                    }
-                } catch (Exception ex) {
-                    continue;
-                }
+            } catch (Exception ex) {
+                return;
+            }
 
-                Record modRecord = (Record) modObject;
-                State modState = modRecord.getState();
-                Map<String, Object> extras = modState.getExtras();
-                @SuppressWarnings("unchecked")
-                Set<Class<?>> triggers = (Set<Class<?>>) extras.get(extraName);
+            Record modRecord = (Record) modObject;
+            State modState = modRecord.getState();
+            Map<String, Object> extras = modState.getExtras();
+            @SuppressWarnings("unchecked")
+            Set<Class<?>> triggers = (Set<Class<?>>) extras.get(extraName);
 
-                if (triggers == null) {
-                    triggers = new HashSet<Class<?>>();
-                    extras.put(extraName, triggers);
-                }
+            if (triggers == null) {
+                triggers = new HashSet<Class<?>>();
+                extras.put(extraName, triggers);
+            }
 
-                if (triggers.contains(modClass)) {
-                    LOGGER.debug(
-                            "Already triggered {} from [{}] on [{}]",
-                            new Object[] { name, modClass.getName(), modState.getId() });
+            if (triggers.contains(modClass)) {
+                LOGGER.debug(
+                        "Already triggered {} from [{}] on [{}]",
+                        new Object[] { name, modClass.getName(), modState.getId() });
 
-                } else {
-                    LOGGER.debug(
-                            "Triggering {} from [{}] on [{}]",
-                            new Object[] { name, modClass.getName(), modState.getId() });
-                    triggers.add(modClass);
-                    doExecute(modRecord);
-                }
+            } else {
+                LOGGER.debug(
+                        "Triggering {} from [{}] on [{}]",
+                        new Object[] { name, modClass.getName(), modState.getId() });
+                triggers.add(modClass);
+                doExecute(modRecord);
             }
         }
     }
