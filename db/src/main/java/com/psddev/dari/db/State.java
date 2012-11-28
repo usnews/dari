@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
@@ -1353,6 +1354,28 @@ public class State implements Map<String, Object> {
         return sb.toString();
     }
 
+    // --- JSTL support ---
+
+    private transient Map<String, Object> modifications;
+
+    public Map<String, Object> getAs() {
+        if (modifications == null) {
+            modifications = new PullThroughCache<String, Object>() {
+                @Override
+                protected Object produce(String modificationClassName) {
+                    Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
+                    if (modificationClass != null) {
+                        return as(modificationClass);
+                    } else {
+                        throw new IllegalArgumentException(String.format(
+                                "[%s] isn't a valid class name!", modificationClassName));
+                    }
+                }
+            };
+        }
+        return modifications;
+    }
+    
     // --- Database bridge ---
 
     /** @see Database#beginWrites() */

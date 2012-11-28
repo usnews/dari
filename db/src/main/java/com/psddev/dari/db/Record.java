@@ -3,7 +3,6 @@ package com.psddev.dari.db;
 import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
 
@@ -217,24 +216,8 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
 
     // --- JSTL support ---
 
-    private transient Map<String, Object> modifications;
-
-    public Map<String, Object> getModifications() {
-        if (modifications == null) {
-            modifications = new PullThroughCache<String, Object>() {
-                @Override
-                protected Object produce(String modificationClassName) {
-                    Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
-                    if (modificationClass != null) {
-                        return as(modificationClass);
-                    } else {
-                        throw new IllegalArgumentException(String.format(
-                                "[%s] isn't a valid class name!", modificationClassName));
-                    }
-                }
-            };
-        }
-        return modifications;
+    public Map<String, Object> getAs() {
+        return getState().getAs();
     }
 
     // --- Deprecated ---
@@ -257,5 +240,11 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
     /** @deprecated No replacement. */
     @Deprecated
     protected void afterDelete(Database database) {
+    }
+
+    /** @deprecated Use {@link #getAs} instead. */
+    @Deprecated
+    public Map<String, Object> getModifications() {
+        return getAs();
     }
 }
