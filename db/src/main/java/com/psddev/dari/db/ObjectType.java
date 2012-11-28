@@ -32,7 +32,9 @@ import org.slf4j.LoggerFactory;
 @Record.LabelFields("name")
 public class ObjectType extends Record implements ObjectStruct {
 
-    private static final String MODIFICATION_NAME = "Modification";
+    private static final String COMMON_NAME_DATA = "Data";
+    private static final String COMMON_NAME_MODIFICATION = "Modification";
+
     private static final Logger
             LOGGER = LoggerFactory.getLogger(ObjectType.class);
 
@@ -632,11 +634,19 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         String simpleName = objectClass.getSimpleName();
-        if (Modification.class.isAssignableFrom(objectClass) &&
-                simpleName.endsWith(MODIFICATION_NAME)) {
-            int newLength = simpleName.length() - MODIFICATION_NAME.length();
-            if (newLength > 0) {
-                simpleName = simpleName.substring(0, newLength);
+        if (Modification.class.isAssignableFrom(objectClass)) {
+            if (simpleName.equals(COMMON_NAME_DATA)) {
+                simpleName = objectClass.getName();
+                int dotAt = simpleName.lastIndexOf('.');
+                if (dotAt > -1) {
+                    simpleName = simpleName.substring(dotAt + 1);
+                }
+
+            } else if (simpleName.endsWith(COMMON_NAME_MODIFICATION)) {
+                int newLength = simpleName.length() - COMMON_NAME_MODIFICATION.length();
+                if (newLength > 0) {
+                    simpleName = simpleName.substring(0, newLength);
+                }
             }
         }
 
