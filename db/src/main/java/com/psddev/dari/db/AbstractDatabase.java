@@ -617,6 +617,11 @@ public abstract class AbstractDatabase<C> implements Database {
                     executeForModClass(state, modClass);
                 }
             }
+
+            // Embedded objects.
+            for (ObjectField field : type.getFields()) {
+                executeForValue(state.get(field.getInternalName()), field.isEmbedded());
+            }
         }
 
         private void executeForModClass(State state, Class<?> modClass) {
@@ -655,6 +660,32 @@ public abstract class AbstractDatabase<C> implements Database {
                         new Object[] { name, modClass.getName(), modState.getId() });
                 triggers.add(modClass);
                 doExecute(modRecord);
+            }
+        }
+
+        private void executeForValue(Object value, boolean embedded) {
+            if (value instanceof Map) {
+                value = ((Map<?, ?>) value).values();
+            }
+
+            if (value instanceof Iterable) {
+                for (Object item : (Iterable<?>) value) {
+                    executeForValue(item, embedded);
+                }
+
+            } else if (value instanceof Recordable) {
+                State valueState = ((Recordable) value).getState();
+
+                if (embedded) {
+                    execute(valueState);
+
+                } else {
+                    ObjectType valueType = valueState.getType();
+
+                    if (valueType != null && valueType.isEmbedded()) {
+                        execute(valueState);
+                    }
+                }
             }
         }
     }
