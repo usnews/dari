@@ -145,9 +145,9 @@ public class StringUtils {
         int m = 0, l = string.length();
         for (int i = 0; i < l; i++) {
             char c = string.charAt(i);
-            if (" -_.".indexOf(c) > -1) {
+            if (" -_.$".indexOf(c) > -1) {
                 words.add(string.substring(m, i).toLowerCase());
-                while (++i < l && " -_.".indexOf(string.charAt(i)) > -1) {
+                while (++i < l && " -_.$".indexOf(string.charAt(i)) > -1) {
                 }
                 m = i;
             } else if (Character.isUpperCase(c) && i > 0 && Character.isLowerCase(string.charAt(i - 1))) {
