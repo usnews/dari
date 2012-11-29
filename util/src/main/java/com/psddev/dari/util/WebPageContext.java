@@ -50,8 +50,6 @@ public class WebPageContext {
      * {@code request}, {@code response}.
      *
      * @param servlet Can't be {@code null}.
-     * @param request Can't be {@code null}.
-     * @param response Can't be {@code null}.
      */
     public WebPageContext(
             Servlet servlet,
@@ -59,8 +57,6 @@ public class WebPageContext {
             HttpServletResponse response) {
 
         ErrorUtils.errorIfNull(servlet, "servlet");
-        ErrorUtils.errorIfNull(request, "request");
-        ErrorUtils.errorIfNull(response, "response");
 
         this.page = servlet;
         this.servletContext = servlet.getServletConfig().getServletContext();
@@ -72,19 +68,11 @@ public class WebPageContext {
     /**
      * Creates an instance based on the given {@code servletContext},
      * {@code request}, and {@code response}.
-     *
-     * @param servletContext Can't be {@code null}.
-     * @param request Can't be {@code null}.
-     * @param response Can't be {@code null}.
      */
     public WebPageContext(
             ServletContext servletContext,
             HttpServletRequest request,
             HttpServletResponse response) {
-
-        ErrorUtils.errorIfNull(servletContext, "servletContext");
-        ErrorUtils.errorIfNull(request, "request");
-        ErrorUtils.errorIfNull(response, "response");
 
         this.page = null;
         this.servletContext = servletContext;
