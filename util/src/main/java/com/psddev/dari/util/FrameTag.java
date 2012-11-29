@@ -37,14 +37,14 @@ public class FrameTag extends BodyTagSupport {
     }
 
     private void startFrame(HttpServletRequest request, HtmlWriter writer, String... classNames) throws IOException {
-        StringBuilder fullClassName = new StringBuilder("frame");
+        StringBuilder fullClassName = new StringBuilder("dari-frame");
 
         if (classNames != null) {
             int length = classNames.length;
             
             if (length > 0) {
                 for (int i = 0; i < length; ++ i) {
-                    fullClassName.append(" ");
+                    fullClassName.append(" dari-frame-");
                     fullClassName.append(classNames[i]);
                 }
             }
@@ -52,6 +52,7 @@ public class FrameTag extends BodyTagSupport {
 
         writer.start("div",
                 "class", fullClassName.toString(),
+                "name", name,
                 "data-extra-form-data",
                         FrameFilter.PATH_PARAMETER + "=" + StringUtils.encodeUri(JspUtils.getCurrentServletPath(request)) + "&" +
                         FrameFilter.NAME_PARAMETER + "=" + StringUtils.encodeUri(name));
