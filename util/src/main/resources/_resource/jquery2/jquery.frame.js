@@ -9,7 +9,10 @@ $.plugin2('frame', {
     '_defaultOptions': {
         'frameClassName': 'dari-frame',
         'loadingClassName': 'dari-frame-loading',
-        'loadedClassName': 'dari-frame-loaded'
+        'loadedClassName': 'dari-frame-loaded',
+        'setBody': function(data) {
+            $(this).html(data);
+        }
     },
 
     '_init': function(selector, options) {
@@ -98,9 +101,10 @@ $.plugin2('frame', {
                     data = data.replace(/<\/body>.*?$/ig, '');
                 }
 
-                $frame.html(data);
-                $frame.trigger('load');
+                options.setBody.call($frame[0], data);
+
                 $frame.trigger('create');
+                $frame.trigger('load');
                 $win.resize();
             }
         };
