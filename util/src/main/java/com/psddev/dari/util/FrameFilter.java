@@ -42,14 +42,16 @@ public class FrameFilter extends AbstractFilter {
             chain.doFilter(request, discarding);
 
             ServletResponse headerResponse = JspUtils.getHeaderResponse(request, response);
+            String name = request.getParameter(NAME_PARAMETER);
 
             if (headerResponse instanceof HeaderResponse) {
                 String location = ((HeaderResponse) headerResponse).getHeader("Location");
 
                 if (location != null) {
-                    response.setHeader("Location", StringUtils.addQueryParameters(location,
-                            PATH_PARAMETER, path,
-                            NAME_PARAMETER, request.getParameter(NAME_PARAMETER)));
+                    response.setHeader("Location",
+                            StringUtils.addQueryParameters(location,
+                                    PATH_PARAMETER, path,
+                                    NAME_PARAMETER, name));
                     return;
                 }
             }
@@ -57,8 +59,20 @@ public class FrameFilter extends AbstractFilter {
             String body = (String) request.getAttribute(BODY_ATTRIBUTE);
 
             if (body != null) {
-                response.setContentType("text/plain");
-                response.getWriter().write(body);
+                PrintWriter writer = response.getWriter();
+
+                if (JspUtils.isAjaxRequest(request)) {
+                    response.setContentType("text/plain");
+                    writer.write(body);
+
+                } else {
+                    response.setContentType("text/html");
+                    writer.write("<div class=\"dari-frame-body\" name=\"");
+                    writer.write(name);
+                    writer.write("\">");
+                    writer.write(StringUtils.escapeHtml(body));
+                    writer.write("</div>");
+                }
             }
         }
     }

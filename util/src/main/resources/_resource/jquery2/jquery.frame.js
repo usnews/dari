@@ -10,8 +10,9 @@ $.plugin2('frame', {
         'frameClassName': 'dari-frame',
         'loadingClassName': 'dari-frame-loading',
         'loadedClassName': 'dari-frame-loaded',
-        'setBody': function(data) {
-            $(this).html(data);
+        'bodyClassName': 'dari-frame-body',
+        'setBody': function(body) {
+            $(this).html(body);
         }
     },
 
@@ -21,6 +22,7 @@ $.plugin2('frame', {
                 frameClassName = options.frameClassName,
                 loadingClassName = options.loadingClassName,
                 loadedClassName = options.loadedClassName,
+                bodyClassName = options.bodyClassName,
                 findTargetFrame,
                 beginLoad,
                 endLoad,
@@ -89,19 +91,27 @@ $.plugin2('frame', {
 
         // Ends loading $frame by setting it using data.
         endLoad = function($frame, version, data) {
-            var $popup;
+            var $popup,
+                    $wrapper,
+                    $bodyContainer,
+                    body;
 
             if (version >= $frame.data('frame-loadVersion')) {
                 $popup = $frame.popup('container');
+                $wrapper = $('<div/>', { 'html': data });
+                $bodyContainer = $wrapper.find('.' + bodyClassName + '[name="' + $frame.attr('name') + '"]');
 
-                $frame.add($popup).removeClass(loadingClassName).addClass(loadedClassName);
+                if ($bodyContainer.length > 0) {
+                    body = $bodyContainer.text();
 
-                if (typeof data === 'string') {
-                    data = data.replace(/^.*?<body[^>]*>/ig, '');
-                    data = data.replace(/<\/body>.*?$/ig, '');
+                } else {
+                    body = $wrapper.html();
+                    body = body.replace(/^.*?<body[^>]*>/ig, '');
+                    body = body.replace(/<\/body>.*?$/ig, '');
                 }
 
-                options.setBody.call($frame[0], data);
+                $frame.add($popup).removeClass(loadingClassName).addClass(loadedClassName);
+                options.setBody.call($frame[0], body);
 
                 $frame.trigger('create');
                 $frame.trigger('load');
@@ -113,11 +123,11 @@ $.plugin2('frame', {
         loadPage = function($frame, $source, url) {
             var plugin = this,
                     version = beginLoad($frame, $source),
-                    formData = $frame.attr('data-extra-form-data');
+                    extraFormData = $frame.attr('data-extra-form-data');
 
             $.ajax({
                 'cache': false,
-                'url': url + (url.indexOf('?') < 0 ? '?' : '&') + formData,
+                'url': url + (url.indexOf('?') < 0 ? '?' : '&') + extraFormData,
                 'complete': function(response) {
                     endLoad($frame, version, response.responseText);
                 }
@@ -135,11 +145,15 @@ $.plugin2('frame', {
         // Intercept form submits to see if it's targeted.
         $caller.delegate('form', 'submit.frame', function() {
             return findTargetFrame(this, function($form, $frame) {
+                var action = $form.attr('action'),
+                        extraFormData = $frame.attr('data-extra-form-data');
+
                 if ($form.attr('method') === 'get') {
-                    var action = $form.attr('action');
                     loadPage($frame, $form, action + (action.indexOf('?') > -1 ? '&' : '?') + $form.serialize());
                     return false;
                 }
+
+                $form.attr('action', action + (action.indexOf('?') < 0 ? '?' : '&') + extraFormData);
 
                 var $isFrame = $form.find(':hidden[name=_isFrame]');
                 if ($isFrame.length === 0) {
@@ -167,6 +181,7 @@ $.plugin2('frame', {
                 var version = beginLoad($frame, $form);
                 $submitFrame.unbind('.frame');
                 $submitFrame.bind('load.frame', function() {
+                    $form.attr('action', action);
                     endLoad($frame, version, $submitFrame.contents().find('body').html());
                     if (!hasTarget) {
                         $form.removeAttr('target');
