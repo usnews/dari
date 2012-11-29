@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
@@ -39,6 +40,19 @@ public class FrameFilter extends AbstractFilter {
 
             request.setAttribute(DISCARDING_RESPONSE_ATTRIBUTE, discarding);
             chain.doFilter(request, discarding);
+
+            ServletResponse headerResponse = JspUtils.getHeaderResponse(request, response);
+
+            if (headerResponse instanceof HeaderResponse) {
+                String location = ((HeaderResponse) headerResponse).getHeader("Location");
+
+                if (location != null) {
+                    response.setHeader("Location", StringUtils.addQueryParameters(location,
+                            PATH_PARAMETER, path,
+                            NAME_PARAMETER, request.getParameter(NAME_PARAMETER)));
+                    return;
+                }
+            }
 
             String body = (String) request.getAttribute(BODY_ATTRIBUTE);
 
