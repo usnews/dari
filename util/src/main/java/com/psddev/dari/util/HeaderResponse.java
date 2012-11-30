@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
@@ -38,6 +39,12 @@ public class HeaderResponse extends HttpServletResponseWrapper {
         values.add(value);
 
         super.setHeader(name, value);
+    }
+
+    @Override
+    public void setResponse(ServletResponse response) {
+        // Don't allow the delegate change to prevent Tomcat from following
+        // SRV.8.3 in the Java servlet specification.
     }
 
     public String getHeader(String name) {
