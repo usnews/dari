@@ -1007,4 +1007,90 @@ public class StringUtils {
             return string;
         }
     }
+
+    /**
+     * Removes the given {@code delimiter} if the given {@code string}
+     * starts with it.
+     *
+     * @param string If {@code null}, returns {@code null}.
+     * @param delimiter If {@code null}, returns the given {@code string}
+     * as is.
+     */
+    public static String removeStart(String string, String delimiter) {
+        if (string == null) {
+            return null;
+        } else if (delimiter == null) {
+            return string;
+        } else if (string.startsWith(delimiter)) {
+            string = string.substring(delimiter.length());
+        }
+        return string;
+    }
+
+    /**
+     * Removes the given {@code delimiter} if the given {@code string}
+     * ends with it.
+     *
+     * @param string If {@code null}, returns {@code null}.
+     * @param delimiter If {@code null}, returns the given {@code string}
+     * as is.
+     */
+    public static String removeEnd(String string, String delimiter) {
+        if (string == null) {
+            return null;
+        } else if (delimiter == null) {
+            return string;
+        } else if (string.endsWith(delimiter)) {
+            string = string.substring(0, string.length() - delimiter.length());
+        }
+        return string;
+    }
+
+    /**
+     * Removes the given {@code delimiter} if the given {@code string}
+     * starts or ends with it.
+     *
+     * @param string If {@code null}, returns {@code null}.
+     * @param delimiter If {@code null}, returns the given {@code string}
+     * as is.
+     */
+    public static String removeSurrounding(String string, String delimiter) {
+        if (string == null) {
+            return null;
+        } else if (delimiter == null) {
+            return string;
+        } else {
+            if (string.startsWith(delimiter)) {
+                string = string.substring(delimiter.length());
+            }
+            if (string.endsWith(delimiter)) {
+                string = string.substring(0, string.length() - delimiter.length());
+            }
+            return string;
+        }
+    }
+
+    /**
+     * @param path If {@code null}, returns {@code null}.
+     * @param servletPath If {@code null}, returns {@code null}.
+     */
+    public static String getPathInfo(String path, String servletPath) {
+        if (path != null && servletPath != null) {
+            path = ensureStart(path, "/");
+            servletPath = ensureStart(removeEnd(servletPath, "/"), "/");
+
+            if (path.startsWith(servletPath)) {
+                String pathInfo = path.substring(servletPath.length());
+
+                if (pathInfo.length() == 0) {
+                    return "/";
+
+                } else if (pathInfo.startsWith("/")) {
+                    return pathInfo;
+                }
+            }
+        }
+
+        return null;
+    }
 }
