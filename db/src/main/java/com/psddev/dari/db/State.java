@@ -737,7 +737,7 @@ public class State implements Map<String, Object> {
 
             } else {
                 ObjectType valueType = valueState.getType();
-                if (valueType.isEmbedded() && valueState.hasAnyErrors()) {
+                if (valueType != null && valueType.isEmbedded() && valueState.hasAnyErrors()) {
                     return true;
                 }
             }
@@ -1032,7 +1032,7 @@ public class State implements Map<String, Object> {
 
             } else {
                 ObjectType valueType = valueState.getType();
-                if (valueType.isEmbedded()) {
+                if (valueType != null && valueType.isEmbedded()) {
                     valueState.validate();
                 }
             }
