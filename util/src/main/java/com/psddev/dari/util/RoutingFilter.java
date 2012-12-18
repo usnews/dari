@@ -9,6 +9,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,6 +59,13 @@ public class RoutingFilter extends AbstractFilter {
                         servletClass.getName()), ex);
             }
         }
+
+        Collections.sort(servletWrappers, new Comparator<ServletWrapper>() {
+            @Override
+            public int compare(ServletWrapper x, ServletWrapper y) {
+                return y.getPath().length() - x.getPath().length();
+            }
+        });
     }
 
     @Override
