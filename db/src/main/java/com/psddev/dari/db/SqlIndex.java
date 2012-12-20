@@ -47,12 +47,14 @@ public enum SqlIndex {
 
     LOCATION(
         new NameSingleValueTable(1, "RecordLocation"),
-        new SymbolIdSingleValueTable(2, "RecordLocation2")
+        new SymbolIdSingleValueTable(2, "RecordLocation2"),
+        new TypeIdSymbolIdSingleValueTable(3, "RecordLocation3")
     ),
 
     NUMBER(
         new NameSingleValueTable(1, "RecordNumber"),
-        new SymbolIdSingleValueTable(2, "RecordNumber2")
+        new SymbolIdSingleValueTable(2, "RecordNumber2"),
+        new TypeIdSymbolIdSingleValueTable(3, "RecordNumber3")
     ),
 
     STRING(
@@ -80,12 +82,24 @@ public enum SqlIndex {
                 }
                 return stringToBytes(valueString, 500);
             }
+        },
+
+        new TypeIdSymbolIdSingleValueTable(4, "RecordString4") {
+            @Override
+            protected Object convertValue(SqlDatabase database, ObjectIndex index, int fieldIndex, Object value) {
+                String valueString = value.toString().trim();
+                if (!index.isCaseSensitive()) {
+                    valueString = valueString.toLowerCase(Locale.ENGLISH);
+                }
+                return stringToBytes(valueString, 500);
+            }
         }
     ),
 
     UUID(
         new NameSingleValueTable(1, "RecordUuid"),
-        new SymbolIdSingleValueTable(2, "RecordUuid2")
+        new SymbolIdSingleValueTable(2, "RecordUuid2"),
+        new TypeIdSymbolIdSingleValueTable(3, "RecordUuid3")
     );
 
     private final Table[] tables;
@@ -136,6 +150,8 @@ public enum SqlIndex {
 
         public String getValueField(SqlDatabase database, ObjectIndex index, int fieldIndex);
 
+        public String getTypeIdField(SqlDatabase database, ObjectIndex index);
+
         public Object convertKey(SqlDatabase database, ObjectIndex index, String key);
 
         public String prepareInsertStatement(
@@ -146,6 +162,7 @@ public enum SqlIndex {
         public void bindInsertValues(
                 SqlDatabase database,
                 ObjectIndex index,
+                UUID typeId,
                 UUID id,
                 IndexValue indexValue,
                 Set<String> bindKeys,
@@ -158,6 +175,7 @@ public enum SqlIndex {
         private final String idField;
         private final String keyField;
         private final String valueField;
+        protected String typeIdField;
 
         public AbstractTable(int version, String idField, String keyField, String valueField) {
             this.version = version;
@@ -179,6 +197,11 @@ public enum SqlIndex {
         @Override
         public String getKeyField(SqlDatabase database, ObjectIndex index) {
             return keyField;
+        }
+
+        @Override
+        public String getTypeIdField(SqlDatabase database, ObjectIndex index) {
+            return typeIdField;
         }
 
         @Override
@@ -256,6 +279,7 @@ public enum SqlIndex {
         public void bindInsertValues(
                 SqlDatabase database,
                 ObjectIndex index,
+                UUID typeId,
                 UUID id,
                 IndexValue indexValue,
                 Set<String> bindKeys,
@@ -347,6 +371,111 @@ public enum SqlIndex {
         public Object convertKey(SqlDatabase database, ObjectIndex index, String key) {
             return database.getSymbolId(key);
         }
+    }
+
+    private static class TypeIdSymbolIdSingleValueTable extends SymbolIdSingleValueTable {
+
+        public TypeIdSymbolIdSingleValueTable(int version, String name) {
+            super(version, name);
+            this.typeIdField = "typeId";
+        }
+
+        @Override
+        public String prepareInsertStatement(
+                SqlDatabase database,
+                Connection connection,
+                ObjectIndex index) throws SQLException {
+
+            SqlVendor vendor = database.getVendor();
+            int fieldsSize = index.getFields().size();
+            StringBuilder insertBuilder = new StringBuilder();
+
+            insertBuilder.append("INSERT INTO ");
+            vendor.appendIdentifier(insertBuilder, getName(database, index));
+            insertBuilder.append(" (");
+            vendor.appendIdentifier(insertBuilder, getTypeIdField(database, index));
+            insertBuilder.append(",");
+            vendor.appendIdentifier(insertBuilder, getIdField(database, index));
+            insertBuilder.append(",");
+            vendor.appendIdentifier(insertBuilder, getKeyField(database, index));
+
+            for (int i = 0; i < fieldsSize; ++ i) {
+                insertBuilder.append(",");
+                vendor.appendIdentifier(insertBuilder, getValueField(database, index, i));
+            }
+
+            insertBuilder.append(") VALUES");
+            insertBuilder.append(" (?, ?, ?, ");
+
+            // Add placeholders for each value in this index.
+            for (int i = 0; i < fieldsSize; ++ i) {
+                if (i != 0) {
+                    insertBuilder.append(", ");
+                }
+
+                if (SqlIndex.Static.getByIndex(index) == SqlIndex.LOCATION) {
+                    vendor.appendBindLocation(insertBuilder, null, null);
+                } else {
+                    insertBuilder.append("?");
+                }
+            }
+
+            insertBuilder.append(")");
+
+            return insertBuilder.toString();
+        }
+
+        @Override
+        public void bindInsertValues(
+                SqlDatabase database,
+                ObjectIndex index,
+                UUID typeId,
+                UUID id,
+                IndexValue indexValue,
+                Set<String> bindKeys,
+                List<List<Object>> parameters) throws SQLException {
+
+            SqlVendor vendor = database.getVendor();
+            Object indexKey = convertKey(database, index, indexValue.getUniqueName());
+            int fieldsSize = index.getFields().size();
+            StringBuilder insertBuilder = new StringBuilder();
+            boolean writeIndex = true;
+
+            for (Object[] valuesArray : indexValue.getValuesArray()) {
+                StringBuilder bindKeyBuilder = new StringBuilder();
+                bindKeyBuilder.append(id.toString());
+                bindKeyBuilder.append(indexKey);
+
+                for (int i = 0; i < fieldsSize; i++) {
+                    Object parameter = convertValue(database, index, i, valuesArray[i]);
+                    vendor.appendValue(bindKeyBuilder, parameter);
+
+                    if (ObjectUtils.isBlank(parameter)) {
+                        writeIndex = false;
+                        break;
+                    }
+                }
+
+                String bindKey = bindKeyBuilder.toString();
+
+                if (writeIndex && !bindKeys.contains(bindKey)) {
+                    List<Object> rowData = new ArrayList<Object>();
+
+                    vendor.appendBindValue(insertBuilder, typeId, rowData);
+                    vendor.appendBindValue(insertBuilder, id, rowData);
+                    vendor.appendBindValue(insertBuilder, indexKey, rowData);
+
+                    for (int i = 0; i < fieldsSize; i++) {
+                        Object parameter = convertValue(database, index, i, valuesArray[i]);
+                        vendor.appendBindValue(insertBuilder, parameter, rowData);
+                    }
+
+                    bindKeys.add(bindKey);
+                    parameters.add(rowData);
+                }
+            }
+        }
+
     }
 
     public static class IndexValue {
@@ -537,6 +666,7 @@ public enum SqlIndex {
 
             for (State state : states) {
                 UUID id = state.getId();
+                UUID typeId = state.getTypeId();
 
                 for (IndexValue indexValue : getIndexValues(state)) {
                     ObjectIndex index = indexValue.getIndex();
@@ -580,7 +710,7 @@ public enum SqlIndex {
                             insertBindKeys.put(name, bindKeys);
                         }
 
-                        table.bindInsertValues(database, index, id, indexValue, bindKeys, parameters);
+                        table.bindInsertValues(database, index, typeId, id, indexValue, bindKeys, parameters);
                     }
                 }
             }

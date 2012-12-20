@@ -303,6 +303,7 @@ public class SqlVendor {
 
         Map<String, ColumnType> columns = new LinkedHashMap<String, ColumnType>();
         columns.put(SqlDatabase.ID_COLUMN, ColumnType.UUID);
+        columns.put(SqlDatabase.TYPE_ID_COLUMN, ColumnType.UUID);
         columns.put(SqlDatabase.SYMBOL_ID_COLUMN, ColumnType.INTEGER);
         for (int i = 0, length = types.length; i < length; ++ i) {
             columns.put(SqlDatabase.VALUE_COLUMN + (i == 0 ? "" : i + 1), INDEX_TYPES.get(types[i]));
