@@ -585,14 +585,7 @@ class MinimumProcessor implements ObjectField.AnnotationProcessor<Annotation> {
 class PreviewFieldProcessor implements ObjectType.AnnotationProcessor<Recordable.PreviewField> {
     @Override
     public void process(ObjectType type, Recordable.PreviewField annotation) {
-        String fieldName = annotation.value();
-        ObjectField field = type.getField(fieldName);
-        if (field != null && ObjectField.FILE_TYPE.equals(field.getInternalType())) {
-            type.setPreviewField(fieldName);
-        } else {
-            throw new IllegalArgumentException(
-                    "[%s] annotation cannot be applied to a non-file field!");
-        }
+        type.setPreviewField(annotation.value());
     }
 }
 

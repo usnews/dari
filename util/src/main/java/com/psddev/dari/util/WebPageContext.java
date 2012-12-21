@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ public class WebPageContext {
     private final ServletContext servletContext;
     private final HttpServletRequest request;
     private final HttpServletResponse response;
-    private final Writer writer;
+    private HtmlWriter writer;
     private Converter converter;
 
     /**
@@ -42,7 +41,7 @@ public class WebPageContext {
         this.servletContext = pageContext.getServletContext();
         this.request = (HttpServletRequest) pageContext.getRequest();
         this.response = (HttpServletResponse) pageContext.getResponse();
-        this.writer = pageContext.getOut();
+        this.writer = new HtmlWriter(pageContext.getOut());
     }
 
     /**
@@ -113,8 +112,11 @@ public class WebPageContext {
      *
      * @return Never {@code null}.
      */
-    public Writer getWriter() throws IOException {
-        return writer != null ? writer : response.getWriter();
+    public HtmlWriter getWriter() throws IOException {
+        if (writer == null) {
+            writer = new HtmlWriter(getResponse().getWriter());
+        }
+        return writer;
     }
 
     /**
