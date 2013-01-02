@@ -292,7 +292,16 @@ class SqlQuery {
 
             // e.g. ON i#.recordId = r.id
             if (join.position == 0 && ! needsRecordTable) {
-                // all of this is done in the WHERE clause already
+                // almost all of this is done in the WHERE clause already
+                whereBuilder.append(" AND ");
+                whereBuilder.append(join.getKeyField());
+                whereBuilder.append(" IN (");
+                for (String indexKey : join.indexKeys) {
+                    whereBuilder.append(join.quoteIndexKey(indexKey));
+                    whereBuilder.append(", ");
+                }
+                whereBuilder.setLength(whereBuilder.length() - 2);
+                whereBuilder.append(")");
             } else {
                 fromBuilder.append(" ON ");
                 if (join.typeIdField != null) {
@@ -733,6 +742,7 @@ class SqlQuery {
      */
     public String groupStatement(String[] groupFields) {
         Map<String, Join> groupJoins = new LinkedHashMap<String, Join>();
+        setNeedsRecordTable(false);
         if (groupFields != null) {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
@@ -771,11 +781,13 @@ class SqlQuery {
             statementBuilder.append(field);
         }
 
-        statementBuilder.append("\nFROM ");
-        vendor.appendIdentifier(statementBuilder, "Record");
-        statementBuilder.append(" ");
-        statementBuilder.append(aliasPrefix);
-        statementBuilder.append("r");
+        if (needsRecordTable) {
+            statementBuilder.append("\nFROM ");
+            vendor.appendIdentifier(statementBuilder, "Record");
+            statementBuilder.append(" ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+        }
         statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
         statementBuilder.append(whereClause);
 
@@ -1049,6 +1061,7 @@ class SqlQuery {
 
             if (Query.ID_KEY.equals(queryKey)) {
                 needsIndexTable = false;
+                setNeedsRecordTable(true);
                 likeValuePrefix = null;
                 valueField = recordIdField;
                 sqlIndexTable = null;
@@ -1059,6 +1072,7 @@ class SqlQuery {
 
             } else if (Query.TYPE_KEY.equals(queryKey)) {
                 needsIndexTable = false;
+                setNeedsRecordTable(true);
                 likeValuePrefix = null;
                 valueField = recordTypeIdField;
                 sqlIndexTable = null;
@@ -1072,6 +1086,7 @@ class SqlQuery {
 
             } else if (database.hasInRowIndex() && index.isShortConstant()) {
                 needsIndexTable = false;
+                setNeedsRecordTable(true);
                 likeValuePrefix = "%;" + database.getSymbolId(mappedKeys.get(queryKey).getIndexKey(selectedIndexes.get(queryKey))) + "=";
                 valueField = recordInRowIndexField;
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
