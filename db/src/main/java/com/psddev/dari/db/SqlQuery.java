@@ -961,13 +961,14 @@ class SqlQuery {
 
     private Join createJoin(String queryKey) {
         String alias;
-        if (! needsRecordTable && joins.size() == 0) {
+        int position = joins.size();
+        if (! needsRecordTable && position == 0) {
             alias = "r";
         } else {
-            alias = "i" + joins.size();
+            alias = "i" + position;
         }
         Join join = new Join(alias, queryKey);
-        join.position = joins.size();
+        join.position = position;
         joins.add(join);
         if (queryKey.equals(query.getOptions().get(SqlDatabase.MYSQL_INDEX_HINT_QUERY_OPTION))) {
             mysqlIndexHint = join;
