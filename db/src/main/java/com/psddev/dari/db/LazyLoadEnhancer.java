@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * applied to all model classes.
  *
  * <p>Note that this is an optional performance optimization. It's always
- * safe not to enable it.
+ * safe not to enable it.</p>
  *
  * @see <a href="http://maven.apache.org/">Apache Maven</a>
  */
@@ -36,7 +36,7 @@ public class LazyLoadEnhancer extends ClassEnhancer {
     private boolean missingClasses;
     private String enhancedClassName;
     private boolean alreadyEnhanced;
-    private Set<String> recordableFields = new HashSet<String>();
+    private final Set<String> recordableFields = new HashSet<String>();
 
     // --- ClassEnhancer support ---
 
@@ -61,6 +61,7 @@ public class LazyLoadEnhancer extends ClassEnhancer {
     @Override
     public boolean canEnhance(ClassReader reader) {
         enhancedClassName = reader.getClassName();
+
         return !enhancedClassName.startsWith("com/psddev/dari/") &&
                 findRecordableClass(enhancedClassName) != null;
     }
@@ -70,6 +71,7 @@ public class LazyLoadEnhancer extends ClassEnhancer {
         if (!alreadyEnhanced && desc.equals(ANNOTATION_DESCRIPTOR)) {
             alreadyEnhanced = true;
         }
+
         return super.visitAnnotation(desc, visible);
     }
 
@@ -82,8 +84,10 @@ public class LazyLoadEnhancer extends ClassEnhancer {
             Object value) {
 
         Class<?> objectClass = findRecordableClass(Type.getType(desc).getClassName());
+
         if (objectClass != null) {
             Recordable.Embedded embedded = objectClass.getAnnotation(Recordable.Embedded.class);
+
             if (embedded == null || !embedded.value()) {
                 recordableFields.add(name);
             }
@@ -101,31 +105,37 @@ public class LazyLoadEnhancer extends ClassEnhancer {
             String[] exceptions) {
 
         MethodVisitor visitor = super.visitMethod(access, name, desc, signature, exceptions);
+
         if (alreadyEnhanced) {
             return visitor;
 
         } else {
             return new MethodAdapter(visitor) {
-
-                private void addResolver() {
-                    visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
-                    visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
-                }
-
                 @Override
                 public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-                    if (recordableFields.contains(name)) {
-
-                        if (opcode == Opcodes.GETFIELD) {
+                    if (opcode == Opcodes.GETFIELD) {
+                        if (recordableFields.contains(name)) {
                             visitInsn(Opcodes.DUP);
-                            addResolver();
-
-                        } else if (opcode == Opcodes.PUTFIELD) {
-                            visitInsn(Opcodes.SWAP);
+                            visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
                             visitInsn(Opcodes.DUP);
-                            addResolver();
-                            visitInsn(Opcodes.SWAP);
+                            visitLdcInsn(name);
+                            visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "beforeFieldGet", "(Ljava/lang/String;)V");
+                            visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
+
+                        } else {
+                            visitInsn(Opcodes.DUP);
+                            visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
+                            visitLdcInsn(name);
+                            visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "beforeFieldGet", "(Ljava/lang/String;)V");
                         }
+
+                    } else if (opcode == Opcodes.PUTFIELD &&
+                            recordableFields.contains(name)) {
+                        visitInsn(Opcodes.SWAP);
+                        visitInsn(Opcodes.DUP);
+                        visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
+                        visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
+                        visitInsn(Opcodes.SWAP);
                     }
 
                     super.visitFieldInsn(opcode, owner, name, desc);
@@ -138,8 +148,10 @@ public class LazyLoadEnhancer extends ClassEnhancer {
     public void visitEnd() {
         if (!missingClasses && !alreadyEnhanced) {
             AnnotationVisitor annotation = super.visitAnnotation(ANNOTATION_DESCRIPTOR, true);
+
             annotation.visitEnd();
         }
+
         super.visitEnd();
     }
 }

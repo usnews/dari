@@ -48,6 +48,8 @@ public class State implements Map<String, Object> {
     private static final int IS_ALL_RESOLVED_FLAG = 1 << 0;
     private static final int IS_RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
 
+    private static final ThreadLocal<List<Listener>> LISTENERS_LOCAL = new ThreadLocal<List<Listener>>();
+
     private final Map<Class<?>, Object> linkedObjects = new LinkedHashMap<Class<?>, Object>();
     private Database database;
     private UUID id;
@@ -954,6 +956,16 @@ public class State implements Map<String, Object> {
         return objects;
     }
 
+    public void beforeFieldGet(String name) {
+        List<Listener> listeners = LISTENERS_LOCAL.get();
+
+        if (listeners != null && !listeners.isEmpty()) {
+            for (Listener listener : listeners) {
+                listener.beforeFieldGet(this, name);
+            }
+        }
+    }
+
     /**
      * Resolves all references to other objects in this state. This method
      * shouldn't be used directly, because it's called automatically on
@@ -1468,6 +1480,41 @@ public class State implements Map<String, Object> {
             database.commitWrites();
         } finally {
             database.endWrites();
+        }
+    }
+
+    public static abstract class Listener {
+        public void beforeFieldGet(State state, String name) {
+        }
+    }
+
+    /** {@link State} utility methods. */
+    public static final class Static {
+
+        private Static() {
+        }
+
+        public static void addListener(Listener listener) {
+            List<Listener> listeners = LISTENERS_LOCAL.get();
+
+            if (listeners == null) {
+                listeners = new ArrayList<Listener>();
+                LISTENERS_LOCAL.set(listeners);
+            }
+
+            listeners.add(listener);
+        }
+
+        public static void removeListener(Listener listener) {
+            List<Listener> listeners = LISTENERS_LOCAL.get();
+
+            if (listeners != null) {
+                listeners.remove(listener);
+
+                if (listeners.isEmpty()) {
+                    LISTENERS_LOCAL.remove();
+                }
+            }
         }
     }
 
