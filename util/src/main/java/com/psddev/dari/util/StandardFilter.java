@@ -21,6 +21,7 @@ import javax.servlet.Filter;
  * <li>{@link PageContextFilter}</li>
  * <li>{@link SessionIdFilter}</li>
  * <li>{@link Utf8Filter}</li>
+ * <li>{@link JspBufferFilter}</li>
  * <li>{@link PingFilter}</li>
  * <li>{@link ResourceFilter}</li>
  * <li>{@link TaskFilter}</li>
@@ -44,6 +45,7 @@ public class StandardFilter extends AbstractFilter {
         dependencies.add(PageContextFilter.class);
         dependencies.add(SessionIdFilter.class);
         dependencies.add(Utf8Filter.class);
+        dependencies.add(JspBufferFilter.class);
 
         dependencies.add(PingFilter.class);
         dependencies.add(ResourceFilter.class);
