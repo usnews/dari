@@ -70,17 +70,6 @@ class SqlQuery {
         }
     }
 
-    private void setNeedsRecordTable(boolean needsRecordTable) {
-        this.needsRecordTable = needsRecordTable;
-        if (joins.size() > 0) {
-            if (needsRecordTable) {
-                joins.get(0).alias = "i0";
-            } else {
-                joins.get(0).alias = "r";
-            }
-        }
-    }
-
     private void selectIndex(String queryKey, Query.MappedKey mappedKey) {
         ObjectIndex selectedIndex = null;
         int maxMatchCount = 0;
@@ -265,7 +254,7 @@ class SqlQuery {
         StringBuilder fromBuilder = new StringBuilder();
 
         if (joins.size() == 0) {
-            setNeedsRecordTable(true);
+            this.needsRecordTable = true;
         }
         for (Join join : joins) {
             if (join.indexKeys.isEmpty()) {
@@ -692,7 +681,7 @@ class SqlQuery {
      */
     public String countStatement() {
         StringBuilder statementBuilder = new StringBuilder();
-        this.setNeedsRecordTable(false);
+        this.needsRecordTable = false;
         initializeClauses();
 
         statementBuilder.append("SELECT COUNT(");
@@ -742,7 +731,7 @@ class SqlQuery {
      */
     public String groupStatement(String[] groupFields) {
         Map<String, Join> groupJoins = new LinkedHashMap<String, Join>();
-        setNeedsRecordTable(false);
+        this.needsRecordTable = false;
         if (groupFields != null) {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
@@ -1061,7 +1050,6 @@ class SqlQuery {
 
             if (Query.ID_KEY.equals(queryKey)) {
                 needsIndexTable = false;
-                setNeedsRecordTable(true);
                 likeValuePrefix = null;
                 valueField = recordIdField;
                 sqlIndexTable = null;
@@ -1072,7 +1060,6 @@ class SqlQuery {
 
             } else if (Query.TYPE_KEY.equals(queryKey)) {
                 needsIndexTable = false;
-                setNeedsRecordTable(true);
                 likeValuePrefix = null;
                 valueField = recordTypeIdField;
                 sqlIndexTable = null;
@@ -1086,7 +1073,6 @@ class SqlQuery {
 
             } else if (database.hasInRowIndex() && index.isShortConstant()) {
                 needsIndexTable = false;
-                setNeedsRecordTable(true);
                 likeValuePrefix = "%;" + database.getSymbolId(mappedKeys.get(queryKey).getIndexKey(selectedIndexes.get(queryKey))) + "=";
                 valueField = recordInRowIndexField;
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
@@ -1106,11 +1092,18 @@ class SqlQuery {
                 idField = sqlIndexTable.getIdField(database, index);
                 keyField = sqlIndexTable.getKeyField(database, index);
                 typeIdField = sqlIndexTable.getTypeIdField(database, index);
-                if (!needsRecordTable && typeIdField == null && alias == "r") {
-                    /* if we're not capable of running this query without Record, reset it here. */
-                    setNeedsRecordTable(true);
-                    this.alias = "i0";
-                }
+            }
+            if (this.position == 0 && !needsRecordTable && (!needsIndexTable || typeIdField == null)) {
+                /* if we're not capable of running this query without Record, reset it here. */
+                needsRecordTable = true;
+            }
+        }
+
+        private void checkAlias() {
+            if (alias.equals("i0") && !needsRecordTable) {
+                alias = "r";
+            } else if (alias.equals("r") && needsRecordTable) {
+                alias = "i0";
             }
         }
 
@@ -1118,6 +1111,8 @@ class SqlQuery {
             if (table == null) {
                 return null;
             } else {
+
+                checkAlias();
                 StringBuilder tableBuilder = new StringBuilder();
                 vendor.appendIdentifier(tableBuilder, table);
                 tableBuilder.append(" ");
@@ -1131,6 +1126,7 @@ class SqlQuery {
             if (idField == null) { 
                 return null;
             } else {
+                checkAlias();
                 return aliasedField(alias, idField);
             }
         }
@@ -1139,6 +1135,7 @@ class SqlQuery {
             if (keyField == null) {
                 return null;
             } else {
+                checkAlias();
                 return aliasedField(alias, keyField);
             }
         }
@@ -1147,6 +1144,7 @@ class SqlQuery {
             if (typeIdField == null) {
                 return null;
             } else {
+                checkAlias();
                 return aliasedField(alias, typeIdField);
             }
         }
