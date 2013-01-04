@@ -12,9 +12,3 @@ target
 
 # Jekyll
 _site
-
-# Mac
-.DS_Store
-
-# vim
-.*.sw*
