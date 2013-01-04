@@ -42,6 +42,11 @@ public enum SqlIndex {
             public Object convertKey(SqlDatabase database, ObjectIndex index, String key) {
                 return database.getSymbolId(key);
             }
+
+            @Override
+            public boolean isReadOnly(ObjectIndex index) {
+                return SqlDatabase.Static.getIndexTableIsReadOnly(index);
+            }
         }
     ),
 
@@ -114,12 +119,14 @@ public enum SqlIndex {
     public List<Table> getWriteTables(SqlDatabase database, ObjectIndex index) {
         List<Table> writeTables = new ArrayList<Table>();
         for (Table table : tables) {
-            if (database.hasTable(table.getName(database, index))) {
+            if (database.hasTable(table.getName(database, index)) && !table.isReadOnly(index)) {
                 writeTables.add(table);
             }
         }
         if (writeTables.isEmpty()) {
-            writeTables.add(tables[tables.length - 1]);
+            if (!(tables[tables.length - 1]).isReadOnly(index)) {
+                writeTables.add(tables[tables.length - 1]);
+            }
         }
         return writeTables;
     }
@@ -127,6 +134,8 @@ public enum SqlIndex {
     public interface Table {
 
         public int getVersion();
+
+        public boolean isReadOnly(ObjectIndex index);
 
         public String getName(SqlDatabase database, ObjectIndex index);
 
@@ -169,6 +178,11 @@ public enum SqlIndex {
         @Override
         public int getVersion() {
             return version;
+        }
+
+        @Override
+        public boolean isReadOnly(ObjectIndex index) {
+            return false;
         }
 
         @Override

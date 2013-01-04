@@ -98,6 +98,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public static final String INDEX_TABLE_INDEX_OPTION = "sql.indexTable";
     public static final String INDEX_TABLE_USE_COLUMN_NAMES_OPTION = "sql.indexTableUseColumnNames";
+    public static final String INDEX_TABLE_IS_READONLY_OPTION = "sql.indexTableIsReadonly";
 
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
@@ -1857,6 +1858,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public @interface FieldIndexTable {
         String value();
         boolean names() default false;
+        boolean readonly() default false;
     }
 
     private static class FieldIndexTableProcessor implements ObjectField.AnnotationProcessor<FieldIndexTable> {
@@ -1864,6 +1866,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public void process(ObjectType type, ObjectField field, FieldIndexTable annotation) {
             field.getOptions().put(INDEX_TABLE_INDEX_OPTION, annotation.value());
             field.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, annotation.names());
+            field.getOptions().put(INDEX_TABLE_IS_READONLY_OPTION, annotation.readonly());
         }
     }
 
@@ -2135,6 +2138,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         public static void setIndexTableUseColumnNames(ObjectIndex index, boolean names) {
             index.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, names);
+        }
+
+        public static boolean getIndexTableIsReadOnly(ObjectIndex index) {
+            return ObjectUtils.to(boolean.class, index.getOptions().get(INDEX_TABLE_IS_READONLY_OPTION));
+        }
+
+        public static void setIndexTableIsReadOnly(ObjectIndex index, boolean readonly) {
+            index.getOptions().put(INDEX_TABLE_IS_READONLY_OPTION, readonly);
         }
 
         public static Object getExtraColumn(Object object, String name) {
