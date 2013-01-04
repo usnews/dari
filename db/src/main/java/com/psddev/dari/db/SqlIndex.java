@@ -183,7 +183,13 @@ public enum SqlIndex {
 
         @Override
         public String getValueField(SqlDatabase database, ObjectIndex index, int fieldIndex) {
-            return fieldIndex > 0 ? valueField + (fieldIndex + 1) : valueField;
+
+            boolean useColumnNames = SqlDatabase.Static.getIndexTableUseColumnNames(index);
+            if (useColumnNames) {
+                return index.getFields().get(fieldIndex);
+            } else {
+                return fieldIndex > 0 ? valueField + (fieldIndex + 1) : valueField;
+            }
         }
 
         @Override

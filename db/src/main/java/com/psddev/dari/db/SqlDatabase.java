@@ -97,6 +97,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String SKIP_INDEX_STATE_EXTRA = "sql.skipIndex";
 
     public static final String INDEX_TABLE_INDEX_OPTION = "sql.indexTable";
+    public static final String INDEX_TABLE_USE_COLUMN_NAMES_OPTION = "sql.indexTableUseColumnNames";
 
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
@@ -1855,12 +1856,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Target(ElementType.FIELD)
     public @interface FieldIndexTable {
         String value();
+        boolean names() default false;
     }
 
     private static class FieldIndexTableProcessor implements ObjectField.AnnotationProcessor<FieldIndexTable> {
         @Override
         public void process(ObjectType type, ObjectField field, FieldIndexTable annotation) {
             field.getOptions().put(INDEX_TABLE_INDEX_OPTION, annotation.value());
+            field.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, annotation.names());
         }
     }
 
@@ -2124,6 +2127,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
          */
         public static void setIndexTable(ObjectIndex index, String table) {
             index.getOptions().put(INDEX_TABLE_INDEX_OPTION, table);
+        }
+
+        public static boolean getIndexTableUseColumnNames(ObjectIndex index) {
+            return ObjectUtils.to(boolean.class, index.getOptions().get(INDEX_TABLE_USE_COLUMN_NAMES_OPTION));
+        }
+
+        public static void setIndexTableUseColumnNames(ObjectIndex index, boolean names) {
+            index.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, names);
         }
 
         public static Object getExtraColumn(Object object, String name) {
