@@ -1077,7 +1077,7 @@ public class StringUtils {
     public static String getPathInfo(String path, String servletPath) {
         if (path != null && servletPath != null) {
             path = ensureStart(path, "/");
-            servletPath = ensureStart(removeEnd(servletPath, "/"), "/");
+            servletPath = removeEnd(ensureStart(servletPath, "/"), "/");
 
             if (path.startsWith(servletPath)) {
                 String pathInfo = path.substring(servletPath.length());
