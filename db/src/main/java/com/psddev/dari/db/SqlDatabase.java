@@ -582,6 +582,21 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
+    private byte[] serializeData(State state) {
+        Map<String, Object> values = state.getSimpleValues();
+        Iterator<Map.Entry<String, Object>> iter = values.entrySet().iterator();
+        while (iter.hasNext()) {
+            Map.Entry<String, Object> entry = iter.next();
+            ObjectField field = state.getField(entry.getKey());
+            if (field != null) {
+                if (Static.getIndexTableIsSource(field) || Static.isExtraFieldOfSourceIndexTable(field)) {
+                    iter.remove();
+                }
+            }
+        }
+        return serializeData(values);
+    }
+
     private byte[] serializeData(Map<String, Object> dataMap) {
         byte[] dataBytes = ObjectUtils.toJson(dataMap).getBytes(StringUtils.UTF_8);
 
@@ -1558,7 +1573,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 if (isNew) {
                     try {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state.getSimpleValues());
+                            dataBytes = serializeData(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1606,7 +1621,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     List<AtomicOperation> atomicOperations = state.getAtomicOperations();
                     if (atomicOperations.isEmpty()) {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state.getSimpleValues());
+                            dataBytes = serializeData(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1667,7 +1682,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             operation.execute(state);
                         }
 
-                        dataBytes = serializeData(state.getSimpleValues());
+                        dataBytes = serializeData(state);
 
                         List<Object> parameters = new ArrayList<Object>();
                         StringBuilder updateBuilder = new StringBuilder();
