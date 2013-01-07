@@ -2153,28 +2153,46 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             index.getOptions().put(INDEX_TABLE_INDEX_OPTION, table);
         }
 
+        public static boolean getIndexTableUseColumnNames(ObjectField field) {
+            return ObjectUtils.to(boolean.class, field.getOptions().get(INDEX_TABLE_USE_COLUMN_NAMES_OPTION));
+        }
+
+        public static void setIndexTableUseColumnNames(ObjectField field, boolean names) {
+            field.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, names);
+        }
+
         public static boolean getIndexTableUseColumnNames(ObjectIndex index) {
-            return ObjectUtils.to(boolean.class, index.getOptions().get(INDEX_TABLE_USE_COLUMN_NAMES_OPTION));
+            return getIndexTableUseColumnNames(index.getParent().getField(index.getField()));
         }
 
-        public static void setIndexTableUseColumnNames(ObjectIndex index, boolean names) {
-            index.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, names);
+        public static boolean getIndexTableIsSource(ObjectField field) {
+            return ObjectUtils.to(boolean.class, field.getOptions().get(INDEX_TABLE_IS_SOURCE_OPTION));
         }
 
-        public static boolean getIndexTableIsSource(ObjectIndex index) {
-            return ObjectUtils.to(boolean.class, index.getOptions().get(INDEX_TABLE_IS_SOURCE_OPTION));
+        public static void setIndexTableIsSource(ObjectField field, boolean source) {
+            field.getOptions().put(INDEX_TABLE_IS_SOURCE_OPTION, source);
         }
 
-        public static void setIndexTableIsSource(ObjectIndex index, boolean source) {
-            index.getOptions().put(INDEX_TABLE_IS_SOURCE_OPTION, source);
+        public static boolean isExtraFieldOfSourceIndexTable(ObjectField field) {
+            for (ObjectIndex index : field.getParent().getIndexes()) {
+                if (index.getFields().contains(field.getInternalName()) && index.getFields().get(0) != field.getInternalName()) {
+                    // this field is an extraField of another field's index - find out if that field's IndexTable is annotated as source=true
+                    return getIndexTableIsSource(field.getParent().getField(index.getFields().get(0)));
+                }
+            }
+            return false;
+        }
+
+        public static boolean getIndexTableIsReadOnly(ObjectField field) {
+            return ObjectUtils.to(boolean.class, field.getOptions().get(INDEX_TABLE_IS_READONLY_OPTION));
+        }
+
+        public static void setIndexTableIsReadOnly(ObjectField field, boolean readonly) {
+            field.getOptions().put(INDEX_TABLE_IS_READONLY_OPTION, readonly);
         }
 
         public static boolean getIndexTableIsReadOnly(ObjectIndex index) {
-            return ObjectUtils.to(boolean.class, index.getOptions().get(INDEX_TABLE_IS_READONLY_OPTION));
-        }
-
-        public static void setIndexTableIsReadOnly(ObjectIndex index, boolean readonly) {
-            index.getOptions().put(INDEX_TABLE_IS_READONLY_OPTION, readonly);
+            return getIndexTableIsReadOnly(index.getParent().getField(index.getField()));
         }
 
         public static Object getExtraColumn(Object object, String name) {
