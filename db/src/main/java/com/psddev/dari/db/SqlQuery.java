@@ -35,6 +35,7 @@ class SqlQuery {
     private String whereClause;
     private String havingClause;
     private String orderByClause;
+    private String extraSourceColumns;
     private List<String> orderBySelectColumns = new ArrayList<String>();
     private final List<Join> joins = new ArrayList<Join>();
     private final Map<Query<?>, String> subQueries = new LinkedHashMap<Query<?>, String>();
@@ -354,11 +355,7 @@ class SqlQuery {
             // add columns to select
             boolean useColumnNames = SqlDatabase.Static.getIndexTableUseColumnNames(useIndex);
             int fieldIndex = 0;
-            String extraColumns = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_COLUMNS_QUERY_OPTION));
             StringBuilder extraColumnsBuilder = new StringBuilder();
-            if (extraColumns != null) {
-                extraColumnsBuilder.append(extraColumns);
-            }
             for (String indexFieldName : useIndex.getFields()) {
                 String indexColumnName;
                 if (!useColumnNames) {
@@ -375,7 +372,7 @@ class SqlQuery {
                 extraColumnsBuilder.append(", ");
             }
             extraColumnsBuilder.setLength(extraColumnsBuilder.length() - 2);
-            query.getOptions().put(SqlDatabase.EXTRA_COLUMNS_QUERY_OPTION, extraColumnsBuilder.toString());
+            this.extraSourceColumns = extraColumnsBuilder.toString();
         }
 
         for (Map.Entry<Query<?>, String> entry : subQueries.entrySet()) {
@@ -931,6 +928,10 @@ class SqlQuery {
         if (extraColumns != null) {
             statementBuilder.append(", ");
             statementBuilder.append(extraColumns);
+        }
+        if (extraSourceColumns != null) {
+            statementBuilder.append(", ");
+            statementBuilder.append(extraSourceColumns);
         }
 
         statementBuilder.append("\nFROM ");
