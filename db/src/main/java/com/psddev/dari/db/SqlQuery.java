@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -129,6 +130,22 @@ class SqlQuery {
 
     /** Initializes FROM, WHERE, and ORDER BY clauses. */
     private void initializeClauses() {
+
+        // determine whether any of the fields are sourced somewhere else.
+        HashMap<String, ObjectField> sourceTables = new HashMap<String, ObjectField>();
+        Set<ObjectType> objectTypes = query.getConcreteTypes(database.getEnvironment());
+        if (objectTypes != null) {
+            for (ObjectType objt: objectTypes) {
+                HashMap<String, ObjectField> indexSourceTables = (HashMap<String, ObjectField>) objt.getOptions().get(SqlDatabase.INDEX_TABLE_SOURCE_TABLES_OPTION);
+                if (indexSourceTables != null) {
+                    sourceTables.putAll(indexSourceTables);
+                }
+            }
+        }
+        for (Map.Entry<String, ObjectField> entry: sourceTables.entrySet()) {
+            ObjectField field = entry.getValue();
+        }
+
         String extraJoins = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_JOINS_QUERY_OPTION));
 
         if (extraJoins != null) {
@@ -251,10 +268,12 @@ class SqlQuery {
         // Builds the FROM clause.
         StringBuilder fromBuilder = new StringBuilder();
 
+        HashMap<String, String> joinTableAliases = new HashMap<String, String>();
         for (Join join : joins) {
             if (join.indexKeys.isEmpty()) {
                 continue;
             }
+            joinTableAliases.put(join.getTableName().toLowerCase(), join.getAlias());
 
             // e.g. JOIN RecordIndex AS i#
             fromBuilder.append("\n");
@@ -288,6 +307,75 @@ class SqlQuery {
 
             fromBuilder.setLength(fromBuilder.length() - 2);
             fromBuilder.append(")");
+        }
+
+        for (Map.Entry<String, ObjectField> entry: sourceTables.entrySet()) {
+            StringBuilder sourceTableNameBuilder = new StringBuilder();
+            vendor.appendIdentifier(sourceTableNameBuilder, entry.getKey());
+            String sourceTableName = sourceTableNameBuilder.toString();
+            ObjectField field = entry.getValue();
+            String sourceTableAlias;
+            Query.MappedKey key = query.mapEmbeddedKey(database.getEnvironment(), field.getInternalName());
+            ObjectIndex useIndex = null;
+            for (ObjectIndex index : key.getIndexes()) {
+                if (index.getFields().get(0) == field.getInternalName()) {
+                    useIndex = index;
+                    break;
+                }
+            }
+            if (useIndex == null) {
+                continue;
+            }
+
+            if (! joinTableAliases.containsKey(sourceTableName.toLowerCase())) {
+                // This table hasn't been joined to yet
+                sourceTableAlias = sourceTableName;
+                fromBuilder.append(" JOIN ");
+                fromBuilder.append(sourceTableName);
+                fromBuilder.append(" ON ");
+                fromBuilder.append(sourceTableName);
+                fromBuilder.append(".");
+                vendor.appendIdentifier(fromBuilder, "id");
+                fromBuilder.append(" = ");
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "id");
+                fromBuilder.append(" AND ");
+                fromBuilder.append(sourceTableName);
+                fromBuilder.append(".");
+                vendor.appendIdentifier(fromBuilder, "symbolId");
+                fromBuilder.append(" = ");
+                int symbolId = database.getSymbolId(key.getIndexKey(useIndex));
+                fromBuilder.append(symbolId);
+            } else {
+                sourceTableAlias = joinTableAliases.get(sourceTableName.toLowerCase());
+            }
+
+            // add columns to select
+            boolean useColumnNames = SqlDatabase.Static.getIndexTableUseColumnNames(useIndex);
+            int fieldIndex = 0;
+            String extraColumns = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_COLUMNS_QUERY_OPTION));
+            StringBuilder extraColumnsBuilder = new StringBuilder();
+            if (extraColumns != null) {
+                extraColumnsBuilder.append(extraColumns);
+            }
+            for (String indexFieldName : useIndex.getFields()) {
+                String indexColumnName;
+                if (!useColumnNames) {
+                    indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
+                    fieldIndex++;
+                } else {
+                    indexColumnName = indexFieldName;
+                }
+                extraColumnsBuilder.append(sourceTableAlias);
+                extraColumnsBuilder.append(".");
+                vendor.appendIdentifier(extraColumnsBuilder, indexColumnName);
+                extraColumnsBuilder.append(" AS ");
+                vendor.appendIdentifier(extraColumnsBuilder, indexFieldName);
+                extraColumnsBuilder.append(", ");
+            }
+            extraColumnsBuilder.setLength(extraColumnsBuilder.length() - 2);
+            query.getOptions().put(SqlDatabase.EXTRA_COLUMNS_QUERY_OPTION, extraColumnsBuilder.toString());
         }
 
         for (Map.Entry<Query<?>, String> entry : subQueries.entrySet()) {
@@ -982,6 +1070,7 @@ class SqlQuery {
         public final List<String> indexKeys = new ArrayList<String>();
 
         private final String alias;
+        private final String tableName;
         private final ObjectIndex index;
         private final SqlIndex sqlIndex;
         private final SqlIndex.Table sqlIndexTable;
@@ -1005,6 +1094,7 @@ class SqlQuery {
                 valueField = recordIdField;
                 sqlIndexTable = null;
                 table = null;
+                tableName = null;
                 idField = null;
                 keyField = null;
 
@@ -1014,6 +1104,7 @@ class SqlQuery {
                 valueField = recordTypeIdField;
                 sqlIndexTable = null;
                 table = null;
+                tableName = null;
                 idField = null;
                 keyField = null;
 
@@ -1027,6 +1118,7 @@ class SqlQuery {
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
                 table = null;
+                tableName = null;
                 idField = null;
                 keyField = null;
 
@@ -1039,6 +1131,7 @@ class SqlQuery {
 
                 StringBuilder tableBuilder = new StringBuilder();
                 vendor.appendIdentifier(tableBuilder, sqlIndexTable.getName(database, index));
+                tableName = tableBuilder.toString();
                 tableBuilder.append(" ");
                 tableBuilder.append(aliasPrefix);
                 tableBuilder.append(alias);
@@ -1047,6 +1140,14 @@ class SqlQuery {
                 idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
             }
+        }
+
+        public String getAlias() {
+            return this.alias;
+        }
+
+        public String getTableName() {
+            return this.tableName;
         }
 
         public void addIndexKey(String queryKey) {
