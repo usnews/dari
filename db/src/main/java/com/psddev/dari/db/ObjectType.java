@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,6 +82,8 @@ public class ObjectType extends Record implements ObjectStruct {
     private Set<String> assignableClassNames;
 
     private transient Boolean isLazyLoaded;
+
+    private transient Map<String, Object> options;
 
     @SuppressWarnings("deprecation")
     private static void updateFieldsAndIndexes(
@@ -278,6 +281,19 @@ public class ObjectType extends Record implements ObjectStruct {
     /** Sets the internal name. */
     public void setInternalName(String internalName) {
         this.internalName = internalName;
+    }
+
+    /** Returns the map of custom option values. */
+    public Map<String, Object> getOptions() {
+        if (options == null) {
+            options = new LinkedHashMap<String, Object>();
+        }
+        return options;
+    }
+
+    /** Sets the map of custom option values. */
+    public void setOptions(Map<String, Object> options) {
+        this.options = options;
     }
 
     /**

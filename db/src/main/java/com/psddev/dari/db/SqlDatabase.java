@@ -98,7 +98,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public static final String INDEX_TABLE_INDEX_OPTION = "sql.indexTable";
     public static final String INDEX_TABLE_USE_COLUMN_NAMES_OPTION = "sql.indexTableUseColumnNames";
+    public static final String INDEX_TABLE_IS_SOURCE_OPTION = "sql.indexTableIsSource";
     public static final String INDEX_TABLE_IS_READONLY_OPTION = "sql.indexTableIsReadonly";
+    public static final String INDEX_TABLE_SOURCE_TABLES_OPTION = "sql.indexTableSources";
 
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
@@ -1858,14 +1860,28 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public @interface FieldIndexTable {
         String value();
         boolean names() default false;
+        boolean source() default false;
         boolean readonly() default false;
     }
 
     private static class FieldIndexTableProcessor implements ObjectField.AnnotationProcessor<FieldIndexTable> {
         @Override
         public void process(ObjectType type, ObjectField field, FieldIndexTable annotation) {
+            if (annotation.source()) {
+                HashMap<String, ObjectField> tables = (HashMap<String, ObjectField>) type.getOptions().get(INDEX_TABLE_SOURCE_TABLES_OPTION);
+                if (tables == null) {
+                    tables = new HashMap<String, ObjectField>();
+                }
+                if (!tables.containsKey(annotation.value())) {
+                    tables.put(annotation.value(), field);
+                    type.getOptions().put(INDEX_TABLE_SOURCE_TABLES_OPTION, tables);
+                } else {
+                    //throw new Exception("Only one field per @FieldIndexTable!");
+                }
+            }
             field.getOptions().put(INDEX_TABLE_INDEX_OPTION, annotation.value());
             field.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, annotation.names());
+            field.getOptions().put(INDEX_TABLE_IS_SOURCE_OPTION, annotation.source());
             field.getOptions().put(INDEX_TABLE_IS_READONLY_OPTION, annotation.readonly());
         }
     }
@@ -2138,6 +2154,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         public static void setIndexTableUseColumnNames(ObjectIndex index, boolean names) {
             index.getOptions().put(INDEX_TABLE_USE_COLUMN_NAMES_OPTION, names);
+        }
+
+        public static boolean getIndexTableIsSource(ObjectIndex index) {
+            return ObjectUtils.to(boolean.class, index.getOptions().get(INDEX_TABLE_IS_SOURCE_OPTION));
+        }
+
+        public static void setIndexTableIsSource(ObjectIndex index, boolean source) {
+            index.getOptions().put(INDEX_TABLE_IS_SOURCE_OPTION, source);
         }
 
         public static boolean getIndexTableIsReadOnly(ObjectIndex index) {
