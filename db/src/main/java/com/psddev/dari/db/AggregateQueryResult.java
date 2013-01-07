@@ -109,11 +109,12 @@ public class AggregateQueryResult<E> extends PaginatedResult<E> {
             hasNext = false;
 
             long count = 0L;
-            long offset = getOffset();
+            long nextOffset = getNextOffset();
 
             for (int i = 0; i < length; ++ i) {
                 count += getCountFor(i);
-                if (count >= offset) {
+
+                if (count > nextOffset) {
                     hasNext = true;
                     break;
                 }
