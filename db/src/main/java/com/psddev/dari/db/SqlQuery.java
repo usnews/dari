@@ -357,6 +357,7 @@ class SqlQuery {
             int fieldIndex = 0;
             StringBuilder extraColumnsBuilder = new StringBuilder();
             for (String indexFieldName : useIndex.getFields()) {
+                query.getExtraSourceColumns().add(indexFieldName);
                 String indexColumnName;
                 if (!useColumnNames) {
                     indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
