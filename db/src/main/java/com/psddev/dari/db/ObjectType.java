@@ -440,6 +440,18 @@ public class ObjectType extends Record implements ObjectStruct {
         return new ArrayList<ObjectIndex>(indexesCache.get().values());
     }
 
+    public ObjectIndex getIndexByFields(String ... names) {
+        String indexLookupKey = StringUtils.join(names, "");
+        for(ObjectIndex index : getIndexes()) {
+            String indexKey = StringUtils.join(index.getFields(), "");
+            if (indexKey.equals(indexLookupKey)) {
+                return index;
+            }
+        }
+        
+        return null;
+    }
+
     private final transient PullThroughValue<Map<String, ObjectIndex>> indexesCache = new PullThroughValue<Map<String, ObjectIndex>>() {
         @Override
         protected Map<String, ObjectIndex> produce() {
