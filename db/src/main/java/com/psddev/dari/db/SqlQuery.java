@@ -137,14 +137,21 @@ class SqlQuery {
         Set<ObjectType> objectTypes = query.getConcreteTypes(database.getEnvironment());
         if (objectTypes != null) {
             for (ObjectType objt: objectTypes) {
+                // Get indexSourceTables from this objectType
                 HashMap<String, ObjectField> indexSourceTables = (HashMap<String, ObjectField>) objt.getOptions().get(SqlDatabase.INDEX_TABLE_SOURCE_TABLES_OPTION);
                 if (indexSourceTables != null) {
                     sourceTables.putAll(indexSourceTables);
                 }
+                // Get indexSourceTables from any modification objectTypes
+                for (String modificationClassName : objt.getModificationClassNames()) {
+                    for (ObjectType mobjt: database.getEnvironment().getTypesByGroup(modificationClassName)) {
+                        indexSourceTables = (HashMap<String, ObjectField>) mobjt.getOptions().get(SqlDatabase.INDEX_TABLE_SOURCE_TABLES_OPTION);
+                        if (indexSourceTables != null) {
+                            sourceTables.putAll(indexSourceTables);
+                        }
+                    }
+                }
             }
-        }
-        for (Map.Entry<String, ObjectField> entry: sourceTables.entrySet()) {
-            ObjectField field = entry.getValue();
         }
 
         String extraJoins = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_JOINS_QUERY_OPTION));
@@ -316,7 +323,10 @@ class SqlQuery {
             String sourceTableName = sourceTableNameBuilder.toString();
             ObjectField field = entry.getValue();
             String sourceTableAlias;
-            Query.MappedKey key = query.mapEmbeddedKey(database.getEnvironment(), field.getInternalName());
+            StringBuilder keyNameBuilder = new StringBuilder(field.getParentType().getInternalName());
+            keyNameBuilder.append("/");
+            keyNameBuilder.append(field.getInternalName());
+            Query.MappedKey key = query.mapEmbeddedKey(database.getEnvironment(), keyNameBuilder.toString());
             ObjectIndex useIndex = null;
             for (ObjectIndex index : key.getIndexes()) {
                 if (index.getFields().get(0) == field.getInternalName()) {
@@ -408,6 +418,7 @@ class SqlQuery {
 
         this.orderByClause = orderByBuilder.toString();
         this.fromClause = fromBuilder.toString();
+
     }
 
     /** Adds the given {@code predicate} to the {@code WHERE} clause. */
