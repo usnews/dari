@@ -129,16 +129,21 @@ public enum SqlIndex {
      */
     public List<Table> getWriteTables(SqlDatabase database, ObjectIndex index) {
         List<Table> writeTables = new ArrayList<Table>();
+
         for (Table table : tables) {
             if (database.hasTable(table.getName(database, index)) && !table.isReadOnly(index)) {
                 writeTables.add(table);
             }
         }
+
         if (writeTables.isEmpty()) {
-            if (!(tables[tables.length - 1]).isReadOnly(index)) {
-                writeTables.add(tables[tables.length - 1]);
+            Table lastTable = tables[tables.length - 1];
+
+            if (!lastTable.isReadOnly(index)) {
+                writeTables.add(lastTable);
             }
         }
+
         return writeTables;
     }
 

@@ -207,11 +207,11 @@ public class ObjectIndex {
 
     public String getSymbol() {
         StringBuilder nameBuilder = new StringBuilder();
+        Iterator<String> indexFieldsIterator = getFields().iterator();
 
         nameBuilder.append(getPrefix());
-
-        Iterator<String> indexFieldsIterator = getFields().iterator();
         nameBuilder.append(indexFieldsIterator.next());
+
         while (indexFieldsIterator.hasNext()) {
             nameBuilder.append(',');
             nameBuilder.append(indexFieldsIterator.next());

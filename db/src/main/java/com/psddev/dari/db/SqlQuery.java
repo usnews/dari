@@ -268,12 +268,13 @@ class SqlQuery {
 
         // Builds the FROM clause.
         StringBuilder fromBuilder = new StringBuilder();
-
         HashMap<String, String> joinTableAliases = new HashMap<String, String>();
+
         for (Join join : joins) {
             if (join.indexKeys.isEmpty()) {
                 continue;
             }
+
             joinTableAliases.put(join.getTableName().toLowerCase(), join.getAlias());
 
             // e.g. JOIN RecordIndex AS i#
@@ -312,29 +313,37 @@ class SqlQuery {
 
         for (Map.Entry<String, ObjectField> entry: sourceTables.entrySet()) {
             StringBuilder sourceTableNameBuilder = new StringBuilder();
+
             vendor.appendIdentifier(sourceTableNameBuilder, entry.getKey());
+
             String sourceTableName = sourceTableNameBuilder.toString();
             ObjectField field = entry.getValue();
             String sourceTableAlias;
             StringBuilder keyNameBuilder = new StringBuilder(field.getParentType().getInternalName());
+
             keyNameBuilder.append("/");
             keyNameBuilder.append(field.getInternalName());
+
             Query.MappedKey key = query.mapEmbeddedKey(database.getEnvironment(), keyNameBuilder.toString());
             ObjectIndex useIndex = null;
+
             for (ObjectIndex index : key.getIndexes()) {
                 if (index.getFields().get(0) == field.getInternalName()) {
                     useIndex = index;
                     break;
                 }
             }
+
             if (useIndex == null) {
                 continue;
             }
 
-            if (! joinTableAliases.containsKey(sourceTableName.toLowerCase())) {
-                // This table hasn't been joined to yet
+            // This table hasn't been joined to yet.
+            if (!joinTableAliases.containsKey(sourceTableName.toLowerCase())) {
                 sourceTableAlias = sourceTableName;
-                fromBuilder.append(" JOIN ");
+                int symbolId = database.getSymbolId(key.getIndexKey(useIndex));
+
+                fromBuilder.append(" INNER JOIN ");
                 fromBuilder.append(sourceTableName);
                 fromBuilder.append(" ON ");
                 fromBuilder.append(sourceTableName);
@@ -349,13 +358,13 @@ class SqlQuery {
                 fromBuilder.append(".");
                 vendor.appendIdentifier(fromBuilder, "symbolId");
                 fromBuilder.append(" = ");
-                int symbolId = database.getSymbolId(key.getIndexKey(useIndex));
                 fromBuilder.append(symbolId);
+
             } else {
                 sourceTableAlias = joinTableAliases.get(sourceTableName.toLowerCase());
             }
 
-            // add columns to select
+            // Add columns to select.
             boolean sameColumnNames = false;
             ObjectStruct useIndexParent = useIndex.getParent();
 
@@ -370,15 +379,20 @@ class SqlQuery {
 
             int fieldIndex = 0;
             StringBuilder extraColumnsBuilder = new StringBuilder();
+
             for (String indexFieldName : useIndex.getFields()) {
-                query.getExtraSourceColumns().add(indexFieldName);
                 String indexColumnName;
+
+                query.getExtraSourceColumns().add(indexFieldName);
+
                 if (!sameColumnNames) {
                     indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
                     fieldIndex++;
+
                 } else {
                     indexColumnName = indexFieldName;
                 }
+
                 extraColumnsBuilder.append(sourceTableAlias);
                 extraColumnsBuilder.append(".");
                 vendor.appendIdentifier(extraColumnsBuilder, indexColumnName);
@@ -386,6 +400,7 @@ class SqlQuery {
                 vendor.appendIdentifier(extraColumnsBuilder, indexFieldName);
                 extraColumnsBuilder.append(", ");
             }
+
             extraColumnsBuilder.setLength(extraColumnsBuilder.length() - 2);
             this.extraSourceColumns = extraColumnsBuilder.toString();
         }
@@ -941,10 +956,12 @@ class SqlQuery {
         }
 
         String extraColumns = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_COLUMNS_QUERY_OPTION));
+
         if (extraColumns != null) {
             statementBuilder.append(", ");
             statementBuilder.append(extraColumns);
         }
+
         if (extraSourceColumns != null) {
             statementBuilder.append(", ");
             statementBuilder.append(extraSourceColumns);
