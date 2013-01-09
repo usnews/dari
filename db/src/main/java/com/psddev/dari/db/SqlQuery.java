@@ -132,23 +132,15 @@ class SqlQuery {
     /** Initializes FROM, WHERE, and ORDER BY clauses. */
     private void initializeClauses() {
 
-        // determine whether any of the fields are sourced somewhere else.
+        // Determine whether any of the fields are sourced somewhere else.
         HashMap<String, ObjectField> sourceTables = new HashMap<String, ObjectField>();
-        Set<ObjectType> objectTypes = query.getConcreteTypes(database.getEnvironment());
-        if (objectTypes != null) {
-            for (ObjectType objt: objectTypes) {
-                // Get indexSourceTables from this objectType
-                HashMap<String, ObjectField> indexSourceTables = (HashMap<String, ObjectField>) objt.getOptions().get(SqlDatabase.INDEX_TABLE_SOURCE_TABLES_OPTION);
-                if (indexSourceTables != null) {
-                    sourceTables.putAll(indexSourceTables);
-                }
-                // Get indexSourceTables from any modification objectTypes
-                for (String modificationClassName : objt.getModificationClassNames()) {
-                    for (ObjectType mobjt: database.getEnvironment().getTypesByGroup(modificationClassName)) {
-                        indexSourceTables = (HashMap<String, ObjectField>) mobjt.getOptions().get(SqlDatabase.INDEX_TABLE_SOURCE_TABLES_OPTION);
-                        if (indexSourceTables != null) {
-                            sourceTables.putAll(indexSourceTables);
-                        }
+        Set<ObjectType> queryTypes = query.getConcreteTypes(database.getEnvironment());
+
+        if (queryTypes != null) {
+            for (ObjectType type : queryTypes) {
+                for (ObjectField field : type.getFields()) {
+                    if (SqlDatabase.Static.getIndexTableIsSource(field)) {
+                        sourceTables.put((String) field.getOptions().get(SqlDatabase.INDEX_TABLE_INDEX_OPTION), field);
                     }
                 }
             }
