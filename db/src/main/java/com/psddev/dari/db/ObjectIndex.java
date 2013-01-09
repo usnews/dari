@@ -209,7 +209,7 @@ public class ObjectIndex {
         StringBuilder nameBuilder = new StringBuilder();
 
         nameBuilder.append(getPrefix());
-        
+
         Iterator<String> indexFieldsIterator = getFields().iterator();
         nameBuilder.append(indexFieldsIterator.next());
         while (indexFieldsIterator.hasNext()) {
@@ -219,7 +219,7 @@ public class ObjectIndex {
 
         return nameBuilder.toString();
     }
-    
+
     public Object getValue(State state) {
         return getValue(state, getField());
     }

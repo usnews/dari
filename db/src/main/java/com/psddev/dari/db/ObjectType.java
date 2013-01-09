@@ -448,7 +448,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 return index;
             }
         }
-        
+
         return null;
     }
 
