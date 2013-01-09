@@ -582,27 +582,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    private byte[] serializeData(State state) {
+    private byte[] serializeState(State state) {
         Map<String, Object> values = state.getSimpleValues();
-        Iterator<Map.Entry<String, Object>> iter = values.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<String, Object> entry = iter.next();
+
+        for (Iterator<Map.Entry<String, Object>> i = values.entrySet().iterator(); i.hasNext(); ) {
+            Map.Entry<String, Object> entry = i.next();
             ObjectField field = state.getField(entry.getKey());
+
             if (field != null) {
                 if (Static.getIndexTableIsSource(field) || Static.isExtraFieldOfSourceIndexTable(field)) {
-                    iter.remove();
+                    i.remove();
                 }
             }
         }
-        return serializeData(values);
-    }
 
-    private byte[] serializeData(Map<String, Object> dataMap) {
-        byte[] dataBytes = ObjectUtils.toJson(dataMap).getBytes(StringUtils.UTF_8);
+        byte[] dataBytes = ObjectUtils.toJson(values).getBytes(StringUtils.UTF_8);
 
         if (isCompressData()) {
             byte[] compressed = new byte[Snappy.maxCompressedLength(dataBytes.length)];
             int compressedLength = Snappy.compress(dataBytes, 0, dataBytes.length, compressed, 0);
+
             dataBytes = new byte[compressedLength + 1];
             dataBytes[0] = 's';
             System.arraycopy(compressed, 0, dataBytes, 1, compressedLength);
@@ -1573,7 +1572,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 if (isNew) {
                     try {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state);
+                            dataBytes = serializeState(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1621,7 +1620,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     List<AtomicOperation> atomicOperations = state.getAtomicOperations();
                     if (atomicOperations.isEmpty()) {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state);
+                            dataBytes = serializeState(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1682,7 +1681,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             operation.execute(state);
                         }
 
-                        dataBytes = serializeData(state);
+                        dataBytes = serializeState(state);
 
                         List<Object> parameters = new ArrayList<Object>();
                         StringBuilder updateBuilder = new StringBuilder();
