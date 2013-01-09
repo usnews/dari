@@ -578,12 +578,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    private byte[] serializeData(Map<String, Object> dataMap) {
-        byte[] dataBytes = ObjectUtils.toJson(dataMap).getBytes(StringUtils.UTF_8);
+    private byte[] serializeState(State state) {
+        Map<String, Object> values = state.getSimpleValues();
+
+        for (Iterator<Map.Entry<String, Object>> i = values.entrySet().iterator(); i.hasNext(); ) {
+            Map.Entry<String, Object> entry = i.next();
+            ObjectField field = state.getField(entry.getKey());
+
+            if (field != null) {
+                if (field.as(FieldData.class).isIndexTableSourceFromAnywhere()) {
+                    i.remove();
+                }
+            }
+        }
+
+        byte[] dataBytes = ObjectUtils.toJson(values).getBytes(StringUtils.UTF_8);
 
         if (isCompressData()) {
             byte[] compressed = new byte[Snappy.maxCompressedLength(dataBytes.length)];
             int compressedLength = Snappy.compress(dataBytes, 0, dataBytes.length, compressed, 0);
+
             dataBytes = new byte[compressedLength + 1];
             dataBytes[0] = 's';
             System.arraycopy(compressed, 0, dataBytes, 1, compressedLength);
@@ -637,7 +651,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         ResultSetMetaData meta = resultSet.getMetaData();
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
-            objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
+            String columnName = meta.getColumnLabel(i);
+            if (query.getExtraSourceColumns().contains(columnName)) {
+                objectState.put(columnName, resultSet.getObject(i));
+            } else {
+                objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
+            }
         }
 
         return swapObjectType(query, object);
@@ -1549,7 +1568,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 if (isNew) {
                     try {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state.getSimpleValues());
+                            dataBytes = serializeState(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1597,7 +1616,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     List<AtomicOperation> atomicOperations = state.getAtomicOperations();
                     if (atomicOperations.isEmpty()) {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state.getSimpleValues());
+                            dataBytes = serializeState(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1658,7 +1677,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             operation.execute(state);
                         }
 
-                        dataBytes = serializeData(state.getSimpleValues());
+                        dataBytes = serializeState(state);
 
                         List<Object> parameters = new ArrayList<Object>();
                         StringBuilder updateBuilder = new StringBuilder();
@@ -1848,6 +1867,76 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         Static.executeUpdateWithArray(connection, updateBuilder.toString());
     }
 
+    @FieldData.FieldInternalNamePrefix("sql.")
+    public static class FieldData extends Modification<ObjectField> {
+
+        private String indexTable;
+        private boolean indexTableReadOnly;
+        private boolean indexTableSameColumnNames;
+        private boolean indexTableSource;
+
+        public String getIndexTable() {
+            return indexTable;
+        }
+
+        public void setIndexTable(String indexTable) {
+            this.indexTable = indexTable;
+        }
+
+        public boolean isIndexTableReadOnly() {
+            return indexTableReadOnly;
+        }
+
+        public void setIndexTableReadOnly(boolean indexTableReadOnly) {
+            this.indexTableReadOnly = indexTableReadOnly;
+        }
+
+        public boolean isIndexTableSameColumnNames() {
+            return indexTableSameColumnNames;
+        }
+
+        public void setIndexTableSameColumnNames(boolean indexTableSameColumnNames) {
+            this.indexTableSameColumnNames = indexTableSameColumnNames;
+        }
+
+        public boolean isIndexTableSource() {
+            return indexTableSource;
+        }
+
+        public void setIndexTableSource(boolean indexTableSource) {
+            this.indexTableSource = indexTableSource;
+        }
+
+        public boolean isIndexTableSourceFromAnywhere() {
+            if (isIndexTableSource()) {
+                return true;
+            }
+
+            ObjectField field = getOriginalObject();
+            ObjectStruct parent = field.getParent();
+            String fieldName = field.getInternalName();
+
+            for (ObjectIndex index : parent.getIndexes()) {
+                List<String> indexFieldNames = index.getFields();
+
+                if (!indexFieldNames.isEmpty() &&
+                        indexFieldNames.contains(fieldName)) {
+                    String firstIndexFieldName = indexFieldNames.get(0);
+
+                    if (!fieldName.equals(firstIndexFieldName)) {
+                        ObjectField firstIndexField = parent.getField(firstIndexFieldName);
+
+                        if (firstIndexField != null) {
+                            return firstIndexField.as(FieldData.class).isIndexTableSource();
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
     /** Specifies the name of the table for storing target field values. */
     @Documented
     @ObjectField.AnnotationProcessorClass(FieldIndexTableProcessor.class)
@@ -1855,12 +1944,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Target(ElementType.FIELD)
     public @interface FieldIndexTable {
         String value();
+        boolean readOnly() default false;
+        boolean sameColumnNames() default false;
+        boolean source() default false;
     }
 
     private static class FieldIndexTableProcessor implements ObjectField.AnnotationProcessor<FieldIndexTable> {
         @Override
         public void process(ObjectType type, ObjectField field, FieldIndexTable annotation) {
-            field.getOptions().put(INDEX_TABLE_INDEX_OPTION, annotation.value());
+            FieldData data = field.as(FieldData.class);
+
+            data.setIndexTable(annotation.value());
+            data.setIndexTableSameColumnNames(annotation.sameColumnNames());
+            data.setIndexTableSource(annotation.source());
+            data.setIndexTableReadOnly(annotation.readOnly());
         }
     }
 

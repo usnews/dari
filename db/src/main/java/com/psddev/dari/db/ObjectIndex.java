@@ -9,6 +9,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -202,6 +203,21 @@ public class ObjectIndex {
 
     public String getUniqueName() {
         return getPrefix() + getName();
+    }
+
+    public String getSymbol() {
+        StringBuilder nameBuilder = new StringBuilder();
+        Iterator<String> indexFieldsIterator = getFields().iterator();
+
+        nameBuilder.append(getPrefix());
+        nameBuilder.append(indexFieldsIterator.next());
+
+        while (indexFieldsIterator.hasNext()) {
+            nameBuilder.append(',');
+            nameBuilder.append(indexFieldsIterator.next());
+        }
+
+        return nameBuilder.toString();
     }
 
     public Object getValue(State state) {

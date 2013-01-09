@@ -42,6 +42,22 @@ public enum SqlIndex {
             public Object convertKey(SqlDatabase database, ObjectIndex index, String key) {
                 return database.getSymbolId(key);
             }
+
+            @Override
+            public boolean isReadOnly(ObjectIndex index) {
+                List<String> indexFieldNames = index.getFields();
+                ObjectStruct parent = index.getParent();
+
+                for (String fieldName : indexFieldNames) {
+                    ObjectField field = parent.getField(fieldName);
+
+                    if (field != null) {
+                        return field.as(SqlDatabase.FieldData.class).isIndexTableReadOnly();
+                    }
+                }
+
+                return false;
+            }
         }
     ),
 
@@ -127,20 +143,29 @@ public enum SqlIndex {
      */
     public List<Table> getWriteTables(SqlDatabase database, ObjectIndex index) {
         List<Table> writeTables = new ArrayList<Table>();
+
         for (Table table : tables) {
-            if (database.hasTable(table.getName(database, index))) {
+            if (database.hasTable(table.getName(database, index)) && !table.isReadOnly(index)) {
                 writeTables.add(table);
             }
         }
+
         if (writeTables.isEmpty()) {
-            writeTables.add(tables[tables.length - 1]);
+            Table lastTable = tables[tables.length - 1];
+
+            if (!lastTable.isReadOnly(index)) {
+                writeTables.add(lastTable);
+            }
         }
+
         return writeTables;
     }
 
     public interface Table {
 
         public int getVersion();
+
+        public boolean isReadOnly(ObjectIndex index);
 
         public String getName(SqlDatabase database, ObjectIndex index);
 
@@ -190,6 +215,11 @@ public enum SqlIndex {
         }
 
         @Override
+        public boolean isReadOnly(ObjectIndex index) {
+            return false;
+        }
+
+        @Override
         public String getIdField(SqlDatabase database, ObjectIndex index) {
             return idField;
         }
@@ -206,6 +236,18 @@ public enum SqlIndex {
 
         @Override
         public String getValueField(SqlDatabase database, ObjectIndex index, int fieldIndex) {
+            List<String> indexFieldNames = index.getFields();
+            ObjectStruct parent = index.getParent();
+
+            for (String fieldName : indexFieldNames) {
+                ObjectField field = parent.getField(fieldName);
+
+                if (field != null &&
+                        field.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
+                    return indexFieldNames.get(fieldIndex);
+                }
+            }
+
             return fieldIndex > 0 ? valueField + (fieldIndex + 1) : valueField;
         }
 

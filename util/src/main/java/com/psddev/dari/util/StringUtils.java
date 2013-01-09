@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -617,6 +618,59 @@ public class StringUtils {
         }
 
         return values;
+    }
+
+    /** Returns a map of query parameters from the given {@code url}. */
+    public static Map<String, List<String>> getQueryParameterMap(String url) {
+        Map<String, List<String>> map = new LinkedHashMap<String, List<String>>();
+
+        if (url != null) {
+            int questionAt = url.indexOf('?');
+
+            if (questionAt > -1) {
+                url = url.substring(questionAt + 1);
+            }
+
+            int lastAndAt = 0;
+
+            for (int andAt;
+                    (andAt = url.indexOf('&', lastAndAt)) > -1;
+                    lastAndAt = andAt + 1) {
+                addParameter(map, url.substring(lastAndAt, andAt));
+            }
+
+            addParameter(map, url.substring(lastAndAt));
+        }
+
+        return map;
+    }
+
+    private static void addParameter(Map<String, List<String>> map, String pair) {
+        if (pair == null || pair.length() == 0) {
+            return;
+        }
+
+        int equalAt = pair.indexOf('=');
+        String name;
+        String value;
+
+        if (equalAt > -1) {
+            name = pair.substring(0, equalAt);
+            value = pair.substring(equalAt + 1);
+
+        } else {
+            name = pair;
+            value = null;
+        }
+
+        List<String> parameters = map.get(name);
+
+        if (parameters == null) {
+            parameters = new ArrayList<String>();
+            map.put(name, parameters);
+        }
+
+        parameters.add(value);
     }
 
     /** @deprecated Use {@link #addQueryParameters instead}. */
