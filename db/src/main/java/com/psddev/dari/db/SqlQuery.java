@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -139,8 +138,10 @@ class SqlQuery {
         if (queryTypes != null) {
             for (ObjectType type : queryTypes) {
                 for (ObjectField field : type.getFields()) {
-                    if (SqlDatabase.Static.getIndexTableIsSource(field)) {
-                        sourceTables.put((String) field.getOptions().get(SqlDatabase.INDEX_TABLE_INDEX_OPTION), field);
+                    SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+
+                    if (fieldData.isIndexTableSource()) {
+                        sourceTables.put(fieldData.getIndexTable(), field);
                     }
                 }
             }
@@ -355,13 +356,24 @@ class SqlQuery {
             }
 
             // add columns to select
-            boolean useColumnNames = SqlDatabase.Static.getIndexTableUseColumnNames(useIndex);
+            boolean sameColumnNames = false;
+            ObjectStruct useIndexParent = useIndex.getParent();
+
+            for (String fieldName : useIndex.getFields()) {
+                ObjectField indexField = useIndexParent.getField(fieldName);
+
+                if (indexField != null) {
+                    sameColumnNames = indexField.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames();
+                    break;
+                }
+            }
+
             int fieldIndex = 0;
             StringBuilder extraColumnsBuilder = new StringBuilder();
             for (String indexFieldName : useIndex.getFields()) {
                 query.getExtraSourceColumns().add(indexFieldName);
                 String indexColumnName;
-                if (!useColumnNames) {
+                if (!sameColumnNames) {
                     indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
                     fieldIndex++;
                 } else {

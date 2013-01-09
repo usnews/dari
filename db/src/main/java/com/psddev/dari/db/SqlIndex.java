@@ -45,7 +45,18 @@ public enum SqlIndex {
 
             @Override
             public boolean isReadOnly(ObjectIndex index) {
-                return SqlDatabase.Static.getIndexTableIsReadOnly(index);
+                List<String> indexFieldNames = index.getFields();
+                ObjectStruct parent = index.getParent();
+
+                for (String fieldName : indexFieldNames) {
+                    ObjectField field = parent.getField(fieldName);
+
+                    if (field != null) {
+                        return field.as(SqlDatabase.FieldData.class).isIndexTableReadOnly();
+                    }
+                }
+
+                return false;
             }
         }
     ),
@@ -197,13 +208,19 @@ public enum SqlIndex {
 
         @Override
         public String getValueField(SqlDatabase database, ObjectIndex index, int fieldIndex) {
+            List<String> indexFieldNames = index.getFields();
+            ObjectStruct parent = index.getParent();
 
-            boolean useColumnNames = SqlDatabase.Static.getIndexTableUseColumnNames(index);
-            if (useColumnNames) {
-                return index.getFields().get(fieldIndex);
-            } else {
-                return fieldIndex > 0 ? valueField + (fieldIndex + 1) : valueField;
+            for (String fieldName : indexFieldNames) {
+                ObjectField field = parent.getField(fieldName);
+
+                if (field != null &&
+                        field.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
+                    return indexFieldNames.get(fieldIndex);
+                }
             }
+
+            return fieldIndex > 0 ? valueField + (fieldIndex + 1) : valueField;
         }
 
         @Override
