@@ -228,7 +228,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 newIndex.setUnique(isUnique);
                 newIndex.setCaseSensitive(caseSensitive);
                 newIndex.setJavaDeclaringClassName(declaringClass);
-                newIndex.getOptions().putAll(field.getOptions());
+                newIndex.getOptions().putAll(new ObjectField(field.getParent(), field.toDefinition()).getOptions());
                 indexes.add(newIndex);
             }
         }
