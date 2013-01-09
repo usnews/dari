@@ -16,6 +16,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -440,12 +441,14 @@ public class ObjectType extends Record implements ObjectStruct {
         return new ArrayList<ObjectIndex>(indexesCache.get().values());
     }
 
-    public ObjectIndex getIndexByFields(String ... names) {
-        String indexLookupKey = StringUtils.join(names, "");
-        for(ObjectIndex index : getIndexes()) {
-            String indexKey = StringUtils.join(index.getFields(), "");
-            if (indexKey.equals(indexLookupKey)) {
-                return index;
+    public ObjectIndex getIndexByFields(String... names) {
+        if (names != null && names.length > 0) {
+            List<String> namesList = Arrays.asList(names);
+
+            for (ObjectIndex index : getIndexes()) {
+                if (namesList.equals(index.getFields())) {
+                    return index;
+                }
             }
         }
 
