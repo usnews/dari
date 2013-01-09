@@ -343,7 +343,7 @@ class SqlQuery {
                 sourceTableAlias = sourceTableName;
                 int symbolId = database.getSymbolId(key.getIndexKey(useIndex));
 
-                fromBuilder.append(" INNER JOIN ");
+                fromBuilder.append(" LEFT OUTER JOIN ");
                 fromBuilder.append(sourceTableName);
                 fromBuilder.append(" ON ");
                 fromBuilder.append(sourceTableName);
