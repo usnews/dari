@@ -344,11 +344,7 @@ class SqlQuery {
         }
 
         for (Map.Entry<String, ObjectField> entry: sourceTables.entrySet()) {
-            StringBuilder sourceTableNameBuilder = new StringBuilder();
-
-            vendor.appendIdentifier(sourceTableNameBuilder, entry.getKey());
-
-            String sourceTableName = sourceTableNameBuilder.toString();
+            String sourceTableName = entry.getKey();
             ObjectField field = entry.getValue();
             String sourceTableAlias;
             StringBuilder keyNameBuilder = new StringBuilder(field.getParentType().getInternalName());
@@ -370,15 +366,18 @@ class SqlQuery {
                 continue;
             }
 
-            // This table hasn't been joined to yet.
             if (!joinTableAliases.containsKey(sourceTableName.toLowerCase())) {
-                sourceTableAlias = sourceTableName;
+                // This table hasn't been joined to yet.
+                StringBuilder sourceTableQuotedBuilder = new StringBuilder();
+                vendor.appendIdentifier(sourceTableQuotedBuilder, sourceTableName);
+                String sourceTableNameQuoted = sourceTableQuotedBuilder.toString();
+                sourceTableAlias = sourceTableNameQuoted;
                 int symbolId = database.getSymbolId(key.getIndexKey(useIndex));
 
                 fromBuilder.append(" LEFT OUTER JOIN ");
-                fromBuilder.append(sourceTableName);
+                fromBuilder.append(sourceTableNameQuoted);
                 fromBuilder.append(" ON ");
-                fromBuilder.append(sourceTableName);
+                fromBuilder.append(sourceTableNameQuoted);
                 fromBuilder.append(".");
                 vendor.appendIdentifier(fromBuilder, "id");
                 fromBuilder.append(" = ");
@@ -386,7 +385,7 @@ class SqlQuery {
                 fromBuilder.append("r.");
                 vendor.appendIdentifier(fromBuilder, "id");
                 fromBuilder.append(" AND ");
-                fromBuilder.append(sourceTableName);
+                fromBuilder.append(sourceTableNameQuoted);
                 fromBuilder.append(".");
                 vendor.appendIdentifier(fromBuilder, "symbolId");
                 fromBuilder.append(" = ");
