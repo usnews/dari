@@ -635,6 +635,21 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
 
+        // Load some extra column from source index tables
+        Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
+        ObjectType type = objectState.getType();
+        HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
+        for (ObjectField field : type.getFields()) {
+            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+            if (fieldData.isIndexTableSource()) {
+                if (! queryTypes.contains(type)) {
+                    // This field has some data that we need (@FieldIndexTable(source=true)),
+                    // but it wasn't in the Query, so we need to go load it.
+                    loadExtraFields.add(field);
+                }
+            }
+        }
+
         if (!objectState.isReferenceOnly()) {
             byte[] data = resultSet.getBytes(3);
             if (data != null) {
@@ -659,7 +674,82 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
+        // Now finish putting in all of the extraFields if there were any.
+        for (ObjectField field : loadExtraFields) {
+            String extraSourceColumnsSql = extraSourceSelectStatementById(field, objectState.getId());
+            ResultSet extraResult = executeQueryBeforeTimeout(openQueryConnection(query).createStatement(), extraSourceColumnsSql, getQueryReadTimeout(query));
+            if (extraResult.next()) {
+                meta = extraResult.getMetaData();
+                for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
+                    String columnName = meta.getColumnLabel(i);
+                    objectState.put(columnName, extraResult.getObject(i));
+                }
+            }
+        }
+
         return swapObjectType(query, object);
+    }
+
+    /**
+     * Creates a SQL Statement to return a single row from a FieldIndexTable used as a source table
+     */
+    private String extraSourceSelectStatementById(ObjectField field, UUID id) {
+        // TODO, maybe: move this to SqlQuery and use initializeClauses() and 
+        // needsRecordTable=false instead of passing id to this method. 
+        // Needs countperformance branch to do this.
+
+        FieldData fieldData = field.as(FieldData.class);
+        boolean sameColumnNames = fieldData.isIndexTableSameColumnNames();
+
+        StringBuilder keyNameBuilder = new StringBuilder(field.getParentType().getInternalName());
+        keyNameBuilder.append("/");
+        keyNameBuilder.append(field.getInternalName());
+        Query query = Query.from(field.getParentType().getState().getTypeId());
+        Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), keyNameBuilder.toString());
+        ObjectIndex useIndex = null;
+        for (ObjectIndex index : key.getIndexes()) {
+            if (index.getFields().get(0) == field.getInternalName()) {
+                useIndex = index;
+                break;
+            }
+        }
+
+        String sourceTableName = fieldData.getIndexTable();
+        int symbolId = getSymbolId(key.getIndexKey(useIndex));
+
+        StringBuilder sqlBuilder = new StringBuilder();
+        sqlBuilder.append("SELECT ");
+        
+        int fieldIndex = 0;
+        for (String indexFieldName : useIndex.getFields()) {
+            String indexColumnName;
+
+            if (!sameColumnNames) {
+                indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
+                fieldIndex++;
+            } else {
+                indexColumnName = indexFieldName;
+            }
+
+            vendor.appendIdentifier(sqlBuilder, indexColumnName);
+            sqlBuilder.append(" AS ");
+            vendor.appendIdentifier(sqlBuilder, indexFieldName);
+            sqlBuilder.append(", ");
+        }
+        sqlBuilder.setLength(sqlBuilder.length() - 2);
+
+        sqlBuilder.append(" FROM ");
+        vendor.appendIdentifier(sqlBuilder, sourceTableName);
+        sqlBuilder.append(" WHERE ");
+        vendor.appendIdentifier(sqlBuilder, "id");
+        sqlBuilder.append(" = ");
+        vendor.appendValue(sqlBuilder, id);
+        sqlBuilder.append(" AND ");
+        vendor.appendIdentifier(sqlBuilder, "symbolId");
+        sqlBuilder.append(" = ");
+        sqlBuilder.append(symbolId);
+
+        return sqlBuilder.toString();
     }
 
     /**
