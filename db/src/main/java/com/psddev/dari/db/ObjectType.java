@@ -417,7 +417,25 @@ public class ObjectType extends Record implements ObjectStruct {
 
     /** Returns the field with the given {@code name}. */
     public ObjectField getField(String name) {
-        return fieldsCache.get().get(name);
+        int slashAt = name.indexOf('/');
+
+        if (slashAt < 0) {
+            return fieldsCache.get().get(name);
+        }
+
+        ObjectField field = fieldsCache.get().get(name.substring(0, slashAt));
+
+        if (field != null) {
+            for (ObjectType type : field.getTypes()) {
+                ObjectField f = type.getField(name.substring(slashAt + 1));
+
+                if (f != null) {
+                    return f;
+                }
+            }
+        }
+
+        return null;
     }
 
     /** Returns a list of all the indexes. */
