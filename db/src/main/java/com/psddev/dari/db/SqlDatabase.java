@@ -639,13 +639,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
-        for (ObjectField field : type.getFields()) {
-            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-            if (fieldData.isIndexTableSource()) {
-                if (! queryTypes.contains(type)) {
-                    // This field has some data that we need (@FieldIndexTable(source=true)),
-                    // but it wasn't in the Query, so we need to go load it.
-                    loadExtraFields.add(field);
+        if (type != null) {
+            for (ObjectField field : type.getFields()) {
+                SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+                if (fieldData.isIndexTableSource()) {
+                    if (! queryTypes.contains(type)) {
+                        // This field has some data that we need (@FieldIndexTable(source=true)),
+                        // but it wasn't in the Query, so we need to go load it.
+                        loadExtraFields.add(field);
+                    }
                 }
             }
         }
