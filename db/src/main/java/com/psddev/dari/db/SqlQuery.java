@@ -337,6 +337,8 @@ class SqlQuery {
             if (useIndex == null) {
                 continue;
             }
+            SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
+            SqlIndex.Table indexTable = useSqlIndex.getReadTable(database, useIndex);
 
             // This table hasn't been joined to yet.
             if (!joinTableAliases.containsKey(sourceTableName.toLowerCase())) {
@@ -365,33 +367,16 @@ class SqlQuery {
             }
 
             // Add columns to select.
-            boolean sameColumnNames = false;
-            ObjectStruct useIndexParent = useIndex.getParent();
-
-            for (String fieldName : useIndex.getFields()) {
-                ObjectField indexField = useIndexParent.getField(fieldName);
-
-                if (indexField != null) {
-                    sameColumnNames = indexField.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames();
-                    break;
-                }
-            }
-
             int fieldIndex = 0;
             StringBuilder extraColumnsBuilder = new StringBuilder();
-
+ 
             for (String indexFieldName : useIndex.getFields()) {
                 String indexColumnName;
-
                 query.getExtraSourceColumns().add(indexFieldName);
 
-                if (!sameColumnNames) {
-                    indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
-                    fieldIndex++;
 
-                } else {
-                    indexColumnName = indexFieldName;
-                }
+                indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
+                fieldIndex++;
 
                 extraColumnsBuilder.append(sourceTableAlias);
                 extraColumnsBuilder.append(".");
