@@ -159,6 +159,7 @@ public class ObjectType extends Record implements ObjectStruct {
             ObjectField field = new ObjectField(type != null ? type : environment, null);
             field.getState().setDatabase(database);
             field.setInternalName(internalName);
+            field.setInternalNamePrefix(prefix);
             field.setInternalType(environment, definition.getObjectClass(), javaField.getGenericType());
             field.setJavaFieldName(javaField.getName());
             field.setJavaDeclaringClassName(declaringClass);

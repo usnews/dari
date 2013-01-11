@@ -106,6 +106,7 @@ public class ObjectField extends Record {
     private static final String COLLECTION_MINIMUM_KEY = "collectionMinimum";
     private static final String DISPLAY_NAME_KEY = "label";
     private static final String INTERNAL_NAME_KEY = "name";
+    private static final String INTERNAL_NAME_PREFIX_KEY = "namePrefix";
     private static final String INTERNAL_TYPE_KEY = "type";
     private static final String IS_DENORMALIZED_KEY = "isDenormalized";
     private static final String DENORMALIZED_FIELDS_KEY = "denormalizedFields";
@@ -137,6 +138,7 @@ public class ObjectField extends Record {
     @InternalName("type")
     private String internalType;
 
+    private String internalNamePrefix;
     private boolean isDenormalized;
     private Set<String> denormalizedFields;
     private boolean isEmbedded;
@@ -169,6 +171,7 @@ public class ObjectField extends Record {
         collectionMinimum = field.collectionMinimum;
         displayName = field.displayName;
         internalName = field.internalName;
+        internalNamePrefix = field.internalNamePrefix;
         internalType = field.internalType;
         isDenormalized = field.isDenormalized;
         isEmbedded = field.isEmbedded;
@@ -210,6 +213,7 @@ public class ObjectField extends Record {
         collectionMinimum = (Number) definition.remove(COLLECTION_MINIMUM_KEY);
         displayName = (String) definition.remove(DISPLAY_NAME_KEY);
         internalName = (String) definition.remove(INTERNAL_NAME_KEY);
+        internalNamePrefix = (String) definition.remove(INTERNAL_NAME_PREFIX_KEY);
         internalType = (String) definition.remove(INTERNAL_TYPE_KEY);
         isDenormalized = Boolean.TRUE.equals(definition.remove(IS_DENORMALIZED_KEY));
         denormalizedFields = ObjectUtils.to(new TypeReference<Set<String>>() { }, definition.remove(DENORMALIZED_FIELDS_KEY));
@@ -278,6 +282,7 @@ public class ObjectField extends Record {
         definition.put(COLLECTION_MINIMUM_KEY, collectionMinimum);
         definition.put(DISPLAY_NAME_KEY, displayName);
         definition.put(INTERNAL_NAME_KEY, internalName);
+        definition.put(INTERNAL_NAME_PREFIX_KEY, internalNamePrefix);
         definition.put(INTERNAL_TYPE_KEY, internalType);
         definition.put(IS_DENORMALIZED_KEY, isDenormalized);
         definition.put(DENORMALIZED_FIELDS_KEY, denormalizedFields);
@@ -354,6 +359,16 @@ public class ObjectField extends Record {
     /** Sets the internal name. */
     public void setInternalName(String internalName) {
         this.internalName = internalName;
+    }
+
+    /** Returns the internal name prefix */
+    public String getInternalNamePrefix() {
+        return this.internalNamePrefix;
+    }
+
+    /** Sets the internal name prefix */
+    public void setInternalNamePrefix(String prefix) {
+        this.internalNamePrefix = prefix;
     }
 
     /** Returns the internal type. */

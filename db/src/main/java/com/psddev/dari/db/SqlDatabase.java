@@ -701,7 +701,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         // Needs countperformance branch to do this.
 
         FieldData fieldData = field.as(FieldData.class);
-        boolean sameColumnNames = fieldData.isIndexTableSameColumnNames();
 
         StringBuilder keyNameBuilder = new StringBuilder(field.getParentType().getInternalName());
         keyNameBuilder.append("/");
@@ -715,6 +714,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 break;
             }
         }
+        SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
+        SqlIndex.Table indexTable = useSqlIndex.getReadTable(this, useIndex);
 
         String sourceTableName = fieldData.getIndexTable();
         int symbolId = getSymbolId(key.getIndexKey(useIndex));
@@ -726,12 +727,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         for (String indexFieldName : useIndex.getFields()) {
             String indexColumnName;
 
-            if (!sameColumnNames) {
-                indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
-                fieldIndex++;
-            } else {
-                indexColumnName = indexFieldName;
-            }
+            indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
+            fieldIndex++;
 
             vendor.appendIdentifier(sqlBuilder, indexColumnName);
             sqlBuilder.append(" AS ");
