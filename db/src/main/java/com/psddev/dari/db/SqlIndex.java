@@ -222,10 +222,10 @@ public enum SqlIndex {
                 if (field != null &&
                         field.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
 
-                    String internalPrefix = field.getInternalNamePrefix();
                     String valueFieldName = indexFieldNames.get(fieldIndex);
-                    if (!internalPrefix.equals("") && internalPrefix != null && valueFieldName.startsWith(internalPrefix) && valueFieldName.length() > internalPrefix.length()) {
-                        valueFieldName = valueFieldName.substring(internalPrefix.length());
+                    int dotAt = valueFieldName.lastIndexOf(".");
+                    if (dotAt > -1) {
+                        valueFieldName = valueFieldName.substring(dotAt + 1);
                     }
 
                     return valueFieldName;
