@@ -438,6 +438,31 @@ public class ObjectType extends Record implements ObjectStruct {
         return null;
     }
 
+    /** Returns all fields that are indexed. */
+    public List<ObjectField> getIndexedFields() {
+        Set<String> indexed = new HashSet<String>();
+
+        for (ObjectIndex index : getIndexes()) {
+            List<String> fields = index.getFields();
+
+            if (fields != null) {
+                indexed.addAll(fields);
+            }
+        }
+
+        List<ObjectField> fields = getFields();
+
+        for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
+            ObjectField field = i.next();
+
+            if (!indexed.contains(field.getInternalName())) {
+                i.remove();
+            }
+        }
+
+        return fields;
+    }
+
     /** Returns a list of all the indexes. */
     public List<ObjectIndex> getIndexes() {
         return new ArrayList<ObjectIndex>(indexesCache.get().values());
