@@ -69,6 +69,9 @@ public class ObjectType extends Record implements ObjectStruct {
     private List<Map<String, Object>> fields;
     private List<Map<String, Object>> indexes;
 
+    private String sourceDatabaseClassName;
+    private String sourceDatabaseName;
+
     @DisplayName("Java Object Class")
     @Indexed(unique = true)
     @InternalName("java.objectClass")
@@ -576,6 +579,50 @@ public class ObjectType extends Record implements ObjectStruct {
     /** Returns the class used to create objects of this type. */
     public Class<?> getObjectClass() {
         return ObjectUtils.getClassByName(getObjectClassName());
+    }
+
+    /** Returns the source database class name. */
+    public String getSourceDatabaseClassName() {
+        return sourceDatabaseClassName;
+    }
+
+    /** Sets the source database class name. */
+    public void setSourceDatabaseClassName(String sourceDatabaseClassName) {
+        this.sourceDatabaseClassName = sourceDatabaseClassName;
+    }
+
+    /** Returns the source database name. */
+    public String getSourceDatabaseName() {
+        return sourceDatabaseName;
+    }
+
+    /** Sets the source database name. */
+    public void setSourceDatabaseName(String sourceDatabaseName) {
+        this.sourceDatabaseName = sourceDatabaseName;
+    }
+
+    /**
+     * Returns the source database.
+     *
+     * @return May be {@code null}.
+     */
+    @SuppressWarnings("unchecked")
+    public Database getSourceDatabase() {
+        String name = getSourceDatabaseName();
+
+        if (!ObjectUtils.isBlank(name)) {
+            return Database.Static.getInstance(name);
+
+        } else {
+            Class<?> dbClass = ObjectUtils.getClassByName(getSourceDatabaseClassName());
+
+            if (dbClass != null &&
+                    Database.class.isAssignableFrom(dbClass)) {
+                return Database.Static.getFirst((Class<? extends Database>) dbClass);
+            }
+        }
+
+        return null;
     }
 
     /** Returns the set of modification class names. */
