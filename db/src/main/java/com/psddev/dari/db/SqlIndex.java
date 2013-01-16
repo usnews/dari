@@ -24,41 +24,8 @@ import java.util.UUID;
 public enum SqlIndex {
 
     CUSTOM(
-        new AbstractTable(2, "id", "symbolId", "value") {
-
-            @Override
-            public String getName(SqlDatabase database, ObjectIndex index) {
-                String name = SqlDatabase.Static.getIndexTable(index);
-                if (ObjectUtils.isBlank(name)) {
-                    throw new IllegalStateException(String.format(
-                            "[%s] needs @SqlDatabase.FieldIndexTable annotation!",
-                            index));
-                } else {
-                    return name;
-                }
-            }
-
-            @Override
-            public Object convertKey(SqlDatabase database, ObjectIndex index, String key) {
-                return database.getSymbolId(key);
-            }
-
-            @Override
-            public boolean isReadOnly(ObjectIndex index) {
-                List<String> indexFieldNames = index.getFields();
-                ObjectStruct parent = index.getParent();
-
-                for (String fieldName : indexFieldNames) {
-                    ObjectField field = parent.getField(fieldName);
-
-                    if (field != null) {
-                        return field.as(SqlDatabase.FieldData.class).isIndexTableReadOnly();
-                    }
-                }
-
-                return false;
-            }
-        }
+        new CustomTable(2, "id", "symbolId", "value")/*,
+        new TypeIdCustomTable(3, "id", "typeId", "symbolId", "value")*/
     ),
 
     LOCATION(
@@ -289,6 +256,10 @@ public enum SqlIndex {
             insertBuilder.append(" (");
             vendor.appendIdentifier(insertBuilder, getIdField(database, index));
             insertBuilder.append(",");
+            if (getTypeIdField(database, index) != null) {
+                vendor.appendIdentifier(insertBuilder, getTypeIdField(database, index));
+                insertBuilder.append(",");
+            }
             vendor.appendIdentifier(insertBuilder, getKeyField(database, index));
 
             for (int i = 0; i < fieldsSize; ++ i) {
@@ -298,6 +269,9 @@ public enum SqlIndex {
 
             insertBuilder.append(") VALUES");
             insertBuilder.append(" (?, ?, ");
+            if (getTypeIdField(database, index) != null) {
+                insertBuilder.append("?, ");
+            }
 
             // Add placeholders for each value in this index.
             for (int i = 0; i < fieldsSize; ++ i) {
@@ -354,6 +328,9 @@ public enum SqlIndex {
                     List<Object> rowData = new ArrayList<Object>();
 
                     vendor.appendBindValue(insertBuilder, id, rowData);
+                    if (getTypeIdField(database, index) != null) {
+                        vendor.appendBindValue(insertBuilder, typeId, rowData);
+                    }
                     vendor.appendBindValue(insertBuilder, indexKey, rowData);
 
                     for (int i = 0; i < fieldsSize; i++) {
@@ -366,6 +343,56 @@ public enum SqlIndex {
                 }
             }
         }
+    }
+
+    private static class CustomTable extends AbstractTable {
+
+        public CustomTable(int version, String idField, String keyField, String valueField) {
+            super(version, idField, keyField, valueField);
+        }
+
+        @Override
+        public String getName(SqlDatabase database, ObjectIndex index) {
+            String name = SqlDatabase.Static.getIndexTable(index);
+            if (ObjectUtils.isBlank(name)) {
+                throw new IllegalStateException(String.format(
+                        "[%s] needs @SqlDatabase.FieldIndexTable annotation!",
+                        index));
+            } else {
+                return name;
+            }
+        }
+
+        @Override
+        public Object convertKey(SqlDatabase database, ObjectIndex index, String key) {
+            return database.getSymbolId(key);
+        }
+
+        @Override
+        public boolean isReadOnly(ObjectIndex index) {
+            List<String> indexFieldNames = index.getFields();
+            ObjectStruct parent = index.getParent();
+
+            for (String fieldName : indexFieldNames) {
+                ObjectField field = parent.getField(fieldName);
+
+                if (field != null) {
+                    return field.as(SqlDatabase.FieldData.class).isIndexTableReadOnly();
+                }
+            }
+
+            return false;
+        }
+
+    }
+
+    private static class TypeIdCustomTable extends CustomTable {
+
+        public TypeIdCustomTable(int version, String idField, String typeIdField, String keyField, String valueField) {
+            super(version, idField, keyField, valueField);
+            this.typeIdField = typeIdField;
+        }
+
     }
 
     private static class SingleValueTable extends AbstractTable {
@@ -420,102 +447,6 @@ public enum SqlIndex {
         public TypeIdSymbolIdSingleValueTable(int version, String name) {
             super(version, name);
             this.typeIdField = "typeId";
-        }
-
-        @Override
-        public String prepareInsertStatement(
-                SqlDatabase database,
-                Connection connection,
-                ObjectIndex index) throws SQLException {
-
-            SqlVendor vendor = database.getVendor();
-            int fieldsSize = index.getFields().size();
-            StringBuilder insertBuilder = new StringBuilder();
-
-            insertBuilder.append("INSERT INTO ");
-            vendor.appendIdentifier(insertBuilder, getName(database, index));
-            insertBuilder.append(" (");
-            vendor.appendIdentifier(insertBuilder, getTypeIdField(database, index));
-            insertBuilder.append(",");
-            vendor.appendIdentifier(insertBuilder, getIdField(database, index));
-            insertBuilder.append(",");
-            vendor.appendIdentifier(insertBuilder, getKeyField(database, index));
-
-            for (int i = 0; i < fieldsSize; ++ i) {
-                insertBuilder.append(",");
-                vendor.appendIdentifier(insertBuilder, getValueField(database, index, i));
-            }
-
-            insertBuilder.append(") VALUES");
-            insertBuilder.append(" (?, ?, ?, ");
-
-            // Add placeholders for each value in this index.
-            for (int i = 0; i < fieldsSize; ++ i) {
-                if (i != 0) {
-                    insertBuilder.append(", ");
-                }
-
-                if (SqlIndex.Static.getByIndex(index) == SqlIndex.LOCATION) {
-                    vendor.appendBindLocation(insertBuilder, null, null);
-                } else {
-                    insertBuilder.append("?");
-                }
-            }
-
-            insertBuilder.append(")");
-
-            return insertBuilder.toString();
-        }
-
-        @Override
-        public void bindInsertValues(
-                SqlDatabase database,
-                ObjectIndex index,
-                UUID typeId,
-                UUID id,
-                IndexValue indexValue,
-                Set<String> bindKeys,
-                List<List<Object>> parameters) throws SQLException {
-
-            SqlVendor vendor = database.getVendor();
-            Object indexKey = convertKey(database, index, indexValue.getUniqueName());
-            int fieldsSize = index.getFields().size();
-            StringBuilder insertBuilder = new StringBuilder();
-            boolean writeIndex = true;
-
-            for (Object[] valuesArray : indexValue.getValuesArray()) {
-                StringBuilder bindKeyBuilder = new StringBuilder();
-                bindKeyBuilder.append(id.toString());
-                bindKeyBuilder.append(indexKey);
-
-                for (int i = 0; i < fieldsSize; i++) {
-                    Object parameter = convertValue(database, index, i, valuesArray[i]);
-                    vendor.appendValue(bindKeyBuilder, parameter);
-
-                    if (ObjectUtils.isBlank(parameter)) {
-                        writeIndex = false;
-                        break;
-                    }
-                }
-
-                String bindKey = bindKeyBuilder.toString();
-
-                if (writeIndex && !bindKeys.contains(bindKey)) {
-                    List<Object> rowData = new ArrayList<Object>();
-
-                    vendor.appendBindValue(insertBuilder, typeId, rowData);
-                    vendor.appendBindValue(insertBuilder, id, rowData);
-                    vendor.appendBindValue(insertBuilder, indexKey, rowData);
-
-                    for (int i = 0; i < fieldsSize; i++) {
-                        Object parameter = convertValue(database, index, i, valuesArray[i]);
-                        vendor.appendBindValue(insertBuilder, parameter, rowData);
-                    }
-
-                    bindKeys.add(bindKey);
-                    parameters.add(rowData);
-                }
-            }
         }
 
     }
