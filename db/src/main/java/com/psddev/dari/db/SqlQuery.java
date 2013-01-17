@@ -366,8 +366,11 @@ class SqlQuery {
                 continue;
             }
 
+            SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
+            SqlIndex.Table indexTable = useSqlIndex.getReadTable(database, useIndex);
+
+            // This table hasn't been joined to yet.
             if (!joinTableAliases.containsKey(sourceTableName.toLowerCase())) {
-                // This table hasn't been joined to yet.
                 StringBuilder sourceTableQuotedBuilder = new StringBuilder();
                 vendor.appendIdentifier(sourceTableQuotedBuilder, sourceTableName);
                 String sourceTableNameQuoted = sourceTableQuotedBuilder.toString();
@@ -396,33 +399,14 @@ class SqlQuery {
             }
 
             // Add columns to select.
-            boolean sameColumnNames = false;
-            ObjectStruct useIndexParent = useIndex.getParent();
-
-            for (String fieldName : useIndex.getFields()) {
-                ObjectField indexField = useIndexParent.getField(fieldName);
-
-                if (indexField != null) {
-                    sameColumnNames = indexField.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames();
-                    break;
-                }
-            }
-
             int fieldIndex = 0;
             StringBuilder extraColumnsBuilder = new StringBuilder();
 
             for (String indexFieldName : useIndex.getFields()) {
-                String indexColumnName;
+                String indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
 
+                ++ fieldIndex;
                 query.getExtraSourceColumns().add(indexFieldName);
-
-                if (!sameColumnNames) {
-                    indexColumnName = fieldIndex > 0 ? "value" + (fieldIndex + 1) : "value";
-                    fieldIndex++;
-
-                } else {
-                    indexColumnName = indexFieldName;
-                }
 
                 extraColumnsBuilder.append(sourceTableAlias);
                 extraColumnsBuilder.append(".");
