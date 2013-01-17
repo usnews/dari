@@ -369,7 +369,7 @@ class SqlQuery {
             // Add columns to select.
             int fieldIndex = 0;
             StringBuilder extraColumnsBuilder = new StringBuilder();
- 
+
             for (String indexFieldName : useIndex.getFields()) {
                 String indexColumnName;
                 query.getExtraSourceColumns().add(indexFieldName);

@@ -696,8 +696,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * Creates a SQL Statement to return a single row from a FieldIndexTable used as a source table
      */
     private String extraSourceSelectStatementById(ObjectField field, UUID id) {
-        // TODO, maybe: move this to SqlQuery and use initializeClauses() and 
-        // needsRecordTable=false instead of passing id to this method. 
+        // TODO, maybe: move this to SqlQuery and use initializeClauses() and
+        // needsRecordTable=false instead of passing id to this method.
         // Needs countperformance branch to do this.
 
         FieldData fieldData = field.as(FieldData.class);
@@ -722,7 +722,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         StringBuilder sqlBuilder = new StringBuilder();
         sqlBuilder.append("SELECT ");
-        
+
         int fieldIndex = 0;
         for (String indexFieldName : useIndex.getFields()) {
             String indexColumnName;
