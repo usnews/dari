@@ -337,6 +337,7 @@ class SqlQuery {
             if (useIndex == null) {
                 continue;
             }
+
             SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
             SqlIndex.Table indexTable = useSqlIndex.getReadTable(database, useIndex);
 
@@ -371,12 +372,10 @@ class SqlQuery {
             StringBuilder extraColumnsBuilder = new StringBuilder();
 
             for (String indexFieldName : useIndex.getFields()) {
-                String indexColumnName;
+                String indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
+
+                ++ fieldIndex;
                 query.getExtraSourceColumns().add(indexFieldName);
-
-
-                indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
-                fieldIndex++;
 
                 extraColumnsBuilder.append(sourceTableAlias);
                 extraColumnsBuilder.append(".");

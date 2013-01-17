@@ -711,63 +711,64 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return swapObjectType(query, object);
     }
 
-    /**
-     * Creates a SQL Statement to return a single row from a FieldIndexTable used as a source table
-     */
+    // Creates an SQL statement to return a single row from a FieldIndexTable
+    // used as a source table.
+    //
+    // TODO, maybe: move this to SqlQuery and use initializeClauses() and
+    // needsRecordTable=false instead of passing id to this method. Needs
+    // countperformance branch to do this.
     private String extraSourceSelectStatementById(ObjectField field, UUID id) {
-        // TODO, maybe: move this to SqlQuery and use initializeClauses() and
-        // needsRecordTable=false instead of passing id to this method.
-        // Needs countperformance branch to do this.
-
         FieldData fieldData = field.as(FieldData.class);
+        ObjectType parentType = field.getParentType();
+        StringBuilder keyName = new StringBuilder(parentType.getInternalName());
 
-        StringBuilder keyNameBuilder = new StringBuilder(field.getParentType().getInternalName());
-        keyNameBuilder.append("/");
-        keyNameBuilder.append(field.getInternalName());
-        Query query = Query.from(field.getParentType().getState().getTypeId());
-        Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), keyNameBuilder.toString());
+        keyName.append("/");
+        keyName.append(field.getInternalName());
+
+        Query<?> query = Query.fromType(parentType);
+        Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), keyName.toString());
         ObjectIndex useIndex = null;
+
         for (ObjectIndex index : key.getIndexes()) {
             if (index.getFields().get(0) == field.getInternalName()) {
                 useIndex = index;
                 break;
             }
         }
+
         SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
         SqlIndex.Table indexTable = useSqlIndex.getReadTable(this, useIndex);
-
         String sourceTableName = fieldData.getIndexTable();
         int symbolId = getSymbolId(key.getIndexKey(useIndex));
-
-        StringBuilder sqlBuilder = new StringBuilder();
-        sqlBuilder.append("SELECT ");
-
+        StringBuilder sql = new StringBuilder();
         int fieldIndex = 0;
+
+        sql.append("SELECT ");
+
         for (String indexFieldName : useIndex.getFields()) {
-            String indexColumnName;
+            String indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
 
-            indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
-            fieldIndex++;
+            ++ fieldIndex;
 
-            vendor.appendIdentifier(sqlBuilder, indexColumnName);
-            sqlBuilder.append(" AS ");
-            vendor.appendIdentifier(sqlBuilder, indexFieldName);
-            sqlBuilder.append(", ");
+            vendor.appendIdentifier(sql, indexColumnName);
+            sql.append(" AS ");
+            vendor.appendIdentifier(sql, indexFieldName);
+            sql.append(", ");
         }
-        sqlBuilder.setLength(sqlBuilder.length() - 2);
 
-        sqlBuilder.append(" FROM ");
-        vendor.appendIdentifier(sqlBuilder, sourceTableName);
-        sqlBuilder.append(" WHERE ");
-        vendor.appendIdentifier(sqlBuilder, "id");
-        sqlBuilder.append(" = ");
-        vendor.appendValue(sqlBuilder, id);
-        sqlBuilder.append(" AND ");
-        vendor.appendIdentifier(sqlBuilder, "symbolId");
-        sqlBuilder.append(" = ");
-        sqlBuilder.append(symbolId);
+        sql.setLength(sql.length() - 2);
+        sql.append(" FROM ");
+        vendor.appendIdentifier(sql, sourceTableName);
+        sql.append(" WHERE ");
+        vendor.appendIdentifier(sql, "id");
+        sql.append(" = ");
+        vendor.appendValue(sql, id);
+        sql.append(" AND ");
+        vendor.appendIdentifier(sql, "symbolId");
+        sql.append(" = ");
+        sql.append(symbolId);
 
-        return sqlBuilder.toString();
+        return sql.toString();
     }
 
     /**

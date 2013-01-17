@@ -221,9 +221,9 @@ public enum SqlIndex {
 
                 if (field != null &&
                         field.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
-
                     String valueFieldName = indexFieldNames.get(fieldIndex);
                     int dotAt = valueFieldName.lastIndexOf(".");
+
                     if (dotAt > -1) {
                         valueFieldName = valueFieldName.substring(dotAt + 1);
                     }
