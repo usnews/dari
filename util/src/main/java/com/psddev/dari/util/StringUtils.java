@@ -655,11 +655,11 @@ public class StringUtils {
         String value;
 
         if (equalAt > -1) {
-            name = pair.substring(0, equalAt);
-            value = pair.substring(equalAt + 1);
+            name = decodeUri(pair.substring(0, equalAt));
+            value = decodeUri(pair.substring(equalAt + 1));
 
         } else {
-            name = pair;
+            name = decodeUri(pair);
             value = null;
         }
 

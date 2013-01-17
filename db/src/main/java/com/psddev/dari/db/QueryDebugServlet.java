@@ -64,7 +64,8 @@ public class QueryDebugServlet extends HttpServlet {
             }
         }
 
-        private final Database database;
+        private final String databaseName;
+        private Database database;
         private final ObjectType type;
         private final String where;
         private final String sortField;
@@ -80,7 +81,8 @@ public class QueryDebugServlet extends HttpServlet {
         public Page(ServletContext context, HttpServletRequest request, HttpServletResponse response) throws IOException {
             super(context, request, response);
 
-            database = Database.Static.getInstance(page.param(String.class, "db"));
+            databaseName = page.param(String.class, "db");
+            database = Database.Static.getInstance(databaseName);
             type = database.getEnvironment().getTypeById(page.param(UUID.class, "from"));
             where = page.paramOrDefault(String.class, "where", "").trim();
             sortField = page.param(String.class, "sortField");
@@ -121,6 +123,11 @@ public class QueryDebugServlet extends HttpServlet {
             if (ObjectUtils.isBlank(additionalFieldsString) &&
                     ObjectUtils.isBlank(filter)) {
                 query.resolveToReferenceOnly();
+            }
+
+            if (ObjectUtils.isBlank(databaseName)) {
+                query.setDatabase(null);
+                database = query.getDatabase();
             }
 
             CachingDatabase caching = new CachingDatabase();
@@ -318,11 +325,17 @@ public class QueryDebugServlet extends HttpServlet {
 
                         start("div", "class", "span6");
                             start("select", "name", "db", "style", "margin-bottom: 4px;");
+                                start("option",
+                                        "value", "",
+                                        "selected", ObjectUtils.isBlank(databaseName) ? "selected" : null);
+                                    html("Default");
+                                end();
+
                                 for (Database db : Database.Static.getAll()) {
                                     String dbName = db.getName();
                                     start("option",
-                                            "selected", db.equals(database) ? "selected" : null,
-                                            "value", dbName);
+                                            "value", dbName,
+                                            "selected", dbName.equals(databaseName) ? "selected" : null);
                                         html(dbName);
                                     end();
                                 }
@@ -542,11 +555,17 @@ public class QueryDebugServlet extends HttpServlet {
 
                         start("div", "class", "span6");
                             start("select", "name", "db", "style", "margin-bottom: 4px;");
+                                start("option",
+                                        "value", "",
+                                        "selected", ObjectUtils.isBlank(databaseName) ? "selected" : null);
+                                    html("Default");
+                                end();
+
                                 for (Database db : Database.Static.getAll()) {
                                     String dbName = db.getName();
                                     start("option",
-                                            "selected", db.equals(database) ? "selected" : null,
-                                            "value", dbName);
+                                            "value", dbName,
+                                            "selected", dbName.equals(databaseName) ? "selected" : null);
                                         html(dbName);
                                     end();
                                 }

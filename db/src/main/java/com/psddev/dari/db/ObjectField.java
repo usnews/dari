@@ -645,7 +645,8 @@ public class ObjectField extends Record {
         }
 
         String predicate = getPredicate();
-        if (!ObjectUtils.isBlank(predicate) && RECORD_TYPE.equals(getInternalItemType()) &&
+        if (!ObjectUtils.isBlank(predicate) &&
+                RECORD_TYPE.equals(internalType) &&
                 !PredicateParser.Static.evaluate(value, predicate, state)) {
             state.addError(this, String.format("Must match %s!", predicate));
         }

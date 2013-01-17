@@ -494,6 +494,15 @@ public class JspUtils {
     public static boolean isIncluded(ServletRequest request) {
         return request.getAttribute("javax.servlet.include.context_path") != null;
     }
+    
+    /**
+     * Returns {@code true} if the given {@code request} is made with
+     * SSL ({@code javax.Servlet.ServletRequest#isSecure()} returns {@code true} 
+     * or X-Forwarded-Proto header is "https").
+     */
+    public static boolean isSecureRequest(HttpServletRequest request) {
+        return (request.isSecure() || (request.getHeader("X-Forwarded-Proto") != null && request.getHeader("X-Forwarded-Proto").equalsIgnoreCase("https")));
+    }
 
     /**
      * Proxies the given {@code request} and {@code response} to the given

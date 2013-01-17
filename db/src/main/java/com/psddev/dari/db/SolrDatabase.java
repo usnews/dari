@@ -876,44 +876,44 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
-    public SolrQuery buildSimilarQuery(Object object, String fieldName) {
+    public SolrQuery buildSimilarQuery(Object object) {
         State state = State.getInstance(object);
         SolrQuery solrQuery = new SolrQuery();
 
         solrQuery.setQueryType("/mlt");
-        solrQuery.set(CommonParams.STREAM_BODY, ObjectUtils.toJson(state.getSimpleValues()));
-        solrQuery.set(MoreLikeThisParams.MLT, true);
+
         solrQuery.set(MoreLikeThisParams.SIMILARITY_FIELDS, ALL_FIELD);
         solrQuery.set(MoreLikeThisParams.MIN_WORD_LEN, 2);
+        solrQuery.set(MoreLikeThisParams.BOOST, true);
 
-        ObjectType type = state.getType();
+        StringBuilder streamBody = new StringBuilder();
 
-        if (type != null) {
-            ObjectField field = type.getField(fieldName);
+        addToStreamBody(streamBody, state.getSimpleValues());
 
-            if (field != null) {
-                StringBuilder filter = new StringBuilder();
-                String fieldClass = field.getJavaDeclaringClassName();
-
-                for (ObjectType t : state.getDatabase().getEnvironment().getTypes()) {
-                    ObjectField f = t.getField(fieldName);
-
-                    if (f != null && ObjectUtils.equals(fieldClass, f.getJavaDeclaringClassName())) {
-                        filter.append(Static.escapeValue(t.getId()));
-                        filter.append(" || ");
-                    }
-                }
-
-                if (filter.length() > 0) {
-                    filter.setLength(filter.length() - 4);
-                    filter.insert(0, "typeId:(");
-                    filter.append(")");
-                    solrQuery.set(MoreLikeThisParams.QF, filter.toString());
-                }
-            }
-        }
+        solrQuery.set(CommonParams.STREAM_BODY, streamBody.toString());
+        solrQuery.add(CommonParams.FQ, "-id:" + state.getId());
 
         return solrQuery;
+    }
+
+    private void addToStreamBody(StringBuilder streamBody, Object value) {
+        if (value == null ||
+                value instanceof Boolean) {
+
+        } else if (value instanceof Iterable) {
+            for (Object item : (Iterable<?>) value) {
+                addToStreamBody(streamBody, item);
+            }
+
+        } else if (value instanceof Map) {
+            for (Object item : ((Map<?, ?>) value).values()) {
+                addToStreamBody(streamBody, item);
+            }
+
+        } else {
+            streamBody.append(value);
+            streamBody.append(" ");
+        }
     }
 
     /**
