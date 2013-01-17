@@ -137,7 +137,6 @@ public class ObjectField extends Record {
     @InternalName("type")
     private String internalType;
 
-    private String internalNamePrefix;
     private boolean isDenormalized;
     private Set<String> denormalizedFields;
     private boolean isEmbedded;
@@ -170,7 +169,6 @@ public class ObjectField extends Record {
         collectionMinimum = field.collectionMinimum;
         displayName = field.displayName;
         internalName = field.internalName;
-        internalNamePrefix = field.internalNamePrefix;
         internalType = field.internalType;
         isDenormalized = field.isDenormalized;
         isEmbedded = field.isEmbedded;
