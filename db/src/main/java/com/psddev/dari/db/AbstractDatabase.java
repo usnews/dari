@@ -76,7 +76,7 @@ public abstract class AbstractDatabase<C> implements Database {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractDatabase.class);
 
     private volatile String name;
-    private volatile DatabaseEnvironment environment;
+    private transient volatile DatabaseEnvironment environment;
     private volatile Set<String> groups;
     private volatile double readTimeout = DEFAULT_READ_TIMEOUT;
 

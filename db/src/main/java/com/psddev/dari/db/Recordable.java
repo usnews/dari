@@ -217,6 +217,26 @@ public interface Recordable {
         boolean value() default true;
     }
 
+    /** Specifies the source database class for the target type. */
+    @Documented
+    @Inherited
+    @ObjectType.AnnotationProcessorClass(SourceDatabaseClassProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface SourceDatabaseClass {
+        Class<? extends Database> value();
+    }
+
+    /** Specifies the source database name for the target type. */
+    @Documented
+    @Inherited
+    @ObjectType.AnnotationProcessorClass(SourceDatabaseNameProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface SourceDatabaseName {
+        String value();
+    }
+
     /**
      * Specifies the step between the minimum and the maximum that the
      * target field must match.
@@ -606,6 +626,20 @@ class RequiredProcessor implements ObjectField.AnnotationProcessor<Annotation> {
         field.setRequired(annotation instanceof Recordable.FieldRequired ?
                 ((Recordable.FieldRequired) annotation).value() :
                 ((Recordable.Required) annotation).value());
+    }
+}
+
+class SourceDatabaseClassProcessor implements ObjectType.AnnotationProcessor<Recordable.SourceDatabaseClass> {
+    @Override
+    public void process(ObjectType type, Recordable.SourceDatabaseClass annotation) {
+        type.setSourceDatabaseClassName(annotation.value().getName());
+    }
+}
+
+class SourceDatabaseNameProcessor implements ObjectType.AnnotationProcessor<Recordable.SourceDatabaseName> {
+    @Override
+    public void process(ObjectType type, Recordable.SourceDatabaseName annotation) {
+        type.setSourceDatabaseName(annotation.value());
     }
 }
 

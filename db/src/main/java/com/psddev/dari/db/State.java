@@ -107,8 +107,21 @@ public class State implements Map<String, Object> {
     /** Returns the originating database. */
     public Database getDatabase() {
         if (database == null) {
-            setDatabase(Database.Static.getDefault());
+            Database defaultDatabase = Database.Static.getDefault();
+
+            setDatabase(defaultDatabase);
+
+            ObjectType type = getType();
+
+            if (type != null) {
+                Database source = type.getSourceDatabase();
+
+                if (source != null) {
+                    setDatabase(source);
+                }
+            }
         }
+
         return database;
     }
 

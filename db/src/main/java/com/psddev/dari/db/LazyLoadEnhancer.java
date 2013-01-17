@@ -36,6 +36,7 @@ public class LazyLoadEnhancer extends ClassEnhancer {
     private boolean missingClasses;
     private String enhancedClassName;
     private boolean alreadyEnhanced;
+    private final Set<String> transientFields = new HashSet<String>();
     private final Set<String> recordableFields = new HashSet<String>();
 
     // --- ClassEnhancer support ---
@@ -83,13 +84,18 @@ public class LazyLoadEnhancer extends ClassEnhancer {
             String signature,
             Object value) {
 
-        Class<?> objectClass = findRecordableClass(Type.getType(desc).getClassName());
+        if ((access & Opcodes.ACC_TRANSIENT) > 0) {
+            transientFields.add(name);
 
-        if (objectClass != null) {
-            Recordable.Embedded embedded = objectClass.getAnnotation(Recordable.Embedded.class);
+        } else {
+            Class<?> objectClass = findRecordableClass(Type.getType(desc).getClassName());
 
-            if (embedded == null || !embedded.value()) {
-                recordableFields.add(name);
+            if (objectClass != null) {
+                Recordable.Embedded embedded = objectClass.getAnnotation(Recordable.Embedded.class);
+
+                if (embedded == null || !embedded.value()) {
+                    recordableFields.add(name);
+                }
             }
         }
 
@@ -113,29 +119,31 @@ public class LazyLoadEnhancer extends ClassEnhancer {
             return new MethodAdapter(visitor) {
                 @Override
                 public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-                    if (opcode == Opcodes.GETFIELD) {
-                        if (recordableFields.contains(name)) {
+                    if (!transientFields.contains(name)) {
+                        if (opcode == Opcodes.GETFIELD) {
+                            if (recordableFields.contains(name)) {
+                                visitInsn(Opcodes.DUP);
+                                visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
+                                visitInsn(Opcodes.DUP);
+                                visitLdcInsn(name);
+                                visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "beforeFieldGet", "(Ljava/lang/String;)V");
+                                visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
+
+                            } else {
+                                visitInsn(Opcodes.DUP);
+                                visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
+                                visitLdcInsn(name);
+                                visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "beforeFieldGet", "(Ljava/lang/String;)V");
+                            }
+
+                        } else if (opcode == Opcodes.PUTFIELD &&
+                                recordableFields.contains(name)) {
+                            visitInsn(Opcodes.SWAP);
                             visitInsn(Opcodes.DUP);
                             visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
-                            visitInsn(Opcodes.DUP);
-                            visitLdcInsn(name);
-                            visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "beforeFieldGet", "(Ljava/lang/String;)V");
                             visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
-
-                        } else {
-                            visitInsn(Opcodes.DUP);
-                            visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
-                            visitLdcInsn(name);
-                            visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "beforeFieldGet", "(Ljava/lang/String;)V");
+                            visitInsn(Opcodes.SWAP);
                         }
-
-                    } else if (opcode == Opcodes.PUTFIELD &&
-                            recordableFields.contains(name)) {
-                        visitInsn(Opcodes.SWAP);
-                        visitInsn(Opcodes.DUP);
-                        visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
-                        visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
-                        visitInsn(Opcodes.SWAP);
                     }
 
                     super.visitFieldInsn(opcode, owner, name, desc);
