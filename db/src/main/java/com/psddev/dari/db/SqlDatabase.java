@@ -635,23 +635,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
 
-        // Load some extra column from source index tables
-        Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
-        ObjectType type = objectState.getType();
-        HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
-        if (type != null) {
-            for (ObjectField field : type.getFields()) {
-                SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                if (fieldData.isIndexTableSource()) {
-                    if (! queryTypes.contains(type)) {
-                        // This field has some data that we need (@FieldIndexTable(source=true)),
-                        // but it wasn't in the Query, so we need to go load it.
-                        loadExtraFields.add(field);
-                    }
-                }
-            }
-        }
-
         if (!objectState.isReferenceOnly()) {
             byte[] data = resultSet.getBytes(3);
             if (data != null) {
@@ -676,16 +659,52 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        // Now finish putting in all of the extraFields if there were any.
-        for (ObjectField field : loadExtraFields) {
-            String extraSourceColumnsSql = extraSourceSelectStatementById(field, objectState.getId());
-            ResultSet extraResult = executeQueryBeforeTimeout(openQueryConnection(query).createStatement(), extraSourceColumnsSql, getQueryReadTimeout(query));
-            if (extraResult.next()) {
-                meta = extraResult.getMetaData();
-                for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
-                    String columnName = meta.getColumnLabel(i);
-                    objectState.put(columnName, extraResult.getObject(i));
+        // Load some extra column from source index tables.
+        Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
+        ObjectType type = objectState.getType();
+        HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
+
+        if (type != null) {
+            for (ObjectField field : type.getFields()) {
+                SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+
+                if (fieldData.isIndexTableSource() &&
+                        !queryTypes.contains(type)) {
+                    loadExtraFields.add(field);
                 }
+            }
+        }
+
+        if (loadExtraFields != null) {
+            Connection connection = openQueryConnection(query);
+
+            try {
+                for (ObjectField field : loadExtraFields) {
+                    Statement extraStatement = null;
+                    ResultSet extraResult = null;
+
+                    try {
+                        extraStatement = connection.createStatement();
+                        extraResult = executeQueryBeforeTimeout(
+                                extraStatement,
+                                extraSourceSelectStatementById(field, objectState.getId()),
+                                getQueryReadTimeout(query));
+
+                        if (extraResult.next()) {
+                            meta = extraResult.getMetaData();
+
+                            for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
+                                objectState.put(meta.getColumnLabel(i), extraResult.getObject(i));
+                            }
+                        }
+
+                    } finally {
+                        closeResources(null, extraStatement, extraResult);
+                    }
+                }
+
+            } finally {
+                closeConnection(connection);
             }
         }
 
