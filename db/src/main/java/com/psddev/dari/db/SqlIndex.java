@@ -24,8 +24,7 @@ import java.util.UUID;
 public enum SqlIndex {
 
     CUSTOM(
-        new CustomTable(2, "id", "symbolId", "value")/*,
-        new TypeIdCustomTable(3, "id", "typeId", "symbolId", "value")*/
+        new CustomTable(2, "id", "symbolId", "value")
     ),
 
     LOCATION(
@@ -391,13 +390,13 @@ public enum SqlIndex {
             return false;
         }
 
-    }
-
-    private static class TypeIdCustomTable extends CustomTable {
-
-        public TypeIdCustomTable(int version, String idField, String typeIdField, String keyField, String valueField) {
-            super(version, idField, keyField, valueField);
-            this.typeIdField = typeIdField;
+        @Override
+        public String getTypeIdField(SqlDatabase database, ObjectIndex index) {
+            if (database.hasColumn(getName(database, index), "typeId")) {
+                return "typeId";
+            } else {
+                return null;
+            }
         }
 
     }
