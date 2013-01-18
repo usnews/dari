@@ -67,6 +67,27 @@ public class SqlVendor {
         return tableNames;
     }
 
+    public Set<String> getColumns(Connection connection, String table) throws SQLException {
+        Set<String> columnNames = new HashSet<String>();
+        String catalog = connection.getCatalog();
+        DatabaseMetaData meta = connection.getMetaData();
+        ResultSet result = null;
+
+        try {
+            result = meta.getColumns(catalog, null, table, null);
+            while (result.next()) {
+                String columnName = result.getString("COLUMN_NAME");
+                if (columnName != null) {
+                    columnNames.add(columnName);
+                }
+            }
+        } finally {
+            result.close();
+        }
+
+        return columnNames;
+    }
+
     public boolean hasInRowIndex(Connection connection, String recordTable) throws SQLException {
         boolean newHasInRowIndex = false;
         String catalog = connection.getCatalog();
