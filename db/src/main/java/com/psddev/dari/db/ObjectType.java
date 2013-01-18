@@ -177,6 +177,8 @@ public class ObjectType extends Record implements ObjectStruct {
                 }
             }
 
+            field.setDeprecated(javaField.isAnnotationPresent(Deprecated.class));
+
             for (Annotation annotation : javaField.getAnnotations()) {
                 ObjectField.AnnotationProcessorClass processorClass = annotation.annotationType().getAnnotation(ObjectField.AnnotationProcessorClass.class);
                 if (processorClass != null) {

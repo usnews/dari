@@ -104,6 +104,7 @@ public class ObjectField extends Record {
 
     private static final String COLLECTION_MAXIMUM_KEY = "collectionMaximum";
     private static final String COLLECTION_MINIMUM_KEY = "collectionMinimum";
+    private static final String DEPRECATED_KEY = "deprecated";
     private static final String DISPLAY_NAME_KEY = "label";
     private static final String INTERNAL_NAME_KEY = "name";
     private static final String INTERNAL_TYPE_KEY = "type";
@@ -127,6 +128,7 @@ public class ObjectField extends Record {
 
     private Number collectionMinimum;
     private Number collectionMaximum;
+    private boolean deprecated;
 
     @InternalName("label")
     private String displayName;
@@ -167,6 +169,7 @@ public class ObjectField extends Record {
         parent = field.parent;
         collectionMaximum = field.collectionMaximum;
         collectionMinimum = field.collectionMinimum;
+        deprecated = field.deprecated;
         displayName = field.displayName;
         internalName = field.internalName;
         internalType = field.internalType;
@@ -208,6 +211,7 @@ public class ObjectField extends Record {
 
         collectionMaximum = (Number) definition.remove(COLLECTION_MAXIMUM_KEY);
         collectionMinimum = (Number) definition.remove(COLLECTION_MINIMUM_KEY);
+        deprecated = Boolean.TRUE.equals(definition.remove(DEPRECATED_KEY));
         displayName = (String) definition.remove(DISPLAY_NAME_KEY);
         internalName = (String) definition.remove(INTERNAL_NAME_KEY);
         internalType = (String) definition.remove(INTERNAL_TYPE_KEY);
@@ -276,6 +280,7 @@ public class ObjectField extends Record {
         definition.putAll(getState());
         definition.put(COLLECTION_MAXIMUM_KEY, collectionMaximum);
         definition.put(COLLECTION_MINIMUM_KEY, collectionMinimum);
+        definition.put(DEPRECATED_KEY, deprecated);
         definition.put(DISPLAY_NAME_KEY, displayName);
         definition.put(INTERNAL_NAME_KEY, internalName);
         definition.put(INTERNAL_TYPE_KEY, internalType);
@@ -325,6 +330,16 @@ public class ObjectField extends Record {
     /** Sets the minimum number of items in the field value. */
     public void setCollectionMinimum(Number minimum) {
         this.collectionMinimum = minimum;
+    }
+
+    /** Returns {@code true} if this field is deprecated. */
+    public boolean isDeprecated() {
+        return deprecated;
+    }
+
+    /** Sets whether this field is deprecated. */
+    public void setDeprecated(boolean deprecated) {
+        this.deprecated = deprecated;
     }
 
     /** Returns the display name. */
