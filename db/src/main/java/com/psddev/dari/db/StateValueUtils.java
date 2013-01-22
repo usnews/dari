@@ -369,18 +369,24 @@ abstract class StateValueUtils {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> valueMap = (Map<String, Object>) value;
                     Object typeId = valueMap.get(TYPE_KEY);
+
                     if (typeId != null) {
                         State objectState = State.getInstance(object);
-                        ObjectType valueType = objectState.
-                                getDatabase().
-                                getEnvironment().
-                                getTypeById(ObjectUtils.to(UUID.class, typeId));
+                        DatabaseEnvironment environment = objectState.getDatabase().getEnvironment();
+                        ObjectType valueType = environment.getTypeById(ObjectUtils.to(UUID.class, typeId));
+
+                        if (valueType == null) {
+                            valueType = environment.getTypeByName(ObjectUtils.to(String.class, typeId));
+                        }
+
                         if (valueType != null) {
                             value = valueType.createObject(ObjectUtils.to(UUID.class, valueMap.get(ID_KEY)));
                             State valueState = State.getInstance(value);
+
                             valueState.setDatabase(database);
                             valueState.setResolveToReferenceOnly(objectState.isResolveToReferenceOnly());
                             valueState.putAll(valueMap);
+
                             return value;
                         }
                     }
