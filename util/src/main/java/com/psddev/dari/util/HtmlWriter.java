@@ -1,13 +1,17 @@
 package com.psddev.dari.util;
 
-import java.lang.reflect.Array;
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.reflect.Array;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Writer implementation that adds basic HTML formatting. */
@@ -227,6 +231,448 @@ public class HtmlWriter extends Writer {
         }
 
         return false;
+    }
+
+    /** Returns a CSS string based on the given {@code properties}. */
+    public String cssString(Object... properties) {
+        StringBuilder css = new StringBuilder();
+
+        if (properties != null) {
+            for (int i = 1, length = properties.length; i < length; i += 2) {
+                Object property = properties[i - 1];
+
+                if (property != null) {
+                    Object value = properties[i];
+
+                    if (value != null) {
+                        css.append(property);
+                        css.append(':');
+                        css.append(value);
+                        css.append(';');
+                    }
+                }
+            }
+        }
+
+        return css.toString();
+    }
+
+    /**
+     * Writes the given {@code object} and positions it according to the
+     * grid rules as specified by the given parameters.
+     *
+     * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
+     */
+    public HtmlWriter grid(Object object, String widths, String heights, String... templates) throws IOException {
+        Map<String, Area> areas = createAreas(widths, heights, templates);
+
+        if (areas == null || areas.isEmpty()) {
+            if (object instanceof Map) {
+                object = ((Map<?, ?>) object).values();
+            }
+
+            if (object instanceof Iterable) {
+                for (Object item : (Iterable<?>) object) {
+                    object(item);
+                }
+
+            } else {
+                object(object);
+            }
+
+        } else {
+            if (object == null) {
+                object = areas;
+            }
+
+            start("div", "style", cssString(
+                    "float", "left",
+                    "overflow", "hidden",
+                    "width", "100%"));
+
+                for (Map.Entry<String, Area> entry : areas.entrySet()) {
+                    String name = entry.getKey();
+                    Area area = entry.getValue();
+                    Object value = CollectionUtils.getByPath(object, name);
+
+                    write(area.htmlBefore);
+                        start("div",
+                                "class", "cms-grid-area",
+                                "data-grid-area", name);
+                            object(value);
+                        end();
+                    write(area.htmlAfter);
+                }
+
+            end();
+
+            start("div", "style", cssString("clear", "left"));
+            end();
+        }
+
+        return this;
+    }
+
+    private Map<String, Area> createAreas(String gridWidths, String gridHeights, String... gridTemplates) {
+        if (gridTemplates == null) {
+            return null;
+        }
+
+        List<CssUnit> widths = CssUnit.getInstances(gridWidths);
+        int widthsSize = widths.size();
+        List<CssUnit> heights = CssUnit.getInstances(gridHeights);
+        int heightsSize = heights.size();
+        List<List<String>> lines = new ArrayList<List<String>>();
+        int columns = 0;
+
+        for (String gridTemplate : gridTemplates) {
+            if (gridTemplate != null && gridTemplate.length() > 0) {
+                for (String line : gridTemplate.split("[\\r\\n]+")) {
+                    line = line.trim();
+
+                    if (line.length() > 0) {
+                        List<String> words = Arrays.asList(line.split("\\s+"));
+                        int wordsSize = words.size();
+
+                        lines.add(words);
+
+                        if (columns <= wordsSize) {
+                            columns = wordsSize;
+                        }
+                    }
+                }
+            }
+        }
+
+        int rows = lines.size();
+        Map<String, Area> areas = new LinkedHashMap<String, Area>();
+
+        int clearAfter = -1;
+        boolean highlight = false;
+        double hue = Math.random();
+
+        try {
+            highlight = ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_highlight"));
+        } catch (Exception error) {
+        }
+
+        for (int rowStart = 0; rowStart < rows; ++ rowStart) {
+            List<String> words = lines.get(rowStart);
+
+            for (int columnStart = 0, wordsSize = words.size(); columnStart < wordsSize; ++ columnStart) {
+                String word = words.get(columnStart);
+
+                if (word != null) {
+                    int rowStop = rowStart + 1;
+                    int columnStop = columnStart + 1;
+
+                    for (; columnStop < wordsSize; ++ columnStop) {
+                        if (!ObjectUtils.equals(words.get(columnStop), word)) {
+                            break;
+                        } else {
+                            words.set(columnStop, null);
+                        }
+                    }
+
+                    for (; rowStop < rows; ++ rowStop) {
+                        if (columnStart < lines.get(rowStop).size() && !ObjectUtils.equals(lines.get(rowStop).get(columnStart), word)) {
+                            break;
+                        } else {
+                            for (int i = columnStart; i < columnStop; ++ i) {
+                                if (i < lines.get(rowStop).size()) {
+                                    lines.get(rowStop).set(i, null);
+                                }
+                            }
+                        }
+                    }
+
+                    if (!".".equals(word)) {
+                        StringBuilder htmlBefore = new StringBuilder();
+                        StringBuilder htmlAfter = new StringBuilder();
+
+                        double frMax;
+                        double frBefore;
+                        double frAfter;
+                        double frBeforeRatio;
+                        double frAfterRatio;
+
+                        frMax = 0;
+                        frBefore = 0;
+                        frAfter = 0;
+
+                        for (int i = 0; i < widthsSize; ++ i) {
+                            CssUnit width = widths.get(i);
+
+                            if ("fr".equals(width.unit)) {
+                                double fr = width.number;
+
+                                frMax += fr;
+
+                                if (i < columnStart) {
+                                    frBefore += fr;
+
+                                } else if (i >= columnStop) {
+                                    frAfter += fr;
+                                }
+                            }
+                        }
+
+                        frBeforeRatio = frMax > 0 ? frBefore / frMax : 0.0;
+                        frAfterRatio = frMax > 0 ? frAfter / frMax : 0.0;
+
+                        htmlBefore.append("<div style=\"float:left;margin:0 -100% 0 ");
+                        htmlBefore.append(frBeforeRatio * 100.0);
+                        htmlBefore.append("%;width:");
+                        htmlBefore.append(frMax > 0 ? ((frMax - frBefore - frAfter) * 100.0 / frMax) + "%" : "auto");
+                        htmlBefore.append(";\">");
+                        htmlAfter.append("</div>");
+
+                        Map<String, Adjustment> adjustments = new HashMap<String, Adjustment>();
+
+                        for (int i = 0; i < widthsSize; ++ i) {
+                            CssUnit width = widths.get(i);
+
+                            if (!"fr".equals(width.unit)) {
+                                double left = width.number * ((i < columnStart ? 1 : 0) - frBeforeRatio);
+                                double right = width.number * ((i >= columnStop ? 1 : 0) - frAfterRatio);
+
+                                if (left != 0.0 || right != 0.0) {
+                                    Adjustment adjustment = adjustments.get(width.unit);
+
+                                    if (adjustment == null) {
+                                        adjustment = new Adjustment();
+                                        adjustments.put(width.unit, adjustment);
+                                    }
+
+                                    adjustment.left += left;
+                                    adjustment.right += right;
+                                }
+                            }
+                        }
+
+                        frMax = 0;
+                        frBefore = 0;
+
+                        for (int i = heightsSize - 1; i >= 0; -- i) {
+                            CssUnit height = heights.get(i);
+
+                            if (i < rowStart && "auto".equals(height.unit)) {
+                                break;
+
+                            } else if ("fr".equals(height.unit)) {
+                                double fr = height.number;
+
+                                frMax += fr;
+
+                                if (i < rowStart) {
+                                    frBefore += fr;
+                                }
+                            }
+                        }
+
+                        frBeforeRatio = frMax > 0 ? frBefore / frMax : 0.0;
+
+                        for (int i = heightsSize - 1; i >= 0; -- i) {
+                            CssUnit height = heights.get(i);
+
+                            if (i < rowStart && "auto".equals(height.unit)) {
+                                break;
+
+                            } else if (!"fr".equals(height.unit)) {
+                                double top = height.number * ((i < rowStart ? 1 : 0) - frBeforeRatio);
+
+                                if (top != 0.0) {
+                                    Adjustment adjustment = adjustments.get(height.unit);
+
+                                    if (adjustment == null) {
+                                        adjustment = new Adjustment();
+                                        adjustments.put(height.unit, adjustment);
+                                    }
+
+                                    adjustment.top += top;
+                                }
+                            }
+                        }
+
+                        for (Map.Entry<String, Adjustment> entry : adjustments.entrySet()) {
+                            String unit = entry.getKey();
+                            Adjustment adjustment = entry.getValue();
+
+                            htmlBefore.append("<div style=\"margin:");
+                            htmlBefore.append(new CssUnit(adjustment.top - 1, unit));
+                            htmlBefore.append(" ");
+                            htmlBefore.append(new CssUnit(adjustment.right - 1, unit));
+                            htmlBefore.append(" -1px ");
+                            htmlBefore.append(new CssUnit(adjustment.left - 1, unit));
+                            htmlBefore.append(";padding:");
+                            htmlBefore.append(new CssUnit(1, unit));
+                            htmlBefore.append(" ");
+                            htmlBefore.append(new CssUnit(1, unit));
+                            htmlBefore.append(" 1px ");
+                            htmlBefore.append(new CssUnit(1, unit));
+                            htmlBefore.append(";\">");
+                            htmlAfter.append("</div>");
+                        }
+
+                        // Area size.
+                        boolean autoHeight = false;
+
+                        for (int i = rowStart; i < heightsSize && i < rowStop; ++ i) {
+                            if ("auto".equals(heights.get(i).unit)) {
+                                autoHeight = true;
+                                break;
+                            }
+                        }
+
+                        htmlBefore.append("<div class=\"cms-grid-areaWrapper\" style=\"");
+
+                        if (highlight) {
+                            hue += 0.618033988749895;
+                            hue %= 1.0;
+
+                            htmlBefore.append("background:hsl(");
+                            htmlBefore.append(hue * 360.0);
+                            htmlBefore.append(",50%,50%);");
+                        }
+
+                        htmlBefore.append("height:100%;overflow:hidden;position:relative;width:100%;");
+
+                        if (autoHeight) {
+                            htmlBefore.append("margin-bottom:-30000px;padding-bottom:30000px;");
+                        }
+
+                        htmlBefore.append("\">");
+
+                        // Minimum width.
+                        for (int i = columnStart; i < widthsSize && i < columnStop; ++ i) {
+                            CssUnit width = widths.get(i);
+
+                            if (!"fr".equals(width.unit)) {
+                                htmlBefore.append("<div style=\"padding-left:");
+                                htmlBefore.append(width);
+                                htmlBefore.append(";height:0;\">");
+                            }
+                        }
+
+                        for (int i = columnStart; i < widthsSize && i < columnStop; ++ i) {
+                            if (!"fr".equals(widths.get(i).unit)) {
+                                htmlBefore.append("</div>");
+                            }
+                        }
+
+                        // Minimum height.
+                        if (!autoHeight) {
+                            htmlBefore.append("<div style=\"float:left;width:0;\">");
+
+                            for (int i = rowStart; i < heightsSize && i < rowStop; ++ i) {
+                                CssUnit height = heights.get(i);
+
+                                htmlBefore.append("<div style=\"padding-top:");
+                                htmlBefore.append(height);
+                                htmlBefore.append(";width:0;\">");
+                            }
+
+                            for (int i = rowStart; i < heightsSize && i < rowStop; ++ i) {
+                                htmlBefore.append("</div>");
+                            }
+
+                            htmlBefore.append("</div>");
+                            htmlBefore.append("<div style=\"clear:left;height:0;width:0;\"></div>");
+                            htmlBefore.append("<div style=\"left:0;position:absolute;top:0;\">");
+
+                            htmlAfter.append("</div>");
+                        }
+
+                        htmlAfter.append("</div>");
+
+                        if (clearAfter >= 0 && clearAfter < rowStart) {
+                            clearAfter = -1;
+                            htmlBefore.insert(0, "<div style=\"clear:left;height:0;\"></div>");
+                        }
+
+                        areas.put(word, new Area(
+                                word,
+                                htmlBefore.toString(),
+                                htmlAfter.toString()));
+                    }
+                }
+            }
+
+            if (rowStart < heightsSize &&
+                    "auto".equals(heights.get(rowStart).unit)) {
+                clearAfter = rowStart;
+            }
+        }
+
+        return areas;
+    }
+
+    public static class Area {
+
+        private final String name;
+        protected final String htmlBefore;
+        protected final String htmlAfter;
+
+        public Area(String name, String htmlBefore, String htmlAfter) {
+            this.name = name;
+            this.htmlBefore = htmlBefore;
+            this.htmlAfter = htmlAfter;
+        }
+
+        public String getName() {
+            return name;
+        }
+    }
+
+    private static class CssUnit {
+
+        public final double number;
+        public final String unit;
+
+        public CssUnit(double number, String unit) {
+            this.number = number;
+            this.unit = unit;
+        }
+
+        public CssUnit(String value) {
+            char[] letters = value.toCharArray();
+            int index = 0;
+
+            for (int length = letters.length; index < length; ++ index) {
+                char letter = letters[index];
+
+                if (!(letter == '.' || Character.isDigit(letter))) {
+                    break;
+                }
+            }
+
+            this.number = ObjectUtils.to(double.class, value.substring(0, index));
+            this.unit = value.substring(index);
+        }
+
+        private static List<CssUnit> getInstances(String values) {
+            List<CssUnit> instances = new ArrayList<CssUnit>();
+
+            if (values != null) {
+                for (String value : values.trim().split("\\s+")) {
+                    instances.add(new CssUnit(value));
+                }
+            }
+
+            return instances;
+        }
+
+        @Override
+        public String toString() {
+            return "auto".equals(unit) ? unit : number + unit;
+        }
+    }
+
+    private static class Adjustment {
+
+        public double left;
+        public double right;
+        public double top;
     }
 
     // --- Writer support ---
