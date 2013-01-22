@@ -344,16 +344,36 @@ public class ObjectField extends Record {
 
     /** Returns the display name. */
     public String getDisplayName() {
-        if (ObjectUtils.isBlank(displayName)) {
-            String internalName = getInternalName();
-            int dotAt = internalName.lastIndexOf(".");
-            if (dotAt > -1) {
-                internalName = internalName.substring(dotAt + 1, internalName.length());
-            }
-            return StringUtils.toLabel(internalName);
-        } else {
+        if (!ObjectUtils.isBlank(displayName)) {
             return displayName;
         }
+
+        String name = getJavaFieldName();
+
+        if (ObjectUtils.isBlank(name)) {
+            name = getInternalName();
+        }
+
+        int dotAt = name.lastIndexOf('.');
+
+        if (dotAt > -1) {
+            name = name.substring(dotAt + 1);
+        }
+
+        int dollarAt = name.lastIndexOf('$');
+
+        if (dollarAt > -1) {
+            name = name.substring(dollarAt + 1);
+        }
+
+        name = StringUtils.toLabel(name);
+
+        if (!name.endsWith("?") &&
+                BOOLEAN_TYPE.equals(getInternalItemType())) {
+            name += "?";
+        }
+
+        return name;
     }
 
     /** Sets the display name. */
