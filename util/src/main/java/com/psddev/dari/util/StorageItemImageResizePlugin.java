@@ -13,7 +13,7 @@ import java.util.Map;
 
 import javax.imageio.ImageIO;
 
-public class StorageItemImageResizePlugin implements StorageItemPlugin {
+public class StorageItemImageResizePlugin implements StorageItemListener {
 
     @SuppressWarnings("unchecked")
     public static boolean overridePathWithNearestSize(StorageItem item, Integer width, Integer height) {
@@ -48,7 +48,7 @@ public class StorageItemImageResizePlugin implements StorageItemPlugin {
         return false;
     }
 
-    public void process(StorageItem item) throws IOException {
+    public void afterSave(StorageItem item) throws IOException {
         if (item.getPublicUrl().startsWith("file://")) {
             return;
         }
@@ -104,7 +104,7 @@ public class StorageItemImageResizePlugin implements StorageItemPlugin {
             pathBuilder.append(parts.get(parts.size() - 1));
 
             StorageItem dimsItem = StorageItem.Static.create();
-            StorageItem.Static.resetPlugins(dimsItem); 
+            StorageItem.Static.resetListeners(dimsItem); 
 
             dimsItem.setPath(pathBuilder.toString());
             dimsItem.setContentType(item.getContentType());

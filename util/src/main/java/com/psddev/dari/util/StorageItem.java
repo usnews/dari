@@ -111,7 +111,7 @@ public interface StorageItem extends SettingsBackedObject {
 
                 if (item instanceof AbstractStorageItem) {
                     AbstractStorageItem base = (AbstractStorageItem) item;
-                    base.registerPlugin(new StorageItemImageResizePlugin());
+                    base.registerListener(new StorageItemImageResizePlugin());
                 }
 
                 return item;
@@ -193,10 +193,10 @@ public interface StorageItem extends SettingsBackedObject {
             item.getMetadata().remove(key);
         }
 
-        public static void resetPlugins(StorageItem item) {
+        public static void resetListeners(StorageItem item) {
             if (item instanceof AbstractStorageItem) {
                 AbstractStorageItem base = (AbstractStorageItem) item;
-                base.resetPlugins();
+                base.resetListeners();
             }
         }
         

@@ -43,7 +43,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     private String contentType;
     private Map<String, Object> metadata;
     private transient InputStream data;
-    private transient List<StorageItemPlugin> plugins;
+    private transient List<StorageItemListener> listeners;
 
     /**
      * Returns the base URL that's used to construct the
@@ -77,18 +77,18 @@ public abstract class AbstractStorageItem implements StorageItem {
         this.secureBaseUrl = secureBaseUrl;
     }
 
-    /** Register a StorageItemPlugin. */
-    public void registerPlugin(StorageItemPlugin plugin) {
-        if (plugins == null) {
-            resetPlugins();
+    /** Register a StorageItemListener. */
+    public void registerListener(StorageItemListener plugin) {
+        if (listeners == null) {
+            resetListeners();
         }
 
-        plugins.add(plugin);
+        listeners.add(plugin);
     }
 
     /** Reset plugins. */
-    public void resetPlugins() {
-        plugins = new ArrayList<StorageItemPlugin>();
+    public void resetListeners() {
+        listeners = new ArrayList<StorageItemListener>();
     }
 
     // --- StorageItem support ---
@@ -216,8 +216,8 @@ public abstract class AbstractStorageItem implements StorageItem {
             data.close();
         }
 
-        for (StorageItemPlugin plugin : plugins) {
-            plugin.process(this);
+        for (StorageItemListener listener : listeners) {
+            listener.afterSave(this);
         }
     }
 
