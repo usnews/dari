@@ -111,7 +111,7 @@ public interface StorageItem extends SettingsBackedObject {
 
                 if (item instanceof AbstractStorageItem) {
                     AbstractStorageItem base = (AbstractStorageItem) item;
-                    base.registerPlugin(StorageItemImageResizePlugin.class);
+                    base.registerPlugin(new StorageItemImageResizePlugin());
                 }
 
                 return item;

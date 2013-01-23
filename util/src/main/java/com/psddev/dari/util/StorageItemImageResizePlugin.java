@@ -13,11 +13,7 @@ import java.util.Map;
 
 import javax.imageio.ImageIO;
 
-public class StorageItemImageResizePlugin extends StorageItemPlugin {
-
-    public StorageItemImageResizePlugin(StorageItem item) {
-        super(item);
-    }
+public class StorageItemImageResizePlugin implements StorageItemPlugin {
 
     @SuppressWarnings("unchecked")
     public static boolean overridePathWithNearestSize(StorageItem item, Integer width, Integer height) {
@@ -52,7 +48,7 @@ public class StorageItemImageResizePlugin extends StorageItemPlugin {
         return false;
     }
 
-    public void process() throws IOException {
+    public void process(StorageItem item) throws IOException {
         if (item.getPublicUrl().startsWith("file://")) {
             return;
         }
@@ -67,8 +63,8 @@ public class StorageItemImageResizePlugin extends StorageItemPlugin {
                 List<StorageItem> dimsItems = new ArrayList<StorageItem>();
                 item.getMetadata().put("resizes", dimsItems);
 
-                processSize(500, original, imageType, dimsItems);
-                processSize(1500, original, imageType, dimsItems);
+                processSize(item, 500, original, imageType, dimsItems);
+                processSize(item, 1500, original, imageType, dimsItems);
             }
         } finally {
             if (data != null) {
@@ -79,7 +75,7 @@ public class StorageItemImageResizePlugin extends StorageItemPlugin {
         }
     }
 
-    private void processSize(int newSize, BufferedImage original, String imageType, List<StorageItem> items) throws IOException {
+    private void processSize(StorageItem item, int newSize, BufferedImage original, String imageType, List<StorageItem> items) throws IOException {
         int width = original.getWidth();
         int height = original.getHeight();
         float aspect = (float) width / (float) height;

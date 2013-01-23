@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -79,18 +78,12 @@ public abstract class AbstractStorageItem implements StorageItem {
     }
 
     /** Register a StorageItemPlugin. */
-    public void registerPlugin(Class<? extends StorageItemPlugin> c) {
+    public void registerPlugin(StorageItemPlugin plugin) {
         if (plugins == null) {
             resetPlugins();
         }
 
-        try {
-            Constructor<? extends StorageItemPlugin> constructor = c.getConstructor(StorageItem.class);
-            StorageItemPlugin plugin = constructor.newInstance(this);
-            plugins.add(plugin);
-        } catch(Exception ex) {
-            throw new IllegalStateException(String.format("Unable to initialize the [%s] storage item plugin!", c.getName()));
-        }
+        plugins.add(plugin);
     }
 
     /** Reset plugins. */
@@ -224,7 +217,7 @@ public abstract class AbstractStorageItem implements StorageItem {
         }
 
         for (StorageItemPlugin plugin : plugins) {
-            plugin.process();
+            plugin.process(this);
         }
     }
 
