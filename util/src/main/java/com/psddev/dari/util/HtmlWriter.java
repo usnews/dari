@@ -287,7 +287,6 @@ public class HtmlWriter extends Writer {
 
             start("div", "style", cssString(
                     "float", "left",
-                    "overflow", "hidden",
                     "width", "100%"));
 
                 for (Map.Entry<String, Area> entry : areas.entrySet()) {
@@ -416,7 +415,7 @@ public class HtmlWriter extends Writer {
                     htmlBefore.append("%;width:");
                     htmlBefore.append(frMax > 0 ? ((frMax - frBefore - frAfter) * 100.0 / frMax) + "%" : "auto");
                     htmlBefore.append(";\">");
-                    htmlAfter.append("</div>");
+                    htmlAfter.insert(0, "</div>");
 
                     Map<String, Adjustment> adjustments = new HashMap<String, Adjustment>();
 
@@ -502,7 +501,7 @@ public class HtmlWriter extends Writer {
                         htmlBefore.append(" 1px ");
                         htmlBefore.append(new CssUnit(1, unit));
                         htmlBefore.append(";\">");
-                        htmlAfter.append("</div>");
+                        htmlAfter.insert(0, "</div>");
                     }
 
                     // Area size.
@@ -515,13 +514,7 @@ public class HtmlWriter extends Writer {
                         }
                     }
 
-                    htmlBefore.append("<div class=\"cms-grid-areaWrapper\" style=\"height:100%;overflow:hidden;position:relative;width:100%;");
-
-                    if (autoHeight) {
-                        htmlBefore.append("margin-bottom:-30000px;padding-bottom:30000px;");
-                    }
-
-                    htmlBefore.append("\">");
+                    htmlBefore.append("<div class=\"cms-grid-areaWrapper\" style=\"height:100%;width:100%;\">");
 
                     // Minimum width.
                     for (int i = columnStart; i < widthsSize && i < columnStop; ++ i) {
@@ -542,7 +535,7 @@ public class HtmlWriter extends Writer {
 
                     // Minimum height.
                     if (!autoHeight) {
-                        htmlBefore.append("<div style=\"float:left;overflow:hidden;width:0;\">");
+                        htmlBefore.append("<div style=\"float:left;width:0;\">");
 
                         for (int i = rowStart; i < heightsSize && i < rowStop; ++ i) {
                             CssUnit height = heights.get(i);
@@ -557,16 +550,17 @@ public class HtmlWriter extends Writer {
                         }
 
                         htmlBefore.append("</div>");
-                        htmlBefore.append("<div style=\"left:0;position:absolute;top:0;\">");
+                        htmlBefore.append("<div style=\"height:0;width:100%;\">");
 
-                        htmlAfter.append("</div>");
+                        htmlAfter.insert(0, "</div>");
+                        htmlAfter.insert(0, "<div style=\"clear:left;\"></div>");
                     }
 
-                    htmlAfter.append("</div>");
+                    htmlAfter.insert(0, "</div>");
 
                     if (clearAt >= 0 && clearAt <= rowStart) {
                         clearAt = -1;
-                        htmlBefore.insert(0, "</div><div style=\"float:left;overflow:hidden;width:100%;\">");
+                        htmlBefore.insert(0, "</div><div style=\"clear:left;\"></div><div style=\"float:left;width:100%;\">");
                     }
 
                     if (autoHeight && rowStop > clearAt) {
