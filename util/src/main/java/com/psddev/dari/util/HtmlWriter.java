@@ -346,7 +346,7 @@ public class HtmlWriter extends Writer {
 
         int rows = lines.size();
         Map<String, Area> areas = new LinkedHashMap<String, Area>();
-        int clearAfter = -1;
+        int clearAt = -1;
 
         for (int rowStart = 0; rowStart < rows; ++ rowStart) {
             List<String> words = lines.get(rowStart);
@@ -564,9 +564,13 @@ public class HtmlWriter extends Writer {
 
                     htmlAfter.append("</div>");
 
-                    if (clearAfter >= 0 && clearAfter < rowStart) {
-                        clearAfter = -1;
+                    if (clearAt >= 0 && clearAt <= rowStart) {
+                        clearAt = -1;
                         htmlBefore.insert(0, "</div><div style=\"float:left;overflow:hidden;width:100%;\">");
+                    }
+
+                    if (autoHeight && rowStop > clearAt) {
+                        clearAt = rowStop;
                     }
 
                     areas.put(word, new Area(
@@ -574,11 +578,6 @@ public class HtmlWriter extends Writer {
                             htmlBefore.toString(),
                             htmlAfter.toString()));
                 }
-            }
-
-            if (rowStart < heightsSize &&
-                    "auto".equals(heights.get(rowStart).unit)) {
-                clearAfter = rowStart;
             }
         }
 
