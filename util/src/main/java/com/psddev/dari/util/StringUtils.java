@@ -234,6 +234,10 @@ public class StringUtils {
 
         StringBuilder nb = new StringBuilder();
         for (String word : words) {
+            if (word.length() == 0) {
+                continue;
+            }
+
             if (ABBREVIATIONS.contains(word)) {
                 nb.append(word.toUpperCase());
             } else {
