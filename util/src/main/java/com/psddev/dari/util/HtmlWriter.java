@@ -346,15 +346,7 @@ public class HtmlWriter extends Writer {
 
         int rows = lines.size();
         Map<String, Area> areas = new LinkedHashMap<String, Area>();
-
         int clearAfter = -1;
-        boolean highlight = false;
-        double hue = Math.random();
-
-        try {
-            highlight = ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_highlight"));
-        } catch (Exception error) {
-        }
 
         for (int rowStart = 0; rowStart < rows; ++ rowStart) {
             List<String> words = lines.get(rowStart);
@@ -523,18 +515,7 @@ public class HtmlWriter extends Writer {
                         }
                     }
 
-                    htmlBefore.append("<div class=\"cms-grid-areaWrapper\" style=\"");
-
-                    if (highlight) {
-                        hue += 0.618033988749895;
-                        hue %= 1.0;
-
-                        htmlBefore.append("background:hsl(");
-                        htmlBefore.append(hue * 360.0);
-                        htmlBefore.append(",50%,50%);");
-                    }
-
-                    htmlBefore.append("height:100%;overflow:hidden;position:relative;width:100%;");
+                    htmlBefore.append("<div class=\"cms-grid-areaWrapper\" style=\"height:100%;overflow:hidden;position:relative;width:100%;");
 
                     if (autoHeight) {
                         htmlBefore.append("margin-bottom:-30000px;padding-bottom:30000px;");
