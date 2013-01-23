@@ -2,11 +2,14 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,6 +44,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     private String contentType;
     private Map<String, Object> metadata;
     private transient InputStream data;
+    private transient List<StorageItemPlugin> plugins;
 
     /**
      * Returns the base URL that's used to construct the
@@ -72,6 +76,26 @@ public abstract class AbstractStorageItem implements StorageItem {
      */
     public void setSecureBaseUrl(String secureBaseUrl) {
         this.secureBaseUrl = secureBaseUrl;
+    }
+
+    /** Register a StorageItemPlugin. */
+    public void registerPlugin(Class<? extends StorageItemPlugin> c) {
+        if (plugins == null) {
+            resetPlugins();
+        }
+
+        try {
+            Constructor<? extends StorageItemPlugin> constructor = c.getConstructor(StorageItem.class);
+            StorageItemPlugin plugin = constructor.newInstance(this);
+            plugins.add(plugin);
+        } catch(Exception ex) {
+            throw new IllegalStateException(String.format("Unable to initialize the [%s] storage item plugin!", c.getName()));
+        }
+    }
+
+    /** Reset plugins. */
+    public void resetPlugins() {
+        plugins = new ArrayList<StorageItemPlugin>();
     }
 
     // --- StorageItem support ---
@@ -197,6 +221,10 @@ public abstract class AbstractStorageItem implements StorageItem {
             setData(null);
         } finally {
             data.close();
+        }
+
+        for (StorageItemPlugin plugin : plugins) {
+            plugin.process();
         }
     }
 

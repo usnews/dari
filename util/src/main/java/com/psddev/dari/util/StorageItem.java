@@ -108,6 +108,12 @@ public interface StorageItem extends SettingsBackedObject {
 
                 StorageItem item = Settings.newInstance(StorageItem.class, SETTING_PREFIX + "/" + storage);
                 item.setStorage(storage);
+
+                if (item instanceof AbstractStorageItem) {
+                    AbstractStorageItem base = (AbstractStorageItem) item;
+                    base.registerPlugin(StorageItemImageResizePlugin.class);
+                }
+
                 return item;
             }
         }
@@ -185,6 +191,13 @@ public interface StorageItem extends SettingsBackedObject {
          */
         public static void removeAllMetadata(StorageItem item, String key) {
             item.getMetadata().remove(key);
+        }
+
+        public static void resetPlugins(StorageItem item) {
+            if (item instanceof AbstractStorageItem) {
+                AbstractStorageItem base = (AbstractStorageItem) item;
+                base.resetPlugins();
+            }
         }
         
         // --- Resource ---
