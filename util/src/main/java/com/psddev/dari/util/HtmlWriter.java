@@ -318,9 +318,7 @@ public class HtmlWriter extends Writer {
         }
 
         List<CssUnit> widths = CssUnit.getInstances(gridWidths);
-        int widthsSize = widths.size();
         List<CssUnit> heights = CssUnit.getInstances(gridHeights);
-        int heightsSize = heights.size();
         List<List<String>> lines = new ArrayList<List<String>>();
         int columns = 0;
 
@@ -330,8 +328,18 @@ public class HtmlWriter extends Writer {
                     line = line.trim();
 
                     if (line.length() > 0) {
-                        List<String> words = Arrays.asList(line.split("\\s+"));
+                        List<String> words = new ArrayList<String>(Arrays.asList(line.split("\\s+")));
                         int wordsSize = words.size();
+
+                        if (wordsSize > 0) {
+                            int lastIndex = wordsSize - 1;
+                            String lastWord = words.get(lastIndex);
+
+                            if (lastWord.startsWith("/")) {
+                                words.remove(lastIndex);
+                                heights.add(new CssUnit(lastWord.substring(1)));
+                            }
+                        }
 
                         lines.add(words);
 
@@ -342,6 +350,9 @@ public class HtmlWriter extends Writer {
                 }
             }
         }
+
+        int widthsSize = widths.size();
+        int heightsSize = heights.size();
 
         int rows = lines.size();
         Map<String, Area> areas = new LinkedHashMap<String, Area>();
@@ -630,7 +641,7 @@ public class HtmlWriter extends Writer {
         private static List<CssUnit> getInstances(String values) {
             List<CssUnit> instances = new ArrayList<CssUnit>();
 
-            if (values != null) {
+            if (!ObjectUtils.isBlank(values)) {
                 for (String value : values.trim().split("\\s+")) {
                     instances.add(new CssUnit(value));
                 }
