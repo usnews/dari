@@ -410,6 +410,9 @@ public class HtmlWriter extends Writer {
                     frBeforeRatio = frMax > 0 ? frBefore / frMax : 0.0;
                     frAfterRatio = frMax > 0 ? frAfter / frMax : 0.0;
 
+                    htmlBefore.append("<div style=\"margin-left:-30000px;margin-right:30000px;\">");
+                    htmlAfter.insert(0, "</div>");
+
                     htmlBefore.append("<div style=\"float:left;margin:0 -100% 0 ");
                     htmlBefore.append(frBeforeRatio * 100.0);
                     htmlBefore.append("%;width:");
@@ -503,6 +506,9 @@ public class HtmlWriter extends Writer {
                         htmlBefore.append(";\">");
                         htmlAfter.insert(0, "</div>");
                     }
+
+                    htmlBefore.append("<div style=\"margin-left:30000px;margin-right:-30000px;\">");
+                    htmlAfter.insert(0, "</div>");
 
                     // Area size.
                     boolean autoHeight = false;
