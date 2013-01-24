@@ -560,7 +560,7 @@ public class HtmlWriter extends Writer {
 
                     if (clearAt >= 0 && clearAt <= rowStart) {
                         clearAt = -1;
-                        htmlBefore.insert(0, "</div><div style=\"clear:left;\"></div><div style=\"float:left;width:100%;\">");
+                        htmlBefore.insert(0, "<div style=\"clear:left;\"></div>");
                     }
 
                     if (autoHeight && rowStop > clearAt) {
