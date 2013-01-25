@@ -1,5 +1,7 @@
 package com.psddev.dari.util;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +23,10 @@ public class CollectionUtils {
         }
 
         for (String key; path != null; ) {
+            if (object == null) {
+                return null;
+            }
+
             int slashAt = path.indexOf('/');
 
             if (slashAt > -1) {
@@ -54,7 +60,21 @@ public class CollectionUtils {
                 return null;
 
             } else {
-                return null;
+                Method getter = TypeDefinition.getInstance(object.getClass()).getAllGetters().get(key);
+
+                if (getter == null) {
+                    return null;
+
+                } else {
+                    try {
+                        return getter.invoke(object);
+
+                    } catch (IllegalAccessException error) {
+                        throw new IllegalStateException(error);
+                    } catch (InvocationTargetException error) {
+                        ErrorUtils.rethrow(error);
+                    }
+                }
             }
         }
 
