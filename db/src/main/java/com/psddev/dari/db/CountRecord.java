@@ -147,11 +147,21 @@ public class CountRecord {
         symbolBuilder.append("/");
 
         Iterator<String> keysIterator = new TreeSet<String>(this.dimensions.keySet()).iterator();
-        symbolBuilder.append(keysIterator.next());
         while (keysIterator.hasNext()) {
+            String key = keysIterator.next();
+            symbolBuilder.append(key);
+            Object value = this.dimensions.get(key);
+            if (value instanceof Set) {
+                int numElements = ((Set<?>)value).size();
+                if (numElements > 1) {
+                    symbolBuilder.append("[");
+                    symbolBuilder.append(numElements);
+                    symbolBuilder.append("]");
+                }
+            }
             symbolBuilder.append(',');
-            symbolBuilder.append(keysIterator.next());
         }
+        symbolBuilder.setLength(symbolBuilder.length()-1);
         symbolBuilder.append("#count:");
         symbolBuilder.append(this.counterType);
         return symbolBuilder.toString();
@@ -203,16 +213,25 @@ public class CountRecord {
         // insert indexes
         for (Map.Entry<String, Object> entry : dimensions.entrySet()) {
             String key = entry.getKey();
-            Object value = entry.getValue();
-            String table = getIndexTable(value);
-            if (value instanceof UUID) {
-                sqls.add(buildIndexInsertSql(key, (UUID) value, table));
-            } else if (value instanceof Double ) {
-                sqls.add(buildIndexInsertSql(key, (Double) value, table));
-            } else if (value instanceof Integer ) {
-                sqls.add(buildIndexInsertSql(key, ((Integer) value).doubleValue(), table));
+            Object dimensionValue = entry.getValue();
+            String table;
+            TreeSet<Object> values = new TreeSet<Object>();
+            if (dimensionValue instanceof Set) {
+                values.addAll((Set<?>)dimensionValue);
             } else {
-                sqls.add(buildIndexInsertSql(key, value.toString(), table));
+                values.add(dimensionValue);
+            }
+            table = getIndexTable(values);
+            for (Object value:values) {
+                if (value instanceof UUID) {
+                    sqls.add(buildIndexInsertSql(key, (UUID) value, table));
+                } else if (value instanceof Double ) {
+                    sqls.add(buildIndexInsertSql(key, (Double) value, table));
+                } else if (value instanceof Integer ) {
+                    sqls.add(buildIndexInsertSql(key, ((Integer) value).doubleValue(), table));
+                } else {
+                    sqls.add(buildIndexInsertSql(key, value.toString(), table));
+                }
             }
         }
         return sqls;
@@ -266,6 +285,11 @@ public class CountRecord {
     }
 
     private String getIndexTable (Object value) {
+        if (value instanceof Set) {
+            // for the purpose of determining the index table, 
+            // just check the type of the first element of the set
+            value = ((Set<?>)value).iterator().next();
+        }
         if (value instanceof UUID) {
             return COUNTRECORD_UUIDINDEX_TABLE;
         } else if (value instanceof Double ) {
@@ -302,8 +326,7 @@ public class CountRecord {
         return "SELECT SUM(x.amount) AS amount FROM (" + getSelectSql(false, true, null) + ") x";
     }
 
-    // XXX: private
-    public String getSelectCountGroupBySql(Map<String, Object> groupByDimensions) {
+    private String getSelectCountGroupBySql(Map<String, Object> groupByDimensions) {
         StringBuilder selectBuilder = new StringBuilder();
         StringBuilder fromBuilder = new StringBuilder();
         selectBuilder.append("SELECT SUM(x.amount) AS amount");
@@ -403,20 +426,31 @@ public class CountRecord {
             // append to where statement
             whereBuilder.append(" \nAND (");
             for (Map.Entry<String, Object> entry : getDimensionsByIndexTable(table).entrySet()) {
+                String key = entry.getKey();
+                Object value = entry.getValue();
                 whereBuilder.append("(");
                 whereBuilder.append(alias);
                 whereBuilder.append(".");
                 whereBuilder.append("symbolId");
                 whereBuilder.append(" = ");
-                whereBuilder.append(db.getSymbolId(getDimensionSymbol(entry.getKey())));
+                whereBuilder.append(db.getSymbolId(getDimensionSymbol(key)));
                 whereBuilder.append(" AND ");
                 whereBuilder.append(alias);
                 whereBuilder.append(".");
                 whereBuilder.append("value");
-                whereBuilder.append(" = ");
-                vendor.appendValue(whereBuilder, entry.getValue());
-                whereBuilder.append(")");
-                ++numFilters;
+                whereBuilder.append(" IN (");
+                if (value instanceof Set) {
+                    for (Object v : (Set<?>)value) {
+                        vendor.appendValue(whereBuilder, v);
+                        whereBuilder.append(',');
+                        ++numFilters;
+                    }
+                    whereBuilder.setLength(whereBuilder.length()-1);
+                } else {
+                    vendor.appendValue(whereBuilder, value);
+                    ++numFilters;
+                }
+                whereBuilder.append("))");
                 whereBuilder.append(" \n  OR "); // 7 chars below
             }
             if (groupByDimensions != null) {
