@@ -338,11 +338,11 @@ public class CountRecord {
 
         if (selectAmount) {
             selectBuilder.append(", cr0.amount");
-            fromBuilder.append(" FROM ");
+            fromBuilder.append(" \nFROM ");
             fromBuilder.append(COUNTRECORD_TABLE);
             fromBuilder.append(" ");
             fromBuilder.append(alias);
-            whereBuilder.append(" WHERE ");
+            whereBuilder.append(" \nWHERE ");
             if (preciseMatch) {
                 whereBuilder.append(alias);
                 whereBuilder.append(".");
@@ -361,11 +361,11 @@ public class CountRecord {
         for (String table : getIndexTables(groupByDimensions)) {
             alias = "cr" + i;
             if (i == 0) {
-                fromBuilder.append(" FROM ");
+                fromBuilder.append(" \nFROM ");
                 fromBuilder.append(table);
                 fromBuilder.append(" ");
                 fromBuilder.append(alias);
-                whereBuilder.append(" WHERE ");
+                whereBuilder.append(" \nWHERE ");
                 if (preciseMatch) {
                     whereBuilder.append(alias);
                     whereBuilder.append(".");
@@ -376,7 +376,7 @@ public class CountRecord {
                     whereBuilder.append("1 = 1");
                 }
             } else {
-                fromBuilder.append(" JOIN ");
+                fromBuilder.append(" \nJOIN ");
                 fromBuilder.append(table);
                 fromBuilder.append(" ");
                 fromBuilder.append(alias);
@@ -401,7 +401,7 @@ public class CountRecord {
 
             int numFilters = 0;
             // append to where statement
-            whereBuilder.append(" AND (");
+            whereBuilder.append(" \nAND (");
             for (Map.Entry<String, Object> entry : getDimensionsByIndexTable(table).entrySet()) {
                 whereBuilder.append("(");
                 whereBuilder.append(alias);
@@ -416,8 +416,8 @@ public class CountRecord {
                 whereBuilder.append(" = ");
                 vendor.appendValue(whereBuilder, entry.getValue());
                 whereBuilder.append(")");
-                whereBuilder.append(" OR ");
                 ++numFilters;
+                whereBuilder.append(" \n  OR "); // 7 chars below
             }
             if (groupByDimensions != null) {
                 for (Map.Entry<String, Object> entry : getDimensionsByIndexTable(table, groupByDimensions).entrySet()) {
@@ -428,7 +428,7 @@ public class CountRecord {
                     whereBuilder.append(" = ");
                     whereBuilder.append(db.getSymbolId(getDimensionSymbol(entry.getKey())));
                     whereBuilder.append(")");
-                    whereBuilder.append(" OR ");
+                    whereBuilder.append(" \n  OR "); // 7 chars below
                     selectBuilder.append(", MAX(IF(");
                     selectBuilder.append(alias);
                     selectBuilder.append(".symbolId = ");
@@ -442,12 +442,12 @@ public class CountRecord {
                     ++numFilters;
                 }
             }
-            whereBuilder.setLength(whereBuilder.length() - 4);
+            whereBuilder.setLength(whereBuilder.length() - 7);
             whereBuilder.append(") ");
             count = count * numFilters;
             ++i;
         }
-        whereBuilder.append("GROUP BY ");
+        whereBuilder.append("\nGROUP BY ");
         whereBuilder.append("cr0.id");
         if (selectAmount) {
             whereBuilder.append(", cr0.amount");
