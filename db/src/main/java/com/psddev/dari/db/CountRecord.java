@@ -1,32 +1,17 @@
 package com.psddev.dari.db;
 
-// import com.psddev.dari.util.ObjectToIterable;
-// import com.psddev.dari.util.ObjectUtils;
-// import com.psddev.dari.util.PullThroughCache;
-// import com.psddev.dari.util.StorageItem;
-// import com.psddev.dari.util.StringUtils;
-// import com.psddev.dari.util.TypeDefinition;
 import com.psddev.dari.util.UuidUtils;
 
 import java.sql.SQLException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.ResultSetMetaData;
 
-// import java.lang.reflect.Field;
-// import java.lang.reflect.Type;
-// import java.lang.reflect.TypeVariable;
-// import java.net.URI;
-// import java.net.URL;
 import java.util.ArrayList;
-// import java.util.Collection;
-// import java.util.Collections;
-// import java.util.Date;
 import java.util.HashMap;
-// import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-//import java.util.HashSet;
 
 import java.util.TreeSet;
 import java.util.Map;
@@ -70,16 +55,39 @@ public class CountRecord {
     public Integer getCount() throws SQLException {
         String sql = getSelectCountSql();
         Connection connection = db.openConnection();
+        Integer count = 0;
         try {
             ResultSet result = selectSql(connection, sql);
             if (result.next()) {
-                Integer count = result.getInt(1);
-                return count;
+                count = result.getInt(1);
             }
+            return count;
         } finally {
             db.closeConnection(connection);
         }
-        return 0;
+    }
+
+    public Map<Map<String, Object>, Integer> getCountBy(Map<String, Object> groupByDimensions) throws SQLException {
+        String sql = getSelectCountGroupBySql(groupByDimensions);
+        Connection connection = db.openConnection();
+        HashMap<Map<String, Object>, Integer> results = new HashMap<Map<String, Object>, Integer>();
+        try {
+            ResultSet result = selectSql(connection, sql);
+            ResultSetMetaData meta = result.getMetaData();
+            int numColumns = meta.getColumnCount();
+            while (result.next()) {
+                HashMap<String, Object> dimensions = new HashMap<String, Object>();
+                Integer count = result.getInt(1);
+                for (int i = 2; i <= numColumns; i++) {
+                    String columnName = meta.getColumnLabel(i);
+                    dimensions.put(columnName, result.getObject(i));
+                }
+                results.put(dimensions, count);
+            }
+            return results;
+        } finally {
+            db.closeConnection(connection);
+        }
     }
 
     public Integer adjustCount(Integer amount) throws SQLException {
@@ -269,27 +277,57 @@ public class CountRecord {
         }
     }
 
-    private Set<String> getIndexTables() {
+    private Set<String> getIndexTables(Map<String, Object> additionalDimensions) {
         LinkedHashSet<String> tables = new LinkedHashSet<String>();
         for (Map.Entry<String, Object> entry : dimensions.entrySet()) {
             tables.add(getIndexTable(entry.getValue()));
+        }
+        if (additionalDimensions != null) {
+            for (Map.Entry<String, Object> entry : additionalDimensions.entrySet()) {
+                tables.add(getIndexTable(entry.getValue()));
+            }
         }
         return tables;
     }
 
     private String getSelectPreciseIdSql() {
-        return getSelectSql(true, false);
+        return getSelectSql(true, false, null);
     }
 
     private String getSelectPreciseCountSql() {
-        return getSelectSql(true, true);
+        return getSelectSql(true, true, null);
     }
 
     private String getSelectCountSql() {
-        return "SELECT SUM(x.amount) FROM (" + getSelectSql(false, true) + ") x";
+        return "SELECT SUM(x.amount) AS amount FROM (" + getSelectSql(false, true, null) + ") x";
     }
 
-    private String getSelectSql(Boolean preciseMatch, Boolean selectAmount) {
+    // XXX: private
+    public String getSelectCountGroupBySql(Map<String, Object> groupByDimensions) {
+        StringBuilder selectBuilder = new StringBuilder();
+        StringBuilder fromBuilder = new StringBuilder();
+        selectBuilder.append("SELECT SUM(x.amount) AS amount");
+        fromBuilder.append(" FROM (");
+        fromBuilder.append(getSelectSql(false, true, groupByDimensions));
+        fromBuilder.append(") x");
+        // handle additional dimensions
+        if (groupByDimensions != null) {
+            fromBuilder.append(" GROUP BY ");
+            for (String key : groupByDimensions.keySet()) {
+                // select additional dimensions
+                selectBuilder.append(", x.");
+                selectBuilder.append(key);
+                // group by additional dimensions
+                fromBuilder.append("x.");
+                fromBuilder.append(key);
+                fromBuilder.append(", ");
+            }
+            fromBuilder.setLength(fromBuilder.length() - 2);
+        }
+        return selectBuilder.toString() + fromBuilder.toString();
+    }
+
+    private String getSelectSql(Boolean preciseMatch, Boolean selectAmount, Map<String, Object> groupByDimensions) {
         SqlVendor vendor = db.getVendor();
         StringBuilder selectBuilder = new StringBuilder("SELECT cr0.id");
         StringBuilder fromBuilder = new StringBuilder();
@@ -317,7 +355,10 @@ public class CountRecord {
             ++i;
         }
 
-        for (String table : getIndexTables()) {
+        if (groupByDimensions != null) {
+        }
+
+        for (String table : getIndexTables(groupByDimensions)) {
             alias = "cr" + i;
             if (i == 0) {
                 fromBuilder.append(" FROM ");
@@ -378,6 +419,29 @@ public class CountRecord {
                 whereBuilder.append(" OR ");
                 ++numFilters;
             }
+            if (groupByDimensions != null) {
+                for (Map.Entry<String, Object> entry : getDimensionsByIndexTable(table, groupByDimensions).entrySet()) {
+                    whereBuilder.append("(");
+                    whereBuilder.append(alias);
+                    whereBuilder.append(".");
+                    whereBuilder.append("symbolId");
+                    whereBuilder.append(" = ");
+                    whereBuilder.append(db.getSymbolId(getDimensionSymbol(entry.getKey())));
+                    whereBuilder.append(")");
+                    whereBuilder.append(" OR ");
+                    selectBuilder.append(", MAX(IF(");
+                    selectBuilder.append(alias);
+                    selectBuilder.append(".symbolId = ");
+                    selectBuilder.append(db.getSymbolId(getDimensionSymbol(entry.getKey())));
+                    selectBuilder.append(", ");
+                    selectBuilder.append(alias);
+                    selectBuilder.append(".");
+                    selectBuilder.append("value");
+                    selectBuilder.append(", null)) AS ");
+                    vendor.appendIdentifier(selectBuilder, entry.getKey());
+                    ++numFilters;
+                }
+            }
             whereBuilder.setLength(whereBuilder.length() - 4);
             whereBuilder.append(") ");
             count = count * numFilters;
@@ -394,6 +458,10 @@ public class CountRecord {
     }
 
     private Map<String, Object> getDimensionsByIndexTable(String table) {
+        return getDimensionsByIndexTable(table, dimensions);
+    }
+
+    private Map<String, Object> getDimensionsByIndexTable(String table, Map<String, Object> dimensions) {
         HashMap<String, Object> dims = new HashMap<String, Object>();
         for (Map.Entry<String, Object> entry : dimensions.entrySet()) {
             if (table == getIndexTable(entry.getValue())) {
