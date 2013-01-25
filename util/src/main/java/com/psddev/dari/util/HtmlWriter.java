@@ -12,6 +12,7 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 
 /** Writer implementation that adds basic HTML formatting. */
@@ -317,6 +318,7 @@ public class HtmlWriter extends Writer {
             return null;
         }
 
+        Map<String, String> aliases = new HashMap<String, String>();
         List<CssUnit> widths = CssUnit.getInstances(gridWidths);
         List<CssUnit> heights = CssUnit.getInstances(gridHeights);
         List<List<String>> lines = new ArrayList<List<String>>();
@@ -325,6 +327,13 @@ public class HtmlWriter extends Writer {
         for (String gridTemplate : gridTemplates) {
             if (gridTemplate != null && gridTemplate.length() > 0) {
                 for (String line : gridTemplate.split("[\\r\\n]+")) {
+                    int colonAt = line.indexOf(':');
+
+                    if (colonAt > -1) {
+                        aliases.put(line.substring(0, colonAt).trim(), line.substring(colonAt + 1).trim());
+                        continue;
+                    }
+
                     line = line.trim();
 
                     if (line.length() > 0) {
@@ -338,6 +347,15 @@ public class HtmlWriter extends Writer {
                             if (lastWord.startsWith("/")) {
                                 words.remove(lastIndex);
                                 heights.add(new CssUnit(lastWord.substring(1)));
+                            }
+                        }
+
+                        for (ListIterator<String> i = words.listIterator(); i.hasNext(); ) {
+                            String word = i.next();
+                            String original = aliases.get(word);
+
+                            if (original != null) {
+                                i.set(original);
                             }
                         }
 
