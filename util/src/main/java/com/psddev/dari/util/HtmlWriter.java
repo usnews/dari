@@ -4,15 +4,12 @@ import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Array;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 
 /** Writer implementation that adds basic HTML formatting. */
@@ -245,8 +242,8 @@ public class HtmlWriter extends Writer {
      *
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
-    public HtmlWriter grid(Object object, String widths, String heights, String... templates) throws IOException {
-        Map<String, Area> areas = createAreas(widths, heights, templates);
+    public HtmlWriter grid(Object object, HtmlGrid grid) throws IOException {
+        Map<String, Area> areas = createAreas(grid);
 
         if (areas == null || areas.isEmpty()) {
             if (object instanceof Map) {
@@ -294,94 +291,42 @@ public class HtmlWriter extends Writer {
         return this;
     }
 
-    private Map<String, Area> createAreas(String gridWidths, String gridHeights, String... gridTemplates) {
-        if (gridTemplates == null) {
+    private Map<String, Area> createAreas(HtmlGrid grid) {
+        if (grid == null) {
             return null;
         }
 
-        Map<String, String> aliases = new HashMap<String, String>();
-        List<CssUnit> widths = CssUnit.getInstances(gridWidths);
-        List<CssUnit> heights = CssUnit.getInstances(gridHeights);
-        List<List<String>> lines = new ArrayList<List<String>>();
-        int columns = 0;
-
-        for (String gridTemplate : gridTemplates) {
-            if (gridTemplate != null && gridTemplate.length() > 0) {
-                for (String line : gridTemplate.split("[\\r\\n]+")) {
-                    int colonAt = line.indexOf(':');
-
-                    if (colonAt > -1) {
-                        aliases.put(line.substring(0, colonAt).trim(), line.substring(colonAt + 1).trim());
-                        continue;
-                    }
-
-                    line = line.trim();
-
-                    if (line.length() > 0) {
-                        List<String> words = new ArrayList<String>(Arrays.asList(line.split("\\s+")));
-                        int wordsSize = words.size();
-
-                        if (wordsSize > 0) {
-                            int lastIndex = wordsSize - 1;
-                            String lastWord = words.get(lastIndex);
-
-                            if (lastWord.startsWith("/")) {
-                                words.remove(lastIndex);
-                                heights.add(new CssUnit(lastWord.substring(1)));
-                            }
-                        }
-
-                        for (ListIterator<String> i = words.listIterator(); i.hasNext(); ) {
-                            String word = i.next();
-                            String original = aliases.get(word);
-
-                            if (original != null) {
-                                i.set(original);
-                            }
-                        }
-
-                        lines.add(words);
-
-                        if (columns <= wordsSize) {
-                            columns = wordsSize;
-                        }
-                    }
-                }
-            }
-        }
-
-        int widthsSize = widths.size();
-        int heightsSize = heights.size();
-
-        int rows = lines.size();
-        Map<String, Area> areas = new LinkedHashMap<String, Area>();
+        List<CssUnit> columns = grid.getColumns();
+        List<CssUnit> rows = grid.getRows();
+        List<List<String>> template = grid.getTemplate();
+        Map<String, Area> areaInstances = new LinkedHashMap<String, Area>();
         int clearAt = -1;
 
-        for (int rowStart = 0; rowStart < rows; ++ rowStart) {
-            List<String> words = lines.get(rowStart);
+        for (int rowStart = 0, rowSize = rows.size(); rowStart < rowSize; ++ rowStart) {
+            List<String> areas = template.get(rowStart);
 
-            for (int columnStart = 0, wordsSize = words.size(); columnStart < wordsSize; ++ columnStart) {
-                String word = words.get(columnStart);
+            for (int columnStart = 0, columnSize = columns.size(); columnStart < columnSize; ++ columnStart) {
+                String area = areas.get(columnStart);
 
-                if (!(word == null || ".".equals(word))) {
+                if (!(area == null || ".".equals(area))) {
                     int rowStop = rowStart + 1;
                     int columnStop = columnStart + 1;
 
-                    for (; columnStop < wordsSize; ++ columnStop) {
-                        if (!ObjectUtils.equals(words.get(columnStop), word)) {
+                    for (; columnStop < columnSize; ++ columnStop) {
+                        if (!ObjectUtils.equals(areas.get(columnStop), area)) {
                             break;
                         } else {
-                            words.set(columnStop, null);
+                            areas.set(columnStop, null);
                         }
                     }
 
-                    for (; rowStop < rows; ++ rowStop) {
-                        if (columnStart < lines.get(rowStop).size() && !ObjectUtils.equals(lines.get(rowStop).get(columnStart), word)) {
+                    for (; rowStop < rowSize; ++ rowStop) {
+                        if (columnStart < template.get(rowStop).size() && !ObjectUtils.equals(template.get(rowStop).get(columnStart), area)) {
                             break;
                         } else {
                             for (int i = columnStart; i < columnStop; ++ i) {
-                                if (i < lines.get(rowStop).size()) {
-                                    lines.get(rowStop).set(i, null);
+                                if (i < template.get(rowStop).size()) {
+                                    template.get(rowStop).set(i, null);
                                 }
                             }
                         }
@@ -400,11 +345,11 @@ public class HtmlWriter extends Writer {
                     frBefore = 0;
                     frAfter = 0;
 
-                    for (int i = 0; i < widthsSize; ++ i) {
-                        CssUnit width = widths.get(i);
+                    for (int i = 0; i < columnSize; ++ i) {
+                        CssUnit column = columns.get(i);
 
-                        if ("fr".equals(width.unit)) {
-                            double fr = width.number;
+                        if ("fr".equals(column.getUnit())) {
+                            double fr = column.getNumber();
 
                             frMax += fr;
 
@@ -432,19 +377,21 @@ public class HtmlWriter extends Writer {
 
                     Map<String, Adjustment> adjustments = new HashMap<String, Adjustment>();
 
-                    for (int i = 0; i < widthsSize; ++ i) {
-                        CssUnit width = widths.get(i);
+                    for (int i = 0; i < columnSize; ++ i) {
+                        CssUnit column = columns.get(i);
+                        String columnUnit = column.getUnit();
 
-                        if (!"fr".equals(width.unit)) {
-                            double left = width.number * ((i < columnStart ? 1 : 0) - frBeforeRatio);
-                            double right = width.number * ((i >= columnStop ? 1 : 0) - frAfterRatio);
+                        if (!"fr".equals(columnUnit)) {
+                            double columnNumber = column.getNumber();
+                            double left = columnNumber * ((i < columnStart ? 1 : 0) - frBeforeRatio);
+                            double right = columnNumber * ((i >= columnStop ? 1 : 0) - frAfterRatio);
 
                             if (left != 0.0 || right != 0.0) {
-                                Adjustment adjustment = adjustments.get(width.unit);
+                                Adjustment adjustment = adjustments.get(columnUnit);
 
                                 if (adjustment == null) {
                                     adjustment = new Adjustment();
-                                    adjustments.put(width.unit, adjustment);
+                                    adjustments.put(columnUnit, adjustment);
                                 }
 
                                 adjustment.left += left;
@@ -456,14 +403,14 @@ public class HtmlWriter extends Writer {
                     frMax = 0;
                     frBefore = 0;
 
-                    for (int i = heightsSize - 1; i >= 0; -- i) {
-                        CssUnit height = heights.get(i);
+                    for (int i = rowSize - 1; i >= 0; -- i) {
+                        CssUnit row = rows.get(i);
 
-                        if (i < rowStart && "auto".equals(height.unit)) {
+                        if (i < rowStart && "auto".equals(row.getUnit())) {
                             break;
 
-                        } else if ("fr".equals(height.unit)) {
-                            double fr = height.number;
+                        } else if ("fr".equals(row.getUnit())) {
+                            double fr = row.getNumber();
 
                             frMax += fr;
 
@@ -475,21 +422,22 @@ public class HtmlWriter extends Writer {
 
                     frBeforeRatio = frMax > 0 ? frBefore / frMax : 0.0;
 
-                    for (int i = heightsSize - 1; i >= 0; -- i) {
-                        CssUnit height = heights.get(i);
+                    for (int i = rowSize - 1; i >= 0; -- i) {
+                        CssUnit row = rows.get(i);
+                        String rowUnit = row.getUnit();
 
-                        if (i < rowStart && "auto".equals(height.unit)) {
+                        if (i < rowStart && "auto".equals(rowUnit)) {
                             break;
 
-                        } else if (!"fr".equals(height.unit)) {
-                            double top = height.number * ((i < rowStart ? 1 : 0) - frBeforeRatio);
+                        } else if (!"fr".equals(rowUnit)) {
+                            double top = row.getNumber() * ((i < rowStart ? 1 : 0) - frBeforeRatio);
 
                             if (top != 0.0) {
-                                Adjustment adjustment = adjustments.get(height.unit);
+                                Adjustment adjustment = adjustments.get(rowUnit);
 
                                 if (adjustment == null) {
                                     adjustment = new Adjustment();
-                                    adjustments.put(height.unit, adjustment);
+                                    adjustments.put(rowUnit, adjustment);
                                 }
 
                                 adjustment.top += top;
@@ -523,8 +471,8 @@ public class HtmlWriter extends Writer {
                     // Area size.
                     boolean autoHeight = false;
 
-                    for (int i = rowStart; i < heightsSize && i < rowStop; ++ i) {
-                        if ("auto".equals(heights.get(i).unit)) {
+                    for (int i = rowStart; i < rowStop; ++ i) {
+                        if ("auto".equals(rows.get(i).getUnit())) {
                             autoHeight = true;
                             break;
                         }
@@ -533,18 +481,18 @@ public class HtmlWriter extends Writer {
                     htmlBefore.append("<div class=\"cms-grid-areaWrapper\" style=\"height:100%;width:100%;\">");
 
                     // Minimum width.
-                    for (int i = columnStart; i < widthsSize && i < columnStop; ++ i) {
-                        CssUnit width = widths.get(i);
+                    for (int i = columnStart; i < columnStop; ++ i) {
+                        CssUnit column = columns.get(i);
 
-                        if (!"fr".equals(width.unit)) {
+                        if (!"fr".equals(column.getUnit())) {
                             htmlBefore.append("<div style=\"padding-left:");
-                            htmlBefore.append(width);
+                            htmlBefore.append(column);
                             htmlBefore.append(";height:0;\">");
                         }
                     }
 
-                    for (int i = columnStart; i < widthsSize && i < columnStop; ++ i) {
-                        if (!"fr".equals(widths.get(i).unit)) {
+                    for (int i = columnStart; i < columnStop; ++ i) {
+                        if (!"fr".equals(columns.get(i).getUnit())) {
                             htmlBefore.append("</div>");
                         }
                     }
@@ -553,15 +501,15 @@ public class HtmlWriter extends Writer {
                     if (!autoHeight) {
                         htmlBefore.append("<div style=\"float:left;width:0;\">");
 
-                        for (int i = rowStart; i < heightsSize && i < rowStop; ++ i) {
-                            CssUnit height = heights.get(i);
+                        for (int i = rowStart; i < rowStop; ++ i) {
+                            CssUnit row = rows.get(i);
 
                             htmlBefore.append("<div style=\"padding-top:");
-                            htmlBefore.append(height);
+                            htmlBefore.append(row);
                             htmlBefore.append(";width:0;\">");
                         }
 
-                        for (int i = rowStart; i < heightsSize && i < rowStop; ++ i) {
+                        for (int i = rowStart; i < rowStop; ++ i) {
                             htmlBefore.append("</div>");
                         }
 
@@ -583,15 +531,15 @@ public class HtmlWriter extends Writer {
                         clearAt = rowStop;
                     }
 
-                    areas.put(word, new Area(
-                            word,
+                    areaInstances.put(area, new Area(
+                            area,
                             htmlBefore.toString(),
                             htmlAfter.toString()));
                 }
             }
         }
 
-        return areas;
+        return areaInstances;
     }
 
     public static class Area {
@@ -608,50 +556,6 @@ public class HtmlWriter extends Writer {
 
         public String getName() {
             return name;
-        }
-    }
-
-    private static class CssUnit {
-
-        public final double number;
-        public final String unit;
-
-        public CssUnit(double number, String unit) {
-            this.number = number;
-            this.unit = unit;
-        }
-
-        public CssUnit(String value) {
-            char[] letters = value.toCharArray();
-            int index = 0;
-
-            for (int length = letters.length; index < length; ++ index) {
-                char letter = letters[index];
-
-                if (!(letter == '.' || Character.isDigit(letter))) {
-                    break;
-                }
-            }
-
-            this.number = ObjectUtils.to(double.class, value.substring(0, index));
-            this.unit = value.substring(index);
-        }
-
-        private static List<CssUnit> getInstances(String values) {
-            List<CssUnit> instances = new ArrayList<CssUnit>();
-
-            if (!ObjectUtils.isBlank(values)) {
-                for (String value : values.trim().split("\\s+")) {
-                    instances.add(new CssUnit(value));
-                }
-            }
-
-            return instances;
-        }
-
-        @Override
-        public String toString() {
-            return "auto".equals(unit) ? unit : number + unit;
         }
     }
 
