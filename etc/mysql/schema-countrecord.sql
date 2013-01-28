@@ -6,6 +6,8 @@ CREATE TABLE CountRecord (
     id BINARY(16) NOT NULL,
     typeSymbolId INT NOT NULL,
     amount INT NOT NULL,
+    createDate INT NOT NULL,
+    updateDate INT NOT NULL,
     PRIMARY KEY (typeSymbolId, id)
 );
 
