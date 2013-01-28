@@ -218,7 +218,7 @@ public class CodeDebugServlet extends HttpServlet {
         }
 
         new DebugFilter.PageWriter(page) {{
-            List<Object> inputs = Static.getInputs(getServletContext());
+            List<Object> inputs = CodeDebugServlet.Static.getInputs(getServletContext());
             Object input = inputs == null || inputs.isEmpty() ? null : inputs.get(0);
             String name;
             
@@ -472,7 +472,7 @@ public class CodeDebugServlet extends HttpServlet {
                             for (Object item : (Collection<?>) result) {
 
                                 if (item instanceof Class) {
-                                    List<Object> inputs = Static.getInputs(page.getServletContext());
+                                    List<Object> inputs = CodeDebugServlet.Static.getInputs(page.getServletContext());
                                     Object input = inputs == null || inputs.isEmpty() ? null : inputs.get(0);
 
                                     if (input != null) {

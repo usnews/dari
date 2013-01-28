@@ -236,26 +236,7 @@ public class HtmlWriter extends Writer {
 
     /** Returns a CSS string based on the given {@code properties}. */
     public String cssString(Object... properties) {
-        StringBuilder css = new StringBuilder();
-
-        if (properties != null) {
-            for (int i = 1, length = properties.length; i < length; i += 2) {
-                Object property = properties[i - 1];
-
-                if (property != null) {
-                    Object value = properties[i];
-
-                    if (value != null) {
-                        css.append(property);
-                        css.append(':');
-                        css.append(value);
-                        css.append(';');
-                    }
-                }
-            }
-        }
-
-        return css.toString();
+        return Static.cssString(properties);
     }
 
     /**
@@ -734,6 +715,34 @@ public class HtmlWriter extends Writer {
     @Override
     public void write(String text, int offset, int length) throws IOException {
         writer.write(text, offset, length);
+    }
+
+    /** {@link HtmlWriter} utility methods. */
+    public static final class Static {
+
+        /** Returns a CSS string based on the given {@code properties}. */
+        public static String cssString(Object... properties) {
+            StringBuilder css = new StringBuilder();
+
+            if (properties != null) {
+                for (int i = 1, length = properties.length; i < length; i += 2) {
+                    Object property = properties[i - 1];
+
+                    if (property != null) {
+                        Object value = properties[i];
+
+                        if (value != null) {
+                            css.append(property);
+                            css.append(':');
+                            css.append(value);
+                            css.append(';');
+                        }
+                    }
+                }
+            }
+
+            return css.toString();
+        }
     }
 
     // --- Deprecated ---
