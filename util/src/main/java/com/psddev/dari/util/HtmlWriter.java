@@ -238,7 +238,7 @@ public class HtmlWriter extends Writer {
 
     /**
      * Writes the given {@code object} and positions it according to the
-     * grid rules as specified by the given parameters.
+     * given {@code grid}.
      *
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
@@ -540,6 +540,16 @@ public class HtmlWriter extends Writer {
         }
 
         return areaInstances;
+    }
+
+    /**
+     * Writes the given {@code object} and positions it according to the
+     * grid rules as specified by the given parameters.
+     *
+     * @see #grid(Object, HtmlGrid)
+     */
+    public HtmlWriter grid(Object object, String columns, String rows, String... template) throws IOException {
+        return grid(object, new HtmlGrid(columns, rows, template));
     }
 
     public static class Area {
