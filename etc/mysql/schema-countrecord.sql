@@ -8,7 +8,8 @@ CREATE TABLE CountRecord (
     amount INT NOT NULL,
     createDate INT NOT NULL,
     updateDate INT NOT NULL,
-    PRIMARY KEY (typeSymbolId, id)
+    eventDate INT NOT NULL,
+    PRIMARY KEY (typeSymbolId, id, eventDate)
 );
 
 DROP TABLE IF EXISTS CountRecordString;

@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Iterator;
+import java.util.Calendar;
+import java.util.Date;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,9 +43,10 @@ public class CountRecord {
 
     private UUID id;
 
-    private Integer queryStartTimestamp;
-    private Integer queryEndTimestamp;
-    private Integer updateDate;
+    private Long queryStartTimestamp;
+    private Long queryEndTimestamp;
+    private Long updateDate;
+    private Long eventDate;
 
     public CountRecord(Class<?> objectClass, String counterType, Map<String, Object> dimensions) {
         this.objectClass = objectClass;
@@ -58,19 +61,37 @@ public class CountRecord {
         return "CountRecord: [" + this.getSymbol() + "] " + dimensions.toString();
     }
 
-    public void setUpdateDate(int timestamp) {
-        this.updateDate = timestamp;
+    public void setUpdateDate(long timestampSeconds) {
+        this.updateDate = timestampSeconds;
     }
 
-    public int getUpdateDate() {
+    public long getUpdateDate() {
         if (this.updateDate != null) {
             return this.updateDate;
         } else {
-            return (int) (System.currentTimeMillis() / 1000L);
+            return System.currentTimeMillis() / 1000L;
         }
     }
 
-    public void setQueryDateRange(int startTimestamp, int endTimestamp) {
+    // This method will strip the minutes and seconds off of a timestamp
+    public void setEventDateHour(long timestampSeconds) {
+        Calendar c = Calendar.getInstance();
+        c.clear();
+        c.setTimeInMillis(timestampSeconds*1000);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        this.eventDate = c.getTimeInMillis()/1000L;
+    }
+
+    public long getEventDateHour() {
+        if (this.eventDate == null) {
+            setEventDateHour(System.currentTimeMillis() / 1000L);
+        }
+        return this.eventDate;
+    }
+
+    public void setQueryDateRange(long startTimestamp, long endTimestamp) {
         this.queryStartTimestamp = startTimestamp;
         this.queryEndTimestamp = endTimestamp;
     }
@@ -116,6 +137,7 @@ public class CountRecord {
     public Integer adjustCount(Integer amount) throws SQLException {
         // find the ID, it might be null
         String sql = getSelectPreciseCountSql();
+        long eventDate = getEventDateHour();
         Connection connection = db.openConnection();
         int currentCount = 0;
         try {
@@ -134,32 +156,37 @@ public class CountRecord {
             doInserts(newCount);
         } else {
             //LOGGER.info("UPDATE!" + newCount);
-            doUpdate(newCount);
+            doUpdateOrInsert(newCount);
         }
         return newCount;
     }
 
     public Integer setCount(Integer amount) throws SQLException {
         // find the ID, it might be null
-        if (this.id == null) {
-            String sql = getSelectPreciseIdSql();
-            Connection connection = db.openConnection();
-            try {
-                ResultSet result = selectSql(connection, sql);
-                if (result.next()) {
-                    this.id = UuidUtils.fromBytes(result.getBytes(1));
-                    //LOGGER.info(this.id.toString());
+        Long resultLastEventDate = null;
+        String sql = getSelectPreciseCountSql();
+        long eventDate = getEventDateHour();
+        Connection connection = db.openConnection();
+        // TODO: we shouldn't have to query this every time, keep track of the eventDates we have seen
+        try {
+            ResultSet result = selectSql(connection, sql);
+            if (result.next()) {
+                this.id = UuidUtils.fromBytes(result.getBytes(1));
+                resultLastEventDate = result.getLong(3);
+                //LOGGER.info(this.id.toString());
+                while (resultLastEventDate != eventDate && result.next()) {
+                    resultLastEventDate = result.getLong(3);
                 }
-            } finally {
-                db.closeConnection(connection);
             }
+        } finally {
+            db.closeConnection(connection);
         }
         if (this.id == null) {
             //LOGGER.info("INSERT!" + amount);
             doInserts(amount);
         } else {
             //LOGGER.info("UPDATE!" + amount);
-            doUpdate(amount);
+            doUpdateOrInsert(amount);
         }
         return amount;
     }
@@ -219,11 +246,15 @@ public class CountRecord {
         }
     }
 
-    private void doUpdate(int amount) throws SQLException {
+    private void doUpdateOrInsert(int amount) throws SQLException {
         Connection connection = db.openConnection();
         try {
             String sql = buildUpdateSql(amount);
-            SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+            int rowsAffected = SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+            if (rowsAffected == 0) {
+                sql = buildCountRecordInsertSql(amount);
+                SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+            }
         } finally {
             db.closeConnection(connection);
         }
@@ -232,7 +263,7 @@ public class CountRecord {
     private List<String> buildInsertSqls(int amount) {
         ArrayList<String> sqls = new ArrayList<String>();
         // insert countrecord
-        sqls.add(buildInitialInsertSql(amount));
+        sqls.add(buildCountRecordInsertSql(amount));
         // insert indexes
         for (Map.Entry<String, Object> entry : dimensions.entrySet()) {
             String key = entry.getKey();
@@ -247,26 +278,27 @@ public class CountRecord {
             table = getIndexTable(values);
             for (Object value:values) {
                 if (value instanceof UUID) {
-                    sqls.add(buildIndexInsertSql(key, (UUID) value, table));
+                    sqls.add(buildDimensionInsertSql(key, (UUID) value, table));
                 } else if (value instanceof Double ) {
-                    sqls.add(buildIndexInsertSql(key, (Double) value, table));
+                    sqls.add(buildDimensionInsertSql(key, (Double) value, table));
                 } else if (value instanceof Integer ) {
-                    sqls.add(buildIndexInsertSql(key, (Integer) value, table));
+                    sqls.add(buildDimensionInsertSql(key, (Integer) value, table));
                 } else {
-                    sqls.add(buildIndexInsertSql(key, value.toString(), table));
+                    sqls.add(buildDimensionInsertSql(key, value.toString(), table));
                 }
             }
         }
         return sqls;
     }
 
-    private String buildInitialInsertSql(int amount) {
+    private String buildCountRecordInsertSql(int amount) {
         SqlVendor vendor = db.getVendor();
-        int createDate = getUpdateDate();
+        long createDate = getUpdateDate();
+        long eventDateHour = getEventDateHour();
         StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
         insertBuilder.append(COUNTRECORD_TABLE);
         insertBuilder.append(" (");
-        insertBuilder.append("id, typeSymbolId, amount, createDate, updateDate");
+        insertBuilder.append("id, typeSymbolId, amount, createDate, updateDate, eventDate");
         insertBuilder.append(") VALUES (");
         vendor.appendValue(insertBuilder, getId());
         insertBuilder.append(", ");
@@ -277,11 +309,13 @@ public class CountRecord {
         insertBuilder.append(createDate);
         insertBuilder.append(", ");
         insertBuilder.append(createDate);
+        insertBuilder.append(", ");
+        insertBuilder.append(eventDateHour);
         insertBuilder.append(")");
         return insertBuilder.toString();
     }
 
-    private String buildIndexInsertSql(String key, Object value, String table) {
+    private String buildDimensionInsertSql(String key, Object value, String table) {
         SqlVendor vendor = db.getVendor();
         StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
         insertBuilder.append(table);
@@ -300,7 +334,8 @@ public class CountRecord {
     }
 
     private String buildUpdateSql(int amount) {
-        int updateDate = getUpdateDate();
+        long updateDate = getUpdateDate();
+        long eventDate = getEventDateHour();
         StringBuilder updateBuilder = new StringBuilder("UPDATE ");
         SqlVendor vendor = db.getVendor();
         updateBuilder.append(COUNTRECORD_TABLE);
@@ -312,6 +347,10 @@ public class CountRecord {
         updateBuilder.append("id");
         updateBuilder.append(" = ");
         vendor.appendValue(updateBuilder, getId());
+        updateBuilder.append(" AND ");
+        updateBuilder.append("eventDate");
+        updateBuilder.append(" = ");
+        vendor.appendValue(updateBuilder, eventDate);
         return updateBuilder.toString();
     }
 
@@ -383,8 +422,6 @@ public class CountRecord {
             } else {
                 groupBuilder.setLength(groupBuilder.length() - 2);
             }
-            // XXX
-            selectBuilder.append(", x.createDate, x.updateDate");
             if (orderByDimensions != null && groupBuilder.length() > 0) {
                 orderBuilder.append(" ORDER BY ");
                 for (String key : orderByDimensions) {
@@ -411,6 +448,7 @@ public class CountRecord {
         StringBuilder fromBuilder = new StringBuilder();
         StringBuilder whereBuilder = new StringBuilder();
         StringBuilder groupByBuilder = new StringBuilder();
+        StringBuilder orderByBuilder = new StringBuilder();
         boolean joinCountRecordTable = false;
         int i = 0;
         int count = 1;
@@ -422,11 +460,16 @@ public class CountRecord {
             joinCountRecordTable = true;
 
         if (joinCountRecordTable) {
-            if (selectAmount)
-                selectBuilder.append(", cr0.amount");
-
-            // XXX
-            selectBuilder.append(", cr0.createDate, cr0.updateDate");
+            if (selectAmount) {
+                selectBuilder.append(", ");
+                selectBuilder.append(alias);
+                selectBuilder.append(".");
+                selectBuilder.append("amount");
+            }
+            selectBuilder.append(", ");
+            selectBuilder.append(alias);
+            selectBuilder.append(".");
+            selectBuilder.append("eventDate");
 
             fromBuilder.append(" \nFROM ");
             fromBuilder.append(COUNTRECORD_TABLE);
@@ -446,13 +489,13 @@ public class CountRecord {
                 whereBuilder.append(" AND ");
                 whereBuilder.append(alias);
                 whereBuilder.append(".");
-                whereBuilder.append("createDate");
+                whereBuilder.append("eventDate");
                 whereBuilder.append(" >= ");
                 vendor.appendValue(whereBuilder, queryStartTimestamp);
                 whereBuilder.append(" AND ");
                 whereBuilder.append(alias);
                 whereBuilder.append(".");
-                whereBuilder.append("updateDate");
+                whereBuilder.append("eventDate");
                 whereBuilder.append(" <= ");
                 vendor.appendValue(whereBuilder, queryEndTimestamp);
             }
@@ -564,12 +607,18 @@ public class CountRecord {
 
         groupByBuilder.append("\nGROUP BY ");
         groupByBuilder.append("cr0.id");
-        if (selectAmount) {
-            groupByBuilder.append(", cr0.amount");
+        orderByBuilder.append("\nORDER BY ");
+        orderByBuilder.append("cr0.id");
+        if (joinCountRecordTable) {
+            orderByBuilder.append(", cr0.eventDate DESC");
+            groupByBuilder.append(", cr0.eventDate");
+            if (selectAmount) {
+                groupByBuilder.append(", cr0.amount");
+            }
         }
         groupByBuilder.append(" HAVING COUNT(*) = ");
         groupByBuilder.append(count);
-        return selectBuilder.toString() + " " + fromBuilder.toString() + " " + whereBuilder.toString() + " " + groupByBuilder.toString();
+        return selectBuilder.toString() + " " + fromBuilder.toString() + " " + whereBuilder.toString() + " " + groupByBuilder.toString() + orderByBuilder.toString();
     }
 
     private Map<String, Object> getDimensionsByIndexTable(String table) {
