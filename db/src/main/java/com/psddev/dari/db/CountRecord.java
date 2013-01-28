@@ -378,10 +378,14 @@ public class CountRecord {
                 groupBuilder.append(key);
                 groupBuilder.append(", ");
             }
+            if (groupBuilder.toString().equals(" GROUP BY ")) {
+                groupBuilder.setLength(0);
+            } else {
+                groupBuilder.setLength(groupBuilder.length() - 2);
+            }
             // XXX
             selectBuilder.append(", x.createDate, x.updateDate");
-            groupBuilder.setLength(groupBuilder.length() - 2);
-            if (orderByDimensions != null) {
+            if (orderByDimensions != null && groupBuilder.length() > 0) {
                 orderBuilder.append(" ORDER BY ");
                 for (String key : orderByDimensions) {
                     if (groupByDimensions.containsKey(key)) {
@@ -453,9 +457,6 @@ public class CountRecord {
                 vendor.appendValue(whereBuilder, queryEndTimestamp);
             }
             ++i;
-        }
-
-        if (groupByDimensions != null) {
         }
 
         for (String table : getIndexTables(groupByDimensions)) {
@@ -532,14 +533,17 @@ public class CountRecord {
             }
             if (groupByDimensions != null) {
                 for (Map.Entry<String, Object> entry : getDimensionsByIndexTable(table, groupByDimensions).entrySet()) {
-                    whereBuilder.append("(");
-                    whereBuilder.append(alias);
-                    whereBuilder.append(".");
-                    whereBuilder.append("symbolId");
-                    whereBuilder.append(" = ");
-                    whereBuilder.append(db.getSymbolId(getDimensionSymbol(entry.getKey())));
-                    whereBuilder.append(")");
-                    whereBuilder.append(" \n  OR "); // 7 chars below
+                    if (! dimensions.containsKey(entry.getKey())) {
+                        whereBuilder.append("(");
+                        whereBuilder.append(alias);
+                        whereBuilder.append(".");
+                        whereBuilder.append("symbolId");
+                        whereBuilder.append(" = ");
+                        whereBuilder.append(db.getSymbolId(getDimensionSymbol(entry.getKey())));
+                        whereBuilder.append(")");
+                        whereBuilder.append(" \n  OR "); // 7 chars below
+                        ++numFilters;
+                    }
                     selectBuilder.append(", MAX(IF(");
                     selectBuilder.append(alias);
                     selectBuilder.append(".symbolId = ");
@@ -550,7 +554,6 @@ public class CountRecord {
                     selectBuilder.append("value");
                     selectBuilder.append(", null)) AS ");
                     vendor.appendIdentifier(selectBuilder, entry.getKey());
-                    ++numFilters;
                 }
             }
             whereBuilder.setLength(whereBuilder.length() - 7);
