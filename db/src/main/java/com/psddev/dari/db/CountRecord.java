@@ -29,7 +29,8 @@ public class CountRecord {
 
     private static final String COUNTRECORD_TABLE = "CountRecord";
     private static final String COUNTRECORD_STRINGINDEX_TABLE = "CountRecordString";
-    private static final String COUNTRECORD_NUMBERINDEX_TABLE = "CountRecordNumber";
+    private static final String COUNTRECORD_DOUBLEINDEX_TABLE = "CountRecordDouble";
+    private static final String COUNTRECORD_INTEGERINDEX_TABLE = "CountRecordInteger";
     private static final String COUNTRECORD_UUIDINDEX_TABLE = "CountRecordUuid";
 
     private final String counterType;
@@ -250,7 +251,7 @@ public class CountRecord {
                 } else if (value instanceof Double ) {
                     sqls.add(buildIndexInsertSql(key, (Double) value, table));
                 } else if (value instanceof Integer ) {
-                    sqls.add(buildIndexInsertSql(key, ((Integer) value).doubleValue(), table));
+                    sqls.add(buildIndexInsertSql(key, (Integer) value, table));
                 } else {
                     sqls.add(buildIndexInsertSql(key, value.toString(), table));
                 }
@@ -323,9 +324,9 @@ public class CountRecord {
         if (value instanceof UUID) {
             return COUNTRECORD_UUIDINDEX_TABLE;
         } else if (value instanceof Double ) {
-            return COUNTRECORD_NUMBERINDEX_TABLE;
+            return COUNTRECORD_DOUBLEINDEX_TABLE;
         } else if (value instanceof Integer ) {
-            return COUNTRECORD_NUMBERINDEX_TABLE;
+            return COUNTRECORD_INTEGERINDEX_TABLE;
         } else {
             return COUNTRECORD_STRINGINDEX_TABLE;
         }

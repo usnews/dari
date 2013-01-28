@@ -21,12 +21,22 @@ CREATE TABLE CountRecordString (
     KEY k_id (id)
 );
 
-DROP TABLE IF EXISTS CountRecordNumber;
-CREATE TABLE CountRecordNumber (
+DROP TABLE IF EXISTS CountRecordDouble;
+CREATE TABLE CountRecordDouble (
     id BINARY(16) NOT NULL,
     typeSymbolId INT NOT NULL,
     symbolId INT NOT NULL,
     value DOUBLE NOT NULL,
+    PRIMARY KEY (symbolId, value, typeSymbolId, id),
+    KEY k_id (id)
+);
+
+DROP TABLE IF EXISTS CountRecordInteger;
+CREATE TABLE CountRecordInteger (
+    id BINARY(16) NOT NULL,
+    typeSymbolId INT NOT NULL,
+    symbolId INT NOT NULL,
+    value INTEGER NOT NULL,
     PRIMARY KEY (symbolId, value, typeSymbolId, id),
     KEY k_id (id)
 );
