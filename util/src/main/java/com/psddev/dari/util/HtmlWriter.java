@@ -236,6 +236,15 @@ public class HtmlWriter extends Writer {
         return Static.cssString(properties);
     }
 
+    /** Writes a CSS rule based on the given parameters. */
+    public HtmlWriter css(String selector, Object... properties) throws IOException {
+        write(selector);
+        write('{');
+        write(cssString(properties));
+        write('}');
+        return this;
+    }
+
     /**
      * Writes the given {@code object} and positions it according to the
      * given {@code grid}.
