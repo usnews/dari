@@ -38,16 +38,17 @@ public class CountRecord {
 
     private UUID id;
 
-    private Long queryStartTimestamp;
-    private Long queryEndTimestamp;
     private Long updateDate;
     private Long eventDate;
     private Boolean dimensionsSaved;
+
+    private CountRecordQuery query;
 
     public CountRecord(Map<String, Object> dimensions) {
         this.dimensions = dimensions;
         this.symbol = this.getSymbol();
         this.db = Database.Static.getFirst(SqlDatabase.class);
+        this.query = new CountRecordQuery(symbol, dimensions);
         //LOGGER.info("===== creating new instance of CountRecord: " + this.toString());
     }
 
@@ -86,16 +87,20 @@ public class CountRecord {
     }
 
     public void setQueryDateRange(long startTimestamp, long endTimestamp) {
-        this.queryStartTimestamp = startTimestamp;
-        this.queryEndTimestamp = endTimestamp;
+        this.query.startTimestamp = startTimestamp;
+        this.query.endTimestamp = endTimestamp;
     }
 
     public Integer getCount() throws SQLException {
-        return Static.getCountByDimensions(db, getSymbol(), dimensions, queryStartTimestamp, queryEndTimestamp);
+        query.groupByDimensions = null;
+        query.orderByDimensions = null;
+        return Static.getCountByDimensions(db, query);
     }
 
     public Map<Map<String, Object>, Integer> getCountBy(Map<String, Object> groupByDimensions, String[] orderByDimensions) throws SQLException {
-        return Static.getCountByDimensionsWithGroupBy(db, getSymbol(), dimensions, queryStartTimestamp, queryEndTimestamp, groupByDimensions, orderByDimensions);
+        query.groupByDimensions = groupByDimensions;
+        query.orderByDimensions = orderByDimensions;
+        return Static.getCountByDimensionsWithGroupBy(db, query);
     }
 
     public void adjustCount(Integer amount) throws SQLException {
@@ -148,7 +153,7 @@ public class CountRecord {
 
     public UUID getId() throws SQLException {
         if (id == null) {
-            id = Static.getIdByDimensions(db, getSymbol(), dimensions);
+            id = Static.getIdByDimensions(db, query);
             if (id == null) {
                 // create a new ID
                 dimensionsSaved = false;
@@ -168,7 +173,7 @@ public class CountRecord {
             
         }
 
-        static String getSelectSql(SqlDatabase db, String symbol, Map<String, Object> dimensions, Long queryStartTimestamp, Long queryEndTimestamp, Boolean preciseMatch, Boolean selectAmount, Map<String, Object> groupByDimensions) {
+        static String getSelectSql(SqlDatabase db, CountRecordQuery query, Boolean preciseMatch, Boolean selectAmount) {
             SqlVendor vendor = db.getVendor();
             StringBuilder selectBuilder = new StringBuilder("SELECT cr0.id");
             StringBuilder fromBuilder = new StringBuilder();
@@ -182,7 +187,7 @@ public class CountRecord {
 
             if (selectAmount)
                 joinCountRecordTable = true;
-            if (queryStartTimestamp != null && queryEndTimestamp != null)
+            if (query.startTimestamp != null && query.endTimestamp != null)
                 joinCountRecordTable = true;
 
             if (joinCountRecordTable) {
@@ -207,28 +212,28 @@ public class CountRecord {
                     whereBuilder.append(".");
                     whereBuilder.append("typeSymbolId");
                     whereBuilder.append(" = ");
-                    whereBuilder.append(db.getSymbolId(symbol));
+                    whereBuilder.append(db.getSymbolId(query.symbol));
                 } else {
                     whereBuilder.append("1 = 1");
                 }
-                if (queryStartTimestamp != null && queryEndTimestamp != null) {
+                if (query.startTimestamp != null && query.endTimestamp != null) {
                     whereBuilder.append(" AND ");
                     whereBuilder.append(alias);
                     whereBuilder.append(".");
                     whereBuilder.append("eventDate");
                     whereBuilder.append(" >= ");
-                    vendor.appendValue(whereBuilder, queryStartTimestamp);
+                    vendor.appendValue(whereBuilder, query.startTimestamp);
                     whereBuilder.append(" AND ");
                     whereBuilder.append(alias);
                     whereBuilder.append(".");
                     whereBuilder.append("eventDate");
                     whereBuilder.append(" <= ");
-                    vendor.appendValue(whereBuilder, queryEndTimestamp);
+                    vendor.appendValue(whereBuilder, query.endTimestamp);
                 }
                 ++i;
             }
 
-            for (String table : Static.getIndexTables(dimensions, groupByDimensions)) {
+            for (String table : Static.getIndexTables(query.dimensions, query.groupByDimensions)) {
                 alias = "cr" + i;
                 if (i == 0) {
                     fromBuilder.append(" \nFROM ");
@@ -241,7 +246,7 @@ public class CountRecord {
                         whereBuilder.append(".");
                         whereBuilder.append("typeSymbolId");
                         whereBuilder.append(" = ");
-                        whereBuilder.append(db.getSymbolId(symbol));
+                        whereBuilder.append(db.getSymbolId(query.symbol));
                     } else {
                         whereBuilder.append("1 = 1");
                     }
@@ -272,7 +277,7 @@ public class CountRecord {
                 int numFilters = 0;
                 // append to where statement
                 whereBuilder.append(" \nAND (");
-                for (Map.Entry<String, Object> entry : Static.getDimensionsByIndexTable(table, dimensions).entrySet()) {
+                for (Map.Entry<String, Object> entry : Static.getDimensionsByIndexTable(table, query.dimensions).entrySet()) {
                     String key = entry.getKey();
                     Object value = entry.getValue();
                     whereBuilder.append("(");
@@ -300,9 +305,9 @@ public class CountRecord {
                     whereBuilder.append("))");
                     whereBuilder.append(" \n  OR "); // 7 chars below
                 }
-                if (groupByDimensions != null) {
-                    for (Map.Entry<String, Object> entry : getDimensionsByIndexTable(table, groupByDimensions).entrySet()) {
-                        if (! dimensions.containsKey(entry.getKey())) {
+                if (query.groupByDimensions != null) {
+                    for (Map.Entry<String, Object> entry : getDimensionsByIndexTable(table, query.groupByDimensions).entrySet()) {
+                        if (! query.dimensions.containsKey(entry.getKey())) {
                             whereBuilder.append("(");
                             whereBuilder.append(alias);
                             whereBuilder.append(".");
@@ -347,19 +352,19 @@ public class CountRecord {
             return selectBuilder.toString() + " " + fromBuilder.toString() + " " + whereBuilder.toString() + " " + groupByBuilder.toString() + orderByBuilder.toString();
         }
 
-        static String getSelectCountGroupBySql(SqlDatabase db, String symbol, Map<String, Object> dimensions, Long queryStartTimestamp, Long queryEndTimestamp, Map<String, Object> groupByDimensions, String[] orderByDimensions) {
+        static String getSelectCountGroupBySql(SqlDatabase db, CountRecordQuery query) {
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
             StringBuilder groupBuilder = new StringBuilder();
             StringBuilder orderBuilder = new StringBuilder();
             selectBuilder.append("SELECT SUM(x.amount) AS amount");
             fromBuilder.append(" FROM (");
-            fromBuilder.append(getSelectSql(db, symbol, dimensions, queryStartTimestamp, queryEndTimestamp, false, true, groupByDimensions));
+            fromBuilder.append(getSelectSql(db, query, false, true));
             fromBuilder.append(") x");
             // handle additional dimensions
-            if (groupByDimensions != null) {
+            if (query.groupByDimensions != null) {
                 groupBuilder.append(" GROUP BY ");
-                for (String key : groupByDimensions.keySet()) {
+                for (String key : query.groupByDimensions.keySet()) {
                     // select additional dimensions
                     selectBuilder.append(", x.");
                     selectBuilder.append(key);
@@ -373,10 +378,10 @@ public class CountRecord {
                 } else {
                     groupBuilder.setLength(groupBuilder.length() - 2);
                 }
-                if (orderByDimensions != null && groupBuilder.length() > 0) {
+                if (query.orderByDimensions != null && groupBuilder.length() > 0) {
                     orderBuilder.append(" ORDER BY ");
-                    for (String key : orderByDimensions) {
-                        if (groupByDimensions.containsKey(key)) {
+                    for (String key : query.orderByDimensions) {
+                        if (query.groupByDimensions.containsKey(key)) {
                             // order by additional dimensions
                             orderBuilder.append("x.");
                             orderBuilder.append(key);
@@ -393,16 +398,16 @@ public class CountRecord {
             return selectBuilder.toString() + fromBuilder.toString() + groupBuilder.toString() + orderBuilder.toString();
         }
 
-        static String getSelectPreciseIdSql(SqlDatabase db, String symbol, Map<String, Object> dimensions) {
-            return getSelectSql(db, symbol, dimensions, null, null, true, false, null);
+        static String getSelectPreciseIdSql(SqlDatabase db, CountRecordQuery query) {
+            return getSelectSql(db, query, true, false);
         }
 
-        static String getSelectPreciseCountSql(SqlDatabase db, String symbol, Map<String, Object> dimensions, Long queryStartTimestamp, Long queryEndTimestamp) {
-            return getSelectSql(db, symbol, dimensions, queryStartTimestamp, queryEndTimestamp, true, true, null);
+        static String getSelectPreciseCountSql(SqlDatabase db, CountRecordQuery query) {
+            return getSelectSql(db, query, true, true);
         }
 
-        static String getSelectCountSql(SqlDatabase db, String symbol, Map<String, Object> dimensions, Long queryStartTimestamp, Long queryEndTimestamp) {
-            return "SELECT SUM(x.amount) AS amount FROM (" + getSelectSql(db, symbol, dimensions, queryStartTimestamp, queryEndTimestamp, false, true, null) + ") x";
+        static String getSelectCountSql(SqlDatabase db, CountRecordQuery query) {
+            return "SELECT SUM(x.amount) AS amount FROM (" + getSelectSql(db, query, false, true) + ") x";
         }
 
         static String getDimensionSymbol(String keyName) {
@@ -601,8 +606,8 @@ public class CountRecord {
             }
         }
 
-        static Integer getCountByDimensions(SqlDatabase db, String symbol, Map<String, Object> dimensions, Long queryStartTimestamp, Long queryEndTimestamp) throws SQLException {
-            String sql = getSelectCountSql(db, symbol, dimensions, queryStartTimestamp, queryEndTimestamp);
+        static Integer getCountByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
+            String sql = getSelectCountSql(db, query);
             Connection connection = db.openConnection();
             Integer count = 0;
             try {
@@ -617,8 +622,8 @@ public class CountRecord {
             }
         }
 
-        static Map<Map<String, Object>, Integer> getCountByDimensionsWithGroupBy(SqlDatabase db, String symbol, Map<String, Object> dimensions, Long queryStartTimestamp, Long queryEndTimestamp, Map<String, Object> groupByDimensions, String[] orderByDimensions) throws SQLException {
-            String sql = getSelectCountGroupBySql(db, symbol, dimensions, queryStartTimestamp, queryEndTimestamp, groupByDimensions, orderByDimensions);
+        static Map<Map<String, Object>, Integer> getCountByDimensionsWithGroupBy(SqlDatabase db, CountRecordQuery query) throws SQLException {
+            String sql = getSelectCountGroupBySql(db, query);
             Connection connection = db.openConnection();
             LinkedHashMap<Map<String, Object>, Integer> results = new LinkedHashMap<Map<String, Object>, Integer>();
             try {
@@ -641,10 +646,10 @@ public class CountRecord {
             }
         }
 
-        static UUID getIdByDimensions(SqlDatabase db, String symbol, Map<String, Object> dimensions) throws SQLException {
+        static UUID getIdByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
             UUID id = null;
             // find the ID, it might be null
-            String sql = Static.getSelectPreciseIdSql(db, symbol, dimensions);
+            String sql = Static.getSelectPreciseIdSql(db, query);
             Connection connection = db.openConnection();
             try {
                 ResultSet result = doSelectSql(connection, sql);
@@ -661,4 +666,18 @@ public class CountRecord {
 
     }
 
+}
+
+class CountRecordQuery {
+    public final String symbol;
+    public final Map<String, Object> dimensions;
+    public Long startTimestamp;
+    public Long endTimestamp;
+    public Map<String, Object> groupByDimensions;
+    public String[] orderByDimensions;
+
+    public CountRecordQuery(String symbol, Map<String, Object> dimensions) {
+        this.symbol = symbol;
+        this.dimensions = dimensions;
+    }
 }
