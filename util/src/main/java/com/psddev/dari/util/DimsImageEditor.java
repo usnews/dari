@@ -1194,7 +1194,16 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         @Override
         public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
+            if (angle != null && angle % 90 == 0) {
+                if (angle % 180 != 0) {
+                    return new Dimension(dimension.height, dimension.width);
+                } else {
+                    return dimension;
+                }
+            } else {
+                // TODO: Handle the cases where the angle is not a multiple of 90.
+                return null;
+            }
         }
     }
 
