@@ -252,49 +252,71 @@ public class HtmlWriter extends Writer {
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
     public HtmlWriter grid(Object object, HtmlGrid grid) throws IOException {
-        Map<String, Area> areas = createAreas(grid);
+        for (HtmlGrid subGrid : grid.divide()) {
+            boolean blank = true;
 
-        if (areas == null || areas.isEmpty()) {
-            if (object instanceof Map) {
-                object = ((Map<?, ?>) object).values();
-            }
+            CHECK_BLANK:
+                for (List<String> row : subGrid.getTemplate()) {
+                    for (String area : row) {
+                        if (!".".equals(area)) {
+                            blank = false;
+                            break CHECK_BLANK;
+                        }
+                    }
+                }
 
-            if (object instanceof Iterable) {
-                for (Object item : (Iterable<?>) object) {
-                    object(item);
+            if (blank) {
+                for (CssUnit row : subGrid.getRows()) {
+                    start("div", "style", cssString("height", row));
+                    end();
                 }
 
             } else {
-                object(object);
-            }
+                Map<String, Area> areas = createAreas(subGrid);
 
-        } else {
-            if (object == null) {
-                object = areas;
-            }
+                if (areas == null || areas.isEmpty()) {
+                    if (object instanceof Map) {
+                        object = ((Map<?, ?>) object).values();
+                    }
 
-            start("div", "style", cssString(
-                    "float", "left",
-                    "width", "100%"));
+                    if (object instanceof Iterable) {
+                        for (Object item : (Iterable<?>) object) {
+                            object(item);
+                        }
 
-                for (Map.Entry<String, Area> entry : areas.entrySet()) {
-                    String name = entry.getKey();
-                    Area area = entry.getValue();
-                    Object value = CollectionUtils.getByPath(object, name);
+                    } else {
+                        object(object);
+                    }
 
-                    write(area.htmlBefore);
-                        start("div",
-                                "class", "cms-grid-area",
-                                "data-grid-area", name);
-                            object(value);
-                        end();
-                    write(area.htmlAfter);
+                } else {
+                    if (object == null) {
+                        object = areas;
+                    }
+
+                    start("div", "style", cssString(
+                            "float", "left",
+                            "width", "100%"));
+
+                        for (Map.Entry<String, Area> entry : areas.entrySet()) {
+                            String name = entry.getKey();
+                            Area area = entry.getValue();
+                            Object value = CollectionUtils.getByPath(object, name);
+
+                            write(area.htmlBefore);
+                                start("div",
+                                        "class", "cms-grid-area",
+                                        "data-grid-area", name);
+                                    object(value);
+                                end();
+                            write(area.htmlAfter);
+                        }
+
+                    end();
+
+                    start("div", "style", cssString("clear", "left"));
+                    end();
                 }
-
-            end();
-
-            start("div", "style", cssString("clear", "left"));
-            end();
+            }
         }
 
         return this;

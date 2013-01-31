@@ -53,7 +53,6 @@ public class HtmlGrid {
         if (template.size() != rows.size()) {
             throw new IllegalArgumentException("Rows mismatch!");
         }
-
     }
 
     private List<CssUnit> createCssUnits(String values) {
@@ -66,6 +65,12 @@ public class HtmlGrid {
         }
 
         return instances;
+    }
+
+    private HtmlGrid(List<CssUnit> columns, List<CssUnit> rows, List<List<String>> template) {
+        this.columns = columns;
+        this.rows = rows;
+        this.template = template;
     }
 
     public List<CssUnit> getColumns() {
@@ -108,6 +113,47 @@ public class HtmlGrid {
         }
 
         return areas;
+    }
+
+    public List<HtmlGrid> divide() {
+        List<HtmlGrid> divided = new ArrayList<HtmlGrid>();
+        List<List<String>> template = getTemplate();
+        List<CssUnit> columns = getColumns();
+        List<CssUnit> rows = getRows();
+
+        int columnSize = columns.size();
+        int rowSize = rows.size();
+
+        for (int rowStart = 0, rowStop; rowStart < rowSize; rowStart = rowStop) {
+            rowStop = rowStart + 1;
+
+            for (int i = rowStart; i < rowStop; ++ i) {
+                for (int columnIndex = 0; columnIndex < columnSize; ++ columnIndex) {
+                    String area = template.get(i).get(columnIndex);
+
+                    if (!area.equals(".")) {
+                        int j = i + 1;
+
+                        for (; j < rowSize; ++ j) {
+                            if (!area.equals(template.get(j).get(columnIndex))) {
+                                break;
+                            }
+                        }
+
+                        if (rowStop < j) {
+                            rowStop = j;
+                        }
+                    }
+                }
+            }
+
+            divided.add(new HtmlGrid(
+                    columns,
+                    rows.subList(rowStart, rowStop),
+                    template.subList(rowStart, rowStop)));
+        }
+
+        return divided;
     }
 
     public static final class Static {
