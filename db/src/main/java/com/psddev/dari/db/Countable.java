@@ -30,19 +30,6 @@ public interface Countable extends Recordable {
 
         public abstract String getActionSymbol();
 
-        public String getInfo() throws IllegalAccessException {
-            StringBuilder info = new StringBuilder();
-            State state = this.getState();
-            info.append(state.toString());
-            info.append("<br />");
-            info.append(state.getId().toString());
-            info.append("<br />");
-            info.append(state.getDatabase().toString());
-            info.append("<br />");
-
-            return info.toString();
-        }
-
         public void setCount(int c) {
             try {
                 getCountRecord().setCount(c);

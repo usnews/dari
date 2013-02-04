@@ -534,20 +534,6 @@ public class CountRecord {
             return dims;
         }
 
-        static ResultSet doSelectSql(Connection connection, String sql)
-                throws SQLException {
-            ResultSet result = null;
-            Statement statement;
-            try {
-                statement = connection.createStatement();
-                result = statement.executeQuery(sql);
-            } catch (SQLException ex) {
-                LOGGER.error("SqlException: " + ex);
-                throw ex;
-            }
-            return result;
-        }
-
         static void doInserts(SqlDatabase db, UUID id, String actionSymbol,
                 String typeSymbol, DimensionSet dimensions, int amount,
                 long updateDate, long eventDateHour) throws SQLException {
@@ -605,14 +591,16 @@ public class CountRecord {
         static Integer getCountByDimensions(SqlDatabase db,
                 CountRecordQuery query) throws SQLException {
             String sql = getSelectCountSql(db, query);
-            Connection connection = db.openConnection();
+            Connection connection = db.openReadConnection();
             Integer count = 0;
             try {
-                ResultSet result = doSelectSql(connection, sql);
+                Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery(sql);
                 if (result.next()) {
                     count = result.getInt(1);
                 }
                 result.close();
+                statement.close();
                 return count;
             } finally {
                 db.closeConnection(connection);
@@ -622,10 +610,11 @@ public class CountRecord {
         static Map<String, Integer> getCountByDimensionsWithGroupBy(
                 SqlDatabase db, CountRecordQuery query) throws SQLException {
             String sql = getSelectCountGroupBySql(db, query);
-            Connection connection = db.openConnection();
+            Connection connection = db.openReadConnection();
             LinkedHashMap<String, Integer> results = new LinkedHashMap<String, Integer>();
             try {
-                ResultSet result = doSelectSql(connection, sql);
+                Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery(sql);
                 ResultSetMetaData meta = result.getMetaData();
                 int numColumns = meta.getColumnCount();
                 while (result.next()) {
@@ -637,10 +626,10 @@ public class CountRecord {
                         dims.put(key, value);
                     }
                     // TODO: obviously this is ridiculous
-                    results.put(DimensionSet.createDimensionSet(dims)
-                            .toString(), count);
+                    results.put(DimensionSet.createDimensionSet(dims).toString(), count);
                 }
                 result.close();
+                statement.close();
                 return results;
             } finally {
                 db.closeConnection(connection);
@@ -652,14 +641,16 @@ public class CountRecord {
             UUID id = null;
             // find the ID, it might be null
             String sql = Static.getSelectPreciseIdSql(db, query);
-            Connection connection = db.openConnection();
+            Connection connection = db.openReadConnection();
             try {
-                ResultSet result = doSelectSql(connection, sql);
+                Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery(sql);
                 if (result.next()) {
                     id = UuidUtils.fromBytes(result.getBytes(1));
                     //LOGGER.info(this.id.toString());
                 }
                 result.close();
+                statement.close();
             } finally {
                 db.closeConnection(connection);
             }
