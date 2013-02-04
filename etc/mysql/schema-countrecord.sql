@@ -35,6 +35,15 @@ CREATE TABLE CountRecordString (
     KEY k_id (id)
 );
 
+CREATE OR REPLACE VIEW CountRecordString_d AS
+SELECT hex(c.id) AS id
+, ts.value as typeSymbol
+, s.value as symbol
+, c.value
+FROM CountRecordString c
+JOIN Symbol ts ON (c.typeSymbolId = ts.symbolId)
+JOIN Symbol s ON (c.symbolId = s.symbolId);
+
 DROP TABLE IF EXISTS CountRecordDouble;
 CREATE TABLE CountRecordDouble (
     id BINARY(16) NOT NULL,
@@ -44,6 +53,14 @@ CREATE TABLE CountRecordDouble (
     PRIMARY KEY (symbolId, value, typeSymbolId, id),
     KEY k_id (id)
 );
+CREATE OR REPLACE VIEW CountRecordDouble_d AS
+SELECT hex(c.id) AS id
+, ts.value as typeSymbol
+, s.value as symbol
+, c.value
+FROM CountRecordDouble c
+JOIN Symbol ts ON (c.typeSymbolId = ts.symbolId)
+JOIN Symbol s ON (c.symbolId = s.symbolId);
 
 DROP TABLE IF EXISTS CountRecordInteger;
 CREATE TABLE CountRecordInteger (
@@ -54,6 +71,14 @@ CREATE TABLE CountRecordInteger (
     PRIMARY KEY (symbolId, value, typeSymbolId, id),
     KEY k_id (id)
 );
+CREATE OR REPLACE VIEW CountRecordInteger_d AS
+SELECT hex(c.id) AS id
+, ts.value as typeSymbol
+, s.value as symbol
+, c.value
+FROM CountRecordInteger c
+JOIN Symbol ts ON (c.typeSymbolId = ts.symbolId)
+JOIN Symbol s ON (c.symbolId = s.symbolId);
 
 DROP TABLE IF EXISTS CountRecordUuid;
 CREATE TABLE CountRecordUuid (
@@ -65,3 +90,11 @@ CREATE TABLE CountRecordUuid (
     KEY k_id (id)
 );
 
+CREATE OR REPLACE VIEW CountRecordUuid_d AS
+SELECT hex(c.id) AS id
+, ts.value as typeSymbol
+, s.value as symbol
+, hex(c.value) as value
+FROM CountRecordUuid c
+JOIN Symbol ts ON (c.typeSymbolId = ts.symbolId)
+JOIN Symbol s ON (c.symbolId = s.symbolId);
