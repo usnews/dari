@@ -37,6 +37,21 @@ public class CssUnit {
     // --- Object support ---
 
     @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+
+        } else if (other instanceof CssUnit) {
+            CssUnit otherUnit = (CssUnit) other;
+            return getNumber() == otherUnit.getNumber() &&
+                    ObjectUtils.equals(getUnit(), otherUnit.getUnit());
+
+        } else {
+            return false;
+        }
+    }
+
+    @Override
     public String toString() {
         return "auto".equals(unit) ? unit : number + unit;
     }
