@@ -4,13 +4,17 @@ import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Array;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
+import java.util.UUID;
 
 /** Writer implementation that adds basic HTML formatting. */
 public class HtmlWriter extends Writer {
@@ -241,7 +245,7 @@ public class HtmlWriter extends Writer {
         write(selector);
         write('{');
         write(cssString(properties));
-        write('}');
+        write("}\n");
         return this;
     }
 
@@ -252,84 +256,67 @@ public class HtmlWriter extends Writer {
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
     public HtmlWriter grid(Object object, HtmlGrid grid) throws IOException {
-        for (HtmlGrid subGrid : grid.divide()) {
-            boolean blank = true;
+        Map<String, Area> areas = createAreas(grid);
 
-            CHECK_BLANK:
-                for (List<String> row : subGrid.getTemplate()) {
-                    for (String area : row) {
-                        if (!".".equals(area)) {
-                            blank = false;
-                            break CHECK_BLANK;
-                        }
-                    }
-                }
+        start("style", "type", "text/css");
+            css(".dari-grid-area",
+                    "-moz-box-sizing", "content-box",
+                    "-webkit-box-sizing", "content-box",
+                    "box-sizing", "content-box",
+                    "float", "left",
+                    "margin", "0 -100% 0 -30000px");
 
-            if (blank) {
-                for (CssUnit row : subGrid.getRows()) {
-                    start("div", "style", cssString("height", row));
-                    end();
-                }
+            css(".dari-grid-adj",
+                    "float", "left");
 
-            } else {
-                Map<String, Area> areas = createAreas(subGrid);
+            for (Area area : areas.values()) {
+                String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.getName() + "\"]";
 
-                if (areas == null || areas.isEmpty()) {
-                    if (object instanceof Map) {
-                        object = ((Map<?, ?>) object).values();
-                    }
+                css(selector,
+                        "clear", area.clear ? "left" : null,
+                        "padding-left", area.paddingLeft + "%",
+                        "width", area.width + "%");
 
-                    if (object instanceof Iterable) {
-                        for (Object item : (Iterable<?>) object) {
-                            object(item);
-                        }
+                for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
+                    String unit = entry.getKey();
+                    Adjustment adjustment = entry.getValue();
 
-                    } else {
-                        object(object);
-                    }
-
-                } else {
-                    if (object == null) {
-                        object = areas;
-                    }
-
-                    start("div", "style", cssString(
-                            "float", "left",
-                            "width", "100%"));
-
-                        for (Map.Entry<String, Area> entry : areas.entrySet()) {
-                            String name = entry.getKey();
-                            Area area = entry.getValue();
-                            Object value = CollectionUtils.getByPath(object, name);
-
-                            write(area.htmlBefore);
-                                start("div",
-                                        "class", "cms-grid-area",
-                                        "data-grid-area", name);
-                                    object(value);
-                                end();
-                            write(area.htmlAfter);
-                        }
-
-                    end();
-
-                    start("div", "style", cssString("clear", "left"));
-                    end();
+                    css(selector + " .dari-grid-adj-" + unit,
+                            "height", adjustment.height,
+                            "margin", adjustment.getMargin(unit),
+                            "width", adjustment.width);
                 }
             }
+        end();
+
+        if (object == null) {
+            object = areas;
         }
+
+        for (Map.Entry<String, Area> entry : areas.entrySet()) {
+            Area area = entry.getValue();
+
+            write(area.htmlBefore.toString());
+                object(CollectionUtils.getByPath(object, entry.getKey()));
+            write(area.htmlAfter.toString());
+        }
+
+        start("div", "style", cssString("clear", "left"));
+        end();
 
         return this;
     }
 
     private Map<String, Area> createAreas(HtmlGrid grid) {
-        if (grid == null) {
-            return null;
-        }
-
         List<CssUnit> columns = grid.getColumns();
         List<CssUnit> rows = grid.getRows();
-        List<List<String>> template = grid.getTemplate();
+        List<List<String>> template = new ArrayList<List<String>>(grid.getTemplate());
+
+        // Clone the template so that the original isn't changed.
+        for (ListIterator<List<String>> i = template.listIterator(); i.hasNext(); ) {
+            i.set(new ArrayList<String>(i.next()));
+        }
+
         Map<String, Area> areaInstances = new LinkedHashMap<String, Area>();
         int clearAt = -1;
 
@@ -339,233 +326,214 @@ public class HtmlWriter extends Writer {
             for (int columnStart = 0, columnSize = columns.size(); columnStart < columnSize; ++ columnStart) {
                 String area = areas.get(columnStart);
 
-                if (!(area == null || ".".equals(area))) {
-                    int rowStop = rowStart + 1;
-                    int columnStop = columnStart + 1;
+                // Already processed or padding.
+                if (area == null || ".".equals(area)) {
+                    continue;
+                }
 
-                    for (; columnStop < columnSize; ++ columnStop) {
-                        if (!ObjectUtils.equals(areas.get(columnStop), area)) {
-                            break;
-                        } else {
-                            areas.set(columnStop, null);
-                        }
+                int rowStop = rowStart + 1;
+                int columnStop = columnStart + 1;
+
+                // Figure out the "width" of the area.
+                for (; columnStop < columnSize; ++ columnStop) {
+                    if (!ObjectUtils.equals(areas.get(columnStop), area)) {
+                        break;
+                    } else {
+                        areas.set(columnStop, null);
                     }
+                }
 
-                    for (; rowStop < rowSize; ++ rowStop) {
-                        if (columnStart < template.get(rowStop).size() && !ObjectUtils.equals(template.get(rowStop).get(columnStart), area)) {
-                            break;
-                        } else {
-                            for (int i = columnStart; i < columnStop; ++ i) {
-                                if (i < template.get(rowStop).size()) {
-                                    template.get(rowStop).set(i, null);
-                                }
+                // Figure out the "height" of the area.
+                for (; rowStop < rowSize; ++ rowStop) {
+                    if (columnStart < template.get(rowStop).size() && !ObjectUtils.equals(template.get(rowStop).get(columnStart), area)) {
+                        break;
+                    } else {
+                        for (int i = columnStart; i < columnStop; ++ i) {
+                            if (i < template.get(rowStop).size()) {
+                                template.get(rowStop).set(i, null);
                             }
                         }
                     }
+                }
 
-                    StringBuilder htmlBefore = new StringBuilder();
-                    StringBuilder htmlAfter = new StringBuilder();
+                // Figure out the rough initial position and size using
+                // percentages.
+                Area areaInstance = new Area(area);
+                areaInstances.put(area, areaInstance);
 
-                    double frMax;
-                    double frBefore;
-                    double frAfter;
-                    double frBeforeRatio;
-                    double frAfterRatio;
+                double frMax = 0;
+                double frBefore = 0;
+                double frAfter = 0;
 
-                    frMax = 0;
-                    frBefore = 0;
-                    frAfter = 0;
+                for (int i = 0; i < columnSize; ++ i) {
+                    CssUnit column = columns.get(i);
 
-                    for (int i = 0; i < columnSize; ++ i) {
-                        CssUnit column = columns.get(i);
+                    if ("fr".equals(column.getUnit())) {
+                        double fr = column.getNumber();
 
-                        if ("fr".equals(column.getUnit())) {
-                            double fr = column.getNumber();
+                        frMax += fr;
 
-                            frMax += fr;
+                        if (i < columnStart) {
+                            frBefore += fr;
 
-                            if (i < columnStart) {
-                                frBefore += fr;
-
-                            } else if (i >= columnStop) {
-                                frAfter += fr;
-                            }
+                        } else if (i >= columnStop) {
+                            frAfter += fr;
                         }
                     }
+                }
 
-                    frBeforeRatio = frMax > 0 ? frBefore / frMax : 0.0;
-                    frAfterRatio = frMax > 0 ? frAfter / frMax : 0.0;
+                if (frMax == 0) {
+                    frMax = 1;
+                    frAfter = 1;
+                }
 
-                    htmlBefore.append("<div style=\"margin-left:-30000px;margin-right:30000px;\">");
+                double frBeforeRatio = frBefore / frMax;
+                double frAfterRatio = frAfter / frMax;
+
+                areaInstance.paddingLeft = frBeforeRatio * 100.0;
+                areaInstance.width = (frMax - frBefore - frAfter) * 100.0 / frMax;
+
+                // The main wrapping DIV around the area. Initially shifted
+                // left 30000px so that it's off-screen as not to overlap
+                // other elements that come before.
+                StringBuilder htmlBefore = areaInstance.htmlBefore;
+                StringBuilder htmlAfter = areaInstance.htmlAfter;
+
+                htmlBefore.append("<div");
+
+                if (areaInstance.id != null) {
+                    htmlBefore.append(" id=\"");
+                    htmlBefore.append(areaInstance.id);
+                    htmlBefore.append("\"");
+                }
+
+                htmlBefore.append(" class=\"dari-grid-area\" data-grid-area=\"");
+                htmlBefore.append(StringUtils.escapeHtml(area));
+                htmlBefore.append("\">");
+                htmlAfter.insert(0, "</div>");
+
+                // Adjust left and width.
+                for (int i = 0; i < columnSize; ++ i) {
+                    CssUnit column = columns.get(i);
+                    String columnUnit = column.getUnit();
+
+                    if (!"fr".equals(columnUnit)) {
+                        double columnNumber = column.getNumber();
+                        double left = columnNumber * ((i < columnStart ? 1 : 0) - frBeforeRatio);
+                        double right = columnNumber * ((i >= columnStop ? 1 : 0) - frAfterRatio);
+
+                        if (left != 0.0 || right != 0.0) {
+                            Adjustment adjustment = areaInstance.getOrCreateAdjustment(columnUnit);
+                            adjustment.left += left;
+                            adjustment.right += right;
+                        }
+                    }
+                }
+
+                // Adjust top.
+                for (int i = rowSize - 1; i >= 0; -- i) {
+                    CssUnit row = rows.get(i);
+                    String rowUnit = row.getUnit();
+
+                    if (i < rowStart && "auto".equals(rowUnit)) {
+                        break;
+
+                    } else if (!"fr".equals(rowUnit)) {
+                        double top = row.getNumber() * (i < rowStart ? 1 : 0);
+
+                        if (top != 0.0) {
+                            Adjustment adjustment = areaInstance.getOrCreateAdjustment(rowUnit);
+                            adjustment.top += top;
+                        }
+                    }
+                }
+
+                // Make sure there's always "px" adjustment layer so that
+                // we can shift right 30000px to cancel out the positioning
+                // from the main wrapping DIV.
+                Adjustment pxAdjustment = areaInstance.adjustments.remove("px");
+
+                if (pxAdjustment == null) {
+                    pxAdjustment = new Adjustment();
+                }
+
+                pxAdjustment.left += 30000;
+                pxAdjustment.right -= 30000;
+
+                areaInstance.adjustments.put("px", pxAdjustment);
+
+                // Write all adjustment DIVs.
+                for (Map.Entry<String, Adjustment> entry : areaInstance.adjustments.entrySet()) {
+                    String unit = entry.getKey();
+                    htmlBefore.append("<div class=\"dari-grid-adj dari-grid-adj-");
+                    htmlBefore.append(unit);
+                    htmlBefore.append("\">");
                     htmlAfter.insert(0, "</div>");
+                }
 
-                    htmlBefore.append("<div style=\"float:left;margin:0 -100% 0 ");
-                    htmlBefore.append(frBeforeRatio * 100.0);
-                    htmlBefore.append("%;width:");
-                    htmlBefore.append(frMax > 0 ? ((frMax - frBefore - frAfter) * 100.0 / frMax) + "%" : "auto");
-                    htmlBefore.append(";\">");
-                    htmlAfter.insert(0, "</div>");
+                // Set width explicitly if there's only one unit.
+                CombinedCssUnit width = new CombinedCssUnit(columns.subList(columnStart, columnStop));
+                CssUnit singleWidth = width.getSingle();
 
-                    Map<String, Adjustment> adjustments = new HashMap<String, Adjustment>();
+                if (singleWidth != null) {
+                    pxAdjustment.width = singleWidth;
+                }
 
-                    for (int i = 0; i < columnSize; ++ i) {
-                        CssUnit column = columns.get(i);
-                        String columnUnit = column.getUnit();
+                // Set height explicitly if there's only one unit.
+                CombinedCssUnit height = new CombinedCssUnit(rows.subList(rowStart, rowStop));
+                CssUnit singleHeight = height.getSingle();
 
-                        if (!"fr".equals(columnUnit)) {
-                            double columnNumber = column.getNumber();
-                            double left = columnNumber * ((i < columnStart ? 1 : 0) - frBeforeRatio);
-                            double right = columnNumber * ((i >= columnStop ? 1 : 0) - frAfterRatio);
+                if (singleHeight != null) {
+                    pxAdjustment.height = singleHeight;
+                }
 
-                            if (left != 0.0 || right != 0.0) {
-                                Adjustment adjustment = adjustments.get(columnUnit);
+                // Minimum width with multiple units.
+                if (singleWidth == null) {
+                    int i = 0;
 
-                                if (adjustment == null) {
-                                    adjustment = new Adjustment();
-                                    adjustments.put(columnUnit, adjustment);
-                                }
-
-                                adjustment.left += left;
-                                adjustment.right += right;
-                            }
-                        }
-                    }
-
-                    frMax = 0;
-                    frBefore = 0;
-
-                    for (int i = rowSize - 1; i >= 0; -- i) {
-                        CssUnit row = rows.get(i);
-
-                        if (i < rowStart && "auto".equals(row.getUnit())) {
-                            break;
-
-                        } else if ("fr".equals(row.getUnit())) {
-                            double fr = row.getNumber();
-
-                            frMax += fr;
-
-                            if (i < rowStart) {
-                                frBefore += fr;
-                            }
-                        }
-                    }
-
-                    frBeforeRatio = frMax > 0 ? frBefore / frMax : 0.0;
-
-                    for (int i = rowSize - 1; i >= 0; -- i) {
-                        CssUnit row = rows.get(i);
-                        String rowUnit = row.getUnit();
-
-                        if (i < rowStart && "auto".equals(rowUnit)) {
-                            break;
-
-                        } else if (!"fr".equals(rowUnit)) {
-                            double top = row.getNumber() * ((i < rowStart ? 1 : 0) - frBeforeRatio);
-
-                            if (top != 0.0) {
-                                Adjustment adjustment = adjustments.get(rowUnit);
-
-                                if (adjustment == null) {
-                                    adjustment = new Adjustment();
-                                    adjustments.put(rowUnit, adjustment);
-                                }
-
-                                adjustment.top += top;
-                            }
-                        }
-                    }
-
-                    for (Map.Entry<String, Adjustment> entry : adjustments.entrySet()) {
-                        String unit = entry.getKey();
-                        Adjustment adjustment = entry.getValue();
-
-                        htmlBefore.append("<div style=\"margin:");
-                        htmlBefore.append(new CssUnit(adjustment.top - 1, unit));
-                        htmlBefore.append(" ");
-                        htmlBefore.append(new CssUnit(adjustment.right - 1, unit));
-                        htmlBefore.append(" -1px ");
-                        htmlBefore.append(new CssUnit(adjustment.left - 1, unit));
-                        htmlBefore.append(";padding:");
-                        htmlBefore.append(new CssUnit(1, unit));
-                        htmlBefore.append(" ");
-                        htmlBefore.append(new CssUnit(1, unit));
-                        htmlBefore.append(" 1px ");
-                        htmlBefore.append(new CssUnit(1, unit));
-                        htmlBefore.append(";\">");
-                        htmlAfter.insert(0, "</div>");
-                    }
-
-                    htmlBefore.append("<div style=\"margin-left:30000px;margin-right:-30000px;\">");
-                    htmlAfter.insert(0, "</div>");
-
-                    // Area size.
-                    boolean autoHeight = false;
-
-                    for (int i = rowStart; i < rowStop; ++ i) {
-                        if ("auto".equals(rows.get(i).getUnit())) {
-                            autoHeight = true;
-                            break;
-                        }
-                    }
-
-                    htmlBefore.append("<div class=\"cms-grid-areaWrapper\" style=\"height:100%;width:100%;\">");
-
-                    // Minimum width.
-                    for (int i = columnStart; i < columnStop; ++ i) {
-                        CssUnit column = columns.get(i);
-
+                    for (CssUnit column : width.getAll()) {
                         if (!"fr".equals(column.getUnit())) {
+                            ++ i;
                             htmlBefore.append("<div style=\"padding-left:");
                             htmlBefore.append(column);
                             htmlBefore.append(";height:0;\">");
                         }
                     }
 
-                    for (int i = columnStart; i < columnStop; ++ i) {
-                        if (!"fr".equals(columns.get(i).getUnit())) {
-                            htmlBefore.append("</div>");
-                        }
-                    }
-
-                    // Minimum height.
-                    if (!autoHeight) {
-                        htmlBefore.append("<div style=\"float:left;width:0;\">");
-
-                        for (int i = rowStart; i < rowStop; ++ i) {
-                            CssUnit row = rows.get(i);
-
-                            htmlBefore.append("<div style=\"padding-top:");
-                            htmlBefore.append(row);
-                            htmlBefore.append(";width:0;\">");
-                        }
-
-                        for (int i = rowStart; i < rowStop; ++ i) {
-                            htmlBefore.append("</div>");
-                        }
-
+                    for (; i > 0; -- i) {
                         htmlBefore.append("</div>");
-                        htmlBefore.append("<div style=\"height:0;width:100%;\">");
+                    }
+                }
 
-                        htmlAfter.insert(0, "</div>");
-                        htmlAfter.insert(0, "<div style=\"clear:left;\"></div>");
+                // Minimum height with multiple units.
+                if (singleHeight == null) {
+                    htmlBefore.append("<div style=\"float:left;width:0;\">");
+                    int i = 0;
+
+                    for (CssUnit row : height.getAll()) {
+                        ++ i;
+                        htmlBefore.append("<div style=\"padding-top:");
+                        htmlBefore.append(row);
+                        htmlBefore.append(";width:0;\">");
                     }
 
-                    htmlAfter.insert(0, "</div>");
-
-                    if (clearAt >= 0 && clearAt <= rowStart) {
-                        clearAt = -1;
-                        htmlBefore.insert(0, "<div style=\"clear:left;\"></div>");
+                    for (; i > 0; -- i) {
+                        htmlBefore.append("</div>");
                     }
 
-                    if (autoHeight && rowStop > clearAt) {
-                        clearAt = rowStop;
-                    }
+                    htmlBefore.append("</div>");
 
-                    areaInstances.put(area, new Area(
-                            area,
-                            htmlBefore.toString(),
-                            htmlAfter.toString()));
+                    htmlAfter.insert(0, "<div style=\"clear:left;\"></div>");
+                }
+
+                // Clear because of "auto" height?
+                if (clearAt >= 0 && clearAt <= rowStart) {
+                    clearAt = -1;
+                    areaInstance.clear = true;
+                }
+
+                if (height.hasAuto() && rowStop > clearAt) {
+                    clearAt = rowStop;
                 }
             }
         }
@@ -586,17 +554,74 @@ public class HtmlWriter extends Writer {
     public static class Area {
 
         private final String name;
-        protected final String htmlBefore;
-        protected final String htmlAfter;
+        protected final String id = "i" + UUID.randomUUID().toString().replaceAll("-", "");
+        protected final StringBuilder htmlBefore = new StringBuilder();
+        protected final StringBuilder htmlAfter = new StringBuilder();
+        protected boolean clear;
+        protected double paddingLeft;
+        protected double width;
+        protected final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
 
-        public Area(String name, String htmlBefore, String htmlAfter) {
+        public Area(String name) {
             this.name = name;
-            this.htmlBefore = htmlBefore;
-            this.htmlAfter = htmlAfter;
         }
 
         public String getName() {
             return name;
+        }
+
+        protected Adjustment getOrCreateAdjustment(String unit) {
+            Adjustment adjustment = adjustments.get(unit);
+            if (adjustment == null) {
+                adjustment = new Adjustment();
+                adjustments.put(unit, adjustment);
+            }
+            return adjustment;
+        }
+    }
+
+    private class CombinedCssUnit {
+
+        private final Map<String, CssUnit> combined = new HashMap<String, CssUnit>();
+
+        public CombinedCssUnit(Iterable<CssUnit> values) {
+            for (CssUnit value : values) {
+                String unit = value.getUnit();
+                CssUnit old = combined.get(unit);
+
+                if (old == null) {
+                    combined.put(unit, value);
+
+                } else {
+                    combined.put(unit, new CssUnit(old.getNumber() + value.getNumber(), unit));
+                }
+            }
+
+            for (Iterator<Map.Entry<String, CssUnit>> i = combined.entrySet().iterator(); i.hasNext(); ) {
+                CssUnit value = i.next().getValue();
+
+                if (!"auto".equals(value.getUnit()) && value.getNumber() == 0.0) {
+                    i.remove();
+                }
+            }
+        }
+
+        public Collection<CssUnit> getAll() {
+            return combined.values();
+        }
+
+        public CssUnit getSingle() {
+            if (combined.size() != 1) {
+                return null;
+
+            } else {
+                CssUnit value = combined.values().iterator().next();
+                return "fr".equals(value.getUnit()) ? null : value;
+            }
+        }
+
+        public boolean hasAuto() {
+            return combined.keySet().contains("auto");
         }
     }
 
@@ -605,6 +630,14 @@ public class HtmlWriter extends Writer {
         public double left;
         public double right;
         public double top;
+        public CssUnit width;
+        public CssUnit height;
+
+        public String getMargin(String unit) {
+            return new CssUnit(top, unit) + " " +
+                    new CssUnit(right, unit) + " 0 " +
+                    new CssUnit(left, unit);
+        }
     }
 
     // --- Writer support ---
