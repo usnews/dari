@@ -649,15 +649,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
+
         ResultSetMetaData meta = resultSet.getMetaData();
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
-            if (query.getExtraSourceColumns().contains(columnName)) {
-                objectState.put(columnName, resultSet.getObject(i));
+            if (query.getExtraSourceColumns().containsKey(columnName)) {
+                objectState.put(query.getExtraSourceColumns().get(columnName), resultSet.getObject(i));
             } else {
                 objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
             }
         }
+
 
         // Load some extra column from source index tables.
         Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
