@@ -311,6 +311,7 @@ class SqlQuery {
             fromBuilder.append(")");
         }
 
+        StringBuilder extraColumnsBuilder = new StringBuilder();
         for (Map.Entry<String, ObjectField> entry: sourceTables.entrySet()) {
             StringBuilder sourceTableNameBuilder = new StringBuilder();
 
@@ -369,7 +370,6 @@ class SqlQuery {
 
             // Add columns to select.
             int fieldIndex = 0;
-            StringBuilder extraColumnsBuilder = new StringBuilder();
 
             for (String indexFieldName : useIndex.getFields()) {
                 String indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
@@ -385,6 +385,9 @@ class SqlQuery {
                 extraColumnsBuilder.append(", ");
             }
 
+        }
+
+        if (extraColumnsBuilder.length() > 0) {
             extraColumnsBuilder.setLength(extraColumnsBuilder.length() - 2);
             this.extraSourceColumns = extraColumnsBuilder.toString();
         }
