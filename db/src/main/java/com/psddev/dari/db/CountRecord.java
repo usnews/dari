@@ -17,14 +17,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.UuidUtils;
 
 public class CountRecord {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
+    //private static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
 
     static final String COUNTRECORD_TABLE = "CountRecord";
     static final String COUNTRECORD_STRINGINDEX_TABLE = "CountRecordString";
@@ -38,10 +38,12 @@ public class CountRecord {
     private final CountRecordQuery query;
 
     private UUID id;
+    private UUID summaryRecordId;
 
     private Long updateDate;
     private Long eventDate;
     private Boolean dimensionsSaved;
+    private ObjectField countField;
 
     public CountRecord(SqlDatabase database, String actionSymbol, Map<String, Object> dimensions) {
         this.dimensions = DimensionSet.createDimensionSet(dimensions);
@@ -52,6 +54,11 @@ public class CountRecord {
 
     public CountRecord(String actionSymbol, Map<String, Object> dimensions) {
         this(Database.Static.getFirst(SqlDatabase.class), actionSymbol, dimensions);
+    }
+
+    public void setSummaryField(ObjectField countField, UUID summaryRecordId) {
+        this.countField = countField;
+        this.summaryRecordId = summaryRecordId;
     }
 
     public SqlDatabase getDatabase() {
@@ -118,6 +125,9 @@ public class CountRecord {
                     dimensions, amount, getUpdateDate(), getEventDateHour());
             dimensionsSaved = true;
         }
+        if (isSummaryPossible()) {
+            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.summaryRecordId);
+        }
     }
 
     public void setCount(Integer amount) throws SQLException {
@@ -131,6 +141,23 @@ public class CountRecord {
             Static.doInserts(getDatabase(), id, getQuery().getActionSymbol(), getTypeSymbol(),
                     dimensions, amount, getUpdateDate(), getEventDateHour());
             dimensionsSaved = true;
+        }
+        if (isSummaryPossible()) {
+            Static.doSetCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.summaryRecordId);
+        }
+    }
+
+    private boolean isSummaryPossible() {
+        SqlDatabase.FieldData fieldData = countField.as(SqlDatabase.FieldData.class);
+        String indexTable = fieldData.getIndexTable();
+        Boolean isReadOnly = fieldData.isIndexTableReadOnly();
+        Boolean isSource = fieldData.isIndexTableSource();
+        if (indexTable != null &&
+                isReadOnly &&
+                isSource) {
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -586,6 +613,90 @@ public class CountRecord {
             } finally {
                 db.closeConnection(connection);
             }
+        }
+
+        static String getUpdateSummarySql(SqlDatabase db, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName, boolean increment) {
+            /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
+            SqlVendor vendor = db.getVendor();
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("UPDATE ");
+            vendor.appendIdentifier(sqlBuilder, tableName);
+            sqlBuilder.append(" SET ");
+            vendor.appendIdentifier(sqlBuilder, valueColumnName);
+            sqlBuilder.append(" = ");
+            if (increment) {
+                vendor.appendIdentifier(sqlBuilder, valueColumnName);
+                sqlBuilder.append(" + ");
+            }
+            vendor.appendValue(sqlBuilder, amount);
+            sqlBuilder.append(" WHERE ");
+            vendor.appendIdentifier(sqlBuilder, "id");
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, summaryRecordId);
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, "symbolId");
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, summaryFieldSymbolId);
+            return sqlBuilder.toString();
+        }
+
+        static String getInsertSummarySql(SqlDatabase db, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName) {
+            /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
+            SqlVendor vendor = db.getVendor();
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("INSERT INTO ");
+            vendor.appendIdentifier(sqlBuilder, tableName);
+            sqlBuilder.append(" (");
+            vendor.appendIdentifier(sqlBuilder, "id");
+            sqlBuilder.append(", ");
+            vendor.appendIdentifier(sqlBuilder, "symbolId");
+            sqlBuilder.append(", ");
+            vendor.appendIdentifier(sqlBuilder, valueColumnName);
+            sqlBuilder.append(") VALUES (");
+            vendor.appendValue(sqlBuilder, summaryRecordId);
+            sqlBuilder.append(", ");
+            vendor.appendValue(sqlBuilder, summaryFieldSymbolId);
+            sqlBuilder.append(", ");
+            vendor.appendValue(sqlBuilder, amount);
+            sqlBuilder.append(")");
+            return sqlBuilder.toString();
+        }
+
+        static void doCountSummaryUpdateOrInsert(SqlDatabase db, int amount, ObjectField countField, UUID summaryRecordId, boolean increment) throws SQLException {
+            Connection connection = db.openConnection();
+            StringBuilder symbolBuilder = new StringBuilder();
+            symbolBuilder.append(countField.getJavaDeclaringClassName());
+            symbolBuilder.append("/");
+            symbolBuilder.append(countField.getInternalName());
+            int summaryFieldSymbolId = db.getSymbolId(symbolBuilder.toString());
+            String summaryTable = countField.as(SqlDatabase.FieldData.class).getIndexTable();
+            String columnName = "value";
+            if (countField.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
+                columnName = countField.getInternalName();
+                int dotAt = columnName.lastIndexOf(".");
+                if (dotAt > -1) {
+                    columnName = columnName.substring(dotAt+1);
+                }
+            }
+            try {
+                String sql = getUpdateSummarySql(db, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName, increment);
+                int rowsAffected = SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+                if (rowsAffected == 0) {
+                    sql = getInsertSummarySql(db, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName);
+                    SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            
+        }
+
+        static void doIncrementCountSummaryUpdateOrInsert(SqlDatabase db, int amount, ObjectField countField, UUID summaryRecordId) throws SQLException {
+            doCountSummaryUpdateOrInsert(db, amount, countField, summaryRecordId, true);
+        }
+
+        static void doSetCountSummaryUpdateOrInsert(SqlDatabase db, int amount, ObjectField countField, UUID summaryRecordId) throws SQLException {
+            doCountSummaryUpdateOrInsert(db, amount, countField, summaryRecordId, false);
         }
 
         static Integer getCountByDimensions(SqlDatabase db,
