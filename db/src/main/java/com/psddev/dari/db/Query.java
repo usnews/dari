@@ -125,7 +125,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private boolean isResolveToReferenceOnly;
     private Double timeout;
     private transient Map<String, Object> options;
-    private transient HashSet<String> extraSourceColumns = new HashSet<String>();
+    private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
@@ -1352,7 +1352,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return this.facetedFields;
     }
 
-    public HashSet<String> getExtraSourceColumns() {
+    public Map<String, String> getExtraSourceColumns() {
         return this.extraSourceColumns;
     }
 
