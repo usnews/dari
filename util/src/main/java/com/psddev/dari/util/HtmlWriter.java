@@ -255,50 +255,135 @@ public class HtmlWriter extends Writer {
      *
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
-    public HtmlWriter grid(Object object, HtmlGrid grid) throws IOException {
+    public HtmlWriter grid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
         Map<String, Area> areas = createAreas(grid);
 
-        start("style", "type", "text/css");
-            css(".dari-grid-area",
-                    "-moz-box-sizing", "content-box",
-                    "-webkit-box-sizing", "content-box",
-                    "box-sizing", "content-box",
-                    "float", "left",
-                    "margin", "0 -100% 0 -30000px");
+        if (!inlineCss) {
+            start("style", "type", "text/css");
+                css(".dari-grid-area",
+                        "-moz-box-sizing", "content-box",
+                        "-webkit-box-sizing", "content-box",
+                        "box-sizing", "content-box",
+                        "float", "left",
+                        "margin", "0 -100% 0 -30000px");
 
-            css(".dari-grid-adj",
-                    "float", "left");
+                css(".dari-grid-adj",
+                        "float", "left");
 
-            for (Area area : areas.values()) {
-                String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.getName() + "\"]";
+                for (Area area : areas.values()) {
+                    String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.getName() + "\"]";
 
-                css(selector,
-                        "clear", area.clear ? "left" : null,
-                        "padding-left", area.paddingLeft + "%",
-                        "width", area.width + "%");
+                    css(selector,
+                            "clear", area.clear ? "left" : null,
+                            "padding-left", area.frPaddingLeft + "%",
+                            "width", area.frWidth + "%");
 
-                for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
-                    String unit = entry.getKey();
-                    Adjustment adjustment = entry.getValue();
+                    for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
+                        String unit = entry.getKey();
+                        Adjustment adjustment = entry.getValue();
 
-                    css(selector + " .dari-grid-adj-" + unit,
-                            "height", adjustment.height,
-                            "margin", adjustment.getMargin(unit),
-                            "width", adjustment.width);
+                        css(selector + " .dari-grid-adj-" + unit,
+                                "height", adjustment.height,
+                                "margin", adjustment.getMargin(unit),
+                                "width", adjustment.width);
+                    }
                 }
-            }
-        end();
+            end();
+        }
 
         if (object == null) {
             object = areas;
         }
 
         for (Map.Entry<String, Area> entry : areas.entrySet()) {
+            String areaName = entry.getKey();
             Area area = entry.getValue();
 
-            write(area.htmlBefore.toString());
+            // The main wrapping DIV around the area. Initially shifted
+            // left 30000px so that it's off-screen as not to overlap
+            // other elements that come before.
+            start("div",
+                    "class", "dari-grid-area",
+                    "id", area.id,
+                    "data-grid-area", areaName,
+                    "style", !inlineCss ? null : cssString(
+                            "-moz-box-sizing", "content-box",
+                            "-webkit-box-sizing", "content-box",
+                            "box-sizing", "content-box",
+                            "clear", area.clear ? "left" : null,
+                            "float", "left",
+                            "margin", "0 -100% 0 -30000px",
+                            "padding-left", area.frPaddingLeft + "%",
+                            "width", area.frWidth + "%"));
+
+                int adjustments = 0;
+
+                for (Map.Entry<String, Adjustment> entry2 : area.adjustments.entrySet()) {
+                    ++ adjustments;
+                    String unit = entry2.getKey();
+                    Adjustment adjustment = entry2.getValue();
+
+                    start("div",
+                            "class", "dari-grid-adj dari-grid-adj-" + unit,
+                            "style", !inlineCss ? null : cssString(
+                                    "float", "left",
+                                    "height", adjustment.height,
+                                    "margin", adjustment.getMargin(unit),
+                                    "width", adjustment.width));
+                }
+
+                // Minimum width with multiple units.
+                if (area.singleWidth == null) {
+                    int i = 0;
+
+                    for (CssUnit column : area.width.getAll()) {
+                        if (!"fr".equals(column.getUnit())) {
+                            ++ i;
+                            start("div", "style", cssString(
+                                    "padding-left", column,
+                                    "height", 0));
+                        }
+                    }
+
+                    for (; i > 0; -- i) {
+                        end();
+                    }
+                }
+
+                // Minimum height with multiple units.
+                if (area.singleHeight == null) {
+                    start("div", "style", cssString(
+                            "float", "left",
+                            "width", 0));
+
+                    int i = 0;
+
+                    for (CssUnit row : area.height.getAll()) {
+                        ++ i;
+                        start("div", "style", cssString(
+                                "padding-top", row,
+                                "width", 0));
+                    }
+
+                    for (; i > 0; -- i) {
+                        end();
+                    }
+
+                    end();
+                }
+
                 object(CollectionUtils.getByPath(object, entry.getKey()));
-            write(area.htmlAfter.toString());
+
+                if (area.singleHeight == null) {
+                    start("div", "style", cssString("clear", "left"));
+                    end();
+                }
+
+                for (; adjustments > 0; -- adjustments) {
+                    end();
+                }
+
+            end();
         }
 
         start("div", "style", cssString("clear", "left"));
@@ -390,27 +475,8 @@ public class HtmlWriter extends Writer {
                 double frBeforeRatio = frBefore / frMax;
                 double frAfterRatio = frAfter / frMax;
 
-                areaInstance.paddingLeft = frBeforeRatio * 100.0;
-                areaInstance.width = (frMax - frBefore - frAfter) * 100.0 / frMax;
-
-                // The main wrapping DIV around the area. Initially shifted
-                // left 30000px so that it's off-screen as not to overlap
-                // other elements that come before.
-                StringBuilder htmlBefore = areaInstance.htmlBefore;
-                StringBuilder htmlAfter = areaInstance.htmlAfter;
-
-                htmlBefore.append("<div");
-
-                if (areaInstance.id != null) {
-                    htmlBefore.append(" id=\"");
-                    htmlBefore.append(areaInstance.id);
-                    htmlBefore.append("\"");
-                }
-
-                htmlBefore.append(" class=\"dari-grid-area\" data-grid-area=\"");
-                htmlBefore.append(StringUtils.escapeHtml(area));
-                htmlBefore.append("\">");
-                htmlAfter.insert(0, "</div>");
+                areaInstance.frPaddingLeft = frBeforeRatio * 100.0;
+                areaInstance.frWidth = (frMax - frBefore - frAfter) * 100.0 / frMax;
 
                 // Adjust left and width.
                 for (int i = 0; i < columnSize; ++ i) {
@@ -462,68 +528,20 @@ public class HtmlWriter extends Writer {
 
                 areaInstance.adjustments.put("px", pxAdjustment);
 
-                // Write all adjustment DIVs.
-                for (Map.Entry<String, Adjustment> entry : areaInstance.adjustments.entrySet()) {
-                    String unit = entry.getKey();
-                    htmlBefore.append("<div class=\"dari-grid-adj dari-grid-adj-");
-                    htmlBefore.append(unit);
-                    htmlBefore.append("\">");
-                    htmlAfter.insert(0, "</div>");
-                }
-
                 // Set width explicitly if there's only one unit.
-                CombinedCssUnit width = new CombinedCssUnit(columns.subList(columnStart, columnStop));
-                CssUnit singleWidth = width.getSingle();
+                CombinedCssUnit width = areaInstance.width = new CombinedCssUnit(columns.subList(columnStart, columnStop));
+                CssUnit singleWidth = areaInstance.singleWidth = width.getSingle();
 
                 if (singleWidth != null) {
                     pxAdjustment.width = singleWidth;
                 }
 
                 // Set height explicitly if there's only one unit.
-                CombinedCssUnit height = new CombinedCssUnit(rows.subList(rowStart, rowStop));
-                CssUnit singleHeight = height.getSingle();
+                CombinedCssUnit height = areaInstance.height = new CombinedCssUnit(rows.subList(rowStart, rowStop));
+                CssUnit singleHeight = areaInstance.singleHeight = height.getSingle();
 
                 if (singleHeight != null) {
                     pxAdjustment.height = singleHeight;
-                }
-
-                // Minimum width with multiple units.
-                if (singleWidth == null) {
-                    int i = 0;
-
-                    for (CssUnit column : width.getAll()) {
-                        if (!"fr".equals(column.getUnit())) {
-                            ++ i;
-                            htmlBefore.append("<div style=\"padding-left:");
-                            htmlBefore.append(column);
-                            htmlBefore.append(";height:0;\">");
-                        }
-                    }
-
-                    for (; i > 0; -- i) {
-                        htmlBefore.append("</div>");
-                    }
-                }
-
-                // Minimum height with multiple units.
-                if (singleHeight == null) {
-                    htmlBefore.append("<div style=\"float:left;width:0;\">");
-                    int i = 0;
-
-                    for (CssUnit row : height.getAll()) {
-                        ++ i;
-                        htmlBefore.append("<div style=\"padding-top:");
-                        htmlBefore.append(row);
-                        htmlBefore.append(";width:0;\">");
-                    }
-
-                    for (; i > 0; -- i) {
-                        htmlBefore.append("</div>");
-                    }
-
-                    htmlBefore.append("</div>");
-
-                    htmlAfter.insert(0, "<div style=\"clear:left;\"></div>");
                 }
 
                 // Clear because of "auto" height?
@@ -543,6 +561,16 @@ public class HtmlWriter extends Writer {
 
     /**
      * Writes the given {@code object} and positions it according to the
+     * given {@code grid}.
+     *
+     * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
+     */
+    public HtmlWriter grid(Object object, HtmlGrid grid) throws IOException {
+        return grid(object, grid, false);
+    }
+
+    /**
+     * Writes the given {@code object} and positions it according to the
      * grid rules as specified by the given parameters.
      *
      * @see #grid(Object, HtmlGrid)
@@ -555,11 +583,13 @@ public class HtmlWriter extends Writer {
 
         private final String name;
         protected final String id = "i" + UUID.randomUUID().toString().replaceAll("-", "");
-        protected final StringBuilder htmlBefore = new StringBuilder();
-        protected final StringBuilder htmlAfter = new StringBuilder();
         protected boolean clear;
-        protected double paddingLeft;
-        protected double width;
+        protected double frPaddingLeft;
+        protected double frWidth;
+        protected CombinedCssUnit width;
+        protected CssUnit singleWidth;
+        protected CombinedCssUnit height;
+        protected CssUnit singleHeight;
         protected final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
 
         public Area(String name) {
