@@ -19,6 +19,14 @@ import java.util.UUID;
 /** Writer implementation that adds basic HTML formatting. */
 public class HtmlWriter extends Writer {
 
+    private static final String GRID_PADDING; static {
+        StringBuilder gp = new StringBuilder();
+        for (int i = 0; i < 200; ++ i) {
+            gp.append(" .");
+        }
+        GRID_PADDING = gp.toString();
+    }
+
     private final Writer writer;
     private final Map<Class<?>, HtmlFormatter<Object>> defaultFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Map<Class<?>, HtmlFormatter<Object>> overrideFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
@@ -339,6 +347,13 @@ public class HtmlWriter extends Writer {
                                     "margin", adjustment.getMargin(unit),
                                     "width", adjustment.width));
                 }
+
+                start("div", "style", cssString(
+                        "height", 0,
+                        "overflow", "hidden",
+                        "visibility", "hidden"));
+                    write(GRID_PADDING);
+                end();
 
                 if (debug) {
                     start("div", "style", cssString(
