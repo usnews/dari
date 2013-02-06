@@ -254,7 +254,7 @@ public class CodeUtils {
     public static Set<String> getResourcePaths(ServletContext context, String path) {
         File source = getWebappSource(context, path);
 
-        if (source.exists()) {
+        if (source != null && source.exists()) {
             Set<String> paths = new LinkedHashSet<String>();
             String[] children = source.list();
 
