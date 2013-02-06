@@ -257,6 +257,13 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter grid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
         Map<String, Area> areas = createAreas(grid);
+        boolean debug;
+
+        try {
+            debug = !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
+        } catch (Exception error) {
+            debug = false;
+        }
 
         if (!inlineCss) {
             start("style", "type", "text/css");
@@ -332,6 +339,12 @@ public class HtmlWriter extends Writer {
                                     "width", adjustment.width));
                 }
 
+                if (debug) {
+                    start("div", "style", cssString(
+                            "border", "3px dashed red",
+                            "padding", "3px"));
+                }
+
                 // Minimum width with multiple units.
                 if (area.singleWidth == null) {
                     int i = 0;
@@ -376,6 +389,10 @@ public class HtmlWriter extends Writer {
 
                 if (area.singleHeight == null) {
                     start("div", "style", cssString("clear", "left"));
+                    end();
+                }
+
+                if (debug) {
                     end();
                 }
 
