@@ -190,13 +190,12 @@ public class HtmlGrid {
         }
 
         private static HtmlGrid findGrid(ServletContext context, String selector, String path) throws IOException {
-            @SuppressWarnings("unchecked")
-            Set<String> children = (Set<String>) context.getResourcePaths(path);
+            Set<String> children = CodeUtils.getResourcePaths(context, path);
 
             if (children != null) {
                 for (String child : children) {
                     if (child.endsWith(".css")) {
-                        InputStream cssInput = context.getResourceAsStream(child);
+                        InputStream cssInput = CodeUtils.getResourceAsStream(context, child);
 
                         try {
                             Css css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
