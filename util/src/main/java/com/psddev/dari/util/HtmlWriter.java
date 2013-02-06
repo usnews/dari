@@ -21,7 +21,7 @@ public class HtmlWriter extends Writer {
 
     private static final String GRID_PADDING; static {
         StringBuilder gp = new StringBuilder();
-        for (int i = 0; i < 200; ++ i) {
+        for (int i = 0; i < 500; ++ i) {
             gp.append(" .");
         }
         GRID_PADDING = gp.toString();
