@@ -10,6 +10,9 @@ import java.util.Set;
 
 import javax.servlet.ServletContext;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class HtmlGrid {
 
     private final List<CssUnit> columns;
@@ -177,6 +180,7 @@ public class HtmlGrid {
 
     public static final class Static {
 
+        private static final Logger LOGGER = LoggerFactory.getLogger(HtmlGrid.class);
         private static final String TEMPLATE_PROPERTY = "grid-template";
         private static final String COLUMNS_PROPERTY = "grid-definition-columns";
         private static final String ROWS_PROPERTY = "grid-definition-rows";
@@ -198,11 +202,13 @@ public class HtmlGrid {
                             Css css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
 
                             if ("grid".equals(css.getValue(selector, "display"))) {
+                                LOGGER.info("Using grid matching [{}] in [{}]", selector, child);
+
                                 String templateValue = css.getValue(selector, TEMPLATE_PROPERTY);
 
                                 if (ObjectUtils.isBlank(templateValue)) {
                                     throw new IllegalStateException(String.format(
-                                            "Path: %s, Selector: %s, Missing [%s]!",
+                                            "Path: [%s], Selector: [%s], Missing [%s]!",
                                             child, selector, TEMPLATE_PROPERTY));
                                 }
 
@@ -210,7 +216,7 @@ public class HtmlGrid {
 
                                 if (ObjectUtils.isBlank(columnsValue)) {
                                     throw new IllegalStateException(String.format(
-                                            "Path: %s, Selector: %s, Missing [%s]!",
+                                            "Path: [%s], Selector: [%s], Missing [%s]!",
                                             child, selector, COLUMNS_PROPERTY));
                                 }
 
@@ -218,7 +224,7 @@ public class HtmlGrid {
 
                                 if (ObjectUtils.isBlank(rowsValue)) {
                                     throw new IllegalStateException(String.format(
-                                            "Path: %s, Selector: %s, Missing [%s]!",
+                                            "Path: [%s], Selector: [%s], Missing [%s]!",
                                             child, selector, ROWS_PROPERTY));
                                 }
 
@@ -269,7 +275,7 @@ public class HtmlGrid {
 
                                 } catch (IllegalArgumentException error) {
                                     throw new IllegalArgumentException(String.format(
-                                            "Path: %s, Selector: %s, %s",
+                                            "Path: [%s], Selector: [%s], %s",
                                             child, selector, error.getMessage()));
                                 }
                             }
