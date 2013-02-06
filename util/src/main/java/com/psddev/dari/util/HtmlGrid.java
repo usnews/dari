@@ -40,8 +40,13 @@ public class HtmlGrid {
                             }
                         }
 
-                        if (words.size() != columns.size()) {
-                            throw new IllegalArgumentException("Columns mismatch!");
+                        wordsSize = words.size();
+                        int columnsSize = columns.size();
+
+                        if (wordsSize != columnsSize) {
+                            throw new IllegalArgumentException(String.format(
+                                    "Columns mismatch! [%s] items in [%s] but [%s] in [%s]",
+                                    wordsSize, line, columnsSize, columnsString));
                         }
 
                         template.add(words);
@@ -50,8 +55,22 @@ public class HtmlGrid {
             }
         }
 
-        if (template.size() != rows.size()) {
-            throw new IllegalArgumentException("Rows mismatch!");
+        int templateSize = template.size();
+        int rowsSize = rows.size();
+
+        if (templateSize != rowsSize) {
+            StringBuilder t = new StringBuilder();
+
+            if (templateStrings != null) {
+                for (String templateString : templateStrings) {
+                    t.append("\n");
+                    t.append(templateString);
+                }
+            }
+
+            throw new IllegalArgumentException(String.format(
+                    "Rows mismatch! [%s] items in [%s] but [%s] in [%s]",
+                    templateSize, t, rowsSize, rowsString));
         }
     }
 
@@ -158,6 +177,10 @@ public class HtmlGrid {
 
     public static final class Static {
 
+        private static final String TEMPLATE_PROPERTY = "grid-template";
+        private static final String COLUMNS_PROPERTY = "grid-definition-columns";
+        private static final String ROWS_PROPERTY = "grid-definition-rows";
+
         public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
             return ObjectUtils.isBlank(cssClass) ? null : findGrid(context, "." + cssClass, "/");
         }
@@ -175,9 +198,25 @@ public class HtmlGrid {
                             Css css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
 
                             if ("grid".equals(css.getValue(selector, "display"))) {
-                                String templateValue = css.getValue(selector, "grid-template");
+                                String templateValue = css.getValue(selector, TEMPLATE_PROPERTY);
 
                                 if (templateValue != null) {
+                                    String columnsValue = css.getValue(selector, COLUMNS_PROPERTY);
+
+                                    if (ObjectUtils.isBlank(columnsValue)) {
+                                        throw new IllegalStateException(String.format(
+                                                "Path: %s, Selector: %s, Missing [%s]!",
+                                                child, selector, COLUMNS_PROPERTY));
+                                    }
+
+                                    String rowsValue = css.getValue(selector, ROWS_PROPERTY);
+
+                                    if (ObjectUtils.isBlank(rowsValue)) {
+                                        throw new IllegalStateException(String.format(
+                                                "Path: %s, Selector: %s, Missing [%s]!",
+                                                child, selector, ROWS_PROPERTY));
+                                    }
+
                                     char[] letters = templateValue.toCharArray();
                                     StringBuilder word = new StringBuilder();
                                     List<String> list = new ArrayList<String>();
@@ -217,10 +256,17 @@ public class HtmlGrid {
                                         t.append("\n");
                                     }
 
-                                    return new HtmlGrid(
-                                            css.getValue(selector, "grid-definition-columns"),
-                                            css.getValue(selector, "grid-definition-rows"),
-                                            t.toString());
+                                    try {
+                                        return new HtmlGrid(
+                                                columnsValue,
+                                                rowsValue,
+                                                t.toString());
+
+                                    } catch (IllegalArgumentException error) {
+                                        throw new IllegalArgumentException(String.format(
+                                                "Path: %s, Selector: %s, %s",
+                                                child, selector, error.getMessage()));
+                                    }
                                 }
                             }
 
