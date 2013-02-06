@@ -289,7 +289,7 @@ public class HtmlWriter extends Writer {
                         String unit = entry.getKey();
                         Adjustment adjustment = entry.getValue();
 
-                        css(selector + " .dari-grid-adj-" + unit,
+                        css(selector + "-" + unit,
                                 "height", adjustment.height,
                                 "margin", adjustment.getMargin(unit),
                                 "width", adjustment.width);
@@ -325,13 +325,14 @@ public class HtmlWriter extends Writer {
 
                 int adjustments = 0;
 
-                for (Map.Entry<String, Adjustment> entry2 : area.adjustments.entrySet()) {
+                for (Map.Entry<String, Adjustment> adjustmentEntry : area.adjustments.entrySet()) {
                     ++ adjustments;
-                    String unit = entry2.getKey();
-                    Adjustment adjustment = entry2.getValue();
+                    String unit = adjustmentEntry.getKey();
+                    Adjustment adjustment = adjustmentEntry.getValue();
 
                     start("div",
-                            "class", "dari-grid-adj dari-grid-adj-" + unit,
+                            "class", "dari-grid-adj",
+                            "id", area.id + "-" + unit,
                             "style", !inlineCss ? null : cssString(
                                     "float", "left",
                                     "height", adjustment.height,
