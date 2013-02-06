@@ -40,12 +40,6 @@ public interface Countable extends Recordable {
 
         private transient Map<Class<?>, CountRecord> countRecords = new HashMap<Class<?>, CountRecord>();
 
-        /**
-         *
-         */
-        public CountAction() {
-        }
-
         ObjectField getCountField(Class<? extends Modification<? extends Countable>> modificationClass) {
             //TypeDefinition<?> definition = TypeDefinition.getInstance(modificationClass);
             ObjectType modificationType = ObjectType.getInstance(modificationClass);
@@ -59,14 +53,6 @@ public interface Countable extends Recordable {
             throw new RuntimeException("One int field must be marked as @Countable.CountField");
         }
 
-        public void setCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
-            try {
-                getCountRecord(modificationClass).setCount(c);
-            } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.setCount() : " + e.getLocalizedMessage());
-            }
-        }
-
         public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
             try {
                 getCountRecord(modificationClass).incrementCount(c);
@@ -78,6 +64,14 @@ public interface Countable extends Recordable {
         public int getCount(Class<? extends Modification<? extends Countable>> modificationClass) {
             try {
                 return getCountRecord(modificationClass).getCount();
+            } catch (SQLException e) {
+                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public void syncCountSummary(Class<? extends Modification<? extends Countable>> modificationClass) {
+            try {
+                getCountRecord(modificationClass).syncCountSummary();
             } catch (SQLException e) {
                 throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
             }

@@ -130,20 +130,10 @@ public class CountRecord {
         }
     }
 
-    public void setCount(Integer amount) throws SQLException {
-        // find the ID, it might be null
-        UUID id = getId();
-        if (dimensionsSaved) {
-            Static.doSetUpdateOrInsert(getDatabase(), id, getQuery().getActionSymbol(),
-                    getTypeSymbol(), amount, getUpdateDate(),
-                    getEventDateHour());
-        } else {
-            Static.doInserts(getDatabase(), id, getQuery().getActionSymbol(), getTypeSymbol(),
-                    dimensions, amount, getUpdateDate(), getEventDateHour());
-            dimensionsSaved = true;
-        }
+    /** This only needs to be executed if the summary has fallen out of sync due to data model change or some other operation */
+    public void syncCountSummary() throws SQLException {
         if (isSummaryPossible()) {
-            Static.doSetCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.summaryRecordId);
+            Static.doSetCountSummaryUpdateOrInsert(getDatabase(), getCount(), this.countField, this.summaryRecordId);
         }
     }
 
@@ -569,25 +559,6 @@ public class CountRecord {
                 for (String sql : getInsertSqls(db, id, actionSymbol,
                         typeSymbol, dimensions, amount, updateDate,
                         eventDateHour)) {
-                    SqlDatabase.Static.executeUpdateWithArray(connection, sql);
-                }
-            } finally {
-                db.closeConnection(connection);
-            }
-        }
-
-        static void doSetUpdateOrInsert(SqlDatabase db, UUID id,
-                String actionSymbol, String typeSymbol, int amount,
-                long updateDate, long eventDateHour) throws SQLException {
-            Connection connection = db.openConnection();
-            try {
-                String sql = getUpdateSql(db, id, actionSymbol, amount,
-                        updateDate, eventDateHour, false);
-                int rowsAffected = SqlDatabase.Static.executeUpdateWithArray(
-                        connection, sql);
-                if (rowsAffected == 0) {
-                    sql = Static.getCountRecordInsertSql(db, id, actionSymbol,
-                            typeSymbol, amount, updateDate, eventDateHour);
                     SqlDatabase.Static.executeUpdateWithArray(connection, sql);
                 }
             } finally {
