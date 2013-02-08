@@ -1,10 +1,13 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.PaginatedResult;
-
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
 
 /**
  * Aggregates multiple queries into a single paginated result.
@@ -22,13 +25,30 @@ PaginatedResult<Object> result = new AggregateQueryResult<Object>(10L, 10, autho
  */
 public class AggregateQueryResult<E> extends PaginatedResult<E> {
 
-    private final int length;
-    private final Query<? extends E>[] queries;
-    private final Long[] counts;
+    private final Iterator<Query<? extends E>> queriesIterator;
+    private final List<Query<? extends E>> queries = new ArrayList<Query<? extends E>>();
+    private final Map<Query<? extends E>, Long> counts = new HashMap<Query<? extends E>, Long>();
 
     private Long aggregateCount;
     private List<E> items;
     private Boolean hasNext;
+
+    /**
+     * Creates an instance with the given {@code offset}, {@code limit},
+     * and {@code queriesIterator}.
+     */
+    public AggregateQueryResult(long offset, int limit, Iterator<Query<? extends E>> queriesIterator) {
+        super(offset, limit, -1L, null);
+        this.queriesIterator = queriesIterator;
+    }
+
+    /**
+     * Creates an instance with the given {@code offset}, {@code limit},
+     * and {@code queriesIterable}.
+     */
+    public AggregateQueryResult(long offset, int limit, Iterable<Query<? extends E>> queriesIterable) {
+        this(offset, limit, queriesIterable.iterator());
+    }
 
     /**
      * Creates an instance with the given {@code offset}, {@code limit},
@@ -38,39 +58,58 @@ public class AggregateQueryResult<E> extends PaginatedResult<E> {
      */
     @SuppressWarnings("unchecked")
     public AggregateQueryResult(long offset, int limit, Query<? extends E>... queries) {
-        super(offset, limit, -1L, null);
-
-        if (queries != null) {
-            this.length = queries.length;
-            this.queries = Arrays.copyOf(queries, length);
-            this.counts = new Long[length];
-
-        } else {
-            this.length = 0;
-            this.queries = new Query[0];
-            this.counts = new Long[0];
-        }
+        this(offset, limit, ObjectUtils.to(Iterable.class, queries));
     }
 
     // --- PaginatedResult support ---
 
-    private long getCountFor(int index) {
-        Long count = counts[index];
-        if (count == null) {
-            count = queries[index].count();
-            counts[index] = count;
+    private Query<? extends E> getQueryFor(int index) {
+        if (index < queries.size()) {
+            return queries.get(index);
+
+        } else {
+            while (index >= queries.size() && queriesIterator.hasNext()) {
+                queries.add(queriesIterator.next());
+            }
+
+            return index < queries.size() ? queries.get(index) : null;
         }
-        return count;
+    }
+
+    private Long getCountFor(int index) {
+        Query<? extends E> query = getQueryFor(index);
+
+        if (query == null) {
+            return null;
+
+        } else {
+            Long count = counts.get(query);
+
+            if (count == null) {
+                count = query.count();
+                counts.put(query, count);
+            }
+
+            return count;
+        }
     }
 
     @Override
     public long getCount() {
         if (aggregateCount == null) {
             aggregateCount = 0L;
-            for (int i = 0; i < length; ++ i) {
-                aggregateCount += getCountFor(i);
+
+            for (int i = 0; ; ++ i) {
+                Long count = getCountFor(i);
+
+                if (count == null) {
+                    break;
+                }
+
+                aggregateCount += count;
             }
         }
+
         return aggregateCount;
     }
 
@@ -83,11 +122,17 @@ public class AggregateQueryResult<E> extends PaginatedResult<E> {
             long end = start + getLimit();
             long current = 0;
 
-            for (int i = 0; i < length; ++ i) {
-                long next = current + getCountFor(i);
+            for (int i = 0; ; ++ i) {
+                Long count = getCountFor(i);
+
+                if (count == null) {
+                    break;
+                }
+
+                long next = current + count;
 
                 if (current < end && next > start) {
-                    items.addAll(queries[i].select(
+                    items.addAll(getQueryFor(i).select(
                             start <= current ? 0L : (start - current),
                             (int) (end - current)).getItems());
 
@@ -108,13 +153,19 @@ public class AggregateQueryResult<E> extends PaginatedResult<E> {
         if (hasNext == null) {
             hasNext = false;
 
-            long count = 0L;
+            long nextCount = 0L;
             long nextOffset = getNextOffset();
 
-            for (int i = 0; i < length; ++ i) {
-                count += getCountFor(i);
+            for (int i = 0; ; ++ i) {
+                Long count = getCountFor(i);
 
-                if (count > nextOffset) {
+                if (count == null) {
+                    break;
+                }
+
+                nextCount += count;
+
+                if (nextCount > nextOffset) {
                     hasNext = true;
                     break;
                 }
