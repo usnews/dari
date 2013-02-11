@@ -569,8 +569,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (connection != null &&
-                connection != readConnection.get()) {
+        if (connection != null) {
             try {
                 connection.close();
             } catch (SQLException ex) {
@@ -1043,11 +1042,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     protected Connection doOpenReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection != null) {
-            return connection;
-        }
-
         DataSource readDataSource = getReadDataSource();
         if (readDataSource == null) {
             readDataSource = getDataSource();
@@ -1080,8 +1074,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public void closeConnection(Connection connection) {
-        if (connection != null &&
-                connection != readConnection.get()) {
+        if (connection != null) {
             try {
                 connection.close();
             } catch (SQLException ex) {
@@ -1097,28 +1090,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         return false;
-    }
-
-    private final ThreadLocal<Connection> readConnection = new ThreadLocal<Connection>();
-
-    public void beginThreadLocalReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection == null) {
-            connection = openReadConnection();
-            readConnection.set(connection);
-        }
-    }
-
-    public void endThreadLocalReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException ex) {
-            } finally {
-                readConnection.remove();
-            }
-        }
     }
 
     @Override
@@ -2352,5 +2323,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             return executeUpdateWithArray(connection, sqlQuery, parameters);
         }
+    }
+
+    // --- Deprecated ---
+
+    /** @deprecated No replacement. */
+    @Deprecated
+    public void beginThreadLocalReadConnection() {
+    }
+
+    /** @deprecated No replacement. */
+    @Deprecated
+    public void endThreadLocalReadConnection() {
     }
 }

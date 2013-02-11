@@ -37,17 +37,14 @@ public class CachingDatabaseFilter extends AbstractFilter {
 
             CachingDatabase caching = new CachingDatabase();
             caching.setDelegate(Database.Static.getDefault());
-            SqlDatabase defaultSql = Database.Static.getFirst(SqlDatabase.class);
 
             try {
                 Database.Static.overrideDefault(caching);
-                defaultSql.beginThreadLocalReadConnection();
 
                 chain.doFilter(request, response);
 
             } finally {
                 Database.Static.restoreDefault();
-                defaultSql.endThreadLocalReadConnection();
             }
 
         } else {
