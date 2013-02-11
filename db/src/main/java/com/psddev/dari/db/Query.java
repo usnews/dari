@@ -1248,6 +1248,22 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return getDatabase().readAll(this);
     }
 
+    /**
+     * Returns an iterable of all objects matching this query in a
+     * {@linkplain #getDatabase database}.
+     */
+    public Iterable<E> iterable(int fetchSize) {
+        return getDatabase().readIterable(this, fetchSize);
+    }
+
+    /**
+     * Returns {@code true} if there are more items that match this query than
+     * the given {@code count}.
+     */
+    public boolean hasMoreThan(int count) {
+        return !getDatabase().readPartial(this.clone().referenceOnly(), count, 1).getItems().isEmpty();
+    }
+
     // --- Database.Static bridge ---
 
     /**
@@ -1266,14 +1282,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      */
     public static <T> T findUnique(Class<T> type, String key, String value) {
         return Database.Static.findUnique(Database.Static.getDefault(), type, key, value);
-    }
-
-    /**
-     * Returns an iterable of all objects matching this query in a
-     * {@linkplain #getDatabase database}.
-     */
-    public Iterable<E> iterable(int fetchSize) {
-        return getDatabase().readIterable(this, fetchSize);
     }
 
     /** Static utility methods. */

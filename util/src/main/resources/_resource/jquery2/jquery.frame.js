@@ -125,6 +125,10 @@ $.plugin2('frame', {
                     version = beginLoad($frame, $source),
                     extraFormData = $frame.attr('data-extra-form-data');
 
+            $.data($frame[0], 'frame-reload', function() {
+                loadPage($frame, $source, url);
+            });
+
             $.ajax({
                 'cache': false,
                 'url': url + (url.indexOf('?') < 0 ? '?' : '&') + extraFormData,
@@ -218,6 +222,21 @@ $.plugin2('frame', {
     // Returns the enclosing element that contains the frame.
     'container': function() {
         return this.$init;
+    },
+
+    'reload': function() {
+        var $frame = this.container(),
+                reload;
+
+        if ($frame && $frame.length > 0) {
+            reload = $.data($frame[0], 'frame-reload');
+
+            if (reload) {
+                reload();
+            }
+        }
+
+        return this.$caller;
     },
 
     // Returns the source element that triggered the frame to be populated.

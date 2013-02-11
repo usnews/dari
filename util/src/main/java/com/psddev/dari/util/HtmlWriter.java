@@ -19,6 +19,14 @@ import java.util.UUID;
 /** Writer implementation that adds basic HTML formatting. */
 public class HtmlWriter extends Writer {
 
+    private static final String GRID_PADDING; static {
+        StringBuilder gp = new StringBuilder();
+        for (int i = 0; i < 500; ++ i) {
+            gp.append(" .");
+        }
+        GRID_PADDING = gp.toString();
+    }
+
     private final Writer writer;
     private final Map<Class<?>, HtmlFormatter<Object>> defaultFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Map<Class<?>, HtmlFormatter<Object>> overrideFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
@@ -257,6 +265,13 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter grid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
         Map<String, Area> areas = createAreas(grid);
+        boolean debug;
+
+        try {
+            debug = !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
+        } catch (Exception error) {
+            debug = false;
+        }
 
         if (!inlineCss) {
             start("style", "type", "text/css");
@@ -282,7 +297,7 @@ public class HtmlWriter extends Writer {
                         String unit = entry.getKey();
                         Adjustment adjustment = entry.getValue();
 
-                        css(selector + " .dari-grid-adj-" + unit,
+                        css(selector + "-" + unit,
                                 "height", adjustment.height,
                                 "margin", adjustment.getMargin(unit),
                                 "width", adjustment.width);
@@ -318,18 +333,32 @@ public class HtmlWriter extends Writer {
 
                 int adjustments = 0;
 
-                for (Map.Entry<String, Adjustment> entry2 : area.adjustments.entrySet()) {
+                for (Map.Entry<String, Adjustment> adjustmentEntry : area.adjustments.entrySet()) {
                     ++ adjustments;
-                    String unit = entry2.getKey();
-                    Adjustment adjustment = entry2.getValue();
+                    String unit = adjustmentEntry.getKey();
+                    Adjustment adjustment = adjustmentEntry.getValue();
 
                     start("div",
-                            "class", "dari-grid-adj dari-grid-adj-" + unit,
+                            "class", "dari-grid-adj",
+                            "id", area.id + "-" + unit,
                             "style", !inlineCss ? null : cssString(
                                     "float", "left",
                                     "height", adjustment.height,
                                     "margin", adjustment.getMargin(unit),
                                     "width", adjustment.width));
+                }
+
+                start("div", "style", cssString(
+                        "height", 0,
+                        "overflow", "hidden",
+                        "visibility", "hidden"));
+                    write(GRID_PADDING);
+                end();
+
+                if (debug) {
+                    start("div", "style", cssString(
+                            "border", "3px dashed red",
+                            "padding", "3px"));
                 }
 
                 // Minimum width with multiple units.
@@ -376,6 +405,10 @@ public class HtmlWriter extends Writer {
 
                 if (area.singleHeight == null) {
                     start("div", "style", cssString("clear", "left"));
+                    end();
+                }
+
+                if (debug) {
                     end();
                 }
 
