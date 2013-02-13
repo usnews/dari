@@ -10,8 +10,9 @@ CREATE TABLE CountRecord (
     createDate INT NOT NULL,
     updateDate INT NOT NULL,
     eventDate INT NOT NULL,
-    PRIMARY KEY (typeSymbolId, actionSymbolId, id, eventDate)
-);
+    PRIMARY KEY (actionSymbolId, id, eventDate),
+    KEY k_typeid (typeSymbolId)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
 
 CREATE OR REPLACE VIEW CountRecord_d AS
 SELECT hex(c.id) AS id
@@ -33,7 +34,7 @@ CREATE TABLE CountRecordString (
     value VARCHAR(500) NOT NULL,
     PRIMARY KEY (symbolId, value, typeSymbolId, id),
     KEY k_id (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
 
 CREATE OR REPLACE VIEW CountRecordString_d AS
 SELECT hex(c.id) AS id
@@ -52,7 +53,7 @@ CREATE TABLE CountRecordDouble (
     value DOUBLE NOT NULL,
     PRIMARY KEY (symbolId, value, typeSymbolId, id),
     KEY k_id (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
 CREATE OR REPLACE VIEW CountRecordDouble_d AS
 SELECT hex(c.id) AS id
 , ts.value as typeSymbol
@@ -70,7 +71,7 @@ CREATE TABLE CountRecordInteger (
     value INTEGER NOT NULL,
     PRIMARY KEY (symbolId, value, typeSymbolId, id),
     KEY k_id (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
 CREATE OR REPLACE VIEW CountRecordInteger_d AS
 SELECT hex(c.id) AS id
 , ts.value as typeSymbol
@@ -88,7 +89,7 @@ CREATE TABLE CountRecordUuid (
     value BINARY(16) NOT NULL,
     PRIMARY KEY (symbolId, value, typeSymbolId, id),
     KEY k_id (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
 
 CREATE OR REPLACE VIEW CountRecordUuid_d AS
 SELECT hex(c.id) AS id
@@ -107,7 +108,7 @@ CREATE TABLE CountRecordSummary (
     value int not null,
     PRIMARY KEY (symbolId, value, /*typeId, */id),
     KEY k_id (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
 
 CREATE OR REPLACE VIEW CountRecordSummary_d AS
 SELECT hex(c.id) AS id
