@@ -776,7 +776,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * Executes the given read {@code statement} (created from the given
      * {@code sqlQuery}) before the given {@code timeout} (in seconds).
      */
-    private ResultSet executeQueryBeforeTimeout(
+    public ResultSet executeQueryBeforeTimeout(
             Statement statement,
             String sqlQuery,
             int timeout)

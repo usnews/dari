@@ -31,6 +31,7 @@ public class CountRecord {
     static final String COUNTRECORD_DOUBLEINDEX_TABLE = "CountRecordDouble";
     static final String COUNTRECORD_INTEGERINDEX_TABLE = "CountRecordInteger";
     static final String COUNTRECORD_UUIDINDEX_TABLE = "CountRecordUuid";
+    static final int QUERY_TIMEOUT = 3;
 
     private final DimensionSet dimensions;
     private final String typeSymbol;
@@ -677,7 +678,7 @@ public class CountRecord {
             Integer count = 0;
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = statement.executeQuery(sql);
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
                     count = result.getInt(1);
                 }
@@ -696,7 +697,7 @@ public class CountRecord {
             LinkedHashMap<String, Integer> results = new LinkedHashMap<String, Integer>();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = statement.executeQuery(sql);
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 ResultSetMetaData meta = result.getMetaData();
                 int numColumns = meta.getColumnCount();
                 while (result.next()) {
@@ -726,7 +727,7 @@ public class CountRecord {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = statement.executeQuery(sql);
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
                     id = UuidUtils.fromBytes(result.getBytes(1));
                     //LOGGER.info(this.id.toString());
