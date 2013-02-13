@@ -10,6 +10,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -184,7 +185,7 @@ public class CountRecord {
         static String getSelectSql(SqlDatabase db, CountRecordQuery query,
                 boolean preciseMatch, boolean selectAmount) {
             SqlVendor vendor = db.getVendor();
-            StringBuilder selectBuilder = new StringBuilder("SELECT cr0.id");
+            StringBuilder selectBuilder = new StringBuilder("SELECT ");
             StringBuilder fromBuilder = new StringBuilder();
             StringBuilder whereBuilder = new StringBuilder();
             StringBuilder groupByBuilder = new StringBuilder();
@@ -194,50 +195,54 @@ public class CountRecord {
             int count = 1;
             String alias = "cr" + i;
 
+            vendor.appendIdentifier(selectBuilder, alias);
+            selectBuilder.append(".");
+            vendor.appendIdentifier(selectBuilder, "id");
+
             if (selectAmount)
                 joinCountRecordTable = true;
 
             if (joinCountRecordTable) {
                 if (selectAmount) {
                     selectBuilder.append(", ");
-                    selectBuilder.append(alias);
+                    vendor.appendIdentifier(selectBuilder, alias);
                     selectBuilder.append(".");
-                    selectBuilder.append("amount");
+                    vendor.appendIdentifier(selectBuilder, "amount");
                 }
                 selectBuilder.append(", ");
-                selectBuilder.append(alias);
+                vendor.appendIdentifier(selectBuilder, alias);
                 selectBuilder.append(".");
-                selectBuilder.append("eventDate");
+                vendor.appendIdentifier(selectBuilder, "eventDate");
 
                 fromBuilder.append(" \nFROM ");
-                fromBuilder.append(COUNTRECORD_TABLE);
+                vendor.appendIdentifier(fromBuilder, COUNTRECORD_TABLE);
                 fromBuilder.append(" ");
-                fromBuilder.append(alias);
+                vendor.appendIdentifier(fromBuilder, alias);
                 whereBuilder.append(" \nWHERE ");
-                whereBuilder.append(alias);
+                vendor.appendIdentifier(whereBuilder, alias);
                 whereBuilder.append(".");
-                whereBuilder.append("actionSymbolId");
+                vendor.appendIdentifier(whereBuilder, "actionSymbolId");
                 whereBuilder.append(" = ");
                 whereBuilder.append(db.getSymbolId(query.getActionSymbol()));
                 if (preciseMatch) {
                     whereBuilder.append(" AND ");
-                    whereBuilder.append(alias);
+                    vendor.appendIdentifier(whereBuilder, alias);
                     whereBuilder.append(".");
-                    whereBuilder.append("typeSymbolId");
+                    vendor.appendIdentifier(whereBuilder, "typeSymbolId");
                     whereBuilder.append(" = ");
                     whereBuilder.append(db.getSymbolId(query.getSymbol()));
                 }
                 if (query.getStartTimestamp() != null && query.getEndTimestamp() != null) {
                     whereBuilder.append(" AND ");
-                    whereBuilder.append(alias);
+                    vendor.appendIdentifier(whereBuilder, alias);
                     whereBuilder.append(".");
-                    whereBuilder.append("eventDate");
+                    vendor.appendIdentifier(whereBuilder, "eventDate");
                     whereBuilder.append(" >= ");
                     vendor.appendValue(whereBuilder, query.getStartTimestamp());
                     whereBuilder.append(" AND ");
-                    whereBuilder.append(alias);
+                    vendor.appendIdentifier(whereBuilder, alias);
                     whereBuilder.append(".");
-                    whereBuilder.append("eventDate");
+                    vendor.appendIdentifier(whereBuilder, "eventDate");
                     whereBuilder.append(" <= ");
                     vendor.appendValue(whereBuilder, query.getEndTimestamp());
                 }
@@ -249,14 +254,14 @@ public class CountRecord {
                 alias = "cr" + i;
                 if (i == 0) {
                     fromBuilder.append(" \nFROM ");
-                    fromBuilder.append(table);
+                    vendor.appendIdentifier(fromBuilder, table);
                     fromBuilder.append(" ");
-                    fromBuilder.append(alias);
+                    vendor.appendIdentifier(fromBuilder, alias);
                     whereBuilder.append(" \nWHERE ");
                     if (preciseMatch) {
-                        whereBuilder.append(alias);
+                        vendor.appendIdentifier(whereBuilder, alias);
                         whereBuilder.append(".");
-                        whereBuilder.append("typeSymbolId");
+                        vendor.appendIdentifier(whereBuilder, "typeSymbolId");
                         whereBuilder.append(" = ");
                         whereBuilder.append(db.getSymbolId(query.getSymbol()));
                     } else {
@@ -264,25 +269,25 @@ public class CountRecord {
                     }
                 } else {
                     fromBuilder.append(" \nJOIN ");
-                    fromBuilder.append(table);
+                    vendor.appendIdentifier(fromBuilder, table);
                     fromBuilder.append(" ");
-                    fromBuilder.append(alias);
+                    vendor.appendIdentifier(fromBuilder, alias);
                     fromBuilder.append(" ON (");
-                    fromBuilder.append("cr0");
+                    vendor.appendIdentifier(fromBuilder, "cr0");
                     fromBuilder.append(".");
-                    fromBuilder.append("typeSymbolId");
+                    vendor.appendIdentifier(fromBuilder, "typeSymbolId");
                     fromBuilder.append(" = ");
-                    fromBuilder.append(alias);
+                    vendor.appendIdentifier(fromBuilder, alias);
                     fromBuilder.append(".");
-                    fromBuilder.append("typeSymbolId");
+                    vendor.appendIdentifier(fromBuilder, "typeSymbolId");
                     fromBuilder.append(" AND ");
-                    fromBuilder.append("cr0");
+                    vendor.appendIdentifier(fromBuilder, "cr0");
                     fromBuilder.append(".");
-                    fromBuilder.append("id");
+                    vendor.appendIdentifier(fromBuilder, "id");
                     fromBuilder.append(" = ");
-                    fromBuilder.append(alias);
+                    vendor.appendIdentifier(fromBuilder, alias);
                     fromBuilder.append(".");
-                    fromBuilder.append("id");
+                    vendor.appendIdentifier(fromBuilder, "id");
                     fromBuilder.append(")");
                 }
 
@@ -293,15 +298,15 @@ public class CountRecord {
                         table, query.getDimensions())) {
                     Set<Object> values = dimension.getValues();
                     whereBuilder.append("(");
-                    whereBuilder.append(alias);
+                    vendor.appendIdentifier(whereBuilder, alias);
                     whereBuilder.append(".");
-                    whereBuilder.append("symbolId");
+                    vendor.appendIdentifier(whereBuilder, "symbolId");
                     whereBuilder.append(" = ");
                     whereBuilder.append(db.getSymbolId(dimension.getSymbol()));
                     whereBuilder.append(" AND ");
-                    whereBuilder.append(alias);
+                    vendor.appendIdentifier(whereBuilder, alias);
                     whereBuilder.append(".");
-                    whereBuilder.append("value");
+                    vendor.appendIdentifier(whereBuilder, "value");
                     whereBuilder.append(" IN (");
                     for (Object v : values) {
                         vendor.appendValue(whereBuilder, v);
@@ -318,9 +323,9 @@ public class CountRecord {
                         if (!query.getDimensions().keySet().contains(
                                 dimension.getKey())) {
                             whereBuilder.append("(");
-                            whereBuilder.append(alias);
+                            vendor.appendIdentifier(whereBuilder, alias);
                             whereBuilder.append(".");
-                            whereBuilder.append("symbolId");
+                            vendor.appendIdentifier(whereBuilder, "symbolId");
                             whereBuilder.append(" = ");
                             whereBuilder.append(db.getSymbolId(dimension
                                     .getSymbol()));
@@ -329,17 +334,17 @@ public class CountRecord {
                             ++numFilters;
                         }
                         selectBuilder.append(", MAX(IF(");
-                        selectBuilder.append(alias);
-                        selectBuilder.append(".symbolId = ");
-                        selectBuilder.append(db.getSymbolId(dimension
-                                .getSymbol()));
-                        selectBuilder.append(", ");
-                        selectBuilder.append(alias);
+                        vendor.appendIdentifier(selectBuilder, alias);
                         selectBuilder.append(".");
-                        selectBuilder.append("value");
+                        vendor.appendIdentifier(selectBuilder, "symbolId");
+                        selectBuilder.append(" = ");
+                        selectBuilder.append(db.getSymbolId(dimension.getSymbol()));
+                        selectBuilder.append(", ");
+                        vendor.appendIdentifier(selectBuilder, alias);
+                        selectBuilder.append(".");
+                        vendor.appendIdentifier(selectBuilder, "value");
                         selectBuilder.append(", null)) AS ");
-                        vendor.appendIdentifier(selectBuilder,
-                                dimension.getKey());
+                        vendor.appendIdentifier(selectBuilder, dimension.getKey());
                     }
                 }
                 whereBuilder.setLength(whereBuilder.length() - 7);
@@ -349,14 +354,28 @@ public class CountRecord {
             }
 
             groupByBuilder.append("\nGROUP BY ");
-            groupByBuilder.append("cr0.id");
+            vendor.appendIdentifier(groupByBuilder, "cr0");
+            groupByBuilder.append(".");
+            vendor.appendIdentifier(groupByBuilder, "id");
             orderByBuilder.append("\nORDER BY ");
-            orderByBuilder.append("cr0.id");
+            vendor.appendIdentifier(orderByBuilder, "cr0");
+            orderByBuilder.append(".");
+            vendor.appendIdentifier(orderByBuilder, "id");
             if (joinCountRecordTable) {
-                orderByBuilder.append(", cr0.eventDate DESC");
-                groupByBuilder.append(", cr0.eventDate");
+                orderByBuilder.append(", ");
+                vendor.appendIdentifier(orderByBuilder, "cr0");
+                orderByBuilder.append(".");
+                vendor.appendIdentifier(orderByBuilder, "eventDate");
+                orderByBuilder.append(" DESC");
+                groupByBuilder.append(", ");
+                vendor.appendIdentifier(groupByBuilder, "cr0");
+                groupByBuilder.append(".");
+                vendor.appendIdentifier(groupByBuilder, "eventDate");
                 if (selectAmount) {
-                    groupByBuilder.append(", cr0.amount");
+                    groupByBuilder.append(", ");
+                    vendor.appendIdentifier(groupByBuilder, "cr0");
+                    groupByBuilder.append(".");
+                    vendor.appendIdentifier(groupByBuilder, "amount");
                 }
             }
             groupByBuilder.append(" HAVING COUNT(*) = ");
@@ -372,7 +391,13 @@ public class CountRecord {
             StringBuilder fromBuilder = new StringBuilder();
             StringBuilder groupBuilder = new StringBuilder();
             StringBuilder orderBuilder = new StringBuilder();
-            selectBuilder.append("SELECT SUM(x.amount) AS amount");
+            SqlVendor vendor = db.getVendor();
+            selectBuilder.append("SELECT SUM(");
+            vendor.appendIdentifier(selectBuilder, "x");
+            selectBuilder.append(".");
+            vendor.appendIdentifier(selectBuilder, "amount");
+            selectBuilder.append(") AS ");
+            vendor.appendIdentifier(selectBuilder, "amount");
             fromBuilder.append(" FROM (");
             fromBuilder.append(getSelectSql(db, query, false, true));
             fromBuilder.append(") x");
@@ -381,11 +406,14 @@ public class CountRecord {
                 groupBuilder.append(" GROUP BY ");
                 for (String key : query.getGroupByDimensions().keySet()) {
                     // select additional dimensions
-                    selectBuilder.append(", x.");
-                    selectBuilder.append(key);
+                    selectBuilder.append(", ");
+                    vendor.appendIdentifier(selectBuilder, "x");
+                    selectBuilder.append(".");
+                    vendor.appendIdentifier(selectBuilder, key);
                     // group by additional dimensions
-                    groupBuilder.append("x.");
-                    groupBuilder.append(key);
+                    vendor.appendIdentifier(groupBuilder, "x");
+                    groupBuilder.append(".");
+                    vendor.appendIdentifier(groupBuilder, key);
                     groupBuilder.append(", ");
                 }
                 if (groupBuilder.toString().equals(" GROUP BY ")) {
@@ -399,8 +427,9 @@ public class CountRecord {
                     for (String key : query.getOrderByDimensions()) {
                         if (query.getGroupByDimensions().keySet().contains(key)) {
                             // order by additional dimensions
-                            orderBuilder.append("x.");
-                            orderBuilder.append(key);
+                            vendor.appendIdentifier(orderBuilder, "x");
+                            orderBuilder.append(".");
+                            vendor.appendIdentifier(orderBuilder, key);
                             orderBuilder.append(", ");
                         }
                     }
@@ -428,103 +457,132 @@ public class CountRecord {
         */
 
         static String getSelectCountSql(SqlDatabase db, CountRecordQuery query) {
-            return "SELECT SUM(x.amount) AS amount FROM ("
-                    + getSelectSql(db, query, false, true) + ") x";
+            StringBuilder selectBuilder = new StringBuilder();
+            StringBuilder fromBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+            selectBuilder.append("SELECT SUM(");
+            vendor.appendIdentifier(selectBuilder, "x");
+            selectBuilder.append(".");
+            vendor.appendIdentifier(selectBuilder, "amount");
+            selectBuilder.append(") AS ");
+            vendor.appendIdentifier(selectBuilder, "amount");
+            fromBuilder.append(" FROM (");
+            fromBuilder.append(getSelectSql(db, query, false, true));
+            fromBuilder.append(") x");
+            return selectBuilder.toString() + fromBuilder.toString();
         }
 
-        static List<String> getInsertSqls(SqlDatabase db, UUID id,
+        static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID id,
                 String actionSymbol, String typeSymbol,
                 DimensionSet dimensions, int amount, long createDate,
                 long eventDateHour) {
             ArrayList<String> sqls = new ArrayList<String>();
             // insert countrecord
-            sqls.add(getCountRecordInsertSql(db, id, actionSymbol, typeSymbol,
+            List<Object> parameters = new ArrayList<Object>();
+            sqls.add(getCountRecordInsertSql(db, parameters, id, actionSymbol, typeSymbol,
                     amount, createDate, eventDateHour));
+            parametersList.add(parameters);
             // insert indexes
             for (Dimension dimension : dimensions) {
                 Set<Object> values = dimension.getValues();
                 String table = dimension.getIndexTable();
                 for (Object value : values) {
-                    sqls.add(getDimensionInsertRowSql(db, id, typeSymbol,
+                    parameters = new ArrayList<Object>();
+                    sqls.add(getDimensionInsertRowSql(db, parameters, id, typeSymbol,
                             dimension, value, table));
+                    parametersList.add(parameters);
                 }
             }
             return sqls;
         }
 
-        static String getCountRecordInsertSql(SqlDatabase db, UUID id,
+        static String getCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID id,
                 String actionSymbol, String typeSymbol, int amount,
                 long createDate, long eventDateHour) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
-            insertBuilder.append(COUNTRECORD_TABLE);
+            vendor.appendIdentifier(insertBuilder, COUNTRECORD_TABLE);
             insertBuilder.append(" (");
-            insertBuilder
-                    .append("id, actionSymbolId, typeSymbolId, amount, createDate, updateDate, eventDate");
+            LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
+            cols.put("id", id);
+            cols.put("actionSymbolId", db.getSymbolId(actionSymbol));
+            cols.put("typeSymbolId", db.getSymbolId(typeSymbol));
+            cols.put("amount", amount);
+            cols.put("createDate", createDate);
+            cols.put("updateDate", createDate);
+            cols.put("eventDate", eventDateHour);
+            for (Map.Entry<String, Object> entry : cols.entrySet()) {
+                vendor.appendIdentifier(insertBuilder, entry.getKey());
+                insertBuilder.append(", ");
+            }
+            insertBuilder.setLength(insertBuilder.length()-2);
             insertBuilder.append(") VALUES (");
-            vendor.appendValue(insertBuilder, id);
-            insertBuilder.append(", ");
-            insertBuilder.append(db.getSymbolId(actionSymbol));
-            insertBuilder.append(", ");
-            insertBuilder.append(db.getSymbolId(typeSymbol));
-            insertBuilder.append(", ");
-            insertBuilder.append(amount);
-            insertBuilder.append(", ");
-            insertBuilder.append(createDate);
-            insertBuilder.append(", ");
-            insertBuilder.append(createDate);
-            insertBuilder.append(", ");
-            insertBuilder.append(eventDateHour);
+            for (Map.Entry<String, Object> entry : cols.entrySet()) {
+                vendor.appendBindValue(insertBuilder, entry.getValue(), parameters);
+                insertBuilder.append(", ");
+            }
+            insertBuilder.setLength(insertBuilder.length()-2);
             insertBuilder.append(")");
             return insertBuilder.toString();
         }
 
-        static String getDimensionInsertRowSql(SqlDatabase db, UUID id,
+        static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID id,
                 String typeSymbol, Dimension dimension, Object value,
                 String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
-            insertBuilder.append(table);
+            vendor.appendIdentifier(insertBuilder, table);
             insertBuilder.append(" (");
-            insertBuilder.append("id, typeSymbolId, symbolId, value");
+            LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
+            cols.put("id", id);
+            cols.put("typeSymbolId", db.getSymbolId(typeSymbol));
+            cols.put("symbolId", db.getSymbolId(dimension.getSymbol()));
+            cols.put("value", value);
+            for (Map.Entry<String, Object> entry : cols.entrySet()) {
+                vendor.appendIdentifier(insertBuilder, entry.getKey());
+                insertBuilder.append(", ");
+            }
+            insertBuilder.setLength(insertBuilder.length()-2);
             insertBuilder.append(") VALUES (");
-            vendor.appendValue(insertBuilder, id);
-            insertBuilder.append(", ");
-            insertBuilder.append(db.getSymbolId(typeSymbol));
-            insertBuilder.append(", ");
-            insertBuilder.append(db.getSymbolId(dimension.getSymbol()));
-            insertBuilder.append(", ");
-            vendor.appendValue(insertBuilder, value);
+            for (Map.Entry<String, Object> entry : cols.entrySet()) {
+                vendor.appendBindValue(insertBuilder, entry.getValue(), parameters);
+                insertBuilder.append(", ");
+            }
+            insertBuilder.setLength(insertBuilder.length()-2);
             insertBuilder.append(")");
             return insertBuilder.toString();
         }
 
-        static String getUpdateSql(SqlDatabase db, UUID id,
+        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID id,
                 String actionSymbol, int amount, long updateDate,
                 long eventDateHour, boolean increment) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
-            updateBuilder.append(COUNTRECORD_TABLE);
+            vendor.appendIdentifier(updateBuilder, COUNTRECORD_TABLE);
+            updateBuilder.append(" SET ");
+            vendor.appendIdentifier(updateBuilder, "amount");
+            updateBuilder.append(" = ");
             if (increment) {
-                updateBuilder.append(" SET amount = amount + ");
-            } else {
-                updateBuilder.append(" SET amount = ");
+                vendor.appendIdentifier(updateBuilder, "amount");
+                updateBuilder.append(" + ");
             }
-            updateBuilder.append(amount);
-            updateBuilder.append(", updateDate = ");
-            updateBuilder.append(updateDate);
+            vendor.appendBindValue(updateBuilder, amount, parameters);
+            updateBuilder.append(", ");
+            vendor.appendIdentifier(updateBuilder, "updateDate");
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, updateDate, parameters);
             updateBuilder.append(" WHERE ");
-            updateBuilder.append("id");
+            vendor.appendIdentifier(updateBuilder, "id");
             updateBuilder.append(" = ");
-            vendor.appendValue(updateBuilder, id);
+            vendor.appendBindValue(updateBuilder, id, parameters);
             updateBuilder.append(" AND ");
-            updateBuilder.append("actionSymbolId");
+            vendor.appendIdentifier(updateBuilder, "actionSymbolId");
             updateBuilder.append(" = ");
-            vendor.appendValue(updateBuilder, db.getSymbolId(actionSymbol));
+            vendor.appendBindValue(updateBuilder, db.getSymbolId(actionSymbol), parameters);
             updateBuilder.append(" AND ");
-            updateBuilder.append("eventDate");
+            vendor.appendIdentifier(updateBuilder, "eventDate");
             updateBuilder.append(" = ");
-            vendor.appendValue(updateBuilder, eventDateHour);
+            vendor.appendBindValue(updateBuilder, eventDateHour, parameters);
             return updateBuilder.toString();
         }
 
@@ -557,10 +615,13 @@ public class CountRecord {
                 long updateDate, long eventDateHour) throws SQLException {
             Connection connection = db.openConnection();
             try {
-                for (String sql : getInsertSqls(db, id, actionSymbol,
+                List<List<Object>> parametersList = new ArrayList<List<Object>>();
+                List<String> sqls = getInsertSqls(db, parametersList, id, actionSymbol,
                         typeSymbol, dimensions, amount, updateDate,
-                        eventDateHour)) {
-                    SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+                        eventDateHour);
+                Iterator<List<Object>> parametersIterator = parametersList.iterator();
+                for (String sql : sqls) {
+                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parametersIterator.next());
                 }
             } finally {
                 db.closeConnection(connection);
@@ -572,22 +633,24 @@ public class CountRecord {
                 long updateDate, long eventDateHour) throws SQLException {
             Connection connection = db.openConnection();
             try {
-                String sql = getUpdateSql(db, id, actionSymbol,
+                List<Object> parameters = new ArrayList<Object>();
+                String sql = getUpdateSql(db, parameters, id, actionSymbol,
                         incrementAmount, updateDate, eventDateHour, true);
-                int rowsAffected = SqlDatabase.Static.executeUpdateWithArray(
-                        connection, sql);
+                int rowsAffected = SqlDatabase.Static.executeUpdateWithList(
+                        connection, sql, parameters);
                 if (rowsAffected == 0) {
-                    sql = getCountRecordInsertSql(db, id, actionSymbol,
+                    parameters = new ArrayList<Object>();
+                    sql = getCountRecordInsertSql(db, parameters, id, actionSymbol,
                             typeSymbol, incrementAmount, updateDate,
                             eventDateHour);
-                    SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
                 db.closeConnection(connection);
             }
         }
 
-        static String getUpdateSummarySql(SqlDatabase db, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName, boolean increment) {
+        static String getUpdateSummarySql(SqlDatabase db, List<Object> parameters, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName, boolean increment) {
             /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
@@ -600,19 +663,19 @@ public class CountRecord {
                 vendor.appendIdentifier(sqlBuilder, valueColumnName);
                 sqlBuilder.append(" + ");
             }
-            vendor.appendValue(sqlBuilder, amount);
+            vendor.appendBindValue(sqlBuilder, amount, parameters);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
             sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, summaryRecordId);
+            vendor.appendBindValue(sqlBuilder, summaryRecordId, parameters);
             sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, "symbolId");
             sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, summaryFieldSymbolId);
+            vendor.appendBindValue(sqlBuilder, summaryFieldSymbolId, parameters);
             return sqlBuilder.toString();
         }
 
-        static String getInsertSummarySql(SqlDatabase db, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName) {
+        static String getInsertSummarySql(SqlDatabase db, List<Object> parameters, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName) {
             /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
@@ -625,11 +688,11 @@ public class CountRecord {
             sqlBuilder.append(", ");
             vendor.appendIdentifier(sqlBuilder, valueColumnName);
             sqlBuilder.append(") VALUES (");
-            vendor.appendValue(sqlBuilder, summaryRecordId);
+            vendor.appendBindValue(sqlBuilder, summaryRecordId, parameters);
             sqlBuilder.append(", ");
-            vendor.appendValue(sqlBuilder, summaryFieldSymbolId);
+            vendor.appendBindValue(sqlBuilder, summaryFieldSymbolId, parameters);
             sqlBuilder.append(", ");
-            vendor.appendValue(sqlBuilder, amount);
+            vendor.appendBindValue(sqlBuilder, amount, parameters);
             sqlBuilder.append(")");
             return sqlBuilder.toString();
         }
@@ -651,11 +714,13 @@ public class CountRecord {
                 }
             }
             try {
-                String sql = getUpdateSummarySql(db, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName, increment);
-                int rowsAffected = SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+                List<Object> parameters = new ArrayList<Object>();
+                String sql = getUpdateSummarySql(db, parameters, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName, increment);
+                int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 if (rowsAffected == 0) {
-                    sql = getInsertSummarySql(db, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName);
-                    SqlDatabase.Static.executeUpdateWithArray(connection, sql);
+                    parameters = new ArrayList<Object>();
+                    sql = getInsertSummarySql(db, parameters, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName);
+                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
                 db.closeConnection(connection);
@@ -764,7 +829,7 @@ class CountRecordQuery {
     }
 
     public void setGroupByDimensions(DimensionSet groupByDimensions) {
-        this.groupByDimensions = dimensions;
+        this.groupByDimensions = groupByDimensions;
     }
 
     public String getSymbol() {
