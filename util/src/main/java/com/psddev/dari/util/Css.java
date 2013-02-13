@@ -2,8 +2,8 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,7 +14,7 @@ public class Css {
     private final int cssLength;
     private int cssIndex;
 
-    private final Map<String, List<CssDeclaration>> rules = new HashMap<String, List<CssDeclaration>>();
+    private final Map<String, List<CssDeclaration>> rules = new LinkedHashMap<String, List<CssDeclaration>>();
 
     public Css(String css) throws IOException {
         this.css = css.toCharArray();
