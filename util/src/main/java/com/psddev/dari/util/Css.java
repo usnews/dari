@@ -23,7 +23,7 @@ public class Css {
         while (true) {
             Set<String> selectors = readSelectors();
 
-            if (selectors.isEmpty()) {
+            if (selectors == null) {
                 break;
             }
 
@@ -57,8 +57,58 @@ public class Css {
         return null;
     }
 
+    private void readComment() throws IOException {
+        for (; cssIndex < cssLength; ++ cssIndex) {
+            if (!Character.isWhitespace(css[cssIndex])) {
+                break;
+            }
+        }
+
+        boolean started = false;
+        boolean inSingle = false;
+        boolean inMulti = false;
+        boolean multiEnding = false;
+
+        for (; cssIndex < cssLength; ++ cssIndex) {
+            char letter = css[cssIndex];
+
+            if (letter == '/') {
+                if (started) {
+                    inSingle = true;
+
+                } else if (multiEnding) {
+                    break;
+
+                } else {
+                    started = true;
+                    multiEnding = false;
+                }
+
+            } else if (started && letter == '*') {
+                if (inMulti) {
+                    multiEnding = true;
+
+                } else {
+                    inMulti = true;
+                }
+
+            } else if (inSingle && (letter == '\r' || letter == '\n')) {
+                break;
+
+            } else if (!(inSingle || inMulti)) {
+                if (started) {
+                    -- cssIndex;
+                }
+
+                break;
+            }
+        }
+    }
+
     private Set<String> readSelectors() throws IOException {
-        Set<String> selectors = new HashSet<String>();
+        readComment();
+
+        Set<String> selectors = null;
         StringBuilder selector = new StringBuilder();
 
         for (; cssIndex < cssLength; ++ cssIndex) {
@@ -66,12 +116,19 @@ public class Css {
             boolean brace = letter == '{';
 
             if (brace || letter == ',') {
+                if (selectors == null) {
+                    selectors = new HashSet<String>();
+                }
+
                 selectors.add(selector.toString().trim());
                 selector.setLength(0);
 
                 if (brace) {
                     ++ cssIndex;
                     break;
+
+                } else {
+                    readComment();
                 }
 
             } else {
@@ -83,6 +140,8 @@ public class Css {
     }
 
     private List<CssDeclaration> readDeclarations() throws IOException {
+        readComment();
+
         List<CssDeclaration> declarations = new ArrayList<CssDeclaration>();
         StringBuilder property = new StringBuilder();
         StringBuilder value = new StringBuilder();
@@ -94,11 +153,15 @@ public class Css {
             if (letter == ':') {
                 current = value;
 
+                readComment();
+
             } else if (letter == ';') {
                 current = property;
                 declarations.add(new CssDeclaration(property.toString().trim(), value.toString().trim()));
                 property.setLength(0);
                 value.setLength(0);
+
+                readComment();
 
             } else if (letter == '}') {
                 ++ cssIndex;
