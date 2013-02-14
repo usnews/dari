@@ -4,6 +4,7 @@ import com.psddev.dari.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -136,7 +137,7 @@ class SqlQuery {
     private void initializeClauses() {
 
         // Determine whether any of the fields are sourced somewhere else.
-        HashMap<ObjectField, String> sourceTables = new HashMap<ObjectField, String>();
+        Set<ObjectField> sourceTables = new HashSet<ObjectField>();
         Set<ObjectType> queryTypes = query.getConcreteTypes(database.getEnvironment());
 
         if (queryTypes != null) {
@@ -144,7 +145,7 @@ class SqlQuery {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                     if (fieldData.isIndexTableSource()) {
-                        sourceTables.put(field, fieldData.getIndexTable());
+                        sourceTables.add(field);
                     }
                 }
             }
@@ -317,12 +318,13 @@ class SqlQuery {
         }
 
         StringBuilder extraColumnsBuilder = new StringBuilder();
-        for (Map.Entry<ObjectField, String> entry: sourceTables.entrySet()) {
+        Set<String> sourceTableColumns = new HashSet<String>();
+        for (ObjectField field: sourceTables) {
+            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
             StringBuilder sourceTableNameBuilder = new StringBuilder();
-            vendor.appendIdentifier(sourceTableNameBuilder, entry.getValue());
+            vendor.appendIdentifier(sourceTableNameBuilder, fieldData.getIndexTable());
             String sourceTableName = sourceTableNameBuilder.toString();
 
-            ObjectField field = entry.getKey();
             String sourceTableAlias;
             StringBuilder keyNameBuilder = new StringBuilder(field.getParentType().getInternalName());
 
@@ -344,7 +346,7 @@ class SqlQuery {
             }
 
             int symbolId = database.getSymbolId(key.getIndexKey(useIndex));
-            String sourceTableAndSymbol = entry.getValue().toLowerCase() + symbolId;
+            String sourceTableAndSymbol = fieldData.getIndexTable().toLowerCase() + symbolId;
 
             SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
             SqlIndex.Table indexTable = useSqlIndex.getReadTable(database, useIndex);
@@ -371,6 +373,7 @@ class SqlQuery {
                 vendor.appendIdentifier(fromBuilder, "symbolId");
                 fromBuilder.append(" = ");
                 fromBuilder.append(symbolId);
+                joinTableAliases.put(sourceTableAndSymbol, sourceTableAlias);
 
             } else {
                 sourceTableAlias = joinTableAliases.get(sourceTableAndSymbol);
@@ -379,6 +382,8 @@ class SqlQuery {
             // Add columns to select.
             int fieldIndex = 0;
             for (String indexFieldName : useIndex.getFields()) {
+                if (sourceTableColumns.contains(indexFieldName)) continue;
+                sourceTableColumns.add(indexFieldName);
                 String indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
 
                 ++ fieldIndex;
