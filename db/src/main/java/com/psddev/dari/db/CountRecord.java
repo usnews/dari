@@ -142,10 +142,10 @@ public class CountRecord {
     private boolean isSummaryPossible() {
         SqlDatabase.FieldData fieldData = countField.as(SqlDatabase.FieldData.class);
         String indexTable = fieldData.getIndexTable();
-        Boolean isReadOnly = fieldData.isIndexTableReadOnly();
+        //Boolean isReadOnly = fieldData.isIndexTableReadOnly();
         Boolean isSource = fieldData.isIndexTableSource();
         if (indexTable != null &&
-                isReadOnly &&
+                /*isReadOnly &&*/
                 isSource) {
             return true;
         } else {
