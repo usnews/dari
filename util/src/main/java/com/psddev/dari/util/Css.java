@@ -2,8 +2,8 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,24 +20,7 @@ public class Css {
         this.css = css.toCharArray();
         this.cssLength = css.length();
 
-        while (true) {
-            Set<String> selectors = readSelectors();
-
-            if (selectors == null) {
-                break;
-            }
-
-            List<CssDeclaration> declarations = readDeclarations();
-
-            for (String selector : selectors) {
-                List<CssDeclaration> selectorDeclarations = rules.get(selector);
-
-                if (selectorDeclarations == null) {
-                    rules.put(selector, new ArrayList<CssDeclaration>(declarations));
-                } else {
-                    selectorDeclarations.addAll(declarations);
-                }
-            }
+        while (readRule(null)) {
         }
     }
 
@@ -99,17 +82,60 @@ public class Css {
                 if (started) {
                     -- cssIndex;
                 }
-
                 break;
             }
         }
     }
 
-    private Set<String> readSelectors() throws IOException {
+    private boolean readRule(Set<String> parents) throws IOException {
+        readComment();
+
+        if (cssIndex < cssLength) {
+            if (css[cssIndex] != '@') {
+                return readSelector(parents);
+            }
+
+            StringBuilder atRule = new StringBuilder();
+            atRule.append('@');
+
+            for (++ cssIndex; cssIndex < cssLength; ++ cssIndex) {
+                char letter = css[cssIndex];
+
+                if (letter == '{') {
+                    String atRuleString = atRule.toString().trim();
+                    Set<String> atRuleParents = new LinkedHashSet<String>();
+
+                    if (parents == null) {
+                        atRuleParents.add(atRuleString);
+
+                    } else {
+                        for (String parent : parents) {
+                            atRuleParents.add(atRuleString + " " + parent);
+                        }
+                    }
+
+                    ++ cssIndex;
+                    readDeclarations(atRuleParents);
+                    return true;
+
+                } else if (letter == ';') {
+                    ++ cssIndex;
+                    return true;
+
+                } else {
+                    atRule.append(letter);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private boolean readSelector(Set<String> parents) throws IOException {
         readComment();
 
         Set<String> selectors = null;
-        StringBuilder selector = new StringBuilder();
+        StringBuilder newSelector = new StringBuilder();
 
         for (; cssIndex < cssLength; ++ cssIndex) {
             char letter = css[cssIndex];
@@ -117,11 +143,21 @@ public class Css {
 
             if (brace || letter == ',') {
                 if (selectors == null) {
-                    selectors = new HashSet<String>();
+                    selectors = new LinkedHashSet<String>();
                 }
 
-                selectors.add(selector.toString().trim());
-                selector.setLength(0);
+                String newSelectorString = newSelector.toString().trim();
+
+                if (parents == null) {
+                    selectors.add(newSelectorString);
+
+                } else {
+                    for (String parent : parents) {
+                        selectors.add(parent + " " + newSelectorString);
+                    }
+                }
+
+                newSelector.setLength(0);
 
                 if (brace) {
                     ++ cssIndex;
@@ -132,14 +168,31 @@ public class Css {
                 }
 
             } else {
-                selector.append(letter);
+                newSelector.append(letter);
             }
         }
 
-        return selectors;
+        if (selectors == null) {
+            return false;
+        }
+
+        List<CssDeclaration> declarations = readDeclarations(selectors);
+
+        for (String selector : selectors) {
+            List<CssDeclaration> selectorDeclarations = rules.get(selector);
+
+            if (selectorDeclarations == null) {
+                rules.put(selector, new ArrayList<CssDeclaration>(declarations));
+
+            } else {
+                selectorDeclarations.addAll(declarations);
+            }
+        }
+
+        return true;
     }
 
-    private List<CssDeclaration> readDeclarations() throws IOException {
+    private List<CssDeclaration> readDeclarations(Set<String> selectors) throws IOException {
         readComment();
 
         List<CssDeclaration> declarations = new ArrayList<CssDeclaration>();
@@ -147,20 +200,25 @@ public class Css {
         StringBuilder value = new StringBuilder();
         StringBuilder current = property;
 
-        for (; cssIndex < cssLength; ++ cssIndex) {
+        for (int lastDeclaration = cssIndex; cssIndex < cssLength; ++ cssIndex) {
             char letter = css[cssIndex];
 
-            if (letter == ':') {
-                current = value;
+            if (letter == '{') {
+                cssIndex = lastDeclaration;
+                property.setLength(0);
+                readRule(selectors);
+                lastDeclaration = cssIndex + 1;
 
+            } else if (letter == ':') {
+                current = value;
                 readComment();
 
             } else if (letter == ';') {
-                current = property;
                 declarations.add(new CssDeclaration(property.toString().trim(), value.toString().trim()));
                 property.setLength(0);
                 value.setLength(0);
-
+                current = property;
+                lastDeclaration = cssIndex + 1;
                 readComment();
 
             } else if (letter == '}') {

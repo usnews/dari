@@ -200,7 +200,7 @@ public class HtmlGrid {
 
             if (children != null) {
                 for (String child : children) {
-                    if (child.endsWith(".css")) {
+                    if (child.endsWith(".css") || child.endsWith(".less")) {
                         String cssAttr = CSS_ATTRIBUTE_PREFIX + child;
                         String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + child;
                         URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
