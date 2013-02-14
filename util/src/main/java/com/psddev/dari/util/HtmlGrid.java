@@ -2,6 +2,7 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -181,6 +182,11 @@ public class HtmlGrid {
     public static final class Static {
 
         private static final Logger LOGGER = LoggerFactory.getLogger(HtmlGrid.class);
+
+        private static final String ATTRIBUTE_PREFIX = HtmlGrid.class.getName() + ".";
+        private static final String CSS_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + ".css.";
+        private static final String CSS_MODIFIED_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + ".cssModified.";
+
         private static final String TEMPLATE_PROPERTY = "grid-template";
         private static final String COLUMNS_PROPERTY = "grid-definition-columns";
         private static final String ROWS_PROPERTY = "grid-definition-rows";
@@ -195,92 +201,111 @@ public class HtmlGrid {
             if (children != null) {
                 for (String child : children) {
                     if (child.endsWith(".css")) {
-                        InputStream cssInput = CodeUtils.getResourceAsStream(context, child);
+                        String cssAttr = CSS_ATTRIBUTE_PREFIX + child;
+                        String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + child;
+                        URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
+                        Css css = (Css) context.getAttribute(cssAttr);
+                        InputStream cssInput = cssConnection.getInputStream();
 
                         try {
-                            Css css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
+                            long cssModified = cssConnection.getLastModified();
 
-                            if ("grid".equals(css.getValue(selector, "display"))) {
-                                LOGGER.info("Using grid matching [{}] in [{}]", selector, child);
+                            if (css != null) {
+                                Long oldModified = (Long) context.getAttribute(modifiedAttr);
 
-                                String templateValue = css.getValue(selector, TEMPLATE_PROPERTY);
-
-                                if (ObjectUtils.isBlank(templateValue)) {
-                                    throw new IllegalStateException(String.format(
-                                            "Path: [%s], Selector: [%s], Missing [%s]!",
-                                            child, selector, TEMPLATE_PROPERTY));
+                                if (oldModified == null || oldModified != cssModified) {
+                                    css = null;
                                 }
+                            }
 
-                                String columnsValue = css.getValue(selector, COLUMNS_PROPERTY);
-
-                                if (ObjectUtils.isBlank(columnsValue)) {
-                                    throw new IllegalStateException(String.format(
-                                            "Path: [%s], Selector: [%s], Missing [%s]!",
-                                            child, selector, COLUMNS_PROPERTY));
-                                }
-
-                                String rowsValue = css.getValue(selector, ROWS_PROPERTY);
-
-                                if (ObjectUtils.isBlank(rowsValue)) {
-                                    throw new IllegalStateException(String.format(
-                                            "Path: [%s], Selector: [%s], Missing [%s]!",
-                                            child, selector, ROWS_PROPERTY));
-                                }
-
-                                char[] letters = templateValue.toCharArray();
-                                StringBuilder word = new StringBuilder();
-                                List<String> list = new ArrayList<String>();
-
-                                for (int i = 0, length = letters.length; i < length; ++ i) {
-                                    char letter = letters[i];
-
-                                    if (letter == '"') {
-                                        for (++ i; i < length; ++ i) {
-                                            letter = letters[i];
-
-                                            if (letter == '"') {
-                                                list.add(word.toString());
-                                                word.setLength(0);
-                                                break;
-
-                                            } else {
-                                                word.append(letter);
-                                            }
-                                        }
-
-                                    } else if (Character.isWhitespace(letter)) {
-                                        if (word.length() > 0) {
-                                            list.add(word.toString());
-                                            word.setLength(0);
-                                        }
-
-                                    } else {
-                                        word.append(letter);
-                                    }
-                                }
-
-                                StringBuilder t = new StringBuilder();
-
-                                for (String v : list) {
-                                    t.append(v);
-                                    t.append("\n");
-                                }
-
-                                try {
-                                    return new HtmlGrid(
-                                            columnsValue,
-                                            rowsValue,
-                                            t.toString());
-
-                                } catch (IllegalArgumentException error) {
-                                    throw new IllegalArgumentException(String.format(
-                                            "Path: [%s], Selector: [%s], %s",
-                                            child, selector, error.getMessage()));
-                                }
+                            if (css == null) {
+                                LOGGER.info("Reading stylesheet [{}] modified [{}]", child, cssModified);
+                                css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
+                                context.setAttribute(modifiedAttr, cssModified);
+                                context.setAttribute(cssAttr, css);
                             }
 
                         } finally {
                             cssInput.close();
+                        }
+
+                        if ("grid".equals(css.getValue(selector, "display"))) {
+                            LOGGER.info("Using grid matching [{}] in [{}]", selector, child);
+
+                            String templateValue = css.getValue(selector, TEMPLATE_PROPERTY);
+
+                            if (ObjectUtils.isBlank(templateValue)) {
+                                throw new IllegalStateException(String.format(
+                                        "Path: [%s], Selector: [%s], Missing [%s]!",
+                                        child, selector, TEMPLATE_PROPERTY));
+                            }
+
+                            String columnsValue = css.getValue(selector, COLUMNS_PROPERTY);
+
+                            if (ObjectUtils.isBlank(columnsValue)) {
+                                throw new IllegalStateException(String.format(
+                                        "Path: [%s], Selector: [%s], Missing [%s]!",
+                                        child, selector, COLUMNS_PROPERTY));
+                            }
+
+                            String rowsValue = css.getValue(selector, ROWS_PROPERTY);
+
+                            if (ObjectUtils.isBlank(rowsValue)) {
+                                throw new IllegalStateException(String.format(
+                                        "Path: [%s], Selector: [%s], Missing [%s]!",
+                                        child, selector, ROWS_PROPERTY));
+                            }
+
+                            char[] letters = templateValue.toCharArray();
+                            StringBuilder word = new StringBuilder();
+                            List<String> list = new ArrayList<String>();
+
+                            for (int i = 0, length = letters.length; i < length; ++ i) {
+                                char letter = letters[i];
+
+                                if (letter == '"') {
+                                    for (++ i; i < length; ++ i) {
+                                        letter = letters[i];
+
+                                        if (letter == '"') {
+                                            list.add(word.toString());
+                                            word.setLength(0);
+                                            break;
+
+                                        } else {
+                                            word.append(letter);
+                                        }
+                                    }
+
+                                } else if (Character.isWhitespace(letter)) {
+                                    if (word.length() > 0) {
+                                        list.add(word.toString());
+                                        word.setLength(0);
+                                    }
+
+                                } else {
+                                    word.append(letter);
+                                }
+                            }
+
+                            StringBuilder t = new StringBuilder();
+
+                            for (String v : list) {
+                                t.append(v);
+                                t.append("\n");
+                            }
+
+                            try {
+                                return new HtmlGrid(
+                                        columnsValue,
+                                        rowsValue,
+                                        t.toString());
+
+                            } catch (IllegalArgumentException error) {
+                                throw new IllegalArgumentException(String.format(
+                                        "Path: [%s], Selector: [%s], %s",
+                                        child, selector, error.getMessage()));
+                            }
                         }
 
                     } else if (child.endsWith("/")) {
