@@ -56,6 +56,14 @@ public interface Countable extends Recordable {
         public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
             try {
                 getCountRecord(modificationClass).incrementCount(c);
+                if (getCountField(modificationClass) != null) {
+                    // also increment the summary field so it can be immediately available, 
+                    // even though CountRecord will (probably) do the actual update of the 
+                    // summary field in the database.
+                    String fieldName = getCountField(modificationClass).getInternalName();
+                    int oldCountSummary = (Integer) getState().get(fieldName);
+                    getState().put(fieldName, oldCountSummary + c);
+                }
             } catch (SQLException e) {
                 throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.incrementCount() : " + e.getLocalizedMessage());
             }
@@ -80,7 +88,7 @@ public interface Countable extends Recordable {
         Map<String, Object> getDimensions(Class<? extends Modification<? extends Countable>> modificationClass) {
             // Checking each field for @Dimension annotation
             Map<String, Object> dimensions = new HashMap<String, Object>();
-            dimensions.put("id", getState().getId()); // 1 Implicit dimension - the record ID
+            dimensions.put("_id", getState().getId()); // 1 Implicit dimension - the record ID
 
             Class<?>[] objectClasses = {modificationClass, getState().getType().getObjectClass()};
             for (Class<?> objectClass : objectClasses) {
@@ -111,14 +119,14 @@ public interface Countable extends Recordable {
                 }
             }
 
-            // this shouldn't happen since we have the implicit "id" dimension
+            // this shouldn't happen since we have the implicit "_id" dimension
             if (dimensions.size() == 0) {
                 throw new RuntimeException("Zero fields are marked as @Countable.Dimension");
             }
             return dimensions;
         }
 
-        CountRecord getCountRecord(Class<? extends Modification<? extends Countable>> modificationClass) {
+        public CountRecord getCountRecord(Class<? extends Modification<? extends Countable>> modificationClass) {
             if (! countRecords.containsKey(modificationClass)) {
                 ObjectField countField = getCountField(modificationClass);
                 CountRecord countRecord = new CountRecord(countField.getInternalName(), this.getDimensions(modificationClass));
