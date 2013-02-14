@@ -83,16 +83,6 @@ public class HtmlWriter extends Writer {
         return StringUtils.escapeHtml(string);
     }
 
-    private void writeAttribute(Object name, Object value) throws IOException {
-        if (!(ObjectUtils.isBlank(name) || value == null)) {
-            writer.write(' ');
-            writer.write(escapeHtml(name.toString()));
-            writer.write("=\"");
-            writer.write(escapeHtml(value.toString()));
-            writer.write('"');
-        }
-    }
-
     /**
      * Writes the given {@code tag} with the given {@code attributes}.
      *
@@ -108,24 +98,56 @@ public class HtmlWriter extends Writer {
         writer.write(tag);
 
         if (attributes != null) {
-            for (int i = 0, length = attributes.length; i < length; ++ i) {
-                Object name = attributes[i];
+            Map<String, Object> map = new LinkedHashMap<String, Object>();
 
-                if (name instanceof Map) {
-                    for (Map.Entry<?, ?> entry : ((Map<?, ?>) name).entrySet()) {
-                        writeAttribute(entry.getKey(), entry.getValue());
-                    }
+            addAttributes(map, attributes);
 
-                } else {
-                    ++ i;
-                    Object value = i < length ? attributes[i] : null;
-                    writeAttribute(name, value);
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                String name = entry.getKey();
+                Object value = entry.getValue();
+
+                if (!ObjectUtils.isBlank(name) && value != null) {
+                    writer.write(' ');
+                    writer.write(escapeHtml(name));
+                    writer.write("=\"");
+                    writer.write(escapeHtml(value.toString()));
+                    writer.write('"');
                 }
             }
         }
 
         writer.write('>');
         return this;
+    }
+
+    private void addAttributes(Map<String, Object> map, Object... attributes) {
+        for (int i = 0, length = attributes.length; i < length; ++ i) {
+            Object name = attributes[i];
+
+            if (name == null) {
+                ++ i;
+
+            } else if (name.getClass().isArray()) {
+                addAttributes(map, ObjectUtils.to(Object[].class, name));
+
+            } else if (name instanceof Map) {
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) name).entrySet()) {
+                    Object key = entry.getKey();
+                    Object value = entry.getValue();
+
+                    if (key != null && value != null) {
+                        map.put(key.toString(), value);
+                    }
+                }
+
+            } else {
+                ++ i;
+
+                if (i < length) {
+                    map.put(name.toString(), attributes[i]);
+                }
+            }
+        }
     }
 
     /**

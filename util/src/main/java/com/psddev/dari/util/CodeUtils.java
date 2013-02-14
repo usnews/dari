@@ -20,6 +20,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.JarURLConnection;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -274,6 +275,15 @@ public class CodeUtils {
         } else {
             return (Set<String>) context.getResourcePaths(path);
         }
+    }
+
+    /**
+     * Returns the original source as a URL associated with the given
+     * {@code path} in the given {@code context}.
+     */
+    public static URL getResource(ServletContext context, String path) throws MalformedURLException {
+        File source = getWebappSource(context, path);
+        return source != null ? source.toURI().toURL() : context.getResource(path);
     }
 
     /**

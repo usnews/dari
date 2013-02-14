@@ -1260,7 +1260,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      * Returns {@code true} if there are more items that match this query than
      * the given {@code count}.
      */
-    public boolean hasMoreThan(int count) {
+    public boolean hasMoreThan(long count) {
         return !getDatabase().readPartial(this.clone().referenceOnly(), count, 1).getItems().isEmpty();
     }
 
