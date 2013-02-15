@@ -15,14 +15,14 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Internal representation of an SQL query based on a Dari one. */
 class SqlQuery {
 
     private static final Pattern QUERY_KEY_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
-    //private static final Logger LOGGER = LoggerFactory.getLogger(SqlQuery.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SqlQuery.class);
 
     private final SqlDatabase database;
     private final Query<?> query;
@@ -778,6 +778,48 @@ class SqlQuery {
         statementBuilder.append("r");
         statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
         statementBuilder.append(whereClause);
+
+        return statementBuilder.toString();
+    }
+
+    /**
+     * Returns an SQL statement that can be used to get a count
+     * of all rows matching the query.
+     */
+    public String namedCountStatement(Class<? extends Modification<? extends Countable>> countableClass) {
+        StringBuilder statementBuilder = new StringBuilder();
+        initializeClauses();
+        ObjectField countableField = Countable.CountAction.getCountField(countableClass);
+        int actionSymbolId = database.getSymbolId(countableField.getUniqueName());
+
+        statementBuilder.append("SELECT SUM( ");
+        statementBuilder.append(aliasPrefix);
+        statementBuilder.append("r");
+        statementBuilder.append(".");
+        vendor.appendIdentifier(statementBuilder, "amount");
+        statementBuilder.append(") ");
+        statementBuilder.append(" FROM ");
+        vendor.appendIdentifier(statementBuilder, "CountRecord");
+        statementBuilder.append(" ");
+        statementBuilder.append(aliasPrefix);
+        statementBuilder.append("r");
+        statementBuilder.append(" ");
+
+        statementBuilder.append(fromClause);
+        statementBuilder.append(whereClause);
+        statementBuilder.append(" AND ");
+        vendor.appendIdentifier(statementBuilder, "r");
+        statementBuilder.append(".");
+        vendor.appendIdentifier(statementBuilder, "actionSymbolId");
+        statementBuilder.append(" = ");
+        vendor.appendValue(statementBuilder, actionSymbolId);
+
+        //vendor.appendIdentifier(statementBuilder, );
+        //statementBuilder.append();
+
+        //LOGGER.info("===== from: " + fromClause);
+        //LOGGER.info("===== where: " + whereClause);
+        LOGGER.info("===== SQL: " + statementBuilder.toString());
 
         return statementBuilder.toString();
     }

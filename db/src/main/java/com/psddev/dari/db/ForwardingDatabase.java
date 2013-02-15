@@ -76,6 +76,11 @@ public abstract class ForwardingDatabase implements Database {
     };
 
     @Override
+    public long readNamedCount(Query<?> query, Class<? extends Modification<? extends Countable>> countable) {
+        return getDelegate().readNamedCount(query, countable);
+    }
+
+    @Override
     public <T> T readFirst(Query<T> query) {
         return getDelegate().readFirst(query);
     }

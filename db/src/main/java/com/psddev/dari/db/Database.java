@@ -52,6 +52,9 @@ public interface Database extends SettingsBackedObject {
     /** Returns a count of all objects matching the given {@code query}. */
     public long readCount(Query<?> query);
 
+    /** Returns a namedCount matching the given {@code query}. */
+    public long readNamedCount(Query<?> query, Class<? extends Modification<? extends Countable>> countableClass);
+
     /** Returns the first object matching the given {@code query}. */
     public <T> T readFirst(Query<T> query);
 

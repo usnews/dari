@@ -1181,6 +1181,14 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return getDatabase().readCount(this);
     }
 
+    /**
+     * Returns the namedCount associated with the query and the countable class
+     */
+    public long namedCount(Class<? extends Modification<? extends Countable>> countableClass) {
+        return getDatabase().readNamedCount(this, countableClass);
+    }
+
+
     /** Deletes all objects matching this query. */
     public void deleteAll() {
         getDatabase().deleteByQuery(this);
