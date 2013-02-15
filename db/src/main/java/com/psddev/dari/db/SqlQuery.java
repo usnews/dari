@@ -765,61 +765,61 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        statementBuilder.append("SELECT COUNT(");
-        if (needsDistinct) {
-            statementBuilder.append("DISTINCT ");
+        if (query.getCountActionSymbol() != null) {
+            int actionSymbolId = database.getSymbolId(query.getCountActionSymbol());
+
+            statementBuilder.append("SELECT SUM( ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            statementBuilder.append(".");
+            vendor.appendIdentifier(statementBuilder, "amount");
+            statementBuilder.append(") ");
+            statementBuilder.append(" FROM ");
+            vendor.appendIdentifier(statementBuilder, "CountRecord");
+            statementBuilder.append(" ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            // We only have to join record here because when records are deleted, CountRecord is not cleaned up.
+            statementBuilder.append(" JOIN ");
+            vendor.appendIdentifier(statementBuilder, "Record");
+            statementBuilder.append(" ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r1");
+            statementBuilder.append(" ON (");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            statementBuilder.append(".");
+            vendor.appendIdentifier(statementBuilder, "id");
+            statementBuilder.append(" = ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r1");
+            statementBuilder.append(".");
+            vendor.appendIdentifier(statementBuilder, "id");
+            statementBuilder.append(") ");
+
+            statementBuilder.append(fromClause);
+            statementBuilder.append(whereClause);
+            statementBuilder.append(" AND ");
+            vendor.appendIdentifier(statementBuilder, "r");
+            statementBuilder.append(".");
+            vendor.appendIdentifier(statementBuilder, "actionSymbolId");
+            statementBuilder.append(" = ");
+            vendor.appendValue(statementBuilder, actionSymbolId);
+
+        } else {
+            statementBuilder.append("SELECT COUNT(");
+            if (needsDistinct) {
+                statementBuilder.append("DISTINCT ");
+            }
+            statementBuilder.append(recordIdField);
+            statementBuilder.append(")\nFROM ");
+            vendor.appendIdentifier(statementBuilder, "Record");
+            statementBuilder.append(" ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
+            statementBuilder.append(whereClause);
         }
-
-        statementBuilder.append(recordIdField);
-        statementBuilder.append(")\nFROM ");
-        vendor.appendIdentifier(statementBuilder, "Record");
-        statementBuilder.append(" ");
-        statementBuilder.append(aliasPrefix);
-        statementBuilder.append("r");
-        statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
-        statementBuilder.append(whereClause);
-
-        return statementBuilder.toString();
-    }
-
-    /**
-     * Returns an SQL statement that can be used to get a count
-     * of all rows matching the query.
-     */
-    public String namedCountStatement(Class<? extends Modification<? extends Countable>> countableClass) {
-        StringBuilder statementBuilder = new StringBuilder();
-        initializeClauses();
-        ObjectField countableField = Countable.CountAction.getCountField(countableClass);
-        int actionSymbolId = database.getSymbolId(countableField.getUniqueName());
-
-        statementBuilder.append("SELECT SUM( ");
-        statementBuilder.append(aliasPrefix);
-        statementBuilder.append("r");
-        statementBuilder.append(".");
-        vendor.appendIdentifier(statementBuilder, "amount");
-        statementBuilder.append(") ");
-        statementBuilder.append(" FROM ");
-        vendor.appendIdentifier(statementBuilder, "CountRecord");
-        statementBuilder.append(" ");
-        statementBuilder.append(aliasPrefix);
-        statementBuilder.append("r");
-        statementBuilder.append(" ");
-
-        statementBuilder.append(fromClause);
-        statementBuilder.append(whereClause);
-        statementBuilder.append(" AND ");
-        vendor.appendIdentifier(statementBuilder, "r");
-        statementBuilder.append(".");
-        vendor.appendIdentifier(statementBuilder, "actionSymbolId");
-        statementBuilder.append(" = ");
-        vendor.appendValue(statementBuilder, actionSymbolId);
-
-        //vendor.appendIdentifier(statementBuilder, );
-        //statementBuilder.append();
-
-        //LOGGER.info("===== from: " + fromClause);
-        //LOGGER.info("===== where: " + whereClause);
-        LOGGER.info("===== SQL: " + statementBuilder.toString());
 
         return statementBuilder.toString();
     }
@@ -873,29 +873,72 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        statementBuilder.append("SELECT COUNT(");
-        if (needsDistinct) {
-            statementBuilder.append("DISTINCT ");
-        }
-        statementBuilder.append(recordIdField);
-        statementBuilder.append(")");
-        for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
-            statementBuilder.append(", ");
-            statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
-        }
+        if (query.getCountActionSymbol() != null) {
+            statementBuilder.append("SELECT SUM(");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            statementBuilder.append(".");
+            vendor.appendIdentifier(statementBuilder, "amount");
+            statementBuilder.append(") ");
+            for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
+                statementBuilder.append(", ");
+                statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+            }
+            statementBuilder.append(" FROM ");
+            vendor.appendIdentifier(statementBuilder, "CountRecord");
+            statementBuilder.append(" ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            // We only have to join record here because when records are deleted, CountRecord is not cleaned up.
+            statementBuilder.append(" JOIN ");
+            vendor.appendIdentifier(statementBuilder, "Record");
+            statementBuilder.append(" ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r1");
+            statementBuilder.append(" ON (");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            statementBuilder.append(".");
+            vendor.appendIdentifier(statementBuilder, "id");
+            statementBuilder.append(" = ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r1");
+            statementBuilder.append(".");
+            vendor.appendIdentifier(statementBuilder, "id");
+            statementBuilder.append(") ");
 
-        for (String field : orderBySelectColumns) {
-            statementBuilder.append(", ");
-            statementBuilder.append(field);
-        }
+            for (String field : orderBySelectColumns) {
+                statementBuilder.append(", ");
+                statementBuilder.append(field);
+            }
 
-        statementBuilder.append("\nFROM ");
-        vendor.appendIdentifier(statementBuilder, "Record");
-        statementBuilder.append(" ");
-        statementBuilder.append(aliasPrefix);
-        statementBuilder.append("r");
-        statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
-        statementBuilder.append(whereClause);
+            statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
+            statementBuilder.append(whereClause);
+        } else {
+            statementBuilder.append("SELECT COUNT(");
+            if (needsDistinct) {
+                statementBuilder.append("DISTINCT ");
+            }
+            statementBuilder.append(recordIdField);
+            statementBuilder.append(")");
+            for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
+                statementBuilder.append(", ");
+                statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+            }
+
+            for (String field : orderBySelectColumns) {
+                statementBuilder.append(", ");
+                statementBuilder.append(field);
+            }
+
+            statementBuilder.append("\nFROM ");
+            vendor.appendIdentifier(statementBuilder, "Record");
+            statementBuilder.append(" ");
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("r");
+            statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
+            statementBuilder.append(whereClause);
+        }
 
         StringBuilder groupBy = new StringBuilder();
         for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {

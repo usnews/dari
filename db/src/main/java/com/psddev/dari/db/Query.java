@@ -124,6 +124,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private transient Database database;
     private boolean isResolveToReferenceOnly;
     private Double timeout;
+    private String countActionSymbol;
     private transient Map<String, Object> options;
     private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
@@ -235,6 +236,14 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public void setFields(List<String> fields) {
         this.fields = fields;
+    }
+
+    public String getCountActionSymbol() {
+        return this.countActionSymbol;
+    }
+
+    public void setCountActionSymbol(String actionSymbol) {
+        this.countActionSymbol = actionSymbol;
     }
 
     /**
@@ -527,6 +536,12 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             this.fields = new ArrayList<String>();
         }
         Collections.addAll(this.fields, fields);
+        return this;
+    }
+
+    public Query<E> counting(String countableFieldName) {
+        MappedKey key = mapKey(getDatabase().getEnvironment(), countableFieldName, true);
+        this.countActionSymbol = key.getField().getUniqueName();
         return this;
     }
 
@@ -1180,14 +1195,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     public long count() {
         return getDatabase().readCount(this);
     }
-
-    /**
-     * Returns the namedCount associated with the query and the countable class
-     */
-    public long namedCount(Class<? extends Modification<? extends Countable>> countableClass) {
-        return getDatabase().readNamedCount(this, countableClass);
-    }
-
 
     /** Deletes all objects matching this query. */
     public void deleteAll() {
