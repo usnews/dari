@@ -522,14 +522,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /**
-     * Builds an SQL statement that can be used to get a named count of all
-     * objects matching the given {@code query} for the countable class.
-     */
-    public String buildNamedCountStatement(Query<?> query, Class<? extends Modification<? extends Countable>> countableClass) {
-        return new SqlQuery(this, query).namedCountStatement(countableClass);
-    }
-
-    /**
      * Builds an SQL statement that can be used to delete all rows
      * matching the given {@code query}.
      */
@@ -1292,35 +1284,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Override
     public long readCount(Query<?> query) {
         String sqlQuery = buildCountStatement(query);
-        Connection connection = null;
-        Statement statement = null;
-        ResultSet result = null;
-
-        try {
-            connection = openQueryConnection(query);
-            statement = connection.createStatement();
-            result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
-
-            if (result.next()) {
-                Object countObj = result.getObject(1);
-                if (countObj instanceof Number) {
-                    return ((Number) countObj).longValue();
-                }
-            }
-
-            return 0;
-
-        } catch (SQLException ex) {
-            throw createQueryException(ex, sqlQuery, query);
-
-        } finally {
-            closeResources(connection, statement, result);
-        }
-    }
-
-    @Override
-    public long readNamedCount(Query<?> query, Class<? extends Modification<? extends Countable>> countableClass) {
-        String sqlQuery = buildNamedCountStatement(query, countableClass);
         Connection connection = null;
         Statement statement = null;
         ResultSet result = null;

@@ -292,12 +292,6 @@ public abstract class AbstractDatabase<C> implements Database {
     }
 
     @Override
-    public long readNamedCount(Query<?> query, Class<? extends Modification<? extends Countable>> countableClass) {
-        /* SQL only . . .*/
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public <T> T readFirst(Query<T> query) {
         for (T item : readPartial(query, 0L, 1).getItems()) {
             return item;

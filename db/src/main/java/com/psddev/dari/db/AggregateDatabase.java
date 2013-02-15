@@ -229,11 +229,6 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     }
 
     @Override
-    public long readNamedCount(Query<?> query, Class<? extends Modification<? extends Countable>> countableClass) {
-        return (Long) READ_NAMED_COUNT.execute(this, query, countableClass);
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
     public <T> T readFirst(Query<T> query) {
         return (T) READ_FIRST.execute(this, query);
@@ -446,14 +441,6 @@ public class AggregateDatabase implements Database, Iterable<Database> {
         @Override
         protected Object read(Database delegate, Query<?> query, Object... arguments) {
             return delegate.readCount(query);
-        }
-    };
-
-    private static final ReadOperation READ_NAMED_COUNT = new ReadOperation() {
-        @Override
-        @SuppressWarnings("unchecked")
-        protected Object read(Database delegate, Query<?> query, Object... arguments) {
-            return delegate.readNamedCount(query, (Class<? extends Modification<? extends Countable>>) arguments[0]);
         }
     };
 

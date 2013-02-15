@@ -39,7 +39,6 @@ public class CachingDatabase extends ForwardingDatabase {
     private final ConcurrentMap<UUID, Object> referenceCache = new ConcurrentHashMap<UUID, Object>();
     private final ConcurrentMap<Query<?>, List<?>> readAllCache = new ConcurrentHashMap<Query<?>, List<?>>();
     private final ConcurrentMap<Query<?>, Long> readCountCache = new ConcurrentHashMap<Query<?>, Long>();
-    private final ConcurrentMap<Query<?>, Long> readNamedCountCache = new ConcurrentHashMap<Query<?>, Long>();
     private final ConcurrentMap<Query<?>, Object> readFirstCache = new ConcurrentHashMap<Query<?>, Object>();
     private final ConcurrentMap<Query<?>, Map<Range, PaginatedResult<?>>> readPartialCache = new ConcurrentHashMap<Query<?>, Map<Range, PaginatedResult<?>>>();
 
@@ -220,43 +219,6 @@ public class CachingDatabase extends ForwardingDatabase {
             }
 
             readCountCache.put(query, count);
-        }
-
-        return count;
-    }
-
-    @Override
-    public long readNamedCount(Query<?> query, Class<? extends Modification<? extends Countable>> countableClass) {
-        if (query.as(QueryOptions.class).isDisabled()) {
-            return super.readNamedCount(query, countableClass);
-        }
-
-        Long count = readNamedCountCache.get(query);
-
-        if (count == null) {
-            COUNT: {
-                if (readAllCache != null) {
-                    List<?> list = readAllCache.get(query);
-
-                    if (list != null) {
-                        count = (long) list.size();
-                        break COUNT;
-                    }
-                }
-
-                if (readPartialCache != null) {
-                    Map<Range, PaginatedResult<?>> subCache = readPartialCache.get(query);
-
-                    if (subCache != null && !subCache.isEmpty()) {
-                        count = subCache.values().iterator().next().getCount();
-                        break COUNT;
-                    }
-                }
-
-                count = super.readNamedCount(query, countableClass);
-            }
-
-            readNamedCountCache.put(query, count);
         }
 
         return count;
