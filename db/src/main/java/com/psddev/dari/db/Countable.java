@@ -2,10 +2,9 @@ package com.psddev.dari.db;
 
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Map;
-
-import com.psddev.dari.util.TypeDefinition;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -22,6 +21,7 @@ public interface Countable extends Recordable {
     /** Specifies whether the target field value is indexed in the CountRecord dimension tables. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(DimensionProcessor.class)
     @Target(ElementType.FIELD)
     public @interface Dimension {
         Class<?>[] value() default {};
@@ -85,45 +85,30 @@ public interface Countable extends Recordable {
             }
         }
 
-        Map<String, Object> getDimensions(Class<? extends Modification<? extends Countable>> modificationClass) {
+        Map<ObjectField, Object> getDimensions(Class<? extends Modification<? extends Countable>> modificationClass) {
             // Checking each field for @Dimension annotation
-            Map<String, Object> dimensions = new HashMap<String, Object>();
+            Map<ObjectField, Object> dimensions = new HashMap<ObjectField, Object>();
             //dimensions.put("_id", getState().getId()); // 1 Implicit dimension - the record ID
 
             Class<?>[] objectClasses = {modificationClass, getState().getType().getObjectClass()};
             for (Class<?> objectClass : objectClasses) {
-                TypeDefinition<?> definition = TypeDefinition.getInstance(objectClass);
-                Map<String, List<Field>> fields = definition.getAllSerializableFields();
                 ObjectType objectType = ObjectType.getInstance(objectClass);
                 for (ObjectField objectField : objectType.getFields()) {
-                    List<Field> javaFields = fields.get(objectField.getJavaFieldName());
-                    if (javaFields == null || javaFields.size() == 0) continue;
-                    Field javaField = javaFields.get(javaFields.size()-1);
-                    boolean isDimension = javaField.isAnnotationPresent(Dimension.class);
-                    if (isDimension) {
-                        Dimension dimensionAnnotation = javaField.getAnnotation(Dimension.class);
+                    CountableFieldData countableFieldData = objectField.as(CountableFieldData.class);
+                    if (countableFieldData.isDimension()) {
                         Object dimensionValue = getState().get(objectField.getInternalName());
-                        if (dimensionValue != null) {
-                            if (dimensionAnnotation.value().length == 0) {
-                                dimensions.put(objectField.getInternalName(), dimensionValue);
-                            } else {
-                                for (Class<?> annotationValue : dimensionAnnotation.value()) {
-                                    if (annotationValue == modificationClass) {
-                                        dimensions.put(objectField.getInternalName(), dimensionValue);
-                                        break;
-                                    }
-                                }
+                        if (dimensionValue == null) continue;
+                        if (countableFieldData.getDimensionClasses() != null && countableFieldData.getDimensionClasses().size() > 0) {
+                            if (countableFieldData.getDimensionClasses().contains(modificationClass.getName())) {
+                                dimensions.put(objectField, dimensionValue);
                             }
+                        } else {
+                            dimensions.put(objectField, dimensionValue);
                         }
                     }
                 }
             }
 
-            // // this shouldn't happen since we have the implicit "_id" dimension
-            // shouldn't be necessary . . .
-            // if (dimensions.size() == 0) {
-            //     throw new RuntimeException("Zero fields are marked as @Countable.Dimension");
-            // }
             return dimensions;
         }
 
@@ -135,6 +120,51 @@ public interface Countable extends Recordable {
                 countRecords.put(modificationClass, countRecord);
             }
             return countRecords.get(modificationClass);
+        }
+
+    }
+
+    static class DimensionProcessor implements ObjectField.AnnotationProcessor<Dimension> {
+
+        @Override
+        public void process(ObjectType type, ObjectField field, Dimension annotation) {
+            //field.getParent().setIndexes();
+            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+            fieldData.setIndexTable(CountRecord.Static.getIndexTable(field));
+            fieldData.setIndexTableSameColumnNames(false);
+            fieldData.setIndexTableSource(true);
+            fieldData.setIndexTableReadOnly(true);
+
+            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
+            Set<String> dimensionClasses = new HashSet<String>();
+            for (Class<?> cls : annotation.value()) {
+                dimensionClasses.add(cls.getName());
+            }
+            countableFieldData.setDimensionClasses(dimensionClasses);
+            countableFieldData.setDimension(true);
+        }
+    }
+
+    @FieldInternalNamePrefix("countable.")
+    public static class CountableFieldData extends Modification<ObjectField> {
+
+        private boolean dimension;
+        private Set<String> dimensionClasses;
+
+        public boolean isDimension() {
+            return dimension;
+        }
+
+        public void setDimension(boolean dimension) {
+            this.dimension = dimension;
+        }
+
+        public Set<String> getDimensionClasses() {
+            return dimensionClasses;
+        }
+
+        public void setDimensionClasses(Set<String> dimensionClasses) {
+            this.dimensionClasses = dimensionClasses;
         }
 
     }

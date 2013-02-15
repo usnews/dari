@@ -15,14 +15,14 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 /** Internal representation of an SQL query based on a Dari one. */
 class SqlQuery {
 
     private static final Pattern QUERY_KEY_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
-    private static final Logger LOGGER = LoggerFactory.getLogger(SqlQuery.class);
+    //private static final Logger LOGGER = LoggerFactory.getLogger(SqlQuery.class);
 
     private final SqlDatabase database;
     private final Query<?> query;
@@ -144,7 +144,10 @@ class SqlQuery {
             for (ObjectType type : queryTypes) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    if (fieldData.isIndexTableSource()) {
+                    if (fieldData.isIndexTableSource() && ! field.as(Countable.CountableFieldData.class).isDimension()) {
+                        // TODO/performance: if this is a count(), don't join to this table. 
+                        // if this is a groupBy() and they don't want to group by 
+                        // a field in this table, don't join to this table.
                         sourceTables.add(field);
                     }
                 }
@@ -315,6 +318,19 @@ class SqlQuery {
 
             fromBuilder.setLength(fromBuilder.length() - 2);
             fromBuilder.append(")");
+
+            ObjectField joinField = join.index.getParent().getField(join.index.getField());
+            if (query.getCountActionSymbol() != null && joinField.as(Countable.CountableFieldData.class).isDimension()) {
+                fromBuilder.append(" AND ");
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "countId");
+                fromBuilder.append(" = ");
+                fromBuilder.append(aliasPrefix);
+                vendor.appendIdentifier(fromBuilder, join.getAlias());
+                fromBuilder.append(".");
+                vendor.appendIdentifier(fromBuilder, "countId");
+            }
         }
 
         StringBuilder extraColumnsBuilder = new StringBuilder();
@@ -806,6 +822,24 @@ class SqlQuery {
             statementBuilder.append(" = ");
             vendor.appendValue(statementBuilder, actionSymbolId);
 
+            if (query.getCountActionStartDate() != null) {
+                statementBuilder.append(" AND ");
+                vendor.appendIdentifier(statementBuilder, "r");
+                statementBuilder.append(".");
+                vendor.appendIdentifier(statementBuilder, "eventDate");
+                statementBuilder.append(" >= ");
+                vendor.appendValue(statementBuilder, query.getCountActionStartDate());
+            }
+
+            if (query.getCountActionEndDate() != null) {
+                statementBuilder.append(" AND ");
+                vendor.appendIdentifier(statementBuilder, "r");
+                statementBuilder.append(".");
+                vendor.appendIdentifier(statementBuilder, "eventDate");
+                statementBuilder.append(" < ");
+                vendor.appendValue(statementBuilder, query.getCountActionEndDate());
+            }
+
         } else {
             statementBuilder.append("SELECT COUNT(");
             if (needsDistinct) {
@@ -914,6 +948,25 @@ class SqlQuery {
 
             statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
             statementBuilder.append(whereClause);
+
+            if (query.getCountActionStartDate() != null) {
+                statementBuilder.append(" AND ");
+                vendor.appendIdentifier(statementBuilder, "r");
+                statementBuilder.append(".");
+                vendor.appendIdentifier(statementBuilder, "eventDate");
+                statementBuilder.append(" >= ");
+                vendor.appendValue(statementBuilder, query.getCountActionStartDate());
+            }
+
+            if (query.getCountActionEndDate() != null) {
+                statementBuilder.append(" AND ");
+                vendor.appendIdentifier(statementBuilder, "r");
+                statementBuilder.append(".");
+                vendor.appendIdentifier(statementBuilder, "eventDate");
+                statementBuilder.append(" < ");
+                vendor.appendValue(statementBuilder, query.getCountActionEndDate());
+            }
+
         } else {
             statementBuilder.append("SELECT COUNT(");
             if (needsDistinct) {

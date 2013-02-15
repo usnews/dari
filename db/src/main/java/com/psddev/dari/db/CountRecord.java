@@ -2,13 +2,11 @@ package com.psddev.dari.db;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -18,19 +16,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.UuidUtils;
 
 public class CountRecord {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
+    //private static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
 
     static final String COUNTRECORD_TABLE = "CountRecord";
     static final String COUNTRECORD_STRINGINDEX_TABLE = "CountRecordString";
-    static final String COUNTRECORD_DOUBLEINDEX_TABLE = "CountRecordDouble";
-    static final String COUNTRECORD_INTEGERINDEX_TABLE = "CountRecordInteger";
+    static final String COUNTRECORD_NUMBERINDEX_TABLE = "CountRecordNumber";
     static final String COUNTRECORD_UUIDINDEX_TABLE = "CountRecordUuid";
     static final String COUNTRECORD_COUNTID_FIELD = "countId";
     static final int QUERY_TIMEOUT = 3;
@@ -49,7 +46,7 @@ public class CountRecord {
     private Boolean dimensionsSaved;
     private ObjectField countField;
 
-    public CountRecord(SqlDatabase database, Record record, String actionSymbol, Map<String, Object> dimensions) {
+    public CountRecord(SqlDatabase database, Record record, String actionSymbol, Map<ObjectField, Object> dimensions) {
         this.dimensions = DimensionSet.createDimensionSet(dimensions);
         this.typeSymbol = this.getTypeSymbol(); // requires this.dimensions
         this.db = database; 
@@ -58,15 +55,15 @@ public class CountRecord {
         //this.summaryRecordId = record.getId();
     }
 
-    public CountRecord(Record record, String actionSymbol, Map<String, Object> dimensions) {
+    public CountRecord(Record record, String actionSymbol, Map<ObjectField, Object> dimensions) {
         this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol, dimensions);
     }
 
-    public CountRecord(SqlDatabase database, String actionSymbol, Map<String, Object> dimensions) {
+    public CountRecord(SqlDatabase database, String actionSymbol, Map<ObjectField, Object> dimensions) {
         this(database, null, actionSymbol, dimensions);
     }
 
-    public CountRecord(String actionSymbol, Map<String, Object> dimensions) {
+    public CountRecord(String actionSymbol, Map<ObjectField, Object> dimensions) {
         this(Database.Static.getFirst(SqlDatabase.class), null, actionSymbol, dimensions);
     }
 
@@ -118,12 +115,6 @@ public class CountRecord {
 
     public Integer getCount() throws SQLException {
         return Static.getCountByDimensions(getDatabase(), getQuery());
-    }
-
-    public Map<String, Integer> getCountBy(Map<String, Object> groupByDimensions, String[] orderByDimensions) throws SQLException {
-        getQuery().setGroupByDimensions(DimensionSet.createDimensionSet(groupByDimensions));
-        getQuery().setOrderByDimensions(orderByDimensions);
-        return Static.getCountByDimensionsWithGroupBy(getDatabase(), getQuery());
     }
 
     public void incrementCount(Integer amount) throws SQLException {
@@ -188,7 +179,7 @@ public class CountRecord {
     }
 
     /** {@link CountRecord} utility methods. */
-    private static final class Static {
+    public static final class Static {
 
         private Static() {
         }
@@ -507,7 +498,7 @@ public class CountRecord {
                 String table = dimension.getIndexTable();
                 for (Object value : values) {
                     parameters = new ArrayList<Object>();
-                    sqls.add(getDimensionInsertRowSql(db, parameters, id, typeSymbol,
+                    sqls.add(getDimensionInsertRowSql(db, parameters, id, recordId, typeSymbol,
                             dimension, value, table));
                     parametersList.add(parameters);
                 }
@@ -548,7 +539,7 @@ public class CountRecord {
         }
 
         static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID id,
-                String typeSymbol, Dimension dimension, Object value,
+                UUID recordId, String typeSymbol, Dimension dimension, Object value,
                 String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
@@ -556,6 +547,7 @@ public class CountRecord {
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
             cols.put(COUNTRECORD_COUNTID_FIELD, id);
+            cols.put("id", recordId);
             cols.put("typeSymbolId", db.getSymbolId(typeSymbol));
             cols.put("symbolId", db.getSymbolId(dimension.getSymbol()));
             cols.put("value", value);
@@ -779,36 +771,6 @@ public class CountRecord {
             }
         }
 
-        static Map<String, Integer> getCountByDimensionsWithGroupBy(
-                SqlDatabase db, CountRecordQuery query) throws SQLException {
-            String sql = getSelectCountGroupBySql(db, query);
-            //LOGGER.info("===== [5] " + sql);
-            Connection connection = db.openReadConnection();
-            LinkedHashMap<String, Integer> results = new LinkedHashMap<String, Integer>();
-            try {
-                Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                ResultSetMetaData meta = result.getMetaData();
-                int numColumns = meta.getColumnCount();
-                while (result.next()) {
-                    HashMap<String, Object> dims = new HashMap<String, Object>();
-                    Integer count = result.getInt(1);
-                    for (int i = 2; i <= numColumns; i++) {
-                        String key = meta.getColumnLabel(i);
-                        Object value = result.getObject(i);
-                        dims.put(key, value);
-                    }
-                    // TODO: obviously this is ridiculous
-                    results.put(DimensionSet.createDimensionSet(dims).toString(), count);
-                }
-                result.close();
-                statement.close();
-                return results;
-            } finally {
-                db.closeConnection(connection);
-            }
-        }
-
         static UUID getIdByDimensions(SqlDatabase db, CountRecordQuery query)
                 throws SQLException {
             UUID id = null;
@@ -829,6 +791,18 @@ public class CountRecord {
                 db.closeConnection(connection);
             }
             return id;
+        }
+
+        public static String getIndexTable(ObjectField field) {
+            String fieldType = field.getInternalItemType();
+            if (fieldType == ObjectField.UUID_TYPE) {
+                return CountRecord.COUNTRECORD_UUIDINDEX_TABLE;
+            } else if (fieldType == ObjectField.NUMBER_TYPE || fieldType == ObjectField.DATE_TYPE) {
+                return CountRecord.COUNTRECORD_NUMBERINDEX_TABLE;
+                // TODO: implement Location and test Date
+            } else {
+                return CountRecord.COUNTRECORD_STRINGINDEX_TABLE;
+            }
         }
 
     }
@@ -908,20 +882,23 @@ class CountRecordQuery {
 
 class Dimension implements Comparable<Dimension> {
 
-    private final String key;
+    private final ObjectField objectField;
     private Set<Object> values = new HashSet<Object>();
-    private Class<?> type;
 
-    public Dimension(String key) {
-        this.key = key;
+    public Dimension(ObjectField objectField) {
+        this.objectField = objectField;
     }
 
     public String getSymbol() {
-        return key.toLowerCase();
+        return getKey();
     }
 
     public String getKey() {
-        return key;
+        return objectField.getUniqueName();
+    }
+
+    public ObjectField getObjectField() {
+        return objectField;
     }
 
     public Set<Object> getValues() {
@@ -929,44 +906,23 @@ class Dimension implements Comparable<Dimension> {
     }
 
     public void addValue(UUID value) {
-        this.type = UUID.class;
         this.values.add(value);
     }
 
     public void addValue(String value) {
-        this.type = String.class;
         this.values.add(value);
     }
 
-    public void addValue(Integer value) {
-        this.type = Integer.class;
-        this.values.add(value);
-    }
-
-    public void addValue(Double value) {
-        this.type = Double.class;
+    public void addValue(Number value) {
         this.values.add(value);
     }
 
     public void addValue(Object value) {
-        this.type = String.class;
         this.values.add(value.toString());
     }
 
-    public Class<?> getType() {
-        return type;
-    }
-
     public String getIndexTable () {
-        if (getType() == UUID.class) {
-            return CountRecord.COUNTRECORD_UUIDINDEX_TABLE;
-        } else if (getType() == Double.class) {
-            return CountRecord.COUNTRECORD_DOUBLEINDEX_TABLE;
-        } else if (getType() == Integer.class ) {
-            return CountRecord.COUNTRECORD_INTEGERINDEX_TABLE;
-        } else {
-            return CountRecord.COUNTRECORD_STRINGINDEX_TABLE;
-        }
+        return CountRecord.Static.getIndexTable(this.getObjectField());
     }
 
     public String toString() {
@@ -1005,10 +961,10 @@ class DimensionSet extends LinkedHashSet<Dimension> {
         return keys;
     }
 
-    public static DimensionSet createDimensionSet(Map<String, Object> dimensions) {
+    public static DimensionSet createDimensionSet(Map<ObjectField, Object> dimensions) {
         LinkedHashSet<Dimension> dimensionSet = new LinkedHashSet<Dimension>();
-        for (Map.Entry<String, Object> entry : dimensions.entrySet()) {
-            String key = entry.getKey();
+        for (Map.Entry<ObjectField, Object> entry : dimensions.entrySet()) {
+            ObjectField field = entry.getKey();
             Object value = entry.getValue();
             LinkedHashSet<Object> values = new LinkedHashSet<Object>();
             if (value instanceof Set) {
@@ -1016,14 +972,12 @@ class DimensionSet extends LinkedHashSet<Dimension> {
             } else {
                 values.add(value);
             }
-            Dimension dim = new Dimension(key);
+            Dimension dim = new Dimension(field);
             for (Object val : values) {
                 if (val instanceof UUID) {
                     dim.addValue((UUID) val);
-                } else if (value instanceof Double) {
-                    dim.addValue((Double) val);
-                } else if (value instanceof Integer) {
-                    dim.addValue((Integer) val);
+                } else if (value instanceof Number) {
+                    dim.addValue((Number) val);
                 } else {
                     dim.addValue(val.toString());
                 }
@@ -1039,8 +993,25 @@ class DimensionSet extends LinkedHashSet<Dimension> {
         //StringBuilder symbolBuilder = new StringBuilder(this.objectClass.getName());
         //symbolBuilder.append("/");
 
+        boolean usedThisPrefix = false;
+        String thisPrefix = "";
         for (Dimension d : getSortedDimensions()) {
-            symbolBuilder.append(d.getSymbol());
+            String dimSymbol = d.getSymbol();
+            String prefix = dimSymbol.split("/")[0];
+            if (! prefix.equals(thisPrefix)) {
+                usedThisPrefix = false;
+                thisPrefix = prefix;
+            }
+            if (!usedThisPrefix) {
+                symbolBuilder.append(thisPrefix);
+                symbolBuilder.append("/");
+                usedThisPrefix = true;
+            }
+            if (dimSymbol.indexOf('/') > -1) {
+                dimSymbol = dimSymbol.split("/")[1];
+            }
+
+            symbolBuilder.append(dimSymbol);
             if (d.getValues().size() > 1) {
                 symbolBuilder.append("[");
                 symbolBuilder.append(d.getValues().size());
