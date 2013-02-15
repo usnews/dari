@@ -40,7 +40,7 @@ public interface Countable extends Recordable {
 
         private transient Map<Class<?>, CountRecord> countRecords = new HashMap<Class<?>, CountRecord>();
 
-        ObjectField getCountField(Class<? extends Modification<? extends Countable>> modificationClass) {
+        public static ObjectField getCountField(Class<? extends Modification<? extends Countable>> modificationClass) {
             //TypeDefinition<?> definition = TypeDefinition.getInstance(modificationClass);
             ObjectType modificationType = ObjectType.getInstance(modificationClass);
             for (ObjectField objectField : modificationType.getFields()) {
@@ -88,7 +88,7 @@ public interface Countable extends Recordable {
         Map<String, Object> getDimensions(Class<? extends Modification<? extends Countable>> modificationClass) {
             // Checking each field for @Dimension annotation
             Map<String, Object> dimensions = new HashMap<String, Object>();
-            dimensions.put("_id", getState().getId()); // 1 Implicit dimension - the record ID
+            //dimensions.put("_id", getState().getId()); // 1 Implicit dimension - the record ID
 
             Class<?>[] objectClasses = {modificationClass, getState().getType().getObjectClass()};
             for (Class<?> objectClass : objectClasses) {
@@ -119,18 +119,19 @@ public interface Countable extends Recordable {
                 }
             }
 
-            // this shouldn't happen since we have the implicit "_id" dimension
-            if (dimensions.size() == 0) {
-                throw new RuntimeException("Zero fields are marked as @Countable.Dimension");
-            }
+            // // this shouldn't happen since we have the implicit "_id" dimension
+            // shouldn't be necessary . . .
+            // if (dimensions.size() == 0) {
+            //     throw new RuntimeException("Zero fields are marked as @Countable.Dimension");
+            // }
             return dimensions;
         }
 
         public CountRecord getCountRecord(Class<? extends Modification<? extends Countable>> modificationClass) {
             if (! countRecords.containsKey(modificationClass)) {
                 ObjectField countField = getCountField(modificationClass);
-                CountRecord countRecord = new CountRecord(countField.getInternalName(), this.getDimensions(modificationClass));
-                countRecord.setSummaryField(countField, getState().getId());
+                CountRecord countRecord = new CountRecord(this, countField.getUniqueName(), this.getDimensions(modificationClass));
+                countRecord.setSummaryField(countField);
                 countRecords.put(modificationClass, countRecord);
             }
             return countRecords.get(modificationClass);

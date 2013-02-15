@@ -18,49 +18,60 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.UuidUtils;
 
 public class CountRecord {
 
-    //private static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
 
     static final String COUNTRECORD_TABLE = "CountRecord";
     static final String COUNTRECORD_STRINGINDEX_TABLE = "CountRecordString";
     static final String COUNTRECORD_DOUBLEINDEX_TABLE = "CountRecordDouble";
     static final String COUNTRECORD_INTEGERINDEX_TABLE = "CountRecordInteger";
     static final String COUNTRECORD_UUIDINDEX_TABLE = "CountRecordUuid";
+    static final String COUNTRECORD_COUNTID_FIELD = "countId";
     static final int QUERY_TIMEOUT = 3;
 
     private final DimensionSet dimensions;
     private final String typeSymbol;
-    private SqlDatabase db; /* TODO: get rid of this and move all this implementation specific stuff where it goes */
+    private SqlDatabase db; 
     private final CountRecordQuery query;
 
     private UUID id;
-    private UUID summaryRecordId;
+    //private UUID summaryRecordId;
+    private Record record;
 
     private Long updateDate;
     private Long eventDate;
     private Boolean dimensionsSaved;
     private ObjectField countField;
 
-    public CountRecord(SqlDatabase database, String actionSymbol, Map<String, Object> dimensions) {
+    public CountRecord(SqlDatabase database, Record record, String actionSymbol, Map<String, Object> dimensions) {
         this.dimensions = DimensionSet.createDimensionSet(dimensions);
         this.typeSymbol = this.getTypeSymbol(); // requires this.dimensions
         this.db = database; 
-        this.query = new CountRecordQuery(typeSymbol, actionSymbol, this.dimensions);
+        this.query = new CountRecordQuery(typeSymbol, actionSymbol, record, this.dimensions);
+        this.record = record;
+        //this.summaryRecordId = record.getId();
+    }
+
+    public CountRecord(Record record, String actionSymbol, Map<String, Object> dimensions) {
+        this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol, dimensions);
+    }
+
+    public CountRecord(SqlDatabase database, String actionSymbol, Map<String, Object> dimensions) {
+        this(database, null, actionSymbol, dimensions);
     }
 
     public CountRecord(String actionSymbol, Map<String, Object> dimensions) {
-        this(Database.Static.getFirst(SqlDatabase.class), actionSymbol, dimensions);
+        this(Database.Static.getFirst(SqlDatabase.class), null, actionSymbol, dimensions);
     }
 
-    public void setSummaryField(ObjectField countField, UUID summaryRecordId) {
+    public void setSummaryField(ObjectField countField) {
         this.countField = countField;
-        this.summaryRecordId = summaryRecordId;
     }
 
     public SqlDatabase getDatabase() {
@@ -119,23 +130,23 @@ public class CountRecord {
         // find the ID, it might be null
         UUID id = getId();
         if (dimensionsSaved) {
-            Static.doIncrementUpdateOrInsert(getDatabase(), id, getQuery().getActionSymbol(),
+            Static.doIncrementUpdateOrInsert(getDatabase(), id, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
                     getTypeSymbol(), amount, getUpdateDate(),
                     getEventDateHour());
         } else {
-            Static.doInserts(getDatabase(), id, getQuery().getActionSymbol(), getTypeSymbol(),
+            Static.doInserts(getDatabase(), id, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getTypeSymbol(),
                     dimensions, amount, getUpdateDate(), getEventDateHour());
             dimensionsSaved = true;
         }
         if (isSummaryPossible()) {
-            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.summaryRecordId);
+            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.record.getId());
         }
     }
 
     /** This only needs to be executed if the summary has fallen out of sync due to data model change or some other operation */
     public void syncCountSummary() throws SQLException {
         if (isSummaryPossible()) {
-            Static.doSetCountSummaryUpdateOrInsert(getDatabase(), getCount(), this.countField, this.summaryRecordId);
+            Static.doSetCountSummaryUpdateOrInsert(getDatabase(), getCount(), this.countField, this.record.getId());
         }
     }
 
@@ -197,9 +208,9 @@ public class CountRecord {
 
             vendor.appendIdentifier(selectBuilder, alias);
             selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, "id");
+            vendor.appendIdentifier(selectBuilder, COUNTRECORD_COUNTID_FIELD);
 
-            if (selectAmount)
+            if (selectAmount || preciseMatch || query.getDimensions().size() == 0)
                 joinCountRecordTable = true;
 
             if (joinCountRecordTable) {
@@ -230,7 +241,15 @@ public class CountRecord {
                     whereBuilder.append(".");
                     vendor.appendIdentifier(whereBuilder, "typeSymbolId");
                     whereBuilder.append(" = ");
-                    whereBuilder.append(db.getSymbolId(query.getSymbol()));
+                    vendor.appendValue(whereBuilder, db.getSymbolId(query.getSymbol()));
+                }
+                if (query.getRecord() != null) {
+                    whereBuilder.append(" AND ");
+                    vendor.appendIdentifier(whereBuilder, alias);
+                    whereBuilder.append(".");
+                    vendor.appendIdentifier(whereBuilder, "id");
+                    whereBuilder.append(" = ");
+                    vendor.appendValue(whereBuilder, query.getRecord().getId());
                 }
                 if (query.getStartTimestamp() != null && query.getEndTimestamp() != null) {
                     whereBuilder.append(" AND ");
@@ -283,11 +302,11 @@ public class CountRecord {
                     fromBuilder.append(" AND ");
                     vendor.appendIdentifier(fromBuilder, "cr0");
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, "id");
+                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
                     fromBuilder.append(" = ");
                     vendor.appendIdentifier(fromBuilder, alias);
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, "id");
+                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
                     fromBuilder.append(")");
                 }
 
@@ -356,11 +375,11 @@ public class CountRecord {
             groupByBuilder.append("\nGROUP BY ");
             vendor.appendIdentifier(groupByBuilder, "cr0");
             groupByBuilder.append(".");
-            vendor.appendIdentifier(groupByBuilder, "id");
+            vendor.appendIdentifier(groupByBuilder, COUNTRECORD_COUNTID_FIELD);
             orderByBuilder.append("\nORDER BY ");
             vendor.appendIdentifier(orderByBuilder, "cr0");
             orderByBuilder.append(".");
-            vendor.appendIdentifier(orderByBuilder, "id");
+            vendor.appendIdentifier(orderByBuilder, COUNTRECORD_COUNTID_FIELD);
             if (joinCountRecordTable) {
                 orderByBuilder.append(", ");
                 vendor.appendIdentifier(orderByBuilder, "cr0");
@@ -473,13 +492,13 @@ public class CountRecord {
         }
 
         static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID id,
-                String actionSymbol, String typeSymbol,
+                UUID recordId, UUID typeId, String actionSymbol, String typeSymbol,
                 DimensionSet dimensions, int amount, long createDate,
                 long eventDateHour) {
             ArrayList<String> sqls = new ArrayList<String>();
             // insert countrecord
             List<Object> parameters = new ArrayList<Object>();
-            sqls.add(getCountRecordInsertSql(db, parameters, id, actionSymbol, typeSymbol,
+            sqls.add(getCountRecordInsertSql(db, parameters, id, recordId, typeId, actionSymbol, typeSymbol,
                     amount, createDate, eventDateHour));
             parametersList.add(parameters);
             // insert indexes
@@ -497,14 +516,16 @@ public class CountRecord {
         }
 
         static String getCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID id,
-                String actionSymbol, String typeSymbol, int amount,
+                UUID recordId, UUID typeId, String actionSymbol, String typeSymbol, int amount,
                 long createDate, long eventDateHour) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, COUNTRECORD_TABLE);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
-            cols.put("id", id);
+            cols.put(COUNTRECORD_COUNTID_FIELD, id);
+            cols.put("id", recordId);
+            cols.put("typeId", typeId);
             cols.put("actionSymbolId", db.getSymbolId(actionSymbol));
             cols.put("typeSymbolId", db.getSymbolId(typeSymbol));
             cols.put("amount", amount);
@@ -534,7 +555,7 @@ public class CountRecord {
             vendor.appendIdentifier(insertBuilder, table);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
-            cols.put("id", id);
+            cols.put(COUNTRECORD_COUNTID_FIELD, id);
             cols.put("typeSymbolId", db.getSymbolId(typeSymbol));
             cols.put("symbolId", db.getSymbolId(dimension.getSymbol()));
             cols.put("value", value);
@@ -572,7 +593,7 @@ public class CountRecord {
             updateBuilder.append(" = ");
             vendor.appendBindValue(updateBuilder, updateDate, parameters);
             updateBuilder.append(" WHERE ");
-            vendor.appendIdentifier(updateBuilder, "id");
+            vendor.appendIdentifier(updateBuilder, COUNTRECORD_COUNTID_FIELD);
             updateBuilder.append(" = ");
             vendor.appendBindValue(updateBuilder, id, parameters);
             updateBuilder.append(" AND ");
@@ -610,17 +631,18 @@ public class CountRecord {
             return dims;
         }
 
-        static void doInserts(SqlDatabase db, UUID id, String actionSymbol,
+        static void doInserts(SqlDatabase db, UUID id, UUID recordId, UUID typeId, String actionSymbol,
                 String typeSymbol, DimensionSet dimensions, int amount,
                 long updateDate, long eventDateHour) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<List<Object>> parametersList = new ArrayList<List<Object>>();
-                List<String> sqls = getInsertSqls(db, parametersList, id, actionSymbol,
+                List<String> sqls = getInsertSqls(db, parametersList, id, recordId, typeId, actionSymbol,
                         typeSymbol, dimensions, amount, updateDate,
                         eventDateHour);
                 Iterator<List<Object>> parametersIterator = parametersList.iterator();
                 for (String sql : sqls) {
+                    //LOGGER.info("===== [1] " + sql);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parametersIterator.next());
                 }
             } finally {
@@ -628,7 +650,7 @@ public class CountRecord {
             }
         }
 
-        static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id,
+        static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id, UUID recordId, UUID typeId, 
                 String actionSymbol, String typeSymbol, int incrementAmount,
                 long updateDate, long eventDateHour) throws SQLException {
             Connection connection = db.openConnection();
@@ -636,11 +658,12 @@ public class CountRecord {
                 List<Object> parameters = new ArrayList<Object>();
                 String sql = getUpdateSql(db, parameters, id, actionSymbol,
                         incrementAmount, updateDate, eventDateHour, true);
+                //LOGGER.info("===== [2] " + sql);
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList(
                         connection, sql, parameters);
                 if (rowsAffected == 0) {
                     parameters = new ArrayList<Object>();
-                    sql = getCountRecordInsertSql(db, parameters, id, actionSymbol,
+                    sql = getCountRecordInsertSql(db, parameters, id, recordId, typeId, actionSymbol,
                             typeSymbol, incrementAmount, updateDate,
                             eventDateHour);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
@@ -716,6 +739,7 @@ public class CountRecord {
             try {
                 List<Object> parameters = new ArrayList<Object>();
                 String sql = getUpdateSummarySql(db, parameters, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName, increment);
+                //LOGGER.info("===== [3] " + sql);
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 if (rowsAffected == 0) {
                     parameters = new ArrayList<Object>();
@@ -736,9 +760,9 @@ public class CountRecord {
             doCountSummaryUpdateOrInsert(db, amount, countField, summaryRecordId, false);
         }
 
-        static Integer getCountByDimensions(SqlDatabase db,
-                CountRecordQuery query) throws SQLException {
+        static Integer getCountByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
             String sql = getSelectCountSql(db, query);
+            //LOGGER.info("===== [4] " + sql);
             Connection connection = db.openReadConnection();
             Integer count = 0;
             try {
@@ -758,6 +782,7 @@ public class CountRecord {
         static Map<String, Integer> getCountByDimensionsWithGroupBy(
                 SqlDatabase db, CountRecordQuery query) throws SQLException {
             String sql = getSelectCountGroupBySql(db, query);
+            //LOGGER.info("===== [5] " + sql);
             Connection connection = db.openReadConnection();
             LinkedHashMap<String, Integer> results = new LinkedHashMap<String, Integer>();
             try {
@@ -789,6 +814,7 @@ public class CountRecord {
             UUID id = null;
             // find the ID, it might be null
             String sql = Static.getSelectPreciseIdSql(db, query);
+            //LOGGER.info("===== [6] " + sql);
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
@@ -813,6 +839,7 @@ class CountRecordQuery {
     private final String symbol;
     private final String actionSymbol;
     private final DimensionSet dimensions;
+    private final Record record;
     private Long startTimestamp;
     private Long endTimestamp;
     private DimensionSet groupByDimensions;
@@ -822,6 +849,15 @@ class CountRecordQuery {
         this.symbol = symbol;
         this.actionSymbol = actionSymbol;
         this.dimensions = dimensions;
+        this.record = null;
+    }
+
+    public CountRecordQuery(String symbol, String actionSymbol, Record record,
+            DimensionSet dimensions) {
+        this.symbol = symbol;
+        this.actionSymbol = actionSymbol;
+        this.dimensions = dimensions;
+        this.record = record;
     }
 
     public void setOrderByDimensions(String[] orderByDimensions) {
@@ -842,6 +878,10 @@ class CountRecordQuery {
 
     public DimensionSet getDimensions() {
         return dimensions;
+    }
+
+    public Record getRecord() {
+        return record;
     }
 
     public Long getStartTimestamp() {
