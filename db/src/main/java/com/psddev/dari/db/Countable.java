@@ -11,7 +11,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.lang.reflect.Field;
 
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -27,11 +26,13 @@ public interface Countable extends Recordable {
         Class<?>[] value() default {};
     }
 
-    /** Specifies the */
+    /** Specifies the field the count is recorded in */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(CountFieldProcessor.class)
     @Target(ElementType.FIELD)
     public @interface CountField {
+        CountRecord.EventDatePrecision precision() default CountRecord.EventDatePrecision.HOUR;
     }
 
     public static class CountAction extends Modification<Countable> {
@@ -44,9 +45,7 @@ public interface Countable extends Recordable {
             //TypeDefinition<?> definition = TypeDefinition.getInstance(modificationClass);
             ObjectType modificationType = ObjectType.getInstance(modificationClass);
             for (ObjectField objectField : modificationType.getFields()) {
-                Field javaField = objectField.getJavaField(modificationClass);
-                boolean isCountField = javaField.isAnnotationPresent(CountField.class);
-                if (isCountField) {
+                if (objectField.as(CountableFieldData.class).isCountField()) {
                     return objectField;
                 }
             }
@@ -116,6 +115,7 @@ public interface Countable extends Recordable {
             if (! countRecords.containsKey(modificationClass)) {
                 ObjectField countField = getCountField(modificationClass);
                 CountRecord countRecord = new CountRecord(this, countField.getUniqueName(), this.getDimensions(modificationClass));
+                countRecord.setEventDatePrecision(countField.as(CountableFieldData.class).getEventDatePrecision());
                 countRecord.setSummaryField(countField);
                 countRecords.put(modificationClass, countRecord);
             }
@@ -128,7 +128,6 @@ public interface Countable extends Recordable {
 
         @Override
         public void process(ObjectType type, ObjectField field, Dimension annotation) {
-            //field.getParent().setIndexes();
             SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
             fieldData.setIndexTable(CountRecord.Static.getIndexTable(field));
             fieldData.setIndexTableSameColumnNames(false);
@@ -145,11 +144,25 @@ public interface Countable extends Recordable {
         }
     }
 
+    static class CountFieldProcessor implements ObjectField.AnnotationProcessor<CountField> {
+
+        @Override
+        public void process(ObjectType type, ObjectField field, CountField annotation) {
+
+            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
+            countableFieldData.setDimension(false);
+            countableFieldData.setCountField(true);
+            countableFieldData.setEventDatePrecision(annotation.precision());
+        }
+    }
+
     @FieldInternalNamePrefix("countable.")
     public static class CountableFieldData extends Modification<ObjectField> {
 
         private boolean dimension;
+        private boolean countField;
         private Set<String> dimensionClasses;
+        private CountRecord.EventDatePrecision eventDatePrecision;
 
         public boolean isDimension() {
             return dimension;
@@ -159,12 +172,29 @@ public interface Countable extends Recordable {
             this.dimension = dimension;
         }
 
+        public boolean isCountField() {
+            return countField;
+        }
+
+        public void setCountField(boolean countField) {
+            this.countField = countField;
+        }
+
         public Set<String> getDimensionClasses() {
             return dimensionClasses;
         }
 
         public void setDimensionClasses(Set<String> dimensionClasses) {
             this.dimensionClasses = dimensionClasses;
+        }
+
+        public CountRecord.EventDatePrecision getEventDatePrecision() {
+            return eventDatePrecision;
+        }
+
+        public void setEventDatePrecision(
+                CountRecord.EventDatePrecision eventDatePrecision) {
+            this.eventDatePrecision = eventDatePrecision;
         }
 
     }

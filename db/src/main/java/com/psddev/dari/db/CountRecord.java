@@ -32,17 +32,28 @@ public class CountRecord {
     static final String COUNTRECORD_COUNTID_FIELD = "countId";
     static final int QUERY_TIMEOUT = 3;
 
+    public static enum EventDatePrecision {
+        HOUR,
+        DAY,
+        WEEK,
+        WEEK_SUNDAY,
+        WEEK_MONDAY,
+        MONTH,
+        YEAR,
+        NONE
+    }
+
     private final DimensionSet dimensions;
     private final String typeSymbol;
     private SqlDatabase db; 
     private final CountRecordQuery query;
 
+    private EventDatePrecision eventDatePrecision = EventDatePrecision.HOUR;
     private UUID id;
-    //private UUID summaryRecordId;
     private Record record;
 
-    private Long updateDate;
-    private Long eventDate;
+    private Integer updateDate;
+    private Integer eventDate;
     private Boolean dimensionsSaved;
     private ObjectField countField;
 
@@ -71,6 +82,14 @@ public class CountRecord {
         this.countField = countField;
     }
 
+    public void setEventDatePrecision(EventDatePrecision precision) {
+        this.eventDatePrecision = precision;
+    }
+
+    public EventDatePrecision getEventDatePrecision() {
+        return this.eventDatePrecision;
+    }
+
     public SqlDatabase getDatabase() {
         return db;
     }
@@ -79,37 +98,67 @@ public class CountRecord {
         return query;
     }
 
-    public void setUpdateDate(long timestampSeconds) {
+    public void setUpdateDate(int timestampSeconds) {
         this.updateDate = timestampSeconds;
     }
 
-    public long getUpdateDate() {
+    public int getUpdateDate() {
         if (this.updateDate != null) {
             return this.updateDate;
         } else {
-            return System.currentTimeMillis() / 1000L;
+            return (int)(System.currentTimeMillis() / 1000L);
         }
     }
 
     // This method will strip the minutes and seconds off of a timestamp
-    public void setEventDateHour(long timestampSeconds) {
+    public void setEventDate(int timestampSeconds) {
         Calendar c = Calendar.getInstance();
         c.clear();
-        c.setTimeInMillis(timestampSeconds*1000);
-        c.set(Calendar.MINUTE, 0);
-        c.set(Calendar.SECOND, 0);
+        c.setTimeInMillis(timestampSeconds*1000L);
         c.set(Calendar.MILLISECOND, 0);
-        this.eventDate = c.getTimeInMillis()/1000L;
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MINUTE, 0);
+        switch (getEventDatePrecision()) {
+            case HOUR: // leave hour/day/month/year
+                break;
+            case DAY: // leave day/month/year, set hour to 0
+                c.set(Calendar.HOUR_OF_DAY, 0);
+                break;
+            case WEEK_SUNDAY: // leave month/year, set day to sunday of this week
+                c.set(Calendar.HOUR_OF_DAY, 0);
+                while (c.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY)
+                  c.add(Calendar.DATE, -1);
+                break;
+            case WEEK: // same as WEEK_MONDAY
+            case WEEK_MONDAY: // leave month/year, set day to monday of this week
+                c.set(Calendar.HOUR_OF_DAY, 0);
+                while (c.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY)
+                  c.add(Calendar.DATE, -1);
+                break;
+            case MONTH: // leave month/year, set day to 1st day of this month
+                c.set(Calendar.HOUR_OF_DAY, 0);
+                c.set(Calendar.DAY_OF_MONTH, 1);
+                break;
+            case YEAR: // leave year, set month to 1st month of this year
+                c.set(Calendar.HOUR_OF_DAY, 0);
+                c.set(Calendar.DAY_OF_MONTH, 1);
+                c.set(Calendar.MONTH, Calendar.JANUARY);
+                break;
+            case NONE: // not tracking dates at all - set to 0
+                c.setTimeInMillis(0);
+                break;
+        }
+        this.eventDate = (int)(c.getTimeInMillis()/1000L);
     }
 
-    public long getEventDateHour() {
+    public int getEventDate() {
         if (this.eventDate == null) {
-            setEventDateHour(System.currentTimeMillis() / 1000L);
+            setEventDate((int)(System.currentTimeMillis() / 1000));
         }
         return this.eventDate;
     }
 
-    public void setQueryDateRange(long startTimestamp, long endTimestamp) {
+    public void setQueryDateRange(int startTimestamp, int endTimestamp) {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
 
@@ -123,10 +172,10 @@ public class CountRecord {
         if (dimensionsSaved) {
             Static.doIncrementUpdateOrInsert(getDatabase(), id, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
                     getTypeSymbol(), amount, getUpdateDate(),
-                    getEventDateHour());
+                    getEventDate());
         } else {
             Static.doInserts(getDatabase(), id, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getTypeSymbol(),
-                    dimensions, amount, getUpdateDate(), getEventDateHour());
+                    dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
         if (isSummaryPossible()) {
@@ -484,13 +533,13 @@ public class CountRecord {
 
         static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID id,
                 UUID recordId, UUID typeId, String actionSymbol, String typeSymbol,
-                DimensionSet dimensions, int amount, long createDate,
-                long eventDateHour) {
+                DimensionSet dimensions, int amount, int createDate,
+                int eventDate) {
             ArrayList<String> sqls = new ArrayList<String>();
             // insert countrecord
             List<Object> parameters = new ArrayList<Object>();
             sqls.add(getCountRecordInsertSql(db, parameters, id, recordId, typeId, actionSymbol, typeSymbol,
-                    amount, createDate, eventDateHour));
+                    amount, createDate, eventDate));
             parametersList.add(parameters);
             // insert indexes
             for (Dimension dimension : dimensions) {
@@ -508,7 +557,7 @@ public class CountRecord {
 
         static String getCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID id,
                 UUID recordId, UUID typeId, String actionSymbol, String typeSymbol, int amount,
-                long createDate, long eventDateHour) {
+                int createDate, int eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, COUNTRECORD_TABLE);
@@ -522,7 +571,7 @@ public class CountRecord {
             cols.put("amount", amount);
             cols.put("createDate", createDate);
             cols.put("updateDate", createDate);
-            cols.put("eventDate", eventDateHour);
+            cols.put("eventDate", eventDate);
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendIdentifier(insertBuilder, entry.getKey());
                 insertBuilder.append(", ");
@@ -567,8 +616,8 @@ public class CountRecord {
         }
 
         static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID id,
-                String actionSymbol, int amount, long updateDate,
-                long eventDateHour, boolean increment) {
+                String actionSymbol, int amount, int updateDate,
+                int eventDate, boolean increment) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
             vendor.appendIdentifier(updateBuilder, COUNTRECORD_TABLE);
@@ -595,7 +644,7 @@ public class CountRecord {
             updateBuilder.append(" AND ");
             vendor.appendIdentifier(updateBuilder, "eventDate");
             updateBuilder.append(" = ");
-            vendor.appendBindValue(updateBuilder, eventDateHour, parameters);
+            vendor.appendBindValue(updateBuilder, eventDate, parameters);
             return updateBuilder.toString();
         }
 
@@ -625,13 +674,13 @@ public class CountRecord {
 
         static void doInserts(SqlDatabase db, UUID id, UUID recordId, UUID typeId, String actionSymbol,
                 String typeSymbol, DimensionSet dimensions, int amount,
-                long updateDate, long eventDateHour) throws SQLException {
+                int updateDate, int eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<List<Object>> parametersList = new ArrayList<List<Object>>();
                 List<String> sqls = getInsertSqls(db, parametersList, id, recordId, typeId, actionSymbol,
                         typeSymbol, dimensions, amount, updateDate,
-                        eventDateHour);
+                        eventDate);
                 Iterator<List<Object>> parametersIterator = parametersList.iterator();
                 for (String sql : sqls) {
                     //LOGGER.info("===== [1] " + sql);
@@ -644,12 +693,12 @@ public class CountRecord {
 
         static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id, UUID recordId, UUID typeId, 
                 String actionSymbol, String typeSymbol, int incrementAmount,
-                long updateDate, long eventDateHour) throws SQLException {
+                int updateDate, int eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<Object> parameters = new ArrayList<Object>();
                 String sql = getUpdateSql(db, parameters, id, actionSymbol,
-                        incrementAmount, updateDate, eventDateHour, true);
+                        incrementAmount, updateDate, eventDate, true);
                 //LOGGER.info("===== [2] " + sql);
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList(
                         connection, sql, parameters);
@@ -657,7 +706,7 @@ public class CountRecord {
                     parameters = new ArrayList<Object>();
                     sql = getCountRecordInsertSql(db, parameters, id, recordId, typeId, actionSymbol,
                             typeSymbol, incrementAmount, updateDate,
-                            eventDateHour);
+                            eventDate);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
@@ -814,8 +863,8 @@ class CountRecordQuery {
     private final String actionSymbol;
     private final DimensionSet dimensions;
     private final Record record;
-    private Long startTimestamp;
-    private Long endTimestamp;
+    private Integer startTimestamp;
+    private Integer endTimestamp;
     private DimensionSet groupByDimensions;
     private String[] orderByDimensions;
 
@@ -858,15 +907,15 @@ class CountRecordQuery {
         return record;
     }
 
-    public Long getStartTimestamp() {
+    public Integer getStartTimestamp() {
         return startTimestamp;
     }
 
-    public Long getEndTimestamp() {
+    public Integer getEndTimestamp() {
         return endTimestamp;
     }
 
-    public void setDateRange(long startTimestamp, long endTimestamp) {
+    public void setDateRange(int startTimestamp, int endTimestamp) {
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
     }
