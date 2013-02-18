@@ -147,6 +147,27 @@ class SqlQuery {
             }
         }
 
+        @SuppressWarnings("unchecked")
+        Set<UUID> unresolvedTypeIds = (Set<UUID>) query.getOptions().get(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION);
+
+        if (unresolvedTypeIds != null) {
+            DatabaseEnvironment environment = database.getEnvironment();
+
+            for (UUID typeId : unresolvedTypeIds) {
+                ObjectType type = environment.getTypeById(typeId);
+
+                if (type != null) {
+                    for (ObjectField field : type.getFields()) {
+                        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+
+                        if (fieldData.isIndexTableSource()) {
+                            sourceTables.put(fieldData.getIndexTable(), field);
+                        }
+                    }
+                }
+            }
+        }
+
         String extraJoins = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_JOINS_QUERY_OPTION));
 
         if (extraJoins != null) {
