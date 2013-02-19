@@ -382,8 +382,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                         queryBuilder.append(") && ");
                     }
                     queryBuilder.append("typeId:(");
-                    for (ObjectType type : types) {
-                        queryBuilder.append(Static.escapeValue(type.getId()));
+                    for (UUID typeId : query.getConcreteTypeIds(this)) {
+                        queryBuilder.append(Static.escapeValue(typeId));
                         queryBuilder.append(" || ");
                     }
                     queryBuilder.setLength(queryBuilder.length() - 4);

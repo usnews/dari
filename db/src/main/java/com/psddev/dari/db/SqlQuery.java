@@ -183,17 +183,17 @@ class SqlQuery {
         whereBuilder.append("1 = 1");
 
         if (!query.isFromAll()) {
-            Set<ObjectType> types = query.getConcreteTypes(database.getEnvironment());
+            Set<UUID> typeIds = query.getConcreteTypeIds(database);
             whereBuilder.append("\nAND ");
 
-            if (types.isEmpty()) {
+            if (typeIds.isEmpty()) {
                 whereBuilder.append("0 = 1");
 
             } else {
                 whereBuilder.append(recordTypeIdField);
                 whereBuilder.append(" IN (");
-                for (ObjectType type : types) {
-                    vendor.appendValue(whereBuilder, type.getId());
+                for (UUID typeId : typeIds) {
+                    vendor.appendValue(whereBuilder, typeId);
                     whereBuilder.append(", ");
                 }
                 whereBuilder.setLength(whereBuilder.length() - 2);
