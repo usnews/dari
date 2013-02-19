@@ -173,12 +173,12 @@ public class State implements Map<String, Object> {
         if (type != null) {
             byte[] typeId = null;
 
-            for (ObjectIndex index : getIndexes()) {
+            for (ObjectIndex index : getDatabase().getEnvironment().getIndexes()) {
                 if (index.isVisibility()) {
-                    Object value = index.getValue(this);
+                    Object value = toSimpleValue(index.getValue(this), false);
 
                     if (value != null) {
-                        byte[] md5 = StringUtils.md5(value.toString());
+                        byte[] md5 = StringUtils.md5(index.getField() + "/" + value.toString());
 
                         if (typeId == null) {
                             typeId = UuidUtils.toBytes(getTypeId());
