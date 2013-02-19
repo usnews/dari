@@ -1,13 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectToIterable;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.StorageItem;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-import com.psddev.dari.util.UuidUtils;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -27,6 +19,14 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectToIterable;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.UuidUtils;
 
 /** Represents the state of an object stored in the database. */
 public class State implements Map<String, Object> {
@@ -145,24 +145,58 @@ public class State implements Map<String, Object> {
 
     /** Returns the type ID. */
     public UUID getTypeId() {
-        if (typeId != null) {
-            return typeId;
-
-        } else {
+        if (typeId == null) {
             UUID newTypeId = UuidUtils.ZERO_UUID;
+
             if (!linkedObjects.isEmpty()) {
                 Database database = getDatabase();
+
                 if (database != null) {
                     ObjectType type = database.getEnvironment().getTypeByClass(linkedObjects.keySet().iterator().next());
+
                     if (type != null) {
                         newTypeId = type.getId();
                     }
                 }
             }
 
-            setTypeId(newTypeId);
-            return newTypeId;
+            typeId = newTypeId;
         }
+
+        return typeId;
+    }
+
+    /** Returns the type ID modified by the visibility index values. */
+    public UUID getVisibilityAwareTypeId() {
+        ObjectType type = getType();
+
+        if (type != null) {
+            byte[] typeId = null;
+
+            for (ObjectIndex index : getIndexes()) {
+                if (index.isVisibility()) {
+                    Object value = index.getValue(this);
+
+                    if (value != null) {
+                        byte[] md5 = StringUtils.md5(value.toString());
+
+                        if (typeId == null) {
+                            typeId = UuidUtils.toBytes(getTypeId());
+                        }
+
+                        for (int i = 0, length = typeId.length; i < length; ++ i) {
+                            typeId[i] ^= md5[i];
+                        }
+                    }
+                }
+            }
+
+            if (typeId != null) {
+                return UuidUtils.fromBytes(typeId);
+            }
+        }
+
+        return getTypeId();
     }
 
     /** Sets the type ID. */

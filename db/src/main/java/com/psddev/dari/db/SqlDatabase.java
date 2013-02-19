@@ -1639,7 +1639,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             boolean isNew = state.isNew();
             boolean saveInRowIndex = hasInRowIndex && !Boolean.TRUE.equals(state.getExtra(SKIP_INDEX_STATE_EXTRA));
             UUID id = state.getId();
-            UUID typeId = state.getTypeId();
+            UUID typeId = state.getVisibilityAwareTypeId();
             byte[] dataBytes = null;
             String inRowIndex = inRowIndexes.get(state);
             byte[] inRowIndexBytes = inRowIndex != null ? inRowIndex.getBytes(StringUtils.UTF_8) : new byte[0];
@@ -1745,7 +1745,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         }
 
                         State oldState = State.getInstance(oldObject);
-                        UUID oldTypeId = oldState.getTypeId();
+                        UUID oldTypeId = oldState.getVisibilityAwareTypeId();
                         byte[] oldData = Static.getOriginalData(oldObject);
 
                         for (AtomicOperation operation : atomicOperations) {

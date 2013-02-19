@@ -131,6 +131,7 @@ public interface Recordable {
         String[] extraFields() default { };
         boolean unique() default false;
         boolean caseSensitive() default false;
+        boolean visibility() default false;
 
         /** @deprecated Use {@link #unique} instead. */
         @Deprecated

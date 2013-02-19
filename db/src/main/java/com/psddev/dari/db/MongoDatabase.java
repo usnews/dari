@@ -300,7 +300,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
         for (State state : states) {
             Map<String, Object> values = state.getSimpleValues();
             values.put(ID_KEY, state.getId().toString());
-            values.put(TYPE_ID_KEY, state.getTypeId().toString());
+            values.put(TYPE_ID_KEY, state.getVisibilityAwareTypeId().toString());
             escapeKeys(values);
             documents.add(new BasicDBObject(values));
         }

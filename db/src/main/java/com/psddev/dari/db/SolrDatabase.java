@@ -1290,7 +1290,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             documents.add(document);
             document.setField(ID_FIELD, state.getId());
-            document.setField(TYPE_ID_FIELD, state.getTypeId());
+            document.setField(TYPE_ID_FIELD, state.getVisibilityAwareTypeId());
 
             if (isSaveData()) {
                 document.setField(DATA_FIELD, ObjectUtils.toJson(stateValues));
