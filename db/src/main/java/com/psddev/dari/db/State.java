@@ -173,23 +173,8 @@ public class State implements Map<String, Object> {
         if (type != null) {
             byte[] typeId = null;
 
-            for (ObjectIndex index : getDatabase().getEnvironment().getIndexes()) {
-                if (index.isVisibility()) {
-                    Object value = toSimpleValue(index.getValue(this), false);
-
-                    if (value != null) {
-                        byte[] md5 = StringUtils.md5(index.getField() + "/" + value.toString());
-
-                        if (typeId == null) {
-                            typeId = UuidUtils.toBytes(getTypeId());
-                        }
-
-                        for (int i = 0, length = typeId.length; i < length; ++ i) {
-                            typeId[i] ^= md5[i];
-                        }
-                    }
-                }
-            }
+            typeId = updateVisibilityAwareTypeId(getDatabase().getEnvironment().getIndexes(), typeId);
+            typeId = updateVisibilityAwareTypeId(type.getIndexes(), typeId);
 
             if (typeId != null) {
                 return UuidUtils.fromBytes(typeId);
@@ -197,6 +182,28 @@ public class State implements Map<String, Object> {
         }
 
         return getTypeId();
+    }
+
+    private byte[] updateVisibilityAwareTypeId(List<ObjectIndex> indexes, byte[] typeId) {
+        for (ObjectIndex index : indexes) {
+            if (index.isVisibility()) {
+                Object value = toSimpleValue(index.getValue(this), false);
+
+                if (value != null) {
+                    byte[] md5 = StringUtils.md5(index.getField() + "/" + value.toString());
+
+                    if (typeId == null) {
+                        typeId = UuidUtils.toBytes(getTypeId());
+                    }
+
+                    for (int i = 0, length = typeId.length; i < length; ++ i) {
+                        typeId[i] ^= md5[i];
+                    }
+                }
+            }
+        }
+
+        return typeId;
     }
 
     /** Sets the type ID. */

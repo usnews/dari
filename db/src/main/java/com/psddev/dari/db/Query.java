@@ -614,25 +614,25 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         } else if (predicate instanceof ComparisonPredicate) {
             ComparisonPredicate comparison = (ComparisonPredicate) predicate;
-            String key = comparison.getKey();
-            ObjectIndex index = environment.getIndex(key);
 
-            if (index != null && index.isVisibility()) {
-                for (Object value : comparison.resolveValues(database)) {
-                    if (MISSING_VALUE.equals(value)) {
-                        typeIds.add(null);
+            for (ObjectIndex index : mapEmbeddedKey(environment, comparison.getKey()).getIndexes()) {
+                if (index.isVisibility()) {
+                    for (Object value : comparison.resolveValues(database)) {
+                        if (MISSING_VALUE.equals(value)) {
+                            typeIds.add(null);
 
-                    } else {
-                        byte[] md5 = StringUtils.md5(key + "/" + value);
+                        } else {
+                            byte[] md5 = StringUtils.md5(index.getField() + "/" + value);
 
-                        for (ObjectType type : types) {
-                            byte[] typeId = UuidUtils.toBytes(type.getId());
+                            for (ObjectType type : types) {
+                                byte[] typeId = UuidUtils.toBytes(type.getId());
 
-                            for (int i = 0, length = typeId.length; i < length; ++ i) {
-                                typeId[i] ^= md5[i];
+                                for (int i = 0, length = typeId.length; i < length; ++ i) {
+                                    typeId[i] ^= md5[i];
+                                }
+
+                                typeIds.add(UuidUtils.fromBytes(typeId));
                             }
-
-                            typeIds.add(UuidUtils.fromBytes(typeId));
                         }
                     }
                 }
