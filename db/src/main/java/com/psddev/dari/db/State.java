@@ -171,39 +171,62 @@ public class State implements Map<String, Object> {
         ObjectType type = getType();
 
         if (type != null) {
-            byte[] typeId = null;
+            updateVisibilities(getDatabase().getEnvironment().getIndexes());
+            updateVisibilities(type.getIndexes());
 
-            typeId = updateVisibilityAwareTypeId(getDatabase().getEnvironment().getIndexes(), typeId);
-            typeId = updateVisibilityAwareTypeId(type.getIndexes(), typeId);
+            @SuppressWarnings("unchecked")
+            List<String> visibilities = (List<String>) get("dari.visibilities");
 
-            if (typeId != null) {
-                return UuidUtils.fromBytes(typeId);
+            if (visibilities != null && !visibilities.isEmpty()) {
+                String field = visibilities.get(visibilities.size() - 1);
+                Object value = toSimpleValue(get(field), false);
+
+                if (value != null) {
+                    byte[] typeId = UuidUtils.toBytes(getTypeId());
+                    byte[] md5 = StringUtils.md5(field + "/" + value.toString());
+
+                    for (int i = 0, length = typeId.length; i < length; ++ i) {
+                        typeId[i] ^= md5[i];
+                    }
+
+                    return UuidUtils.fromBytes(typeId);
+                }
             }
         }
 
         return getTypeId();
     }
 
-    private byte[] updateVisibilityAwareTypeId(List<ObjectIndex> indexes, byte[] typeId) {
+    private void updateVisibilities(List<ObjectIndex> indexes) {
+        @SuppressWarnings("unchecked")
+        List<String> visibilities = (List<String>) get("dari.visibilities");
+
         for (ObjectIndex index : indexes) {
             if (index.isVisibility()) {
+                String field = index.getField();
                 Object value = toSimpleValue(index.getValue(this), false);
 
-                if (value != null) {
-                    byte[] md5 = StringUtils.md5(index.getField() + "/" + value.toString());
+                if (value == null) {
+                    if (visibilities != null) {
+                        visibilities.remove(field);
 
-                    if (typeId == null) {
-                        typeId = UuidUtils.toBytes(getTypeId());
+                        if (visibilities.isEmpty()) {
+                            remove("dari.visibilities");
+                        }
                     }
 
-                    for (int i = 0, length = typeId.length; i < length; ++ i) {
-                        typeId[i] ^= md5[i];
+                } else {
+                    if (visibilities == null) {
+                        visibilities = new ArrayList<String>();
+                        put("dari.visibilities", visibilities);
+                    }
+
+                    if (!visibilities.contains(field)) {
+                        visibilities.add(field);
                     }
                 }
             }
         }
-
-        return typeId;
     }
 
     /** Sets the type ID. */
