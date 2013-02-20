@@ -1152,32 +1152,32 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             codeBuilder.append(")");
         }
 
-        writer.start("span", "class", "dari-query");
+        writer.writeStart("span", "class", "dari-query");
             String code = codeBuilder.toString();
-            writer.html(code);
+            writer.writeHtml(code);
 
             // Use a form instead of a link if the URL will be too long.
             if (code.length() > 2000) {
-                writer.start("form",
+                writer.writeStart("form",
                         "method", "post",
                         "action", "/_debug/code",
                         "target", "query");
-                    writer.tag("input", "type", "hidden", "name", "query", "value", code);
-                    writer.tag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
-                    writer.tag("input", "class", "btn", "type", "submit", "value", "Execute");
-                writer.end();
+                    writer.writeTag("input", "type", "hidden", "name", "query", "value", code);
+                    writer.writeTag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
+                    writer.writeTag("input", "class", "btn", "type", "submit", "value", "Execute");
+                writer.writeEnd();
 
             } else {
-                writer.html(" (");
-                    writer.start("a",
+                writer.writeHtml(" (");
+                    writer.writeStart("a",
                             "href", StringUtils.addQueryParameters("/_debug/code", "query", code, "objectClass", objectClass),
                             "target", "query");
-                        writer.html("Execute");
-                    writer.end();
-                writer.html(")");
+                        writer.writeHtml("Execute");
+                    writer.writeEnd();
+                writer.writeHtml(")");
             }
 
-        writer.end();
+        writer.writeEnd();
     }
 
     // --- Object support ---

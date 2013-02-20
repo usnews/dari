@@ -1,14 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.Stats;
-import com.psddev.dari.util.UuidUtils;
-
 import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -44,9 +35,17 @@ import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.MoreLikeThisParams;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.Profiler;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.SettingsException;
+import com.psddev.dari.util.Stats;
+import com.psddev.dari.util.UuidUtils;
 
 /**
  * Database backed by a

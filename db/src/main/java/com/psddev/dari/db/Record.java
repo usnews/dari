@@ -1,14 +1,14 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.UUID;
+
 import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.UUID;
 
 /** Represents a generic record. */
 public class Record implements Cloneable, Comparable<Record>, HtmlObject, Recordable {
@@ -62,28 +62,28 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
 
     @Override
     public void format(HtmlWriter writer) throws IOException {
-        writer.start("pre");
+        writer.writeStart("pre");
 
             State state = getState();
             ObjectType type = state.getType();
             if (type != null) {
-                writer.html(type.getInternalName());
-                writer.html(": ");
+                writer.writeHtml(type.getInternalName());
+                writer.writeHtml(": ");
             }
 
-            writer.start("a",
+            writer.writeStart("a",
                     "target", "_blank",
                     "href", StringUtils.addQueryParameters(
                             "/_debug/query",
                             "where", "id = " + state.getId(),
                             "action", "Run"));
-                writer.html(getLabel());
-            writer.end();
-            writer.tag("br");
+                writer.writeHtml(getLabel());
+            writer.writeEnd();
+            writer.writeTag("br");
 
-            writer.html(ObjectUtils.toJson(state.getSimpleValues(), true));
+            writer.writeHtml(ObjectUtils.toJson(state.getSimpleValues(), true));
 
-        writer.end();
+        writer.writeEnd();
     }
 
     // --- Recordable support ---

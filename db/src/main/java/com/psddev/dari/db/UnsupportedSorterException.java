@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 /** Thrown when use of a {@linkplain Sorter sorter} isn't supported. */
+@SuppressWarnings("serial")
 public class UnsupportedSorterException extends UnsupportedOperationException {
 
     private final Object reader;

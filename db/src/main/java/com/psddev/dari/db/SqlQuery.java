@@ -1,7 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -13,6 +11,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.psddev.dari.util.ObjectUtils;
 
 /** Internal representation of an SQL query based on a Dari one. */
 class SqlQuery {

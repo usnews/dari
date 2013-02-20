@@ -1,10 +1,10 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import com.psddev.dari.util.ObjectUtils;
 
 /** Atomic operation on a field value within a state. */
 public abstract class AtomicOperation {

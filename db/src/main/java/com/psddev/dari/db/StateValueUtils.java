@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.DateUtils;
-import com.psddev.dari.util.ObjectMap;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.StorageItem;
-
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -20,6 +14,12 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.DateUtils;
+import com.psddev.dari.util.ObjectMap;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
 
 /** State value utility methods. */
 abstract class StateValueUtils {

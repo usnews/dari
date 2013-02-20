@@ -29,15 +29,15 @@ public interface HtmlFormatter<T> {
     // --- Standard formatters ---
 
     /** Standard HTML object formatter for classes. */
-    @SuppressWarnings("all")
+    @SuppressWarnings("rawtypes")
     public static final HtmlFormatter<Class> CLASS = new HtmlFormatter<Class>() {
 
         @Override
         public void format(HtmlWriter writer, Class rawClassInstance) throws IOException {
             Class<?> classInstance = rawClassInstance;
-            writer.start("p");
-                writer.start("code").html(classInstance).end();
-            writer.end();
+            writer.writeStart("p");
+                writer.writeStart("code").writeHtml(classInstance).writeEnd();
+            writer.writeEnd();
 
             Field[] fields = classInstance.getDeclaredFields();
             Arrays.sort(fields, new Comparator<Field>() {
@@ -55,41 +55,41 @@ public interface HtmlFormatter<T> {
                 }
             });
 
-            writer.start("ul");
+            writer.writeStart("ul");
                 if (fields.length > 0) {
-                    writer.start("li").html("Fields:").start("ul");
+                    writer.writeStart("li").writeHtml("Fields:").writeStart("ul");
                         for (Field field : fields) {
-                            writer.start("li").html(field.getName()).end();
+                            writer.writeStart("li").writeHtml(field.getName()).writeEnd();
                         }
-                    writer.end().end();
+                    writer.writeEnd().writeEnd();
                 }
                 if (methods.length > 0) {
-                    writer.start("li").html("Methods:").start("ul");
+                    writer.writeStart("li").writeHtml("Methods:").writeStart("ul");
                         for (Method method : methods) {
-                            writer.start("li").html(method.getName()).end();
+                            writer.writeStart("li").writeHtml(method.getName()).writeEnd();
                         }
-                    writer.end().end();
+                    writer.writeEnd().writeEnd();
                 }
-            writer.end();
+            writer.writeEnd();
         }
     };
 
     /** Standard HTML object formatter for collections. */
-    @SuppressWarnings("all")
+    @SuppressWarnings("rawtypes")
     public static final HtmlFormatter<Collection> COLLECTION = new HtmlFormatter<Collection>() {
 
         @Override
         public void format(HtmlWriter writer, Collection collection) throws IOException {
-            writer.start("p");
-                writer.start("code").html(collection.getClass().getName()).end().html(" containing ");
-                writer.start("strong").html(collection.size()).end().html(" items:");
-            writer.end();
+            writer.writeStart("p");
+                writer.writeStart("code").writeHtml(collection.getClass().getName()).writeEnd().writeHtml(" containing ");
+                writer.writeStart("strong").writeHtml(collection.size()).writeEnd().writeHtml(" items:");
+            writer.writeEnd();
 
-            writer.start(collection instanceof List ? "ol" : "ul");
+            writer.writeStart(collection instanceof List ? "ol" : "ul");
                 for (Object item : collection) {
-                    writer.start("li").object(item).end();
+                    writer.writeStart("li").writeObject(item).writeEnd();
                 }
-            writer.end();
+            writer.writeEnd();
         }
     };
 
@@ -97,20 +97,20 @@ public interface HtmlFormatter<T> {
     public static final HtmlFormatter<Date> DATE = new HtmlFormatter<Date>() {
         @Override
         public void format(HtmlWriter writer, Date date) throws IOException {
-            writer.html(date);
+            writer.writeHtml(date);
         }
     };
 
     /** Standard HTML object formatter for enums. */
-    @SuppressWarnings("all")
+    @SuppressWarnings("rawtypes")
     public static final HtmlFormatter<Enum> ENUM = new HtmlFormatter<Enum>() {
         @Override
         public void format(HtmlWriter writer, Enum enumObject) throws IOException {
-            writer.start("code");
-                writer.html(enumObject.getClass().getName());
-                writer.html('.');
-                writer.html(((Enum<?>) enumObject).name());
-            writer.end();
+            writer.writeStart("code");
+                writer.writeHtml(enumObject.getClass().getName());
+                writer.writeHtml('.');
+                writer.writeHtml(((Enum<?>) enumObject).name());
+            writer.writeEnd();
         }
     };
 
@@ -118,29 +118,29 @@ public interface HtmlFormatter<T> {
     public static final HtmlFormatter<Number> FLOATING_POINT = new HtmlFormatter<Number>() {
         @Override
         public void format(HtmlWriter writer, Number number) throws IOException {
-            writer.start("abbr", "title", number);
-                writer.html(String.format("%,.2f", number));
-            writer.end();
+            writer.writeStart("abbr", "title", number);
+                writer.writeHtml(String.format("%,.2f", number));
+            writer.writeEnd();
         }
     };
 
     /** Standard HTML object formatter for maps. */
-    @SuppressWarnings("all")
+    @SuppressWarnings("rawtypes")
     public static final HtmlFormatter<Map> MAP = new HtmlFormatter<Map>() {
 
         @Override
         public void format(HtmlWriter writer, Map map) throws IOException {
-            writer.start("p");
-                writer.start("code").html(map.getClass().getName()).end().html(" containing ");
-                writer.start("strong").html(map.size()).end().html(" items:");
-            writer.end();
+            writer.writeStart("p");
+                writer.writeStart("code").writeHtml(map.getClass().getName()).writeEnd().writeHtml(" containing ");
+                writer.writeStart("strong").writeHtml(map.size()).writeEnd().writeHtml(" items:");
+            writer.writeEnd();
 
-            writer.start("dl");
+            writer.writeStart("dl");
                 for (Map.Entry<?, ?> entry : ((Map<?, ?>) map).entrySet()) {
-                    writer.start("dt").object(entry.getKey()).end();
-                    writer.start("dd").object(entry.getValue()).end();
+                    writer.writeStart("dt").writeObject(entry.getKey()).writeEnd();
+                    writer.writeStart("dd").writeObject(entry.getValue()).writeEnd();
                 }
-            writer.end();
+            writer.writeEnd();
         }
     };
 
@@ -148,7 +148,7 @@ public interface HtmlFormatter<T> {
     public static final HtmlFormatter<Void> NULL = new HtmlFormatter<Void>() {
         @Override
         public void format(HtmlWriter writer, Void nullObject) throws IOException {
-            writer.start("code").html("null").end();
+            writer.writeStart("code").writeHtml("null").writeEnd();
         }
     };
 
@@ -159,34 +159,34 @@ public interface HtmlFormatter<T> {
             if (number instanceof BigDecimal) {
                 FLOATING_POINT.format(writer, number);
             } else {
-                writer.html(String.format("%,d", number));
+                writer.writeHtml(String.format("%,d", number));
             }
         }
     };
 
     /** Standard HTML object formatter for paginated results. */
-    @SuppressWarnings("all")
+    @SuppressWarnings("rawtypes")
     public static final HtmlFormatter<PaginatedResult> PAGINATED_RESULT = new HtmlFormatter<PaginatedResult>() {
 
         @Override
         public void format(HtmlWriter writer, PaginatedResult rawResult) throws IOException {
             PaginatedResult<?> result = rawResult;
 
-            writer.start("p");
-                writer.start("code").html(result.getClass().getName()).end();
-                writer.html(' ');
-                writer.start("strong").html(result.getFirstItemIndex()).end();
-                writer.html(" to ");
-                writer.start("strong").html(result.getLastItemIndex()).end();
-                writer.html(" of ");
-                writer.start("strong").html(result.getCount()).end();
-            writer.end();
+            writer.writeStart("p");
+                writer.writeStart("code").writeHtml(result.getClass().getName()).writeEnd();
+                writer.writeHtml(' ');
+                writer.writeStart("strong").writeHtml(result.getFirstItemIndex()).writeEnd();
+                writer.writeHtml(" to ");
+                writer.writeStart("strong").writeHtml(result.getLastItemIndex()).writeEnd();
+                writer.writeHtml(" of ");
+                writer.writeStart("strong").writeHtml(result.getCount()).writeEnd();
+            writer.writeEnd();
 
-            writer.start("ol");
+            writer.writeStart("ol");
                 for (Object item : result.getItems()) {
-                    writer.start("li").object(item).end();
+                    writer.writeStart("li").writeObject(item).writeEnd();
                 }
-            writer.end();
+            writer.writeEnd();
         }
     };
 
@@ -206,7 +206,7 @@ public interface HtmlFormatter<T> {
             if (jspServletPath != null) {
                 jspServletPath = StringUtils.ensureStart(jspServletPath, "/");
                 lineNumber = CodeUtils.getJspLineNumber(className, lineNumber);
-                writer.start("a",
+                writer.writeStart("a",
                         "class", cssClass,
                         "target", "_blank",
                         "href", StringUtils.addQueryParameters(
@@ -215,20 +215,20 @@ public interface HtmlFormatter<T> {
                                 "type", "JSP",
                                 "servletPath", jspServletPath,
                                 "line", lineNumber));
-                    writer.html(jspServletPath);
-                    writer.html(':');
-                    writer.html(lineNumber);
-                writer.end();
+                    writer.writeHtml(jspServletPath);
+                    writer.writeHtml(':');
+                    writer.writeHtml(lineNumber);
+                writer.writeEnd();
 
             } else {
                 File source = CodeUtils.getSource(className);
                 if (source == null) {
-                    writer.start("span", "class", cssClass);
-                        writer.html(element);
-                    writer.end();
+                    writer.writeStart("span", "class", cssClass);
+                        writer.writeHtml(element);
+                    writer.writeEnd();
 
                 } else {
-                    writer.start("a",
+                    writer.writeStart("a",
                             "class", cssClass,
                             "target", "_blank",
                             "href", StringUtils.addQueryParameters(
@@ -240,12 +240,12 @@ public interface HtmlFormatter<T> {
                         if (dotAt > -1) {
                             className = className.substring(dotAt + 1);
                         }
-                        writer.html(className);
-                        writer.html('.');
-                        writer.html(element.getMethodName());
-                        writer.html(':');
-                        writer.html(lineNumber);
-                    writer.end();
+                        writer.writeHtml(className);
+                        writer.writeHtml('.');
+                        writer.writeHtml(element.getMethodName());
+                        writer.writeHtml(':');
+                        writer.writeHtml(lineNumber);
+                    writer.writeEnd();
                 }
             }
         }
@@ -258,28 +258,28 @@ public interface HtmlFormatter<T> {
         public void format(HtmlWriter writer, Throwable throwable) throws IOException {
             Throwable cause = throwable.getCause();
             if (cause != null) {
-                writer.object(cause);
+                writer.writeObject(cause);
             }
 
-            writer.start("div", "class", "dari-throwable");
+            writer.writeStart("div", "class", "dari-throwable");
                 String message = throwable.getMessage();
 
                 if (ObjectUtils.isBlank(message)) {
-                    writer.html(throwable.getClass().getName());
+                    writer.writeHtml(throwable.getClass().getName());
 
                 } else {
-                    writer.html(message);
-                    writer.html(" (");
-                    writer.html(throwable.getClass().getName());
-                    writer.html(")");
+                    writer.writeHtml(message);
+                    writer.writeHtml(" (");
+                    writer.writeHtml(throwable.getClass().getName());
+                    writer.writeHtml(")");
                 }
 
-                writer.start("ul", "class", "dari-stack-trace");
+                writer.writeStart("ul", "class", "dari-stack-trace");
                     for (StackTraceElement element : throwable.getStackTrace()) {
-                        writer.start("li").object(element).end();
+                        writer.writeStart("li").writeObject(element).writeEnd();
                     }
-                writer.end();
-            writer.end();
+                writer.writeEnd();
+            writer.writeEnd();
         }
     };
 
@@ -299,13 +299,13 @@ public interface HtmlFormatter<T> {
             String message = throwable.getMessage();
 
             if (cause != null) {
-                writer.object(cause);
+                writer.writeObject(cause);
                 if (message != null && message.startsWith(cause.getClass().getName())) {
                     return;
                 }
             }
 
-            writer.start("div", "class", "dari-throwable");
+            writer.writeStart("div", "class", "dari-throwable");
                 message = StringUtils.escapeHtml(message);
 
                 // Highlight the line mentioned in the error message.
@@ -327,7 +327,7 @@ public interface HtmlFormatter<T> {
                 message = messageBuilder.toString();
                 message = STACK_TRACE_PATTERN.matcher(message).replaceFirst("");
                 writer.write(message);
-            writer.end();
+            writer.writeEnd();
         }
     };
 }

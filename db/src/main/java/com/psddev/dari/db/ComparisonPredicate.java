@@ -1,15 +1,15 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.StringUtils;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 import org.joda.time.DateTime;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.StringUtils;
 
 /**
  * Predicate for comparing object field values that are represented by

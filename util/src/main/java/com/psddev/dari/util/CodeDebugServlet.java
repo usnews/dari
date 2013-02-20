@@ -3,7 +3,6 @@ package com.psddev.dari.util;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
@@ -119,20 +118,20 @@ public class CodeDebugServlet extends HttpServlet {
 
                 try {
                     fileOutput.write(code.replaceAll("(?:\r\n|[\r\n])", "\n").getBytes("UTF-8"));
-                    start("p", "class", "alert alert-success");
-                        html("Saved Successfully! (");
-                        object(new Date());
-                        html(")");
-                    end();
+                    writeStart("p", "class", "alert alert-success");
+                        writeHtml("Saved Successfully! (");
+                        writeObject(new Date());
+                        writeHtml(")");
+                    writeEnd();
 
                 } finally {
                     fileOutput.close();
                 }
 
             } catch (Exception ex) {
-                start("pre", "class", "alert alert-error");
-                    object(ex);
-                end();
+                writeStart("pre", "class", "alert alert-error");
+                    writeObject(ex);
+                writeEnd();
             }
         }};
     }
@@ -235,61 +234,61 @@ public class CodeDebugServlet extends HttpServlet {
             }
 
             startPage("Code Editor", name);
-                start("div", "class", "row-fluid");
+                writeStart("div", "class", "row-fluid");
 
                     if (input != null) {
-                        start("div", "class", "codeInput", "style", "bottom: 65px; position: fixed; top: 55px; width: 18%; z-index: 1000;");
-                            start("h2").html("Input").end();
-                            start("div", "style", "bottom: 0; overflow: auto; position: absolute; top: 38px; width: 100%;");
-                                object(input);
-                            end();
-                        end();
-                        start("style", "type", "text/css");
+                        writeStart("div", "class", "codeInput", "style", "bottom: 65px; position: fixed; top: 55px; width: 18%; z-index: 1000;");
+                            writeStart("h2").writeHtml("Input").writeEnd();
+                            writeStart("div", "style", "bottom: 0; overflow: auto; position: absolute; top: 38px; width: 100%;");
+                                writeObject(input);
+                            writeEnd();
+                        writeEnd();
+                        writeStart("style", "type", "text/css");
                             write(".codeInput pre { white-space: pre; word-break: normal; word-wrap: normal; }");
-                        end();
-                        start("script", "type", "text/javascript");
+                        writeEnd();
+                        writeStart("script", "type", "text/javascript");
                             write("$('.codeInput').hover(function() {");
                                 write("$(this).css('width', '50%');");
                             write("}, function() {");
                                 write("$(this).css('width', '18%');");
                             write("});");
-                        end();
+                        writeEnd();
                     }
 
-                    start("div",
+                    writeStart("div",
                             "class", input != null ? "span9" : "span12",
                             "style", input != null ? "margin-left: 20%" : null);
-                        start("form",
+                        writeStart("form",
                                 "action", page.url(null),
                                 "class", "code",
                                 "method", "post",
                                 "style", "margin-bottom: 70px;",
                                 "target", "result");
-                            tag("input", "name", "action", "type", "hidden", "value", "run");
-                            tag("input", "name", "type", "type", "hidden", "value", type);
-                            tag("input", "name", "file", "type", "hidden", "value", file);
-                            tag("input", "name", "jspPreviewUrl", "type", "hidden", "value", page.param(String.class, "jspPreviewUrl"));
+                            writeTag("input", "name", "action", "type", "hidden", "value", "run");
+                            writeTag("input", "name", "type", "type", "hidden", "value", type);
+                            writeTag("input", "name", "file", "type", "hidden", "value", file);
+                            writeTag("input", "name", "jspPreviewUrl", "type", "hidden", "value", page.param(String.class, "jspPreviewUrl"));
 
-                            start("textarea", "name", "code");
-                                html(codeBuilder);
-                            end();
-                            start("div",
+                            writeStart("textarea", "name", "code");
+                                writeHtml(codeBuilder);
+                            writeEnd();
+                            writeStart("div",
                                     "class", "form-actions",
                                     "style", "bottom: 0; left: 0; margin: 0; padding: 10px 20px; position:fixed; right: 0; z-index: 1000;");
-                                tag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
-                                start("label", "class", "checkbox", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;");
-                                    tag("input", "name", "isLiveResult", "type", "checkbox");
-                                    html("Live Result");
-                                end();
-                                tag("input",
+                                writeTag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
+                                writeStart("label", "class", "checkbox", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;");
+                                    writeTag("input", "name", "isLiveResult", "type", "checkbox");
+                                    writeHtml("Live Result");
+                                writeEnd();
+                                writeTag("input",
                                         "class", "btn btn-success pull-right",
                                         "name", "isSave",
                                         "type", "submit",
                                         "value", "Save");
-                            end();
-                        end();
+                            writeEnd();
+                        writeEnd();
 
-                        start("div",
+                        writeStart("div",
                                 "class", "resultContainer",
                                 "style",
                                         "background: rgba(255, 255, 255, 0.8);" +
@@ -303,12 +302,12 @@ public class CodeDebugServlet extends HttpServlet {
                                         "position: fixed;" +
                                         "right: 0px;" +
                                         "width: 35%;");
-                            start("h2").html("Result").end();
-                            start("div", "class", "frame", "name", "result");
-                            end();
-                        end();
+                            writeStart("h2").writeHtml("Result").writeEnd();
+                            writeStart("div", "class", "frame", "name", "result");
+                            writeEnd();
+                        writeEnd();
 
-                        start("script", "type", "text/javascript");
+                        writeStart("script", "type", "text/javascript");
                             write("$('body').frame();");
                             write("var $codeForm = $('form.code');");
                             write("setTimeout(function() { $codeForm.submit(); }, 0);");
@@ -353,61 +352,61 @@ public class CodeDebugServlet extends HttpServlet {
                                     write("}");
                                 write("});");
                             write("});");
-                        end();
+                        writeEnd();
 
-                    end();
-                end();
+                    writeEnd();
+                writeEnd();
             endPage();
         }
 
             @Override
             public void startBody(String... titles) throws IOException {
-                start("body");
-                    start("div", "class", "navbar navbar-fixed-top");
-                        start("div", "class", "navbar-inner");
-                            start("div", "class", "container-fluid");
-                                start("span", "class", "brand");
-                                    start("a", "href", DebugFilter.Static.getServletPath(page.getRequest(), ""));
-                                        html("Dari");
-                                    end();
-                                    html("Code Editor \u2192 ");
-                                end();
+                writeStart("body");
+                    writeStart("div", "class", "navbar navbar-fixed-top");
+                        writeStart("div", "class", "navbar-inner");
+                            writeStart("div", "class", "container-fluid");
+                                writeStart("span", "class", "brand");
+                                    writeStart("a", "href", DebugFilter.Static.getServletPath(page.getRequest(), ""));
+                                        writeHtml("Dari");
+                                    writeEnd();
+                                    writeHtml("Code Editor \u2192 ");
+                                writeEnd();
 
-                                start("form",
+                                writeStart("form",
                                         "action", page.url(null),
                                         "method", "get",
                                         "style", "float: left; height: 40px; line-height: 40px; margin: 0; padding-left: 10px;");
-                                    start("select",
+                                    writeStart("select",
                                             "class", "span6",
                                             "name", "file",
                                             "onchange", "$(this).closest('form').submit();");
-                                        start("option", "value", "");
-                                            html("PLAYGROUND");
-                                        end();
+                                        writeStart("option", "value", "");
+                                            writeHtml("PLAYGROUND");
+                                        writeEnd();
                                         for (File sourceDirectory : CodeUtils.getSourceDirectories()) {
-                                            start("optgroup", "label", sourceDirectory);
-                                                start("option",
+                                            writeStart("optgroup", "label", sourceDirectory);
+                                                writeStart("option",
                                                         "selected", sourceDirectory.equals(file) ? "selected" : null,
                                                         "value", sourceDirectory);
-                                                    html("NEW CLASS IN ").html(sourceDirectory);
-                                                end();
+                                                    writeHtml("NEW CLASS IN ").writeHtml(sourceDirectory);
+                                                writeEnd();
                                                 writeFileOption(file, sourceDirectory, sourceDirectory);
-                                            end();
+                                            writeEnd();
                                         }
-                                    end();
-                                end();
+                                    writeEnd();
+                                writeEnd();
 
                                 includeStylesheet("/_resource/chosen/chosen.css");
                                 includeScript("/_resource/chosen/chosen.jquery.min.js");
-                                start("script", "type", "text/javascript");
+                                writeStart("script", "type", "text/javascript");
                                     write("(function() {");
                                         write("$('select[name=file]').chosen({ 'search_contains': true });");
                                     write("})();");
-                                end();
-                            end();
-                        end();
-                    end();
-                    start("div", "class", "container-fluid", "style", "padding-top: 54px;");
+                                writeEnd();
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
+                    writeStart("div", "class", "container-fluid", "style", "padding-top: 54px;");
             }
 
             private void writeFileOption(File file, File sourceDirectory, File source) throws IOException {
@@ -417,11 +416,11 @@ public class CodeDebugServlet extends HttpServlet {
                     }
 
                 } else {
-                    start("option",
+                    writeStart("option",
                             "selected", source.equals(file) ? "selected" : null,
                             "value", source);
-                        html(source.toString().substring(sourceDirectory.toString().length()));
-                    end();
+                        writeHtml(source.toString().substring(sourceDirectory.toString().length()));
+                    writeEnd();
                 }
             }
         };
@@ -455,18 +454,18 @@ public class CodeDebugServlet extends HttpServlet {
                         Object result = CodeUtils.evaluateJava(page.paramOrDefault(String.class, "code", ""));
 
                         if (result instanceof DiagnosticCollector) {
-                            start("pre", "class", "alert alert-error");
-                                html("Syntax error!\n\n");
-                                start("ol", "class", "syntaxErrors");
+                            writeStart("pre", "class", "alert alert-error");
+                                writeHtml("Syntax error!\n\n");
+                                writeStart("ol", "class", "syntaxErrors");
                                     for (Diagnostic<?> diagnostic : ((DiagnosticCollector<?>) result).getDiagnostics()) {
                                         if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
-                                            start("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
-                                                html(diagnostic.getMessage(null));
-                                            end();
+                                            writeStart("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
+                                                writeHtml(diagnostic.getMessage(null));
+                                            writeEnd();
                                         }
                                     }
-                                end();
-                            end();
+                                writeEnd();
+                            writeEnd();
 
                         } else if (result instanceof Collection) {
                             for (Object item : (Collection<?>) result) {
@@ -506,16 +505,16 @@ public class CodeDebugServlet extends HttpServlet {
                                 }
                             }
 
-                            object(result);
+                            writeObject(result);
 
                         } else {
-                            object(result);
+                            writeObject(result);
                         }
 
                     } catch (Exception ex) {
-                        start("pre", "class", "alert alert-error");
-                            object(ex);
-                        end();
+                        writeStart("pre", "class", "alert alert-error");
+                            writeObject(ex);
+                        writeEnd();
                     }
                 }};
             }

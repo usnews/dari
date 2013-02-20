@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.io.IOException;
 
 /** Thrown when anything's wrong authenticating a user. */
+@SuppressWarnings("serial")
 public class AuthenticationException extends Exception implements HtmlObject {
 
     public AuthenticationException() {
@@ -31,8 +32,8 @@ public class AuthenticationException extends Exception implements HtmlObject {
             message = getClass().getName();
         }
 
-        writer.start("div", "class", "error message");
-            writer.html(message);
-        writer.end();
+        writer.writeStart("div", "class", "error message");
+            writer.writeHtml(message);
+        writer.writeEnd();
     }
 }

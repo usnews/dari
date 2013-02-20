@@ -1,11 +1,11 @@
 package com.psddev.dari.db;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.psddev.dari.util.AsyncConsumer;
 import com.psddev.dari.util.AsyncQueue;
 import com.psddev.dari.util.ObjectUtils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /** Background task that efficiently writes to a database from a queue. */
 public class AsyncDatabaseWriter<E> extends AsyncConsumer<E> {

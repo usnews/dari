@@ -78,58 +78,58 @@ public class Tomcat6ReloaderServlet extends HttpServlet implements ContainerServ
             putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
             putDefault(Throwable.class, HtmlFormatter.THROWABLE);
 
-            tag("!doctype html");
-            start("html");
-                start("head");
+            writeTag("!doctype html");
+            writeStart("html");
+                writeStart("head");
 
-                    start("title").html("Reloader").end();
+                    writeStart("title").writeHtml("Reloader").writeEnd();
 
-                    start("link",
+                    writeStart("link",
                             "href", JspUtils.getAbsolutePath(request, "/_resource/bootstrap/css/bootstrap.css"),
                             "rel", "stylesheet",
                             "type", "text/css");
-                    start("style", "type", "text/css");
+                    writeStart("style", "type", "text/css");
                         write(".hero-unit { background: transparent; left: 0; margin: -72px 0 0 60px; padding: 0; position: absolute; top: 50%; }");
                         write(".hero-unit h1 { line-height: 1.33; }");
-                    end();
+                    writeEnd();
 
-                end();
-                start("body");
+                writeEnd();
+                writeStart("body");
 
-                    start("div", "class", "hero-unit");
-                        start("h1");
-                            html("Reloading ");
-                            html(contextPath);
-                            html("/");
-                        end();
+                    writeStart("div", "class", "hero-unit");
+                        writeStart("h1");
+                            writeHtml("Reloading ");
+                            writeHtml(contextPath);
+                            writeHtml("/");
+                        writeEnd();
                         try {
-                            start("ul", "class", "muted");
+                            writeStart("ul", "class", "muted");
                             try {
-                                start("li");
-                                    html("Waiting for it to start back up");
-                                end();
+                                writeStart("li");
+                                    writeHtml("Waiting for it to start back up");
+                                writeEnd();
                                 for (int i = 0; i < 4000; ++ i) {
-                                    html(" ");
+                                    writeHtml(" ");
                                 }
-                                html("\r\n");
+                                writeHtml("\r\n");
                                 flush();
                                 reload(request, response, contextPath, requestPath);
-                                start("li");
-                                    html("Ready!");
-                                end();
-                                start("script", "type", "text/javascript");
+                                writeStart("li");
+                                    writeHtml("Ready!");
+                                writeEnd();
+                                writeStart("script", "type", "text/javascript");
                                     write("location.href = '" + StringUtils.escapeJavaScript(requestPath) + "';");
-                                end();
+                                writeEnd();
                             } finally {
-                                end();
+                                writeEnd();
                             }
                         } catch (Exception ex) {
-                            object(ex);
+                            writeObject(ex);
                         }
-                    end();
+                    writeEnd();
 
-                end();
-            end();
+                writeEnd();
+            writeEnd();
         }};
     }
 

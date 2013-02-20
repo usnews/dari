@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,8 +10,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.NavigableSet;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Queue;
 import java.util.Set;
 import java.util.SortedSet;
@@ -24,6 +23,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 public class ObjectToAnyCollection implements ConversionFunction<Object, Collection<Object>> {
 
+    @SuppressWarnings("rawtypes")
     private final Map<Type, Class<? extends Collection>> implementationClasses = new HashMap<Type, Class<? extends Collection>>();
 
     public ObjectToAnyCollection() {
@@ -42,9 +42,11 @@ public class ObjectToAnyCollection implements ConversionFunction<Object, Collect
      * Returns the implementation class used to create an instance of
      * the given {@code returnType}.
      */
+    @SuppressWarnings("rawtypes")
     public Class<? extends Collection> getImplementationClass(Type returnType) {
         Class<? extends Collection> implementationClass = implementationClasses.get(returnType);
         if (implementationClass == null) {
+            @SuppressWarnings("unchecked")
             Class<? extends Collection> returnClass = (Class<? extends Collection>) TypeDefinition.getInstance(returnType).getObjectClass();
             implementationClass = implementationClasses.get(returnClass);
             if (implementationClass == null) {
@@ -58,14 +60,17 @@ public class ObjectToAnyCollection implements ConversionFunction<Object, Collect
      * Puts the the given {@code implementationClass} to be used for
      * creating an instance of the given {@code returnType}.
      */
+    @SuppressWarnings("rawtypes")
     public void putImplementationClass(Type returnType, Class<? extends Collection> implementationClass) {
         implementationClasses.put(returnType, implementationClass);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T extends Collection> void putImplementationClass(Class<T> returnClass, Class<? extends T> implementationClass) {
         putImplementationClass((Type) returnClass, implementationClass);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T extends Collection> void putImplementationClass(TypeReference<T> returnType, Class<? extends T> implementationClass) {
         putImplementationClass(returnType.getType(), implementationClass);
     }
@@ -87,6 +92,7 @@ public class ObjectToAnyCollection implements ConversionFunction<Object, Collect
                     "Cannot convert to [%s] type!", returnType), null);
         }
 
+        @SuppressWarnings("unchecked")
         Collection<Object> collection = TypeDefinition.getInstance(getImplementationClass(returnType)).newInstance();
         for (Object item : converter.convert(Iterable.class, object)) {
             collection.add(itemType != null ? converter.convert(itemType, item) : item);

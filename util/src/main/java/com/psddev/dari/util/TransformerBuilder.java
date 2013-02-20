@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.lang.reflect.Type;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -60,11 +59,13 @@ public class TransformerBuilder {
     }
 
     /** Sets the type used to create the map when transforming objects. */
+    @SuppressWarnings("rawtypes")
     public TransformerBuilder setMapType(Class<? extends Map> mapType) {
         return setMapType((Type) mapType);
     }
 
     /** Sets the type used to create the map when transforming objects. */
+    @SuppressWarnings("rawtypes")
     public TransformerBuilder setMapType(TypeReference<? extends Map> mapType) {
         return setMapType(mapType.getType());
     }
@@ -182,6 +183,7 @@ public class TransformerBuilder {
     }
 
     /** Builds the transformer. */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public Transformer toTransformer() {
 
         Converter converter = new Converter();

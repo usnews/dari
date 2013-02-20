@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -28,6 +22,12 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
 
 /** Represents how the {@link Record}s are structured. */
 @Record.LabelFields("name")

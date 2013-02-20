@@ -5,8 +5,8 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
@@ -97,21 +97,23 @@ public final class IoUtils {
             destination.createNewFile();
         }
 
-        FileChannel sourceChannel = new FileInputStream(source).getChannel();
+        FileInputStream sourceInput = new FileInputStream(source);
         long total = -1L;
 
         try {
+            FileChannel sourceChannel = sourceInput.getChannel();
             total = sourceChannel.size();
-            FileChannel destinationChannel = new FileOutputStream(destination).getChannel();
+            FileOutputStream destinationOutput = new FileOutputStream(destination);
 
             try {
-                sourceChannel.transferTo(0, total, destinationChannel);
+                sourceChannel.transferTo(0, total, destinationOutput.getChannel());
+
             } finally {
-                close(destinationChannel, true);
+                close(destinationOutput, true);
             }
 
         } finally {
-            closeQuietly(sourceChannel);
+            closeQuietly(sourceInput);
         }
 
         return total;

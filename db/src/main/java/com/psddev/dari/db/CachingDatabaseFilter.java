@@ -1,14 +1,14 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.AbstractFilter;
-import com.psddev.dari.util.Settings;
-
 import java.io.IOException;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.psddev.dari.util.AbstractFilter;
+import com.psddev.dari.util.Settings;
 
 /** Enables various per-request database result caching. */
 public class CachingDatabaseFilter extends AbstractFilter {

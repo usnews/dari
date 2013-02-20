@@ -1,11 +1,11 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import com.psddev.dari.util.ObjectUtils;
 
 /**
  * Predicate whose evaluation depends on its child predicates. This class

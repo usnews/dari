@@ -120,12 +120,12 @@ public class FormTag extends TagSupport implements DynamicAttributes {
             @SuppressWarnings("all")
             HtmlWriter writer = new HtmlWriter(pageContext.getOut());
 
-            writer.tag("form",
+            writer.writeTag("form",
                     "id", id,
                     "method", method.toLowerCase(),
                     "action", "",
                     attributes);
-                writer.tag("input",
+                writer.writeTag("input",
                         "type", "hidden",
                         "name", ID_PARAMETER,
                         "value", id);
@@ -145,7 +145,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
             @SuppressWarnings("all")
             HtmlWriter writer = new HtmlWriter(pageContext.getOut());
 
-            writer.tag("/form");
+            writer.writeTag("/form");
 
         } catch (IOException error) {
             throw new JspException(error);

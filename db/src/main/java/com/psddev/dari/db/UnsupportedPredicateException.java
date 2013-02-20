@@ -4,6 +4,7 @@ package com.psddev.dari.db;
  * Thrown when use of an {@linkplain Predicate predicate} isn't
  * supported.
  */
+@SuppressWarnings("serial")
 public class UnsupportedPredicateException extends UnsupportedOperationException {
 
     private final Object reader;

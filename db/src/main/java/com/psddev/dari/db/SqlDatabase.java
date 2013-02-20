@@ -1,19 +1,6 @@
 package com.psddev.dari.db;
 
-import com.jolbox.bonecp.BoneCPDataSource;
-
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.PeriodicValue;
-import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.Stats;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
 import java.io.ByteArrayInputStream;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -51,9 +38,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
 
 import org.iq80.snappy.Snappy;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.jolbox.bonecp.BoneCPDataSource;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.PeriodicValue;
+import com.psddev.dari.util.Profiler;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.SettingsException;
+import com.psddev.dari.util.Stats;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
 
 /** Database backed by a SQL engine. */
 public class SqlDatabase extends AbstractDatabase<Connection> {

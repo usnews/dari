@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectToIterable;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StringUtils;
-
 import java.net.URI;
 import java.net.URL;
 import java.sql.BatchUpdateException;
@@ -19,6 +15,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.ObjectToIterable;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
 
 /** Internal representations of all SQL index tables. */
 public enum SqlIndex {

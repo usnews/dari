@@ -20,6 +20,7 @@ class StateValueSet extends AbstractSet<Object> {
     private Set<Object> set;
     private boolean hasConvertedAll;
 
+    @SuppressWarnings("unchecked")
     public StateValueSet(
             Database database,
             Object object,

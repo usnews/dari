@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectToIterable;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.TypeReference;
-
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -14,6 +10,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import com.psddev.dari.util.ObjectToIterable;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.TypeReference;
 
 /** Description of how field values in a state can be queried. */
 public class ObjectIndex {

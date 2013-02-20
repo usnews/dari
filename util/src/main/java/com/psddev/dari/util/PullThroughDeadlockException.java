@@ -4,6 +4,7 @@ package com.psddev.dari.util;
  * For when there is a deadlock while producing a value in a pull-through
  * class.
  */
+@SuppressWarnings("serial")
 public class PullThroughDeadlockException extends RuntimeException {
 
     private final Object key;

@@ -1,8 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.CollectionUtils;
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -14,6 +11,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.psddev.dari.util.CollectionUtils;
+import com.psddev.dari.util.ObjectUtils;
 
 /**
  * Parser for translating a predicate string into a {@linkplain Predicate

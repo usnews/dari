@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
-
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Date;
@@ -11,7 +10,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -54,6 +52,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
      * Returns a map of values associated with the given {@code keys},
      * producing them if necessary.
      */
+    @SuppressWarnings("unchecked")
     public Map<K, V> getMany(Set<Object> keys) {
 
         // Any GC'd values?

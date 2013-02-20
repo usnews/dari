@@ -1,18 +1,14 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.CodeUtils;
-import com.psddev.dari.util.DebugFilter;
-import com.psddev.dari.util.ObjectUtils;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -20,6 +16,10 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.psddev.dari.util.CodeUtils;
+import com.psddev.dari.util.DebugFilter;
+import com.psddev.dari.util.ObjectUtils;
 
 @DebugFilter.Path("db-schema")
 @SuppressWarnings("serial")
@@ -53,30 +53,30 @@ public class SchemaDebugServlet extends HttpServlet {
 
             startPage("Database", "Schema");
 
-                start("form", "method", "get");
-                    start("select", "multiple", "multiple", "name", "typeId", "style", "width: 90%;");
+                writeStart("form", "method", "get");
+                    writeStart("select", "multiple", "multiple", "name", "typeId", "style", "width: 90%;");
                         for (ObjectType t : types) {
-                            start("option",
+                            writeStart("option",
                                     "selected", selectedTypes.contains(t) ? "selected" : null,
                                     "value", t.getId());
-                                html(t.getDisplayName());
-                                html(" (").html(t.getInternalName()).html(")");
-                            end();
+                                writeHtml(t.getDisplayName());
+                                writeHtml(" (").writeHtml(t.getInternalName()).writeHtml(")");
+                            writeEnd();
                         }
-                    end();
-                    tag("br");
-                    tag("input", "class", "btn", "type", "submit", "value", "View");
-                end();
+                    writeEnd();
+                    writeTag("br");
+                    writeTag("input", "class", "btn", "type", "submit", "value", "View");
+                writeEnd();
 
                 includeStylesheet("/_resource/chosen/chosen.css");
                 includeScript("/_resource/chosen/chosen.jquery.min.js");
-                start("script", "type", "text/javascript");
+                writeStart("script", "type", "text/javascript");
                     write("(function() {");
                         write("$('select[name=typeId]').chosen({ 'search_contains': true });");
                     write("})();");
-                end();
+                writeEnd();
 
-                start("style", "type", "text/css");
+                writeStart("style", "type", "text/css");
                     write(".column { display: table-cell; padding-right: 15em; text-align: center; vertical-align: top; }");
                     write(".column dl { margin-bottom: 0; }");
                     write(".type { border: 1px solid black; display: inline-block; margin-bottom: 5em; padding: 0.5em; text-align: left; }");
@@ -84,14 +84,14 @@ public class SchemaDebugServlet extends HttpServlet {
                     write(".type dt { margin-bottom: 5px; }");
                     write(".type dd:last-child table { margin-bottom: 0; }");
                     write(".type .reference { color: white; white-space: nowrap; }");
-                end();
+                writeEnd();
 
-                start("div", "class", "types");
+                writeStart("div", "class", "types");
                     Set<ObjectType> allTypes = new HashSet<ObjectType>();
                     Set<ObjectType> currentTypes = new HashSet<ObjectType>(selectedTypes);
 
                     while (!currentTypes.isEmpty()) {
-                        start("div", "class", "column");
+                        writeStart("div", "class", "column");
                             allTypes.addAll(currentTypes);
                             Set<ObjectType> nextTypes = new LinkedHashSet<ObjectType>();
 
@@ -108,42 +108,42 @@ public class SchemaDebugServlet extends HttpServlet {
                                     fields.add(field);
                                 }
 
-                                start("div").end();
-                                start("div", "class", "type", "id", "type-" + t.getId());
-                                    start("h2").html(t.getDisplayName()).end();
-                                    start("dl");
+                                writeStart("div").writeEnd();
+                                writeStart("div", "class", "type", "id", "type-" + t.getId());
+                                    writeStart("h2").writeHtml(t.getDisplayName()).writeEnd();
+                                    writeStart("dl");
 
                                         for (Map.Entry<String, List<ObjectField>> entry : fieldsByClass.entrySet()) {
                                             String className = entry.getKey();
                                             File source = CodeUtils.getSource(className);
 
-                                            start("dt");
+                                            writeStart("dt");
                                                 if (source == null) {
-                                                    html(className);
+                                                    writeHtml(className);
 
                                                 } else {
-                                                    start("a",
+                                                    writeStart("a",
                                                             "target", "_blank",
                                                             "href", DebugFilter.Static.getServletPath(page.getRequest(), "code",
                                                                     "file", source));
-                                                        html(className);
-                                                    end();
+                                                        writeHtml(className);
+                                                    writeEnd();
                                                 }
-                                            end();
+                                            writeEnd();
 
-                                            start("dd");
-                                                start("table", "class", "table table-condensed");
-                                                    start("tbody");
+                                            writeStart("dd");
+                                                writeStart("table", "class", "table table-condensed");
+                                                    writeStart("tbody");
                                                         for (ObjectField field : entry.getValue()) {
                                                             if (page.param(boolean.class, "nf") && !field.getInternalItemType().equals("record")) {
                                                                 continue;
                                                             }
 
-                                                            start("tr");
-                                                                start("td").html(field.getInternalName()).end();
-                                                                start("td").html(field.getInternalType()).end();
+                                                            writeStart("tr");
+                                                                writeStart("td").writeHtml(field.getInternalName()).writeEnd();
+                                                                writeStart("td").writeHtml(field.getInternalType()).writeEnd();
 
-                                                                start("td");
+                                                                writeStart("td");
                                                                     if (ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
                                                                         Set<ObjectType> itemTypes = field.getTypes();
                                                                         if (!ObjectUtils.isBlank(itemTypes)) {
@@ -151,31 +151,31 @@ public class SchemaDebugServlet extends HttpServlet {
                                                                                 if (!allTypes.contains(itemType)) {
                                                                                     nextTypes.add(itemType);
                                                                                 }
-                                                                                start("a",
+                                                                                writeStart("a",
                                                                                         "class", "label reference",
                                                                                         "data-typeId", itemType.getId(),
                                                                                         "href", page.url(null, "typeId", itemType.getId()));
-                                                                                    html(itemType.getDisplayName());
-                                                                                end();
+                                                                                    writeHtml(itemType.getDisplayName());
+                                                                                writeEnd();
                                                                             }
                                                                         }
                                                                     }
-                                                                end();
-                                                            end();
+                                                                writeEnd();
+                                                            writeEnd();
                                                         }
-                                                    end();
-                                                end();
-                                            end();
+                                                    writeEnd();
+                                                writeEnd();
+                                            writeEnd();
                                         }
 
-                                    end();
-                                end();
+                                    writeEnd();
+                                writeEnd();
                             }
 
                             currentTypes = nextTypes;
-                        end();
+                        writeEnd();
                     }
-                end();
+                writeEnd();
 
                 includeScript("/_resource/dari/db-schema.js");
 

@@ -1,12 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.CodeUtils;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PeriodicCache;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.Task;
-import com.psddev.dari.util.TypeDefinition;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -21,6 +14,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.CodeUtils;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PeriodicCache;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.Task;
+import com.psddev.dari.util.TypeDefinition;
 
 public class DatabaseEnvironment implements ObjectStruct {
 
@@ -173,7 +173,7 @@ public class DatabaseEnvironment implements ObjectStruct {
             refreshGlobals();
             refreshTypes();
 
-            refresher.schedule(5.0, 5.0);
+            refresher.scheduleWithFixedDelay(5.0, 5.0);
             bootstrapDone.set(true);
 
         } finally {

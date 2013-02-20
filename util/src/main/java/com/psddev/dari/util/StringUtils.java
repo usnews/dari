@@ -1,7 +1,5 @@
 package com.psddev.dari.util;
 
-import org.apache.commons.lang.StringEscapeUtils;
-
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
 import java.net.URLDecoder;
@@ -21,6 +19,8 @@ import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.commons.lang.StringEscapeUtils;
 
 /** String utility methods. */
 public class StringUtils {
