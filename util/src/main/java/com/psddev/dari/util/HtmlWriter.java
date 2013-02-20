@@ -338,7 +338,7 @@ public class HtmlWriter extends Writer {
                         "float", "left");
 
                 for (Area area : areas.values()) {
-                    String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.getName() + "\"]";
+                    String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.name + "\"]";
 
                     writeCss(selector,
                             "clear", area.clear ? "left" : null,
@@ -664,28 +664,24 @@ public class HtmlWriter extends Writer {
         return writeGrid(object, new HtmlGrid(columns, rows, template));
     }
 
-    public static class Area {
+    private static class Area {
 
-        private final String name;
-        protected final String id = "i" + UUID.randomUUID().toString().replaceAll("-", "");
-        protected boolean clear;
-        protected double frPaddingLeft;
-        protected double frWidth;
-        protected CombinedCssUnit width;
-        protected CssUnit singleWidth;
-        protected CombinedCssUnit height;
-        protected CssUnit singleHeight;
-        protected final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
+        public final String name;
+        public final String id = "i" + UUID.randomUUID().toString().replaceAll("-", "");
+        public boolean clear;
+        public double frPaddingLeft;
+        public double frWidth;
+        public CombinedCssUnit width;
+        public CssUnit singleWidth;
+        public CombinedCssUnit height;
+        public CssUnit singleHeight;
+        public final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
 
         public Area(String name) {
             this.name = name;
         }
 
-        public String getName() {
-            return name;
-        }
-
-        protected Adjustment getOrCreateAdjustment(String unit) {
+        public Adjustment getOrCreateAdjustment(String unit) {
             Adjustment adjustment = adjustments.get(unit);
             if (adjustment == null) {
                 adjustment = new Adjustment();
