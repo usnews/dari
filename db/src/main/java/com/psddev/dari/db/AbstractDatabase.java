@@ -1170,6 +1170,7 @@ public abstract class AbstractDatabase<C> implements Database {
                 object = (T) environment.createObject(state.getTypeId(), state.getId());
                 state = State.getInstance(object);
 
+                state.setStatus(oldState.getStatus());
                 state.setValues(oldState);
                 state.getExtras().putAll(oldState.getExtras());
             }
