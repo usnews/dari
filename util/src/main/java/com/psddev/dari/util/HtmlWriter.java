@@ -115,7 +115,7 @@ public class HtmlWriter extends Writer {
      * <p>This method doesn't keep state, so it should be used with doctype
      * declaration and self-closing tags like {@code img}.</p>
      */
-    public HtmlWriter tag(String tag, Object... attributes) throws IOException {
+    public HtmlWriter writeTag(String tag, Object... attributes) throws IOException {
         if (tag == null) {
             throw new IllegalArgumentException("Tag can't be null!");
         }
@@ -184,14 +184,14 @@ public class HtmlWriter extends Writer {
      * <p>This method keeps state, so there should be a matching {@link #end}
      * call afterwards.</p>
      */
-    public HtmlWriter start(String tag, Object... attributes) throws IOException {
-        tag(tag, attributes);
+    public HtmlWriter writeStart(String tag, Object... attributes) throws IOException {
+        writeTag(tag, attributes);
         tags.addFirst(tag);
         return this;
     }
 
     /** Writes the end tag previously started with {@link #start}. */
-    public HtmlWriter end() throws IOException {
+    public HtmlWriter writeEnd() throws IOException {
         String tag = tags.removeFirst();
 
         if (tag == null) {
@@ -211,7 +211,7 @@ public class HtmlWriter extends Writer {
      * Escapes and writes the given {@code unescapedHtml}, or if it's
      * {@code null}, the given {@code defaultUnescapedHtml}.
      */
-    public HtmlWriter htmlOrDefault(Object unescapedHtml, String defaultUnescapedHtml) throws IOException {
+    public HtmlWriter writeHtmlOrDefault(Object unescapedHtml, String defaultUnescapedHtml) throws IOException {
         getDelegate().write(escapeHtml(unescapedHtml == null ? defaultUnescapedHtml : unescapedHtml.toString()));
         return this;
     }
@@ -220,13 +220,13 @@ public class HtmlWriter extends Writer {
      * Escapes and writes the given {@code unescapedHtml}, or if it's
      * {@code null}, nothing.
      */
-    public HtmlWriter html(Object unescapedHtml) throws IOException {
-        htmlOrDefault(unescapedHtml, "");
+    public HtmlWriter writeHtml(Object unescapedHtml) throws IOException {
+        writeHtmlOrDefault(unescapedHtml, "");
         return this;
     }
 
     /** Formats and writes the given {@code object}. */
-    public HtmlWriter object(Object object) throws IOException {
+    public HtmlWriter writeObject(Object object) throws IOException {
         HtmlFormatter<Object> formatter;
 
         if (object == null) {
@@ -255,15 +255,15 @@ public class HtmlWriter extends Writer {
         }
 
         if (object != null && object.getClass().isArray()) {
-            start("ul");
+            writeStart("ul");
                 for (int i = 0, length = Array.getLength(object); i < length; ++ i) {
-                    start("li").object(Array.get(object, i)).end();
+                    writeStart("li").writeObject(Array.get(object, i)).writeEnd();
                 }
-            end();
+            writeEnd();
             return this;
         }
 
-        return html(object);
+        return writeHtml(object);
     }
 
     private boolean formatWithMap(
@@ -301,7 +301,7 @@ public class HtmlWriter extends Writer {
     }
 
     /** Writes a CSS rule based on the given parameters. */
-    public HtmlWriter css(String selector, Object... properties) throws IOException {
+    public HtmlWriter writeCss(String selector, Object... properties) throws IOException {
         write(selector);
         write('{');
         write(cssString(properties));
@@ -315,7 +315,7 @@ public class HtmlWriter extends Writer {
      *
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
-    public HtmlWriter grid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
+    public HtmlWriter writeGrid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
         Map<String, Area> areas = createAreas(grid);
         boolean debug;
 
@@ -326,21 +326,21 @@ public class HtmlWriter extends Writer {
         }
 
         if (!inlineCss) {
-            start("style", "type", "text/css");
-                css(".dari-grid-area",
+            writeStart("style", "type", "text/css");
+                writeCss(".dari-grid-area",
                         "-moz-box-sizing", "content-box",
                         "-webkit-box-sizing", "content-box",
                         "box-sizing", "content-box",
                         "float", "left",
                         "margin", "0 -100% 0 -30000px");
 
-                css(".dari-grid-adj",
+                writeCss(".dari-grid-adj",
                         "float", "left");
 
                 for (Area area : areas.values()) {
                     String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.getName() + "\"]";
 
-                    css(selector,
+                    writeCss(selector,
                             "clear", area.clear ? "left" : null,
                             "padding-left", area.frPaddingLeft + "%",
                             "width", area.frWidth + "%");
@@ -349,13 +349,13 @@ public class HtmlWriter extends Writer {
                         String unit = entry.getKey();
                         Adjustment adjustment = entry.getValue();
 
-                        css(selector + "-" + unit,
+                        writeCss(selector + "-" + unit,
                                 "height", adjustment.height,
                                 "margin", adjustment.getMargin(unit),
                                 "width", adjustment.width);
                     }
                 }
-            end();
+            writeEnd();
         }
 
         if (object == null) {
@@ -369,7 +369,7 @@ public class HtmlWriter extends Writer {
             // The main wrapping DIV around the area. Initially shifted
             // left 30000px so that it's off-screen as not to overlap
             // other elements that come before.
-            start("div",
+            writeStart("div",
                     "class", "dari-grid-area",
                     "id", area.id,
                     "data-grid-area", areaName,
@@ -390,7 +390,7 @@ public class HtmlWriter extends Writer {
                     String unit = adjustmentEntry.getKey();
                     Adjustment adjustment = adjustmentEntry.getValue();
 
-                    start("div",
+                    writeStart("div",
                             "class", "dari-grid-adj",
                             "id", area.id + "-" + unit,
                             "style", !inlineCss ? null : cssString(
@@ -400,15 +400,15 @@ public class HtmlWriter extends Writer {
                                     "width", adjustment.width));
                 }
 
-                start("div", "style", cssString(
+                writeStart("div", "style", cssString(
                         "height", 0,
                         "overflow", "hidden",
                         "visibility", "hidden"));
                     write(GRID_PADDING);
-                end();
+                writeEnd();
 
                 if (debug) {
-                    start("div", "style", cssString(
+                    writeStart("div", "style", cssString(
                             "border", "3px dashed red",
                             "padding", "3px"));
                 }
@@ -420,20 +420,20 @@ public class HtmlWriter extends Writer {
                     for (CssUnit column : area.width.getAll()) {
                         if (!"fr".equals(column.getUnit())) {
                             ++ i;
-                            start("div", "style", cssString(
+                            writeStart("div", "style", cssString(
                                     "padding-left", column,
                                     "height", 0));
                         }
                     }
 
                     for (; i > 0; -- i) {
-                        end();
+                        writeEnd();
                     }
                 }
 
                 // Minimum height with multiple units.
                 if (area.singleHeight == null) {
-                    start("div", "style", cssString(
+                    writeStart("div", "style", cssString(
                             "float", "left",
                             "width", 0));
 
@@ -441,38 +441,38 @@ public class HtmlWriter extends Writer {
 
                     for (CssUnit row : area.height.getAll()) {
                         ++ i;
-                        start("div", "style", cssString(
+                        writeStart("div", "style", cssString(
                                 "padding-top", row,
                                 "width", 0));
                     }
 
                     for (; i > 0; -- i) {
-                        end();
+                        writeEnd();
                     }
 
-                    end();
+                    writeEnd();
                 }
 
-                object(CollectionUtils.getByPath(object, entry.getKey()));
+                writeObject(CollectionUtils.getByPath(object, entry.getKey()));
 
                 if (area.singleHeight == null) {
-                    start("div", "style", cssString("clear", "left"));
-                    end();
+                    writeStart("div", "style", cssString("clear", "left"));
+                    writeEnd();
                 }
 
                 if (debug) {
-                    end();
+                    writeEnd();
                 }
 
                 for (; adjustments > 0; -- adjustments) {
-                    end();
+                    writeEnd();
                 }
 
-            end();
+            writeEnd();
         }
 
-        start("div", "style", cssString("clear", "left"));
-        end();
+        writeStart("div", "style", cssString("clear", "left"));
+        writeEnd();
 
         return this;
     }
@@ -650,8 +650,8 @@ public class HtmlWriter extends Writer {
      *
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
-    public HtmlWriter grid(Object object, HtmlGrid grid) throws IOException {
-        return grid(object, grid, false);
+    public HtmlWriter writeGrid(Object object, HtmlGrid grid) throws IOException {
+        return writeGrid(object, grid, false);
     }
 
     /**
@@ -660,8 +660,8 @@ public class HtmlWriter extends Writer {
      *
      * @see #grid(Object, HtmlGrid)
      */
-    public HtmlWriter grid(Object object, String columns, String rows, String... template) throws IOException {
-        return grid(object, new HtmlGrid(columns, rows, template));
+    public HtmlWriter writeGrid(Object object, String columns, String rows, String... template) throws IOException {
+        return writeGrid(object, new HtmlGrid(columns, rows, template));
     }
 
     public static class Area {
@@ -840,15 +840,75 @@ public class HtmlWriter extends Writer {
 
     // --- Deprecated ---
 
-    /** @deprecated Use {@link #htmlOrDefault} instead. */
+    /** @deprecated Use {@link #writeHtmlOrDefault} instead. */
     @Deprecated
     public HtmlWriter stringOrDefault(Object string, String defaultString) throws IOException {
         return htmlOrDefault(string, defaultString);
     }
 
-    /** @deprecated Use {@link #html} instead. */
+    /** @deprecated Use {@link #writeHtml} instead. */
     @Deprecated
     public HtmlWriter string(Object string) throws IOException {
         return html(string);
+    }
+
+    /** @deprecated Use {@link #writeTag} instead. */
+    @Deprecated
+    public HtmlWriter tag(String tag, Object... attributes) throws IOException {
+        return writeTag(tag, attributes);
+    }
+
+    /** @deprecated Use {@link #writeStart} instead. */
+    @Deprecated
+    public HtmlWriter start(String tag, Object... attributes) throws IOException {
+        return writeStart(tag, attributes);
+    }
+
+    /** @deprecated Use {@link #writeEnd} instead. */
+    @Deprecated
+    public HtmlWriter end() throws IOException {
+        return writeEnd();
+    }
+
+    /** @deprecated Use {@link #writeHtmlOrDefault} instead. */
+    @Deprecated
+    public HtmlWriter htmlOrDefault(Object unescapedHtml, String defaultUnescapedHtml) throws IOException {
+        return writeHtmlOrDefault(unescapedHtml, defaultUnescapedHtml);
+    }
+
+    /** @deprecated Use {@link #writeHtml} instead. */
+    @Deprecated
+    public HtmlWriter html(Object unescapedHtml) throws IOException {
+        return writeHtml(unescapedHtml);
+    }
+
+    /** @deprecated Use {@link #writeObject} instead. */
+    @Deprecated
+    public HtmlWriter object(Object object) throws IOException {
+        return writeObject(object);
+    }
+
+    /** @deprecated Use {@link #writeCss} instead. */
+    @Deprecated
+    public HtmlWriter css(String selector, Object... properties) throws IOException {
+        return writeCss(selector, properties);
+    }
+
+    /** @deprecated Use {@link #writeGrid} instead. */
+    @Deprecated
+    public HtmlWriter grid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
+        return writeGrid(object, grid, inlineCss);
+    }
+
+    /** @deprecated Use {@link #writeGrid} instead. */
+    @Deprecated
+    public HtmlWriter grid(Object object, HtmlGrid grid) throws IOException {
+        return writeGrid(object, grid);
+    }
+
+    /** @deprecated Use {@link #writeGrid} instead. */
+    @Deprecated
+    public HtmlWriter grid(Object object, String columns, String rows, String... template) throws IOException {
+        return writeGrid(object, columns, rows, template);
     }
 }
