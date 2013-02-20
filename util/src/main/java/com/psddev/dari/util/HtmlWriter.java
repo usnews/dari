@@ -27,14 +27,40 @@ public class HtmlWriter extends Writer {
         GRID_PADDING = gp.toString();
     }
 
-    private final Writer writer;
+    private Writer delegate;
     private final Map<Class<?>, HtmlFormatter<Object>> defaultFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Map<Class<?>, HtmlFormatter<Object>> overrideFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Deque<String> tags = new ArrayDeque<String>();
 
-    /** Creates an instance that writes to the given {@code writer}. */
-    public HtmlWriter(Writer writer) {
-        this.writer = writer;
+    /** Creates an instance. */
+    public HtmlWriter() {
+    }
+
+    /**
+     * Creates an instance that writes to the given {@code delegate}.
+     *
+     * @param delegate May be {@code null}.
+     */
+    public HtmlWriter(Writer delegate) {
+        this.delegate = delegate;
+    }
+
+    /**
+     * Returns the delegate.
+     *
+     * @return May be {@code null}.
+     */
+    public Writer getDelegate() {
+        return delegate;
+    }
+
+    /**
+     * Sets the delegate.
+     *
+     * @param delegate May be {@code null}.
+     */
+    public void setDelegate(Writer delegate) {
+        this.delegate = delegate;
     }
 
     @SuppressWarnings("unchecked")
@@ -94,8 +120,10 @@ public class HtmlWriter extends Writer {
             throw new IllegalArgumentException("Tag can't be null!");
         }
 
-        writer.write('<');
-        writer.write(tag);
+        Writer delegate = getDelegate();
+
+        delegate.write('<');
+        delegate.write(tag);
 
         if (attributes != null) {
             Map<String, Object> map = new LinkedHashMap<String, Object>();
@@ -107,16 +135,16 @@ public class HtmlWriter extends Writer {
                 Object value = entry.getValue();
 
                 if (!ObjectUtils.isBlank(name) && value != null) {
-                    writer.write(' ');
-                    writer.write(escapeHtml(name));
-                    writer.write("=\"");
-                    writer.write(escapeHtml(value.toString()));
-                    writer.write('"');
+                    delegate.write(' ');
+                    delegate.write(escapeHtml(name));
+                    delegate.write("=\"");
+                    delegate.write(escapeHtml(value.toString()));
+                    delegate.write('"');
                 }
             }
         }
 
-        writer.write('>');
+        delegate.write('>');
         return this;
     }
 
@@ -170,9 +198,11 @@ public class HtmlWriter extends Writer {
             throw new IllegalStateException("No more tags!");
         }
 
-        writer.write("</");
-        writer.write(tag);
-        writer.write('>');
+        Writer delegate = getDelegate();
+
+        delegate.write("</");
+        delegate.write(tag);
+        delegate.write('>');
 
         return this;
     }
@@ -182,7 +212,7 @@ public class HtmlWriter extends Writer {
      * {@code null}, the given {@code defaultUnescapedHtml}.
      */
     public HtmlWriter htmlOrDefault(Object unescapedHtml, String defaultUnescapedHtml) throws IOException {
-        writer.write(escapeHtml(unescapedHtml == null ? defaultUnescapedHtml : unescapedHtml.toString()));
+        getDelegate().write(escapeHtml(unescapedHtml == null ? defaultUnescapedHtml : unescapedHtml.toString()));
         return this;
     }
 
@@ -729,55 +759,55 @@ public class HtmlWriter extends Writer {
 
     @Override
     public Writer append(char letter) throws IOException {
-        writer.write(letter);
+        getDelegate().write(letter);
         return this;
     }
 
     @Override
     public Writer append(CharSequence text) throws IOException {
-        writer.append(text);
+        getDelegate().append(text);
         return this;
     }
 
     @Override
     public Writer append(CharSequence text, int start, int end) throws IOException {
-        writer.append(text, start, end);
+        getDelegate().append(text, start, end);
         return this;
     }
 
     @Override
     public void close() throws IOException {
-        writer.close();
+        getDelegate().close();
     }
 
     @Override
     public void flush() throws IOException {
-        writer.flush();
+        getDelegate().flush();
     }
 
     @Override
     public void write(char[] buffer) throws IOException {
-        writer.write(buffer);
+        getDelegate().write(buffer);
     }
 
     @Override
     public void write(char[] buffer, int offset, int length) throws IOException {
-        writer.write(buffer, offset, length);
+        getDelegate().write(buffer, offset, length);
     }
 
     @Override
     public void write(int letter) throws IOException {
-        writer.write(letter);
+        getDelegate().write(letter);
     }
 
     @Override
     public void write(String text) throws IOException {
-        writer.write(text);
+        getDelegate().write(text);
     }
 
     @Override
     public void write(String text, int offset, int length) throws IOException {
-        writer.write(text, offset, length);
+        getDelegate().write(text, offset, length);
     }
 
     /** {@link HtmlWriter} utility methods. */
