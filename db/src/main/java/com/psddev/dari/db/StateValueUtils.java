@@ -117,6 +117,7 @@ abstract class StateValueUtils {
             // Find IDs that have not been resolved yet.
             Map<UUID, Object> references = new HashMap<UUID, Object>();
             Set<UUID> unresolvedIds = new HashSet<UUID>();
+            Set<UUID> unresolvedTypeIds = new HashSet<UUID>();
             for (Object item : items) {
                 UUID id = toIdIfReference(item);
                 if (id != null) {
@@ -124,6 +125,7 @@ abstract class StateValueUtils {
                         references.put(id, circularReferences.get(id));
                     } else {
                         unresolvedIds.add(id);
+                        unresolvedTypeIds.add(ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get(TYPE_KEY)));
                     }
                 }
             }
@@ -135,6 +137,7 @@ abstract class StateValueUtils {
                         where("_id = ?", unresolvedIds).
                         using(database).
                         option(State.REFERENCE_RESOLVING_QUERY_OPTION, parent).
+                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds).
                         selectAll()) {
                     UUID id = State.getInstance(object).getId();
                     unresolvedIds.remove(id);

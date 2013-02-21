@@ -253,8 +253,28 @@ public enum SqlIndex {
             } else if (value instanceof UUID) {
                 return value;
 
+            } else if (value instanceof String) {
+                String valueString = value.toString().trim();
+                if (!index.isCaseSensitive() && database.comparesIgnoreCase()) {
+                    valueString = valueString.toLowerCase(Locale.ENGLISH);
+                }
+                return stringToBytes(valueString, 500);
+
             } else {
                 return value.toString();
+            }
+        }
+
+        protected static byte[] stringToBytes(String value, int length) {
+            byte[] bytes = value.getBytes(StringUtils.UTF_8);
+
+            if (bytes.length <= length) {
+                return bytes;
+
+            } else {
+                byte[] shortened = new byte[length];
+                System.arraycopy(bytes, 0, shortened, 0, length);
+                return shortened;
             }
         }
 
@@ -377,19 +397,6 @@ public enum SqlIndex {
 
         public SymbolIdSingleValueTable(int version, String name) {
             super(version, name, "id", "symbolId", "value");
-        }
-
-        protected static byte[] stringToBytes(String value, int length) {
-            byte[] bytes = value.getBytes(StringUtils.UTF_8);
-
-            if (bytes.length <= length) {
-                return bytes;
-
-            } else {
-                byte[] shortened = new byte[length];
-                System.arraycopy(bytes, 0, shortened, 0, length);
-                return shortened;
-            }
         }
 
         @Override

@@ -422,6 +422,10 @@ public class ObjectType extends Record implements ObjectStruct {
 
     /** Returns the field with the given {@code name}. */
     public ObjectField getField(String name) {
+        if (name == null) {
+            return null;
+        }
+
         int slashAt = name.indexOf('/');
 
         if (slashAt < 0) {

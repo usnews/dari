@@ -165,7 +165,7 @@ public class DebugFilter extends AbstractFilter {
                                 html("Can't render ");
                                 start("a",
                                         "target", "_blank",
-                                        "href", Static.getServletPath(page.getRequest(), "code",
+                                        "href", DebugFilter.Static.getServletPath(page.getRequest(), "code",
                                                 "action", "edit",
                                                 "type", "JSP",
                                                 "servletPath", servletPath));
@@ -517,7 +517,7 @@ public class DebugFilter extends AbstractFilter {
                     start("div", "class", "navbar-inner");
                         start("div", "class", "container-fluid");
                             start("span", "class", "brand");
-                                start("a", "href", Static.getServletPath(page.getRequest(), ""));
+                                start("a", "href", DebugFilter.Static.getServletPath(page.getRequest(), ""));
                                     html("Dari");
                                 end();
                                 if (!ObjectUtils.isBlank(titles)) {

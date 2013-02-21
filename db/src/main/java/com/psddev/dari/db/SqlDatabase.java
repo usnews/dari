@@ -569,8 +569,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (connection != null &&
-                connection != readConnection.get()) {
+        if (connection != null) {
             try {
                 connection.close();
             } catch (SQLException ex) {
@@ -660,16 +659,19 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         // Load some extra column from source index tables.
+        @SuppressWarnings("unchecked")
+        Set<UUID> unresolvedTypeIds = (Set<UUID>) query.getOptions().get(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION);
         Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
-        if (type != null) {
+        if (type != null &&
+                (unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
+                !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
 
-                if (fieldData.isIndexTableSource() &&
-                        !queryTypes.contains(type)) {
+                if (fieldData.isIndexTableSource()) {
                     loadExtraFields.add(field);
                 }
             }
@@ -1043,11 +1045,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     protected Connection doOpenReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection != null) {
-            return connection;
-        }
-
         DataSource readDataSource = getReadDataSource();
         if (readDataSource == null) {
             readDataSource = getDataSource();
@@ -1080,8 +1077,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public void closeConnection(Connection connection) {
-        if (connection != null &&
-                connection != readConnection.get()) {
+        if (connection != null) {
             try {
                 connection.close();
             } catch (SQLException ex) {
@@ -1097,28 +1093,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         return false;
-    }
-
-    private final ThreadLocal<Connection> readConnection = new ThreadLocal<Connection>();
-
-    public void beginThreadLocalReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection == null) {
-            connection = openReadConnection();
-            readConnection.set(connection);
-        }
-    }
-
-    public void endThreadLocalReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException ex) {
-            } finally {
-                readConnection.remove();
-            }
-        }
     }
 
     @Override
@@ -2352,5 +2326,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             return executeUpdateWithArray(connection, sqlQuery, parameters);
         }
+    }
+
+    // --- Deprecated ---
+
+    /** @deprecated No replacement. */
+    @Deprecated
+    public void beginThreadLocalReadConnection() {
+    }
+
+    /** @deprecated No replacement. */
+    @Deprecated
+    public void endThreadLocalReadConnection() {
     }
 }

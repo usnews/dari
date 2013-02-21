@@ -41,6 +41,8 @@ public class State implements Map<String, Object> {
      */
     public static final String REFERENCE_RESOLVING_QUERY_OPTION = "dari.referenceResolving";
 
+    public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
 
     private static final int STATUS_FLAG_OFFSET = 16;
