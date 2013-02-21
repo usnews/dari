@@ -286,7 +286,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
             AbstractResizeCommand lastResizeCommand = (AbstractResizeCommand) dimsUrl.getLastResizeCommand();
             if (lastResizeCommand != null) {
-                boolean overridden = StorageItemImageResizePlugin.overridePathWithNearestSize(image, 
+                boolean overridden = ImageResizeStorageItemListener.overridePathWithNearestSize(image, 
                         lastResizeCommand.getWidth(),
                         lastResizeCommand.getHeight());
                 

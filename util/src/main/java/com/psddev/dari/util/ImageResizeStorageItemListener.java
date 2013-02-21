@@ -13,7 +13,7 @@ import java.util.Map;
 
 import javax.imageio.ImageIO;
 
-public class StorageItemImageResizePlugin implements StorageItemListener {
+public class ImageResizeStorageItemListener implements StorageItemListener {
 
     @SuppressWarnings("unchecked")
     public static boolean overridePathWithNearestSize(StorageItem item, Integer width, Integer height) {
