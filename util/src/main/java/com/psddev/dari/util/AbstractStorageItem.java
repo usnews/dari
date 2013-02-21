@@ -33,7 +33,7 @@ public abstract class AbstractStorageItem implements StorageItem {
      * {@linkplain #getSecurePublicUrl secure public URL}.
      */
     public static final String SECURE_BASE_URL_SUB_SETTING = "secureBaseUrl";
-    
+
     public static final String HTTP_HEADERS = "http.headers";
 
     private transient String baseUrl;
