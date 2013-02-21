@@ -216,8 +216,10 @@ public abstract class AbstractStorageItem implements StorageItem {
             data.close();
         }
 
-        for (StorageItemListener listener : listeners) {
-            listener.afterSave(this);
+        if (listeners != null) {
+            for (StorageItemListener listener : listeners) {
+                listener.afterSave(this);
+            }
         }
     }
 
