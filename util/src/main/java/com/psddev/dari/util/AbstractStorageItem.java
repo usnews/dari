@@ -6,7 +6,9 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,7 +33,7 @@ public abstract class AbstractStorageItem implements StorageItem {
      * {@linkplain #getSecurePublicUrl secure public URL}.
      */
     public static final String SECURE_BASE_URL_SUB_SETTING = "secureBaseUrl";
-    
+
     public static final String HTTP_HEADERS = "http.headers";
 
     private transient String baseUrl;
@@ -41,6 +43,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     private String contentType;
     private Map<String, Object> metadata;
     private transient InputStream data;
+    private transient List<StorageItemListener> listeners;
 
     /**
      * Returns the base URL that's used to construct the
@@ -72,6 +75,20 @@ public abstract class AbstractStorageItem implements StorageItem {
      */
     public void setSecureBaseUrl(String secureBaseUrl) {
         this.secureBaseUrl = secureBaseUrl;
+    }
+
+    /** Register a StorageItemListener. */
+    public void registerListener(StorageItemListener plugin) {
+        if (listeners == null) {
+            resetListeners();
+        }
+
+        listeners.add(plugin);
+    }
+
+    /** Reset plugins. */
+    public void resetListeners() {
+        listeners = new ArrayList<StorageItemListener>();
     }
 
     // --- StorageItem support ---
@@ -197,6 +214,12 @@ public abstract class AbstractStorageItem implements StorageItem {
             setData(null);
         } finally {
             data.close();
+        }
+
+        if (listeners != null) {
+            for (StorageItemListener listener : listeners) {
+                listener.afterSave(this);
+            }
         }
     }
 

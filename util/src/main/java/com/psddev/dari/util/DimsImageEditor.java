@@ -284,6 +284,21 @@ public class DimsImageEditor extends AbstractImageEditor {
                 }
             }
 
+            Command lastResizeCommand = dimsUrl.getLastResizeCommand();
+            if (lastResizeCommand instanceof AbstractResizeCommand) {
+                AbstractResizeCommand lastResize = (AbstractResizeCommand) lastResizeCommand;
+                boolean overridden = ImageResizeStorageItemListener.overridePathWithNearestSize(image,
+                        lastResize.getWidth(),
+                        lastResize.getHeight());
+
+                if (overridden) {
+                    try {
+                        dimsUrl.setImageUrl(new URL(image.getPublicUrl()));
+                    } catch(MalformedURLException mue) {
+                    }
+                }
+            }
+
             newImage = dimsUrl.toStorageItem();
         }
 
@@ -305,6 +320,10 @@ public class DimsImageEditor extends AbstractImageEditor {
         private List<Command> commands;
         private StorageItem item;
         private URL imageUrl;
+
+        public void setImageUrl(URL imageUrl) {
+            this.imageUrl = imageUrl;
+        }
 
         public DimsUrl(StorageItem item) throws MalformedURLException {
             this.item = item;

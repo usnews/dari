@@ -114,6 +114,12 @@ public interface StorageItem extends SettingsBackedObject {
 
                 StorageItem item = Settings.newInstance(StorageItem.class, SETTING_PREFIX + "/" + storage);
                 item.setStorage(storage);
+
+                if (item instanceof AbstractStorageItem) {
+                    AbstractStorageItem base = (AbstractStorageItem) item;
+                    base.registerListener(new ImageResizeStorageItemListener());
+                }
+
                 return item;
             }
         }
@@ -192,7 +198,14 @@ public interface StorageItem extends SettingsBackedObject {
         public static void removeAllMetadata(StorageItem item, String key) {
             item.getMetadata().remove(key);
         }
-        
+
+        public static void resetListeners(StorageItem item) {
+            if (item instanceof AbstractStorageItem) {
+                AbstractStorageItem base = (AbstractStorageItem) item;
+                base.resetListeners();
+            }
+        }
+
         // --- Resource ---
 
         private static final String CACHE_CONTROL_KEY = "Cache-Control";
@@ -236,7 +249,7 @@ public interface StorageItem extends SettingsBackedObject {
                     httpHeaderMap.put("Content-Encoding", Arrays.asList( "gzip"));
                     metaDataMap.put(AbstractStorageItem.HTTP_HEADERS,httpHeaderMap);
                     item.setMetadata(metaDataMap);
-                    
+
                     item.setData(new ByteArrayInputStream(byteOutput.toByteArray()));
                     item.save();
                 }
@@ -252,13 +265,13 @@ public interface StorageItem extends SettingsBackedObject {
 
             protected void saveItem(String contentType, StorageItem item, byte[] source) throws IOException {
                 item.setContentType(contentType);
-                
+
                 Map<String, Object> metaDataMap = new HashMap<String,Object>();
                 Map<String, List<String>> httpHeaderMap = new HashMap<String,List<String>>();
                 httpHeaderMap.put(CACHE_CONTROL_KEY, Arrays.asList(CACHE_CONTROL_VALUE));
                 metaDataMap.put(AbstractStorageItem.HTTP_HEADERS,httpHeaderMap);
                 item.setMetadata(metaDataMap);
-                
+
                 item.setData(new ByteArrayInputStream(source));
                 item.save();
             }
