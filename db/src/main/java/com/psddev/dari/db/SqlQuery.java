@@ -304,6 +304,12 @@ class SqlQuery {
                 continue;
             }
 
+            ObjectField joinField = join.index.getParent().getField(join.index.getField());
+            if (joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
+                // don't ever join on CountRecord like this - disaster!
+                continue;
+            }
+
             for (String indexKey : join.indexKeys) {
                 joinTableAliases.put(join.getTableName().toLowerCase() + join.quoteIndexKey(indexKey), join.getAlias());
             }
@@ -341,7 +347,6 @@ class SqlQuery {
             fromBuilder.setLength(fromBuilder.length() - 2);
             fromBuilder.append(")");
 
-            ObjectField joinField = join.index.getParent().getField(join.index.getField());
             if (query.getCountActionSymbol() != null && joinField.as(Countable.CountableFieldData.class).isDimension()) {
                 fromBuilder.append(" AND ");
                 fromBuilder.append(aliasPrefix);
@@ -907,9 +912,9 @@ class SqlQuery {
      */
     public String groupStatement(String[] groupFields) {
         Map<String, Join> groupJoins = new LinkedHashMap<String, Join>();
-        List<String> eventDateFormatStrings = new ArrayList<String>();
         if (groupFields != null) {
             for (String groupField : groupFields) {
+                /*
                 if (query.getCountActionSymbol() != null && groupField.toLowerCase().startsWith("eventdate[")) {
                     Matcher eventDateFormatMatcher = EVENT_DATE_FORMAT_PATTERN.matcher(groupField);
                     if (eventDateFormatMatcher.find()) {
@@ -920,25 +925,26 @@ class SqlQuery {
                         //orderBySelectColumns.add("'"+dateFormat+"'");
                     }
                 } else {
-                    Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
-                    mappedKeys.put(groupField, mappedKey);
-                    Iterator<ObjectIndex> indexesIterator = mappedKey.getIndexes().iterator();
-                    if (indexesIterator.hasNext()) {
-                        ObjectIndex selectedIndex = indexesIterator.next();
-                        while (indexesIterator.hasNext()) {
-                            ObjectIndex index = indexesIterator.next();
-                            if (selectedIndex.getFields().size() < index.getFields().size()) {
-                                selectedIndex = index;
-                            }
+                */
+                Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
+                mappedKeys.put(groupField, mappedKey);
+                Iterator<ObjectIndex> indexesIterator = mappedKey.getIndexes().iterator();
+                if (indexesIterator.hasNext()) {
+                    ObjectIndex selectedIndex = indexesIterator.next();
+                    while (indexesIterator.hasNext()) {
+                        ObjectIndex index = indexesIterator.next();
+                        if (selectedIndex.getFields().size() < index.getFields().size()) {
+                            selectedIndex = index;
                         }
-                        selectedIndexes.put(groupField, selectedIndex);
                     }
-                    groupJoins.put(groupField, getJoin(groupField));
+                    selectedIndexes.put(groupField, selectedIndex);
                 }
+                groupJoins.put(groupField, getJoin(groupField));
             }
         }
 
         StringBuilder statementBuilder = new StringBuilder();
+        StringBuilder groupBy = new StringBuilder();
         initializeClauses();
 
         if (query.getCountActionSymbol() != null) {
@@ -950,10 +956,15 @@ class SqlQuery {
             statementBuilder.append(") ");
             for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
                 statementBuilder.append(", ");
-                if (entry.getValue() == null) {
-                    statementBuilder.append("'"+entry.getKey()+"'");
+                Join join = entry.getValue();
+                ObjectField joinField = join.index.getParent().getField(join.index.getField());
+                if (joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
+                    statementBuilder.append(aliasPrefix);
+                    statementBuilder.append("r");
+                    statementBuilder.append(".");
+                    vendor.appendIdentifier(statementBuilder, joinField.as(SqlDatabase.FieldData.class).getIndexTableColumnName());
                 } else {
-                    statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+                    statementBuilder.append(join.getValueField(entry.getKey(), null));
                 }
             }
             /*
@@ -1014,6 +1025,20 @@ class SqlQuery {
                 vendor.appendValue(statementBuilder, query.getCountActionEndDate());
             }
 
+            for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
+                Join join = entry.getValue();
+                ObjectField joinField = join.index.getParent().getField(join.index.getField());
+                if (joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
+                    groupBy.append(aliasPrefix);
+                    groupBy.append("r");
+                    groupBy.append(".");
+                    vendor.appendIdentifier(groupBy, joinField.as(SqlDatabase.FieldData.class).getIndexTableColumnName());
+                } else {
+                    groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
+                }
+                groupBy.append(", ");
+            }
+
         } else {
             statementBuilder.append("SELECT COUNT(");
             if (needsDistinct) {
@@ -1038,17 +1063,13 @@ class SqlQuery {
             statementBuilder.append("r");
             statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
             statementBuilder.append(whereClause);
+
+            for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
+                groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
+                groupBy.append(", ");
+            }
         }
 
-        StringBuilder groupBy = new StringBuilder();
-        for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
-            if (entry.getValue() == null) {
-                groupBy.append("'"+entry.getKey()+"'");
-            } else {
-                groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
-            }
-            groupBy.append(", ");
-        }
 
         if (groupBy.length() > 0) {
             groupBy.setLength(groupBy.length() - 2);
@@ -1069,11 +1090,7 @@ class SqlQuery {
                 if (i++ == 1) {
                     statementBuilder.append(", ");
                 }
-                if (entry.getValue() == null) {
-                    statementBuilder.append(entry.getKey());
-                } else {
-                    statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
-                }
+                statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
             }
 
             for (String field : orderBySelectColumns) {
@@ -1086,7 +1103,6 @@ class SqlQuery {
 
         statementBuilder.append(havingClause);
 
-        LOGGER.info("======="  + statementBuilder.toString());
         return statementBuilder.toString();
     }
 

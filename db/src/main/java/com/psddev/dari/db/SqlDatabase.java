@@ -1955,6 +1955,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static class FieldData extends Modification<ObjectField> {
 
         private String indexTable;
+        private String indexTableColumnName;
         private boolean indexTableReadOnly;
         private boolean indexTableSameColumnNames;
         private boolean indexTableSource;
@@ -1981,6 +1982,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         public void setIndexTableSameColumnNames(boolean indexTableSameColumnNames) {
             this.indexTableSameColumnNames = indexTableSameColumnNames;
+        }
+
+        public void setIndexTableColumnName(String indexTableColumnName) {
+            this.indexTableColumnName = indexTableColumnName;
+        }
+
+        public String getIndexTableColumnName() {
+            return this.indexTableColumnName;
         }
 
         public boolean isIndexTableSource() {

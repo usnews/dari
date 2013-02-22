@@ -17,13 +17,13 @@ import java.lang.annotation.Target;
 
 public interface Countable extends Recordable {
 
-    /** Specifies whether the target field value is indexed in the CountRecord dimension tables. */
+    /** Specifies whether the target field value is indexed in the CountRecord dimension tables. 
+     * This field's value will not be loaded or saved into the state. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
     @ObjectField.AnnotationProcessorClass(DimensionProcessor.class)
     @Target(ElementType.FIELD)
     public @interface Dimension {
-        Class<?>[] value() default {};
     }
 
     /** Specifies the field the count is recorded in */
@@ -33,6 +33,16 @@ public interface Countable extends Recordable {
     @Target(ElementType.FIELD)
     public @interface CountField {
         CountRecord.EventDatePrecision precision() default CountRecord.EventDatePrecision.HOUR;
+    }
+
+    /** Specifies that the target field virtually represents the EventDate field and optionally an SQL date format, and can be queried against. 
+     * This field's value will not be loaded or saved into the state. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(EventDateProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface EventDate {
+        String value() default "";
     }
 
     public static class CountAction extends Modification<Countable> {
@@ -123,11 +133,6 @@ public interface Countable extends Recordable {
             fieldData.setIndexTableReadOnly(true);
 
             CountableFieldData countableFieldData = field.as(CountableFieldData.class);
-            Set<String> dimensionClasses = new HashSet<String>();
-            for (Class<?> cls : annotation.value()) {
-                dimensionClasses.add(cls.getName());
-            }
-            countableFieldData.setDimensionClasses(dimensionClasses);
             countableFieldData.setDimension(true);
         }
     }
@@ -144,9 +149,26 @@ public interface Countable extends Recordable {
             fieldData.setIndexTableReadOnly(true);
 
             CountableFieldData countableFieldData = field.as(CountableFieldData.class);
-            countableFieldData.setDimension(false);
             countableFieldData.setCountField(true);
             countableFieldData.setEventDatePrecision(annotation.precision());
+        }
+    }
+
+    static class EventDateProcessor implements ObjectField.AnnotationProcessor<EventDate> {
+
+        @Override
+        public void process(ObjectType type, ObjectField field, EventDate annotation) {
+            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+            //fieldData.setIndexTable("CountRecord");
+            //fieldData.setIndexTableSameColumnNames(false);
+            fieldData.setIndexTableColumnName("eventDate");
+            fieldData.setIndexTableSource(true);
+            fieldData.setIndexTableReadOnly(true);
+
+            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
+            countableFieldData.setDimension(true);
+
+            countableFieldData.setEventDateField(true);
         }
     }
 
@@ -155,7 +177,7 @@ public interface Countable extends Recordable {
 
         private boolean dimension;
         private boolean countField;
-        private Set<String> dimensionClasses;
+        private boolean eventDateField;
         private CountRecord.EventDatePrecision eventDatePrecision;
 
         public boolean isDimension() {
@@ -174,12 +196,12 @@ public interface Countable extends Recordable {
             this.countField = countField;
         }
 
-        public Set<String> getDimensionClasses() {
-            return dimensionClasses;
+        public boolean isEventDateField() {
+            return eventDateField;
         }
 
-        public void setDimensionClasses(Set<String> dimensionClasses) {
-            this.dimensionClasses = dimensionClasses;
+        public void setEventDateField(boolean eventDateField) {
+            this.eventDateField = eventDateField;
         }
 
         public CountRecord.EventDatePrecision getEventDatePrecision() {
