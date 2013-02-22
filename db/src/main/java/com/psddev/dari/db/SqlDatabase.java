@@ -670,8 +670,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+                Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
 
-                if (fieldData.isIndexTableSource()) {
+                if (fieldData.isIndexTableSource() && !countableFieldData.isDimension()) {
                     loadExtraFields.add(field);
                 }
             }
