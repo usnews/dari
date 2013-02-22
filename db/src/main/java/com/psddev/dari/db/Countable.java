@@ -84,27 +84,15 @@ public interface Countable extends Recordable {
             }
         }
 
-        Map<ObjectField, Object> getDimensions(Class<? extends Modification<? extends Countable>> modificationClass) {
+        Set<ObjectField> getDimensions(Class<? extends Modification<? extends Countable>> modificationClass) {
             // Checking each field for @Dimension annotation
-            Map<ObjectField, Object> dimensions = new HashMap<ObjectField, Object>();
-            //dimensions.put("_id", getState().getId()); // 1 Implicit dimension - the record ID
+            Set<ObjectField> dimensions = new HashSet<ObjectField>();
 
-            Class<?>[] objectClasses = {modificationClass, getState().getType().getObjectClass()};
-            for (Class<?> objectClass : objectClasses) {
-                ObjectType objectType = ObjectType.getInstance(objectClass);
-                for (ObjectField objectField : objectType.getFields()) {
-                    CountableFieldData countableFieldData = objectField.as(CountableFieldData.class);
-                    if (countableFieldData.isDimension()) {
-                        Object dimensionValue = getState().get(objectField.getInternalName());
-                        if (dimensionValue == null) continue;
-                        if (countableFieldData.getDimensionClasses() != null && countableFieldData.getDimensionClasses().size() > 0) {
-                            if (countableFieldData.getDimensionClasses().contains(modificationClass.getName())) {
-                                dimensions.put(objectField, dimensionValue);
-                            }
-                        } else {
-                            dimensions.put(objectField, dimensionValue);
-                        }
-                    }
+            ObjectType objectType = ObjectType.getInstance(getState().getType().getObjectClass());
+            for (ObjectField objectField : objectType.getFields()) {
+                CountableFieldData countableFieldData = objectField.as(CountableFieldData.class);
+                if (countableFieldData.isDimension()) {
+                    dimensions.add(objectField);
                 }
             }
 

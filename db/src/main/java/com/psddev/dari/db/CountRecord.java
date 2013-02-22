@@ -48,18 +48,18 @@ public class CountRecord {
     private final String typeSymbol;
     private SqlDatabase db; 
     private final CountRecordQuery query;
+    private final Record record;
 
     private EventDatePrecision eventDatePrecision = EventDatePrecision.HOUR;
     private UUID id;
-    private Record record;
 
     private Integer updateDate;
     private Integer eventDate;
     private Boolean dimensionsSaved;
     private ObjectField countField;
 
-    public CountRecord(SqlDatabase database, Record record, String actionSymbol, Map<ObjectField, Object> dimensions) {
-        this.dimensions = DimensionSet.createDimensionSet(dimensions);
+    public CountRecord(SqlDatabase database, Record record, String actionSymbol, Set<ObjectField> dimensions) {
+        this.dimensions = DimensionSet.createDimensionSet(dimensions, record);
         this.typeSymbol = this.getTypeSymbol(); // requires this.dimensions
         this.db = database; 
         this.query = new CountRecordQuery(typeSymbol, actionSymbol, record, this.dimensions);
@@ -67,16 +67,8 @@ public class CountRecord {
         //this.summaryRecordId = record.getId();
     }
 
-    public CountRecord(Record record, String actionSymbol, Map<ObjectField, Object> dimensions) {
+    public CountRecord(Record record, String actionSymbol, Set<ObjectField> dimensions) {
         this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol, dimensions);
-    }
-
-    public CountRecord(SqlDatabase database, String actionSymbol, Map<ObjectField, Object> dimensions) {
-        this(database, null, actionSymbol, dimensions);
-    }
-
-    public CountRecord(String actionSymbol, Map<ObjectField, Object> dimensions) {
-        this(Database.Static.getFirst(SqlDatabase.class), null, actionSymbol, dimensions);
     }
 
     public void setSummaryField(ObjectField countField) {
@@ -1013,13 +1005,14 @@ class DimensionSet extends LinkedHashSet<Dimension> {
         return keys;
     }
 
-    public static DimensionSet createDimensionSet(Map<ObjectField, Object> dimensions) {
+    public static DimensionSet createDimensionSet(Set<ObjectField> dimensions, Record record) {
         LinkedHashSet<Dimension> dimensionSet = new LinkedHashSet<Dimension>();
-        for (Map.Entry<ObjectField, Object> entry : dimensions.entrySet()) {
-            ObjectField field = entry.getKey();
-            Object value = entry.getValue();
+        for (ObjectField field : dimensions) {
             LinkedHashSet<Object> values = new LinkedHashSet<Object>();
+            Object value = record.getState().get(field.getInternalName());
+            if (value == null) continue;
             if (value instanceof Set) {
+                if (((Set<?>)value).size() == 0) continue;
                 values.addAll((Set<?>)value);
             } else {
                 values.add(value);
