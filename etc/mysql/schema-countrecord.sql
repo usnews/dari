@@ -41,7 +41,7 @@ CREATE TABLE CountRecordString (
     PRIMARY KEY (symbolId, value, typeSymbolId, countId),
     KEY k_countId (countId),
     KEY k_id (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
 
 CREATE OR REPLACE VIEW CountRecordString_d AS
 SELECT hex(c.id) as id
@@ -63,7 +63,7 @@ CREATE TABLE CountRecordNumber (
     PRIMARY KEY (symbolId, value, typeSymbolId, countId),
     KEY k_countId (countId),
     KEY k_id (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
 CREATE OR REPLACE VIEW CountRecordNumber_d AS
 SELECT hex(c.id) as id
 , hex(c.countId) AS countId
@@ -84,7 +84,7 @@ CREATE TABLE CountRecordUuid (
     PRIMARY KEY (symbolId, value, typeSymbolId, countId),
     KEY k_countId (countId),
     KEY k_id (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
 
 CREATE OR REPLACE VIEW CountRecordUuid_d AS
 SELECT hex(c.id) as id
@@ -96,6 +96,29 @@ FROM CountRecordUuid c
 JOIN Symbol ts ON (c.typeSymbolId = ts.symbolId)
 JOIN Symbol s ON (c.symbolId = s.symbolId);
 
+DROP TABLE IF EXISTS CountRecordLocation;
+CREATE TABLE CountRecordLocation (
+    id BINARY(16) NOT NULL,
+    countId BINARY(16) NOT NULL,
+    typeSymbolId INT NOT NULL,
+    symbolId INT NOT NULL,
+    value POINT NOT NULL,
+    PRIMARY KEY (symbolId, value, typeSymbolId, countId),
+    KEY k_countId (countId),
+    KEY k_id (id),
+    SPATIAL KEY k_value (value)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+
+CREATE OR REPLACE VIEW CountRecordLocation_d AS
+SELECT hex(c.id) as id
+, hex(c.countId) AS countId
+, ts.value as typeSymbol
+, s.value as symbol
+, c.value
+FROM CountRecordLocation c
+JOIN Symbol ts ON (c.typeSymbolId = ts.symbolId)
+JOIN Symbol s ON (c.symbolId = s.symbolId);
+
 DROP TABLE IF EXISTS CountRecordSummary;
 CREATE TABLE CountRecordSummary (
     id binary(16) not null, 
@@ -104,7 +127,7 @@ CREATE TABLE CountRecordSummary (
     value int not null,
     PRIMARY KEY (symbolId, value, /*typeId, */id),
     KEY k_id (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
 
 CREATE OR REPLACE VIEW CountRecordSummary_d AS
 SELECT hex(c.id) AS id

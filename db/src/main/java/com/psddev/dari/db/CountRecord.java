@@ -29,6 +29,7 @@ public class CountRecord {
     static final String COUNTRECORD_STRINGINDEX_TABLE = "CountRecordString";
     static final String COUNTRECORD_NUMBERINDEX_TABLE = "CountRecordNumber";
     static final String COUNTRECORD_UUIDINDEX_TABLE = "CountRecordUuid";
+    static final String COUNTRECORD_LOCATIONINDEX_TABLE = "CountRecordLocation";
     static final String COUNTRECORD_COUNTID_FIELD = "countId";
     static final int QUERY_TIMEOUT = 3;
 
@@ -844,11 +845,13 @@ public class CountRecord {
 
         public static String getIndexTable(ObjectField field) {
             String fieldType = field.getInternalItemType();
-            if (fieldType == ObjectField.UUID_TYPE) {
+            if (fieldType.equals(ObjectField.UUID_TYPE)) {
                 return CountRecord.COUNTRECORD_UUIDINDEX_TABLE;
-            } else if (fieldType == ObjectField.NUMBER_TYPE || fieldType == ObjectField.DATE_TYPE) {
+            } else if (fieldType.equals(ObjectField.LOCATION_TYPE)) {
+                return CountRecord.COUNTRECORD_LOCATIONINDEX_TABLE;
+            } else if (fieldType.equals(ObjectField.NUMBER_TYPE) || 
+                    fieldType.equals(ObjectField.DATE_TYPE)) {
                 return CountRecord.COUNTRECORD_NUMBERINDEX_TABLE;
-                // TODO: implement Location and test Date
             } else {
                 return CountRecord.COUNTRECORD_STRINGINDEX_TABLE;
             }
