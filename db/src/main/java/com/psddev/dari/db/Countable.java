@@ -149,6 +149,12 @@ public interface Countable extends Recordable {
         @Override
         public void process(ObjectType type, ObjectField field, CountField annotation) {
 
+            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+            fieldData.setIndexTable("CountRecordSummary");
+            fieldData.setIndexTableSameColumnNames(false);
+            fieldData.setIndexTableSource(true);
+            fieldData.setIndexTableReadOnly(true);
+
             CountableFieldData countableFieldData = field.as(CountableFieldData.class);
             countableFieldData.setDimension(false);
             countableFieldData.setCountField(true);
