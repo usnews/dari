@@ -1,9 +1,9 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.StringUtils;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import com.psddev.dari.util.StringUtils;
 
 /**
  * Sorter used to prioritize items returned from a {@linkplain Query query}.

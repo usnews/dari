@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlObject;
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.StringUtils;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.HtmlObject;
+import com.psddev.dari.util.HtmlWriter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.UuidUtils;
 
 /**
  * Query over objects in a {@linkplain Database database}.
@@ -616,6 +617,64 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return types;
     }
 
+    public Set<UUID> getConcreteTypeIds(Database database) {
+        DatabaseEnvironment environment = database.getEnvironment();
+        Set<ObjectType> types = getConcreteTypes(environment);
+        Set<UUID> typeIds = new HashSet<UUID>();
+
+        addVisibilityAwareTypeIds(database, environment, types, typeIds, getPredicate());
+
+        if (typeIds.isEmpty() || typeIds.remove(null)) {
+            for (ObjectType type : types) {
+                typeIds.add(type.getId());
+            }
+        }
+
+        return typeIds;
+    }
+
+    private void addVisibilityAwareTypeIds(
+            Database database,
+            DatabaseEnvironment environment,
+            Set<ObjectType> types,
+            Set<UUID> typeIds,
+            Predicate predicate) {
+
+        if (predicate == null) {
+
+        } else if (predicate instanceof CompoundPredicate) {
+            for (Predicate child : ((CompoundPredicate) predicate).getChildren()) {
+                addVisibilityAwareTypeIds(database, environment, types, typeIds, child);
+            }
+
+        } else if (predicate instanceof ComparisonPredicate) {
+            ComparisonPredicate comparison = (ComparisonPredicate) predicate;
+
+            for (ObjectIndex index : mapEmbeddedKey(environment, comparison.getKey()).getIndexes()) {
+                if (index.isVisibility()) {
+                    for (Object value : comparison.resolveValues(database)) {
+                        if (MISSING_VALUE.equals(value)) {
+                            typeIds.add(null);
+
+                        } else {
+                            byte[] md5 = StringUtils.md5(index.getField() + "/" + value);
+
+                            for (ObjectType type : types) {
+                                byte[] typeId = UuidUtils.toBytes(type.getId());
+
+                                for (int i = 0, length = typeId.length; i < length; ++ i) {
+                                    typeId[i] ^= md5[i];
+                                }
+
+                                typeIds.add(UuidUtils.fromBytes(typeId));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private MappedKey mapKey(DatabaseEnvironment environment, String key, boolean checkDenormalized) {
         MappedKey specialMappedKey = SPECIAL_MAPPED_KEYS.get(key);
         if (specialMappedKey != null) {
@@ -1128,32 +1187,32 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             codeBuilder.append(")");
         }
 
-        writer.start("span", "class", "dari-query");
+        writer.writeStart("span", "class", "dari-query");
             String code = codeBuilder.toString();
-            writer.html(code);
+            writer.writeHtml(code);
 
             // Use a form instead of a link if the URL will be too long.
             if (code.length() > 2000) {
-                writer.start("form",
+                writer.writeStart("form",
                         "method", "post",
                         "action", "/_debug/code",
                         "target", "query");
-                    writer.tag("input", "type", "hidden", "name", "query", "value", code);
-                    writer.tag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
-                    writer.tag("input", "class", "btn", "type", "submit", "value", "Execute");
-                writer.end();
+                    writer.writeTag("input", "type", "hidden", "name", "query", "value", code);
+                    writer.writeTag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
+                    writer.writeTag("input", "class", "btn", "type", "submit", "value", "Execute");
+                writer.writeEnd();
 
             } else {
-                writer.html(" (");
-                    writer.start("a",
+                writer.writeHtml(" (");
+                    writer.writeStart("a",
                             "href", StringUtils.addQueryParameters("/_debug/code", "query", code, "objectClass", objectClass),
                             "target", "query");
-                        writer.html("Execute");
-                    writer.end();
-                writer.html(")");
+                        writer.writeHtml("Execute");
+                    writer.writeEnd();
+                writer.writeHtml(")");
             }
 
-        writer.end();
+        writer.writeEnd();
     }
 
     // --- Object support ---

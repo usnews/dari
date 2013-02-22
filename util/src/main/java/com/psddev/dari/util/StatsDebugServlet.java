@@ -26,6 +26,7 @@ public class StatsDebugServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
+        @SuppressWarnings("all")
         WebPageContext page = new WebPageContext(getServletContext(), request, response);
         Type type = page.param(Type.class, "type");
 
@@ -88,7 +89,7 @@ public class StatsDebugServlet extends HttpServlet {
         new DebugFilter.PageWriter(getServletContext(), request, response) {{
             startPage("Stats");
 
-                start("style", "type", "text/css");
+                writeStart("style", "type", "text/css");
                     write(".chart { float: left; margin: 0 20px 10px 0; }");
                     write("hr { border-color: black; border-top: none; margin-left: -20px; margin-right: -20px; }");
 
@@ -146,14 +147,14 @@ public class StatsDebugServlet extends HttpServlet {
                         write("opacity: .2;");
                         write("z-index: 2;");
                     write("}");
-                end();
+                writeEnd();
 
-                start("script", "type", "text/javascript", "src", "/_resource/d3/d3.v2.min.js").end();
-                start("script", "type", "text/javascript", "src", "/_resource/d3/cubism.v1.min.js").end();
-                start("script", "type", "text/javascript");
+                writeStart("script", "type", "text/javascript", "src", "/_resource/d3/d3.v2.min.js").writeEnd();
+                writeStart("script", "type", "text/javascript", "src", "/_resource/d3/cubism.v1.min.js").writeEnd();
+                writeStart("script", "type", "text/javascript");
                     write("var maxDataSize = 400;");
                     write("var context = cubism.context().serverDelay(0).clientDelay(0).step(1e3).size(maxDataSize);");
-                end();
+                writeEnd();
 
                 for (Iterator<Stats> i = Stats.Static.getAll().iterator(); i.hasNext(); ) {
                     Stats stats = i.next();
@@ -161,17 +162,17 @@ public class StatsDebugServlet extends HttpServlet {
                     String operation = page.paramOrDefault(String.class, statsName + "/operation", "Total");
                     int intervalIndex = page.param(int.class, statsName + "/interval");
 
-                    start("h2").html(statsName).end();
+                    writeStart("h2").writeHtml(statsName).writeEnd();
 
                     for (Type type : Type.values()) {
                         String divId = JspUtils.createId(page.getRequest());
 
-                        start("div", "class", "chart");
-                            start("h3").html(Type.COUNT.equals(type) ? "Throughput (/s)" : "Latency (ms)").end();
-                            start("div", "id", divId).end();
-                        end();
+                        writeStart("div", "class", "chart");
+                            writeStart("h3").writeHtml(Type.COUNT.equals(type) ? "Throughput (/s)" : "Latency (ms)").writeEnd();
+                            writeStart("div", "id", divId).writeEnd();
+                        writeEnd();
 
-                        start("script", "type", "text/javascript");
+                        writeStart("script", "type", "text/javascript");
                             write("d3.select('#");
                             write(divId);
                             write("').call(function(div) {");
@@ -216,51 +217,51 @@ public class StatsDebugServlet extends HttpServlet {
                                     write(".attr('class', 'horizon')");
                                     write(".call(context.horizon().height(60));");
                             write("});");
-                        end();
+                        writeEnd();
                     }
 
-                    start("h3", "style", "clear: left;").html("Averages").end();
-                    start("table", "class", "table table-condensed");
-                        start("thead");
-                            start("tr");
-                                start("th").html("Operation").end();
-                                start("th").html("Total").end();
+                    writeStart("h3", "style", "clear: left;").writeHtml("Averages").writeEnd();
+                    writeStart("table", "class", "table table-condensed");
+                        writeStart("thead");
+                            writeStart("tr");
+                                writeStart("th").writeHtml("Operation").writeEnd();
+                                writeStart("th").writeHtml("Total").writeEnd();
                                 for (double averageInterval : stats.getAverageIntervals()) {
-                                    start("th", "colspan", 2).html("Over ").object((int) averageInterval).html("s").end();
+                                    writeStart("th", "colspan", 2).writeHtml("Over ").writeObject((int) averageInterval).writeHtml("s").writeEnd();
                                 }
-                                start("th", "colspan", 2).html("Over All").end();
-                            end();
-                        end();
-                        start("tbody");
+                                writeStart("th", "colspan", 2).writeHtml("Over All").writeEnd();
+                            writeEnd();
+                        writeEnd();
+                        writeStart("tbody");
                             for (Map.Entry<String, Stats.Measurement> entry : stats.getMeasurements().entrySet()) {
                                 writeStatsMeasurement(stats, entry.getKey(), entry.getValue());
                             }
-                        end();
-                    end();
+                        writeEnd();
+                    writeEnd();
 
                     if (i.hasNext()) {
-                        tag("hr");
+                        writeTag("hr");
                     }
                 }
 
-                start("script", "type", "text/javascript");
+                writeStart("script", "type", "text/javascript");
                     write("context.on('focus', function(i) {");
                         write("d3.selectAll('.value').style('right', i == null ? null : context.size() - i + 'px');");
                     write("});");
-                end();
+                writeEnd();
             endPage();
         }
 
             // Writes individual stats measurement.
             private void writeStatsMeasurement(Stats stats, String operation, Stats.Measurement measurement) throws IOException {
-                start("tr");
-                    start("th").html(operation).end();
-                    start("td").object(measurement.getOverallTotalCount()).end();
+                writeStart("tr");
+                    writeStart("th").writeHtml(operation).writeEnd();
+                    writeStart("td").writeObject(measurement.getOverallTotalCount()).writeEnd();
                     for (int i = 0, size = stats.getAverageIntervals().size(); i < size; ++ i) {
                         writeCountAndDuration(stats, operation, i, measurement.getCurrentCountAverage(i), measurement.getCurrentDurationAverage(i));
                     }
                     writeCountAndDuration(stats, operation, -1, measurement.getOverallCountAverage(), measurement.getOverallDurationAverage());
-                end();
+                writeEnd();
             }
 
             private void writeCountAndDuration(Stats stats, String operation, int intervalIndex, double count, double duration) throws IOException {
@@ -268,29 +269,29 @@ public class StatsDebugServlet extends HttpServlet {
                 String statsName = stats.getName();
                 String href = page.url(null, statsName + "/operation", operation, statsName + "/interval", intervalIndex);
 
-                start("td");
+                writeStart("td");
                     if (link) {
-                        start("a", "href", href);
+                        writeStart("a", "href", href);
                     }
-                    object(count).html("/s");
+                    writeObject(count).writeHtml("/s");
                     if (link) {
-                        end();
+                        writeEnd();
                     }
-                end();
+                writeEnd();
 
-                start("td");
+                writeStart("td");
                     if (link) {
-                        start("a", "href", href);
+                        writeStart("a", "href", href);
                     }
                     if (Double.isNaN(duration)) {
-                        start("span", "class", "label").html("N/A").end();
+                        writeStart("span", "class", "label").writeHtml("N/A").writeEnd();
                     } else {
-                        object(duration * 1e3).html("ms");
+                        writeObject(duration * 1e3).writeHtml("ms");
                     }
                     if (link) {
-                        end();
+                        writeEnd();
                     }
-                end();
+                writeEnd();
             }
         };
     }

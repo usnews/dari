@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectToIterable;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StringUtils;
-
 import java.net.URI;
 import java.net.URL;
 import java.sql.BatchUpdateException;
@@ -19,6 +15,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.ObjectToIterable;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
 
 /** Internal representations of all SQL index tables. */
 public enum SqlIndex {
@@ -253,8 +253,28 @@ public enum SqlIndex {
             } else if (value instanceof UUID) {
                 return value;
 
+            } else if (value instanceof String) {
+                String valueString = value.toString().trim();
+                if (!index.isCaseSensitive() && database.comparesIgnoreCase()) {
+                    valueString = valueString.toLowerCase(Locale.ENGLISH);
+                }
+                return stringToBytes(valueString, 500);
+
             } else {
                 return value.toString();
+            }
+        }
+
+        protected static byte[] stringToBytes(String value, int length) {
+            byte[] bytes = value.getBytes(StringUtils.UTF_8);
+
+            if (bytes.length <= length) {
+                return bytes;
+
+            } else {
+                byte[] shortened = new byte[length];
+                System.arraycopy(bytes, 0, shortened, 0, length);
+                return shortened;
             }
         }
 
@@ -377,19 +397,6 @@ public enum SqlIndex {
 
         public SymbolIdSingleValueTable(int version, String name) {
             super(version, name, "id", "symbolId", "value");
-        }
-
-        protected static byte[] stringToBytes(String value, int length) {
-            byte[] bytes = value.getBytes(StringUtils.UTF_8);
-
-            if (bytes.length <= length) {
-                return bytes;
-
-            } else {
-                byte[] shortened = new byte[length];
-                System.arraycopy(bytes, 0, shortened, 0, length);
-                return shortened;
-            }
         }
 
         @Override

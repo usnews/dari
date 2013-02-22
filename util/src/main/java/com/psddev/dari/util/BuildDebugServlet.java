@@ -1,7 +1,7 @@
 package com.psddev.dari.util;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -92,19 +92,19 @@ public class BuildDebugServlet extends HttpServlet {
         new DebugFilter.PageWriter(getServletContext(), request, response) {{
             startPage("Build Information");
 
-                start("style", "type", "text/css");
+                writeStart("style", "type", "text/css");
                     write("tr.merge { color: rgba(0, 0, 0, 0.3); }");
                     write("td.num { text-align: right; }");
                     write("td:not(.wrap) { white-space: nowrap; }");
-                end();
+                writeEnd();
 
-                start("script");
+                writeStart("script");
                     write("$(document).ready(function(){");
                         write("$('#contextPicker').change(function() {");
                             write("this.form.submit();");
                         write("});");
                     write("});");
-                end();
+                writeEnd();
 
                 Map<String, Properties> embeddedProperties = new LinkedHashMap<String, Properties>();
                 @SuppressWarnings("unchecked")
@@ -183,121 +183,121 @@ public class BuildDebugServlet extends HttpServlet {
                     }
                 }
 
-                start("h2").html("Commits").end();
+                writeStart("h2").writeHtml("Commits").writeEnd();
 
-                start("form", "action", "", "method", "GET", "class", "form-inline");
-                    html("For: ");
-                    start("select", "style", "width:auto;", "id", "contextPicker", "name", "context", "class", "input-xlarge");
-                        start("option", "value", "");
-                            html(getLabel(getServletContext()));
-                        end();
+                writeStart("form", "action", "", "method", "GET", "class", "form-inline");
+                    writeHtml("For: ");
+                    writeStart("select", "style", "width:auto;", "id", "contextPicker", "name", "context", "class", "input-xlarge");
+                        writeStart("option", "value", "");
+                            writeHtml(getLabel(getServletContext()));
+                        writeEnd();
                         for (Map.Entry<String, Properties> entry : embeddedProperties.entrySet()) {
-                            start("option", "value", entry.getKey(), "selected", entry.getKey().equals(buildContext) ? "selected" : null);
-                                html(getLabel(entry.getValue()));
-                            end();
+                            writeStart("option", "value", entry.getKey(), "selected", entry.getKey().equals(buildContext) ? "selected" : null);
+                                writeHtml(getLabel(entry.getValue()));
+                            writeEnd();
                         }
-                    end();
-                end();
+                    writeEnd();
+                writeEnd();
 
                 if (commitsMap.isEmpty()) {
-                    start("p", "class", "alert");
-                        html("Not available!");
-                    end();
+                    writeStart("p", "class", "alert");
+                        writeHtml("Not available!");
+                    writeEnd();
 
                 } else {
                     int colspan = 3;
 
-                    start("table", "class", "table table-condensed table-striped");
-                        start("thead");
-                            start("tr");
+                    writeStart("table", "class", "table table-condensed table-striped");
+                        writeStart("thead");
+                            writeStart("tr");
 
-                                start("th").html("Date").end();
+                                writeStart("th").writeHtml("Date").writeEnd();
 
                                 if (issuePattern != null) {
-                                    start("th").html("Issues").end();
+                                    writeStart("th").writeHtml("Issues").writeEnd();
                                     ++ colspan;
                                 }
 
-                                start("th").html("Author").end();
-                                start("th").html("Subject").end();
+                                writeStart("th").writeHtml("Author").writeEnd();
+                                writeStart("th").writeHtml("Subject").writeEnd();
 
                                 if (scmUrlFormat != null) {
-                                    start("th").html("SCM").end();
+                                    writeStart("th").writeHtml("SCM").writeEnd();
                                     ++ colspan;
                                 }
-                            end();
-                        end();
+                            writeEnd();
+                        writeEnd();
 
-                        start("tbody");
+                        writeStart("tbody");
                             for (Map.Entry<String, List<GitCommit>> entry : commitsMap.entrySet()) {
 
-                                start("tr");
-                                    start("td", "class", "wrap", "colspan", colspan);
-                                        start("strong").html(entry.getKey()).end();
-                                    end();
-                                end();
+                                writeStart("tr");
+                                    writeStart("td", "class", "wrap", "colspan", colspan);
+                                        writeStart("strong").writeHtml(entry.getKey()).writeEnd();
+                                    writeEnd();
+                                writeEnd();
 
                                 for (GitCommit commit : entry.getValue()) {
-                                    start("tr", "class", commit.subject.startsWith("Merge branch ") ? "merge" : null);
+                                    writeStart("tr", "class", commit.subject.startsWith("Merge branch ") ? "merge" : null);
 
-                                        start("td").html(commit.date).end();
+                                        writeStart("td").writeHtml(commit.date).writeEnd();
 
                                         if (issuePattern != null) {
-                                            start("td");
+                                            writeStart("td");
                                                 for (String issue : commit.issues) {
                                                     if (issueUrlFormat != null) {
-                                                        start("a", "href", String.format(issueUrlFormat, issue), "target", "_blank");
-                                                            html(issue);
-                                                        end();
+                                                        writeStart("a", "href", String.format(issueUrlFormat, issue), "target", "_blank");
+                                                            writeHtml(issue);
+                                                        writeEnd();
                                                     } else {
-                                                        html(issue);
+                                                        writeHtml(issue);
                                                     }
-                                                    tag("br");
+                                                    writeTag("br");
                                                 }
-                                            end();
+                                            writeEnd();
                                         }
 
-                                        start("td").html(commit.author).end();
-                                        start("td", "class", "wrap").html(commit.subject).end();
+                                        writeStart("td").writeHtml(commit.author).writeEnd();
+                                        writeStart("td", "class", "wrap").writeHtml(commit.subject).writeEnd();
 
                                         if (scmUrlFormat != null) {
-                                            start("td");
-                                                start("a", "href", String.format(scmUrlFormat, commit.hash), "target", "_blank");
-                                                    html(commit.hash.substring(0, 6));
-                                                end();
-                                            end();
+                                            writeStart("td");
+                                                writeStart("a", "href", String.format(scmUrlFormat, commit.hash), "target", "_blank");
+                                                    writeHtml(commit.hash.substring(0, 6));
+                                                writeEnd();
+                                            writeEnd();
                                         }
-                                    end();
+                                    writeEnd();
                                 }
                             }
-                        end();
-                    end();
+                        writeEnd();
+                    writeEnd();
                 }
 
-                start("h2").html("Resources").end();
-                start("table", "class", "table table-condensed");
-                    start("thead");
-                        start("tr");
-                            start("th").html("Path").end();
-                            start("th").html("Size (Bytes)").end();
-                            start("th").html("MD5").end();
-                        end();
-                    end();
-                    start("tbody");
+                writeStart("h2").writeHtml("Resources").writeEnd();
+                writeStart("table", "class", "table table-condensed");
+                    writeStart("thead");
+                        writeStart("tr");
+                            writeStart("th").writeHtml("Path").writeEnd();
+                            writeStart("th").writeHtml("Size (Bytes)").writeEnd();
+                            writeStart("th").writeHtml("MD5").writeEnd();
+                        writeEnd();
+                    writeEnd();
+                    writeStart("tbody");
                         writeResourcesOfPath("", 0, "/");
-                    end();
-                end();
+                    writeEnd();
+                writeEnd();
 
             endPage();
         }
 
             private void writeResourcesOfPath(String parentPath, int depth, String path) throws IOException {
-                start("tr");
-                start("td", "style", "padding-left: " + (depth * 20) + "px").html(path).end();
+                writeStart("tr");
+                writeStart("td", "style", "padding-left: " + (depth * 20) + "px").writeHtml(path).writeEnd();
 
                 if (path.endsWith("/")) {
-                    start("td").end();
-                    start("td").end();
+                    writeStart("td").writeEnd();
+                    writeStart("td").writeEnd();
 
                     @SuppressWarnings("unchecked")
                     List<String> subPaths = new ArrayList<String>((Set<String>) getServletContext().getResourcePaths(path));
@@ -308,7 +308,7 @@ public class BuildDebugServlet extends HttpServlet {
                         writeResourcesOfPath(path, subDepth, subPath);
                     }
 
-                    end();
+                    writeEnd();
 
                 } else {
                     MessageDigest md5 = null;
@@ -333,12 +333,12 @@ public class BuildDebugServlet extends HttpServlet {
                                     totalBytesRead += bytesRead;
                                 }
 
-                                start("td", "class", "num").object(totalBytesRead).end();
-                                start("td");
+                                writeStart("td", "class", "num").writeObject(totalBytesRead).writeEnd();
+                                writeStart("td");
                                     if (md5 != null) {
                                         write(StringUtils.hex(md5.digest()));
                                     }
-                                end();
+                                writeEnd();
 
                             } finally {
                                 input.close();
@@ -348,7 +348,7 @@ public class BuildDebugServlet extends HttpServlet {
                     } catch (IOException ex) {
                     }
 
-                    end();
+                    writeEnd();
                 }
             }
         };

@@ -61,15 +61,15 @@ public class ProfilingDatabaseFilter extends AbstractFilter {
             ObjectType type = recordableState.getType();
 
             if (type != null) {
-                writer.html(type.getLabel());
-                writer.html(": ");
+                writer.writeHtml(type.getLabel());
+                writer.writeHtml(": ");
             }
 
-            writer.start("a", "href", StringUtils.addQueryParameters("/_debug/query",
+            writer.writeStart("a", "href", StringUtils.addQueryParameters("/_debug/query",
                     "where", "id = " + recordableState.getId(),
                     "event", "Run"), "target", "query");
-                writer.html(recordableState.getLabel());
-            writer.end();
+                writer.writeHtml(recordableState.getLabel());
+            writer.writeEnd();
         }
     };
 }

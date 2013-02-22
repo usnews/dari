@@ -1,7 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,6 +13,8 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.psddev.dari.util.ObjectUtils;
+
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,8 @@ import java.util.regex.Pattern;
 class SqlQuery {
 
     private static final Pattern QUERY_KEY_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
-    //private static final Logger LOGGER = LoggerFactory.getLogger(SqlQuery.class);
+    private static final Pattern EVENT_DATE_FORMAT_PATTERN = Pattern.compile("\\[([^\\]]+)\\]$");
+    private static final Logger LOGGER = LoggerFactory.getLogger(SqlQuery.class);
 
     private final SqlDatabase database;
     private final Query<?> query;
@@ -154,6 +155,27 @@ class SqlQuery {
             }
         }
 
+        @SuppressWarnings("unchecked")
+        Set<UUID> unresolvedTypeIds = (Set<UUID>) query.getOptions().get(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION);
+
+        if (unresolvedTypeIds != null) {
+            DatabaseEnvironment environment = database.getEnvironment();
+
+            for (UUID typeId : unresolvedTypeIds) {
+                ObjectType type = environment.getTypeById(typeId);
+
+                if (type != null) {
+                    for (ObjectField field : type.getFields()) {
+                        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+
+                        if (fieldData.isIndexTableSource()) {
+                            sourceTables.add(field);
+                        }
+                    }
+                }
+            }
+        }
+
         String extraJoins = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_JOINS_QUERY_OPTION));
 
         if (extraJoins != null) {
@@ -190,17 +212,17 @@ class SqlQuery {
         whereBuilder.append("1 = 1");
 
         if (!query.isFromAll()) {
-            Set<ObjectType> types = query.getConcreteTypes(database.getEnvironment());
+            Set<UUID> typeIds = query.getConcreteTypeIds(database);
             whereBuilder.append("\nAND ");
 
-            if (types.isEmpty()) {
+            if (typeIds.isEmpty()) {
                 whereBuilder.append("0 = 1");
 
             } else {
                 whereBuilder.append(recordTypeIdField);
                 whereBuilder.append(" IN (");
-                for (ObjectType type : types) {
-                    vendor.appendValue(whereBuilder, type.getId());
+                for (UUID typeId : typeIds) {
+                    vendor.appendValue(whereBuilder, typeId);
                     whereBuilder.append(", ");
                 }
                 whereBuilder.setLength(whereBuilder.length() - 2);
@@ -885,22 +907,34 @@ class SqlQuery {
      */
     public String groupStatement(String[] groupFields) {
         Map<String, Join> groupJoins = new LinkedHashMap<String, Join>();
+        List<String> eventDateFormatStrings = new ArrayList<String>();
         if (groupFields != null) {
             for (String groupField : groupFields) {
-                Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
-                mappedKeys.put(groupField, mappedKey);
-                Iterator<ObjectIndex> indexesIterator = mappedKey.getIndexes().iterator();
-                if (indexesIterator.hasNext()) {
-                    ObjectIndex selectedIndex = indexesIterator.next();
-                    while (indexesIterator.hasNext()) {
-                        ObjectIndex index = indexesIterator.next();
-                        if (selectedIndex.getFields().size() < index.getFields().size()) {
-                            selectedIndex = index;
-                        }
+                if (query.getCountActionSymbol() != null && groupField.toLowerCase().startsWith("eventdate[")) {
+                    Matcher eventDateFormatMatcher = EVENT_DATE_FORMAT_PATTERN.matcher(groupField);
+                    if (eventDateFormatMatcher.find()) {
+                        String dateFormat = eventDateFormatMatcher.group(1);
+                        LOGGER.info("===== dateFormat: " + dateFormat);
+                        //eventDateFormatStrings.add(dateFormat);
+                        groupJoins.put(dateFormat, null);
+                        //orderBySelectColumns.add("'"+dateFormat+"'");
                     }
-                    selectedIndexes.put(groupField, selectedIndex);
+                } else {
+                    Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
+                    mappedKeys.put(groupField, mappedKey);
+                    Iterator<ObjectIndex> indexesIterator = mappedKey.getIndexes().iterator();
+                    if (indexesIterator.hasNext()) {
+                        ObjectIndex selectedIndex = indexesIterator.next();
+                        while (indexesIterator.hasNext()) {
+                            ObjectIndex index = indexesIterator.next();
+                            if (selectedIndex.getFields().size() < index.getFields().size()) {
+                                selectedIndex = index;
+                            }
+                        }
+                        selectedIndexes.put(groupField, selectedIndex);
+                    }
+                    groupJoins.put(groupField, getJoin(groupField));
                 }
-                groupJoins.put(groupField, getJoin(groupField));
             }
         }
 
@@ -916,8 +950,21 @@ class SqlQuery {
             statementBuilder.append(") ");
             for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
                 statementBuilder.append(", ");
-                statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+                if (entry.getValue() == null) {
+                    statementBuilder.append("'"+entry.getKey()+"'");
+                } else {
+                    statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+                }
             }
+            /*
+            for (String eventDateFormatString : eventDateFormatStrings) {
+                statementBuilder.append(", ");
+                vendor.appendValue(statementBuilder, eventDateFormatString);
+                statementBuilder.append(" ");
+                vendor.appendIdentifier(statementBuilder, "d");
+            }
+            */
+
             statementBuilder.append(" FROM ");
             vendor.appendIdentifier(statementBuilder, "CountRecord");
             statementBuilder.append(" ");
@@ -995,7 +1042,11 @@ class SqlQuery {
 
         StringBuilder groupBy = new StringBuilder();
         for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
-            groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
+            if (entry.getValue() == null) {
+                groupBy.append("'"+entry.getKey()+"'");
+            } else {
+                groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
+            }
             groupBy.append(", ");
         }
 
@@ -1018,7 +1069,11 @@ class SqlQuery {
                 if (i++ == 1) {
                     statementBuilder.append(", ");
                 }
-                statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+                if (entry.getValue() == null) {
+                    statementBuilder.append(entry.getKey());
+                } else {
+                    statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+                }
             }
 
             for (String field : orderBySelectColumns) {
@@ -1031,6 +1086,7 @@ class SqlQuery {
 
         statementBuilder.append(havingClause);
 
+        LOGGER.info("======="  + statementBuilder.toString());
         return statementBuilder.toString();
     }
 

@@ -1,10 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.SparseSet;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,12 +11,17 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.SparseSet;
 
 /**
  * Skeletal database implementation. A subclass must implement:
@@ -1158,12 +1158,32 @@ public abstract class AbstractDatabase<C> implements Database {
 
     @SuppressWarnings("unchecked")
     protected final <T> T swapObjectType(Query<T> query, T object) {
-        if (object instanceof ObjectType) {
-            ObjectType type = getEnvironment().getTypeById(((ObjectType) object).getId());
-            if (type != null && type != object) {
-                return (T) type.clone();
+        DatabaseEnvironment environment = getEnvironment();
+        State state = State.getInstance(object);
+        ObjectType type = state.getType();
+
+        if (type != null) {
+            Class<?> objectClass = type.getObjectClass();
+
+            if (objectClass != null && !objectClass.isInstance(object)) {
+                State oldState = state;
+                object = (T) environment.createObject(state.getTypeId(), state.getId());
+                state = State.getInstance(object);
+
+                state.setStatus(oldState.getStatus());
+                state.setValues(oldState);
+                state.getExtras().putAll(oldState.getExtras());
             }
         }
+
+        if (object instanceof ObjectType) {
+            ObjectType asType = environment.getTypeById(((ObjectType) object).getId());
+
+            if (asType != null && asType != object) {
+                return (T) asType.clone();
+            }
+        }
+
         return object;
     }
 

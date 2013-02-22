@@ -41,7 +41,7 @@ public abstract class PeriodicCache<K, V> implements Map<K, V> {
             }
         };
 
-        task.schedule(initialDelay, interval);
+        task.scheduleAtFixedRate(initialDelay, interval);
     }
 
     /**

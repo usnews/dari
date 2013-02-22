@@ -1,11 +1,11 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ErrorUtils;
-
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import com.psddev.dari.util.ErrorUtils;
 
 /** Contains strings and references to other objects. */
 public class ReferentialText extends AbstractList<Object> {

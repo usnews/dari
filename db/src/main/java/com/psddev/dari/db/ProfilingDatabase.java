@@ -1,11 +1,11 @@
 package com.psddev.dari.db;
 
+import java.util.Date;
+import java.util.List;
+
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Profiler;
-
-import java.util.Date;
-import java.util.List;
 
 /** Times all database operations using {@link Profiler}. */
 public class ProfilingDatabase extends ForwardingDatabase {

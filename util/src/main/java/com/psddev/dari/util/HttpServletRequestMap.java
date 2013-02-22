@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 
 /** @deprecated No replacement. */
 @Deprecated
+@SuppressWarnings("all")
 public class HttpServletRequestMap implements Map<String, String> {
 
     public static final String AUTHORIZATION_KEY = "AUTHORIZATION";

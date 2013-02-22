@@ -1,16 +1,16 @@
 package com.psddev.dari.util;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.TreeMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 
 import javax.naming.Binding;
 import javax.naming.Context;

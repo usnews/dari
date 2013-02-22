@@ -11,6 +11,7 @@ import org.slf4j.helpers.MessageFormatter;
  * {@linkplain org.slf4j.Logger SLF4J logger} implementation that saves
  * the logs into a single string.
  */
+@SuppressWarnings("serial")
 public class StringLogger extends MarkerIgnoringBase {
 
     public static final String DEBUG_LEVEL = "DEBUG";

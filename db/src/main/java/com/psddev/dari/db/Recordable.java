@@ -7,7 +7,6 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -131,6 +130,7 @@ public interface Recordable {
         String[] extraFields() default { };
         boolean unique() default false;
         boolean caseSensitive() default false;
+        boolean visibility() default false;
 
         /** @deprecated Use {@link #unique} instead. */
         @Deprecated

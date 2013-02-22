@@ -30,10 +30,10 @@ public class FrameTag extends BodyTagSupport {
     }
 
     private void writeScript(HttpServletRequest request, HtmlWriter writer, String source) throws IOException {
-        writer.start("script",
+        writer.writeStart("script",
                 "type", "text/javascript",
                 "src", JspUtils.getAbsolutePath(request, source));
-        writer.end();
+        writer.writeEnd();
     }
 
     private void startFrame(HttpServletRequest request, HtmlWriter writer, String... classNames) throws IOException {
@@ -50,7 +50,7 @@ public class FrameTag extends BodyTagSupport {
             }
         }
 
-        writer.start("div",
+        writer.writeStart("div",
                 "class", fullClassName.toString(),
                 "name", name,
                 "data-extra-form-data",
@@ -72,9 +72,9 @@ public class FrameTag extends BodyTagSupport {
                 writeScript(request, writer, "/_resource/jquery2/jquery.extra.js");
                 writeScript(request, writer, "/_resource/jquery2/jquery.popup.js");
                 writeScript(request, writer, "/_resource/jquery2/jquery.frame.js");
-                writer.start("script", "type", "text/javascript");
+                writer.writeStart("script", "type", "text/javascript");
                     writer.write("$(window.document).frame().ready(function(){$(this).trigger('create');});");
-                writer.end();
+                writer.writeEnd();
             }
 
             if (!lazy ||
@@ -87,10 +87,10 @@ public class FrameTag extends BodyTagSupport {
                 HtmlWriter writer = new HtmlWriter(pageContext.getOut());
 
                 startFrame(request, writer);
-                    writer.start("a", "href", JspUtils.getAbsolutePath(request, "", FrameFilter.LAZY_PARAMETER, false));
-                        writer.html("");
-                    writer.end();
-                writer.end();
+                    writer.writeStart("a", "href", JspUtils.getAbsolutePath(request, "", FrameFilter.LAZY_PARAMETER, false));
+                        writer.writeHtml("");
+                    writer.writeEnd();
+                writer.writeEnd();
 
                 return SKIP_BODY;
             }
@@ -118,7 +118,7 @@ public class FrameTag extends BodyTagSupport {
 
                         startFrame(request, writer, "loaded");
                             writer.write(body);
-                        writer.end();
+                        writer.writeEnd();
 
                     } catch (IOException error) {
                         throw new JspException(error);

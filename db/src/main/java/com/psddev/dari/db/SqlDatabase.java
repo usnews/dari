@@ -1,19 +1,6 @@
 package com.psddev.dari.db;
 
-import com.jolbox.bonecp.BoneCPDataSource;
-
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.PeriodicValue;
-import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.Stats;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
 import java.io.ByteArrayInputStream;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -51,9 +38,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
 
 import org.iq80.snappy.Snappy;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.jolbox.bonecp.BoneCPDataSource;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.PeriodicValue;
+import com.psddev.dari.util.Profiler;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.SettingsException;
+import com.psddev.dari.util.Stats;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
 
 /** Database backed by a SQL engine. */
 public class SqlDatabase extends AbstractDatabase<Connection> {
@@ -661,16 +659,19 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
 
         // Load some extra column from source index tables.
+        @SuppressWarnings("unchecked")
+        Set<UUID> unresolvedTypeIds = (Set<UUID>) query.getOptions().get(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION);
         Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
-        if (type != null) {
+        if (type != null &&
+                (unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
+                !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
 
-                if (fieldData.isIndexTableSource() &&
-                        !queryTypes.contains(type)) {
+                if (fieldData.isIndexTableSource()) {
                     loadExtraFields.add(field);
                 }
             }
@@ -1641,7 +1642,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             boolean isNew = state.isNew();
             boolean saveInRowIndex = hasInRowIndex && !Boolean.TRUE.equals(state.getExtra(SKIP_INDEX_STATE_EXTRA));
             UUID id = state.getId();
-            UUID typeId = state.getTypeId();
+            UUID typeId = state.getVisibilityAwareTypeId();
             byte[] dataBytes = null;
             String inRowIndex = inRowIndexes.get(state);
             byte[] inRowIndexBytes = inRowIndex != null ? inRowIndex.getBytes(StringUtils.UTF_8) : new byte[0];
@@ -1747,7 +1748,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         }
 
                         State oldState = State.getInstance(oldObject);
-                        UUID oldTypeId = oldState.getTypeId();
+                        UUID oldTypeId = oldState.getVisibilityAwareTypeId();
                         byte[] oldData = Static.getOriginalData(oldObject);
 
                         for (AtomicOperation operation : atomicOperations) {

@@ -1,7 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.Set;
 
 import org.slf4j.Logger;

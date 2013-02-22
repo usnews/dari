@@ -1,8 +1,8 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlWriter;
-
 import java.io.IOException;
+
+import com.psddev.dari.util.HtmlWriter;
 
 /** Writes input labels for {@link FormWriter}. */
 public interface FormLabelRenderer {
@@ -15,9 +15,9 @@ public interface FormLabelRenderer {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, HtmlWriter writer) throws IOException {
-            writer.start("label", "for", inputId);
-                writer.html(field.getDisplayName());
-            writer.end();
+            writer.writeStart("label", "for", inputId);
+                writer.writeHtml(field.getDisplayName());
+            writer.writeEnd();
         }
     }
 

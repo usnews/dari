@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.UuidUtils;
-
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +12,10 @@ import java.util.concurrent.locks.Lock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.UuidUtils;
 
 /** Enforces mutual exclusion across multiple VMs using a {@link Database}. */
 public class DistributedLock implements Lock {

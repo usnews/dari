@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Thrown when there are many causes to an exception. */
+@SuppressWarnings("serial")
 public class AggregateException extends RuntimeException {
 
     private final List<Throwable> causes;

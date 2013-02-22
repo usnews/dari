@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.lang.reflect.Field;
-
 import java.util.AbstractCollection;
 import java.util.AbstractMap;
 import java.util.AbstractSet;

@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import java.util.HashMap;
 
+@SuppressWarnings("serial")
 public class Reference extends HashMap<String, Object> {
 
     public static final String OBJECT_KEY = "_object";

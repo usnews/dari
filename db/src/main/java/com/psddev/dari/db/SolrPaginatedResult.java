@@ -1,18 +1,20 @@
 
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlObject;
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.StringUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.FacetField;
+
+import com.psddev.dari.util.HtmlObject;
+import com.psddev.dari.util.HtmlWriter;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.StringUtils;
 
 /**
  * Paginated result for Solr that provides access to
@@ -67,15 +69,15 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
     @Override
     public void format(HtmlWriter writer) throws IOException {
-        writer.start("p");
-            writer.start("code").html(this.getClass().getName()).end();
-            writer.html(' ');
-            writer.start("strong").html(this.getFirstItemIndex()).end();
-            writer.html(" to ");
-            writer.start("strong").html(this.getLastItemIndex()).end();
-            writer.html(" of ");
-            writer.start("strong").html(this.getCount()).end();
-        writer.end();
+        writer.writeStart("p");
+            writer.writeStart("code").writeHtml(this.getClass().getName()).writeEnd();
+            writer.writeHtml(' ');
+            writer.writeStart("strong").writeHtml(this.getFirstItemIndex()).writeEnd();
+            writer.writeHtml(" to ");
+            writer.writeStart("strong").writeHtml(this.getLastItemIndex()).writeEnd();
+            writer.writeHtml(" of ");
+            writer.writeStart("strong").writeHtml(this.getCount()).writeEnd();
+        writer.writeEnd();
 
         if (Settings.isDebug() && this.getSolrQuery() != null) {
             String solrFullQuery = this.getSolrQuery().toString();
@@ -84,39 +86,39 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
             // Use a form instead of a link if the URL will be too long.
             if (solrFullQuery.length() > 2000) {
-                writer.start("span", "class", "solr-query");
-                    writer.html("Solr Query: ");
-                    writer.html(StringUtils.decodeUri(solrFullQuery));
+                writer.writeStart("span", "class", "solr-query");
+                    writer.writeHtml("Solr Query: ");
+                    writer.writeHtml(StringUtils.decodeUri(solrFullQuery));
 
-                    writer.start("form",
+                    writer.writeStart("form",
                             "class", "solrQueryDebugForm",
                             "method", "post",
                             "action", "/_debug/db-solr",
                             "target", "query");
-                        writer.tag("input", "type", "hidden", "name", "query", "value", StringUtils.decodeUri(solrQuery));
-                        writer.tag("input", "type", "hidden", "name", "sort", "value", StringUtils.decodeUri(solrSort));
-                        writer.tag("input", "class", "btn", "type", "submit", "value", "Execute");
-                    writer.end();
-                writer.end();
+                        writer.writeTag("input", "type", "hidden", "name", "query", "value", StringUtils.decodeUri(solrQuery));
+                        writer.writeTag("input", "type", "hidden", "name", "sort", "value", StringUtils.decodeUri(solrSort));
+                        writer.writeTag("input", "class", "btn", "type", "submit", "value", "Execute");
+                    writer.writeEnd();
+                writer.writeEnd();
 
             } else {
-                writer.html("Solr Query: ");
-                writer.html(StringUtils.decodeUri(solrFullQuery));
-                writer.html(" (");
-                    writer.start("a",
+                writer.writeHtml("Solr Query: ");
+                writer.writeHtml(StringUtils.decodeUri(solrFullQuery));
+                writer.writeHtml(" (");
+                    writer.writeStart("a",
                             "href", StringUtils.addQueryParameters("/_debug/db-solr", "query", solrQuery, "sort", solrSort),
                             "target", "query");
-                        writer.html("Execute");
-                    writer.end();
-                writer.html(")");
+                        writer.writeHtml("Execute");
+                    writer.writeEnd();
+                writer.writeHtml(")");
             }
         }
 
-        writer.start("ol");
+        writer.writeStart("ol");
             for (Object item : this.getItems()) {
-                writer.start("li").object(item).html(" Solr Score: " + SolrDatabase.Static.getScore(item)).end();
+                writer.writeStart("li").writeObject(item).writeHtml(" Solr Score: " + SolrDatabase.Static.getScore(item)).writeEnd();
             }
-        writer.end();
+        writer.writeEnd();
     }
 
     static public class DariFacetField {

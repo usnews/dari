@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.lang.reflect.Array;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,6 +13,7 @@ public class Transformer {
      * Returns the function used to transform an instance of the given
      * {@code fromClass}.
      */
+    @SuppressWarnings("unchecked")
     public <F> TransformationFunction<F> getFunction(Class<F> fromClass) {
 
         TransformationFunction<?> function = null;
@@ -53,6 +53,7 @@ public class Transformer {
             return returnArray;
 
         } else {
+            @SuppressWarnings("unchecked")
             TransformationFunction<Object> function = (TransformationFunction<Object>) getFunction(objectClass);
             return function != null ? function.transform(object) : object;
         }

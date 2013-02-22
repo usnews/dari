@@ -1,8 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ClassEnhancer;
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,9 +10,11 @@ import org.objectweb.asm.MethodAdapter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ClassEnhancer;
+import com.psddev.dari.util.ObjectUtils;
 
 /**
  * Enables lazily loading fields that are expensive to initialize.

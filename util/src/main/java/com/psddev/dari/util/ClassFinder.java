@@ -1,8 +1,8 @@
 package com.psddev.dari.util;
 
 import java.io.File;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -100,6 +100,7 @@ public class ClassFinder {
                 InputStream urlInput = url.openStream();
                 try {
 
+                    @SuppressWarnings("all")
                     JarInputStream jarInput = new JarInputStream(urlInput);
                     Manifest manifest = jarInput.getManifest();
                     if (manifest != null) {

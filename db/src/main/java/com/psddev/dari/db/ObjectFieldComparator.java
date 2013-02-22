@@ -1,8 +1,8 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.Comparator;
+
+import com.psddev.dari.util.ObjectUtils;
 
 public class ObjectFieldComparator implements Comparator<Object> {
 

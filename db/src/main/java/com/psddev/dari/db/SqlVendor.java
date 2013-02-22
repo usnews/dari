@@ -1,8 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.UuidUtils;
-
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -17,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.UuidUtils;
 
 public class SqlVendor {
 

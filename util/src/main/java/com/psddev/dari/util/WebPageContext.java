@@ -12,21 +12,20 @@ import java.util.UUID;
 import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import javax.servlet.jsp.PageContext;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.jsp.PageContext;
 
 import org.joda.time.DateTime;
 
 /** Utility methods for working with a web page. */
-public class WebPageContext {
+public class WebPageContext extends HtmlWriter {
 
     private final Object page;
     private final ServletContext servletContext;
     private final HttpServletRequest request;
     private final HttpServletResponse response;
-    private HtmlWriter writer;
     private Converter converter;
 
     /**
@@ -41,7 +40,7 @@ public class WebPageContext {
         this.servletContext = pageContext.getServletContext();
         this.request = (HttpServletRequest) pageContext.getRequest();
         this.response = (HttpServletResponse) pageContext.getResponse();
-        this.writer = new HtmlWriter(pageContext.getOut());
+        setDelegate(pageContext.getOut());
     }
 
     /**
@@ -61,7 +60,6 @@ public class WebPageContext {
         this.servletContext = servlet.getServletConfig().getServletContext();
         this.request = request;
         this.response = response;
-        this.writer = null;
     }
 
     /**
@@ -77,7 +75,6 @@ public class WebPageContext {
         this.servletContext = servletContext;
         this.request = request;
         this.response = response;
-        this.writer = null;
     }
 
     /**
@@ -113,10 +110,10 @@ public class WebPageContext {
      * @return Never {@code null}.
      */
     public HtmlWriter getWriter() throws IOException {
-        if (writer == null) {
-            writer = new HtmlWriter(getResponse().getWriter());
+        if (getDelegate() == null) {
+            setDelegate(getResponse().getWriter());
         }
-        return writer;
+        return this;
     }
 
     /**

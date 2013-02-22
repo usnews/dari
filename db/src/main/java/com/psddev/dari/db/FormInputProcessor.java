@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.TypeReference;
-
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
@@ -12,6 +8,10 @@ import java.util.Set;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
+
+import com.psddev.dari.util.HtmlWriter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.TypeReference;
 
 /** Processes individual inputs written with {@link FormWriter}. */
 public interface FormInputProcessor {
@@ -30,11 +30,11 @@ public interface FormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
-            writer.start("span", "class", "json");
-                writer.start("textarea", "id", inputId, "name", inputName);
-                    writer.html(ObjectUtils.toJson(value, true));
-                writer.end();
-            writer.end();
+            writer.writeStart("span", "class", "json");
+                writer.writeStart("textarea", "id", inputId, "name", inputName);
+                    writer.writeHtml(ObjectUtils.toJson(value, true));
+                writer.writeEnd();
+            writer.writeEnd();
         }
 
         @Override
@@ -48,7 +48,7 @@ public interface FormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
-            writer.tag("input",
+            writer.writeTag("input",
                     "type", "checkbox",
                     "id", inputId,
                     "name", inputName,
@@ -67,7 +67,7 @@ public interface FormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
-            writer.tag("input",
+            writer.writeTag("input",
                     "type", "text",
                     "class", "date",
                     "id", inputId,
@@ -91,19 +91,19 @@ public interface FormInputProcessor {
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
             List<?> valueList = ObjectUtils.to(List.class, value);
 
-            writer.start("ol", "class", "repeatable");
+            writer.writeStart("ol", "class", "repeatable");
                 if (valueList != null) {
                     for (Object item : valueList) {
-                        writer.start("li", "class", "repeatable-item");
+                        writer.writeStart("li", "class", "repeatable-item");
                             FOR_RECORD.doDisplay(null, inputName, field, item, writer);
-                        writer.end();
+                        writer.writeEnd();
                     }
                 }
 
-                writer.start("li", "class", "repeatable-template");
+                writer.writeStart("li", "class", "repeatable-template");
                     FOR_RECORD.doDisplay(null, inputName, field, null, writer);
-                writer.end();
-            writer.end();
+                writer.writeEnd();
+            writer.writeEnd();
         }
 
         @Override
@@ -122,19 +122,19 @@ public interface FormInputProcessor {
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
             List<String> valueList = ObjectUtils.to(LIST_STRING_TYPE, value);
 
-            writer.start("ol", "class", "repeatable");
+            writer.writeStart("ol", "class", "repeatable");
                 if (valueList != null) {
                     for (String item : valueList) {
-                        writer.start("li", "class", "repeatable-item");
+                        writer.writeStart("li", "class", "repeatable-item");
                             FOR_TEXT.doDisplay(null, inputName, field, item, writer);
-                        writer.end();
+                        writer.writeEnd();
                     }
                 }
 
-                writer.start("li", "class", "repeatable-template");
+                writer.writeStart("li", "class", "repeatable-template");
                     FOR_TEXT.doDisplay(null, inputName, field, null, writer);
-                writer.end();
-            writer.end();
+                writer.writeEnd();
+            writer.writeEnd();
         }
 
         @Override
@@ -156,13 +156,13 @@ public interface FormInputProcessor {
                 break;
             }
 
-            writer.start("div", "class", "objectId-label");
+            writer.writeStart("div", "class", "objectId-label");
                 if (valueState != null) {
-                    writer.html(valueState.getLabel());
+                    writer.writeHtml(valueState.getLabel());
                 }
-            writer.end();
+            writer.writeEnd();
 
-            writer.tag("input",
+            writer.writeTag("input",
                     "type", "text",
                     "class", "objectId",
                     "data-type-ids", typeIdsBuilder,
@@ -187,19 +187,19 @@ public interface FormInputProcessor {
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
             Set<?> valueSet = ObjectUtils.to(Set.class, value);
 
-            writer.start("ul", "class", "repeatable");
+            writer.writeStart("ul", "class", "repeatable");
                 if (valueSet != null) {
                     for (Object item : valueSet) {
-                        writer.start("li", "class", "repeatable-item");
+                        writer.writeStart("li", "class", "repeatable-item");
                             FOR_RECORD.doDisplay(null, inputName, field, item, writer);
-                        writer.end();
+                        writer.writeEnd();
                     }
                 }
 
-                writer.start("li", "class", "repeatable-template");
+                writer.writeStart("li", "class", "repeatable-template");
                     FOR_RECORD.doDisplay(null, inputName, field, null, writer);
-                writer.end();
-            writer.end();
+                writer.writeEnd();
+            writer.writeEnd();
         }
 
         @Override
@@ -218,19 +218,19 @@ public interface FormInputProcessor {
         protected void doDisplay(String inputId, String inputName, ObjectField field, Object value, HtmlWriter writer) throws IOException {
             Set<String> valueSet = ObjectUtils.to(SET_STRING_TYPE, value);
 
-            writer.start("ul", "class", "repeatable");
+            writer.writeStart("ul", "class", "repeatable");
                 if (valueSet != null) {
                     for (String item : valueSet) {
-                        writer.start("li", "class", "repeatable-item");
+                        writer.writeStart("li", "class", "repeatable-item");
                             FOR_TEXT.doDisplay(null, inputName, field, item, writer);
-                        writer.end();
+                        writer.writeEnd();
                     }
                 }
 
-                writer.start("li", "class", "repeatable-template");
+                writer.writeStart("li", "class", "repeatable-template");
                     FOR_TEXT.doDisplay(null, inputName, field, null, writer);
-                writer.end();
-            writer.end();
+                writer.writeEnd();
+            writer.writeEnd();
         }
 
         @Override
@@ -257,7 +257,7 @@ public interface FormInputProcessor {
             Set<ObjectField.Value> possibleValues = field.getValues();
 
             if (possibleValues == null || possibleValues.isEmpty()) {
-                writer.tag("input",
+                writer.writeTag("input",
                         "type", "text",
                         "id", inputId,
                         "name", inputName,
@@ -266,27 +266,27 @@ public interface FormInputProcessor {
                         extraAttributes);
 
             } else {
-                writer.start("select",
+                writer.writeStart("select",
                         "id", inputId,
                         "name", inputName,
                         extraAttributes);
 
-                    writer.start("option",
+                    writer.writeStart("option",
                             "value", "",
                             "class", "placeholder");
-                        writer.html(placeholder);
-                    writer.end();
+                        writer.writeHtml(placeholder);
+                    writer.writeEnd();
 
                     for (ObjectField.Value v : possibleValues) {
                         String vv = v.getValue();
-                        writer.start("option",
+                        writer.writeStart("option",
                                 "value", vv,
                                 "selected", ObjectUtils.equals(vv, value));
-                            writer.html(v.getLabel());
-                        writer.end();
+                            writer.writeHtml(v.getLabel());
+                        writer.writeEnd();
                     }
 
-                writer.end();
+                writer.writeEnd();
             }
         }
 

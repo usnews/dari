@@ -4,6 +4,7 @@ package com.psddev.dari.util;
  * Thrown when the {@linkplain Converter converter} fails to convert an
  * object into an instance of another type.
  */
+@SuppressWarnings("serial")
 public class ConversionException extends RuntimeException {
 
     private final Object defaultValue;

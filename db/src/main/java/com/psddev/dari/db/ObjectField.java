@@ -1,12 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.StorageItem;
-import com.psddev.dari.util.TypeDefinition;
-import com.psddev.dari.util.TypeReference;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -31,6 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.TypeReference;
 
 /** Description of how field values can be stored in a state. */
 @ObjectField.Embedded

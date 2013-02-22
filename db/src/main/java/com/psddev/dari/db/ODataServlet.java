@@ -1,12 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.DebugFilter;
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.JspUtils;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.WebPageContext;
-
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -24,6 +17,13 @@ import javax.servlet.http.HttpServletResponse;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.ISODateTimeFormat;
+
+import com.psddev.dari.util.DebugFilter;
+import com.psddev.dari.util.HtmlWriter;
+import com.psddev.dari.util.JspUtils;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.WebPageContext;
 
 @DebugFilter.Path("db-odata")
 @SuppressWarnings("serial")
@@ -126,20 +126,21 @@ public class ODataServlet extends HttpServlet {
     }
 
     private void renderServiceDocument(WebPageContext context) throws IOException {
+        @SuppressWarnings("all")
         XmlWriter writer = new XmlWriter(context.getWriter());
-        writer.start("app:service",
+        writer.writeStart("app:service",
                 "xmlns:atom", "http://www.w3.org/2005/Atom",
                 "xmlns:app", "http://www.w3.org/2007/app",
                 "xmlns:data", "http://schemas.microsoft.com/ado/2007/08/dataservices",
                 "xmlns:metadata", "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata");
-            writer.start("app:workspace");
+            writer.writeStart("app:workspace");
                 for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
-                    writer.start("app:collection", "href", getAbsoluteUrl(context, getEntitySetName(type)));
-                        writer.start("atom:title").html(type.getDisplayName()).end();
-                    writer.end();
+                    writer.writeStart("app:collection", "href", getAbsoluteUrl(context, getEntitySetName(type)));
+                        writer.writeStart("atom:title").writeHtml(type.getDisplayName()).writeEnd();
+                    writer.writeEnd();
                 }
-            writer.end();
-        writer.end();
+            writer.writeEnd();
+        writer.writeEnd();
     }
 
     private String getEdmType(ObjectField field) {
@@ -169,30 +170,31 @@ public class ODataServlet extends HttpServlet {
     }
 
     private void renderMetadataDocument(WebPageContext context) throws IOException {
+        @SuppressWarnings("all")
         XmlWriter writer = new XmlWriter(context.getWriter());
 
-        writer.start("edmx:Edmx",
+        writer.writeStart("edmx:Edmx",
                 "xmlns:edmx", "http://schemas.microsoft.com/ado/2007/06/edmx",
                 "xmlns:m", "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata",
                 "xmlns:d", "http://schemas.microsoft.com/ado/2007/08/dataservices",
                 "xmlns", "http://schemas.microsoft.com/ado/2008/09/edm",
                 "Version", "1.0");
-            writer.start("edmx:DataServices", "m:DataServiceVersion", "1.0");
+            writer.writeStart("edmx:DataServices", "m:DataServiceVersion", "1.0");
 
-                writer.start("Schema", "Namespace", "DariEntityTypes");
+                writer.writeStart("Schema", "Namespace", "DariEntityTypes");
                     Map<ObjectType, Map<String, ObjectField>> associationsByType = new HashMap<ObjectType, Map<String, ObjectField>>();
 
                     for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
                         String typeName = getEntityTypeName(type);
 
-                        writer.start("EntityType", "Name", typeName);
-                            writer.start("Key");
-                                writer.start("PropertyRef", "Name", "id").end();
-                            writer.end();
-                            writer.start("Property",
+                        writer.writeStart("EntityType", "Name", typeName);
+                            writer.writeStart("Key");
+                                writer.writeStart("PropertyRef", "Name", "id").writeEnd();
+                            writer.writeEnd();
+                            writer.writeStart("Property",
                                     "Name", "id",
                                     "Type", "Edm.Guid",
-                                    "Nullable", "false").end();
+                                    "Nullable", "false").writeEnd();
 
                             Map<String, ObjectField> associations = new HashMap<String, ObjectField>();
                             associationsByType.put(type, associations);
@@ -205,21 +207,21 @@ public class ODataServlet extends HttpServlet {
                                         String relationship = propertyName + "_" + typeName + "_" + childName;
                                         associations.put(relationship, field);
 
-                                        writer.start("NavigationProperty",
+                                        writer.writeStart("NavigationProperty",
                                                 "Name", propertyName,
                                                 "Relationship", "DariEntityTypes." + relationship,
                                                 "FromRole", "E1",
-                                                "ToRole", "E2").end();
+                                                "ToRole", "E2").writeEnd();
                                         continue FIELD;
                                     }
                                 }
 
-                                writer.start("Property",
+                                writer.writeStart("Property",
                                         "Name", field.getInternalName().replace('.', '_'),
                                         "Type", getEdmType(field),
-                                        "Nullable", "true").end();
+                                        "Nullable", "true").writeEnd();
                             }
-                        writer.end();
+                        writer.writeEnd();
                     }
 
                     for (Map.Entry<ObjectType, Map<String, ObjectField>> entry1 : associationsByType.entrySet()) {
@@ -232,77 +234,79 @@ public class ODataServlet extends HttpServlet {
                                 String childName = getEntityTypeName(child);
                                 String relationship = propertyName + "_" + typeName + "_" + childName;
 
-                                writer.start("Association", "Name", relationship);
-                                    writer.start("End",
+                                writer.writeStart("Association", "Name", relationship);
+                                    writer.writeStart("End",
                                             "Type", "DariEntityTypes." + typeName,
                                             "Multiplicity", "*",
-                                            "Role", "E1").end();
-                                    writer.start("End",
+                                            "Role", "E1").writeEnd();
+                                    writer.writeStart("End",
                                             "Type", "DariEntityTypes." + childName,
                                             "Multiplicity", field.getInternalType().indexOf('/') > -1 ? "*" : "0..1",
-                                            "Role", "E2").end();
-                                writer.end();
+                                            "Role", "E2").writeEnd();
+                                writer.writeEnd();
                             }
                         }
                     }
-                writer.end();
+                writer.writeEnd();
 
-                writer.start("Schema", "Namespace", "DariEntitySets");
-                    writer.start("EntityContainer", "Name", "Entities", "m:IsDefaultEntityContainer", "true");
+                writer.writeStart("Schema", "Namespace", "DariEntitySets");
+                    writer.writeStart("EntityContainer", "Name", "Entities", "m:IsDefaultEntityContainer", "true");
                         for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
                             if (!type.isEmbedded()) {
-                                writer.start("EntitySet",
+                                writer.writeStart("EntitySet",
                                         "Name", getEntitySetName(type),
-                                        "EntityType", "DariEntityTypes." + getEntityTypeName(type)).end();
+                                        "EntityType", "DariEntityTypes." + getEntityTypeName(type)).writeEnd();
                             }
                         }
-                    writer.end();
-                writer.end();
+                    writer.writeEnd();
+                writer.writeEnd();
 
-            writer.end();
-        writer.end();
+            writer.writeEnd();
+        writer.writeEnd();
     }
 
     private void renderAtomFeed(WebPageContext context, PaginatedResult<?> result) throws IOException {
+        @SuppressWarnings("all")
         XmlWriter writer = new XmlWriter(context.getWriter());
 
-        writer.start("feed",
+        writer.writeStart("feed",
                 "xmlns:m", "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata",
                 "xmlns:d", "http://schemas.microsoft.com/ado/2007/08/dataservices",
                 "xmlns", "http://www.w3.org/2005/Atom");
 
-            writer.start("id").html(JspUtils.getAbsoluteUrl(context.getRequest(), "")).end();
+            writer.writeStart("id").writeHtml(JspUtils.getAbsoluteUrl(context.getRequest(), "")).writeEnd();
 
             for (Object entry : result.getItems()) {
                 renderAtomEntry(context, entry);
             }
 
-        writer.end();
+        writer.writeEnd();
     }
 
     private void renderAtomEntry(WebPageContext context, Object entry) throws IOException {
+        @SuppressWarnings("all")
         XmlWriter writer = new XmlWriter(context.getWriter());
         State entryState = State.getInstance(entry);
         ObjectType entryType = entryState.getType();
         String entryUrl = getAbsoluteUrl(context, getEntityTypeName(entryType) + "(guid'" + entryState.getId() + "')");
 
-        writer.start("entry");
-            writer.start("id");
-                writer.html(entryUrl);
-            writer.end();
+        writer.writeStart("entry");
+            writer.writeStart("id");
+                writer.writeHtml(entryUrl);
+            writer.writeEnd();
 
             for (ObjectField field : entryType.getFields()) {
                 if (ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
                     String fieldName = field.getInternalName();
 
                     for (ObjectType child : field.getTypes()) {
-                        writer.start("link",
+                        writer.writeStart("link",
                                 "rel", "http://schemas.microsoft.com/ado/2007/08/dataservices/related/" + getEntityTypeName(child),
                                 "type", "application/atom+xml;type=entry",
                                 "title", fieldName.replace('.', '_'),
                                 "href", entryUrl + "/" + fieldName.replace('.', '_'));
                             if (field.isEmbedded()) {
-                                writer.start("m:inline");
+                                writer.writeStart("m:inline");
                                     Object value = entryState.get(fieldName);
                                     if (value != null) {
                                         if (value instanceof Set) {
@@ -316,17 +320,17 @@ public class ODataServlet extends HttpServlet {
                                             renderAtomEntry(context, value);
                                         }
                                     }
-                                writer.end();
+                                writer.writeEnd();
                             }
-                        writer.end();
+                        writer.writeEnd();
                         break;
                     }
                 }
             }
 
-            writer.start("content", "type", "application/xml");
-                writer.start("m:properties");
-                    writer.start("d:id", "m:type", "Edm.Guid").html(entryState.getId()).end();
+            writer.writeStart("content", "type", "application/xml");
+                writer.writeStart("m:properties");
+                    writer.writeStart("d:id", "m:type", "Edm.Guid").writeHtml(entryState.getId()).writeEnd();
 
                     for (ObjectField field : entryType.getFields()) {
                         if (!ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
@@ -334,22 +338,22 @@ public class ODataServlet extends HttpServlet {
                             Object value = entryState.get(name);
 
                             if (value == null) {
-                                writer.start("d:" + name.replace('.', '_'), "m:null", "true").end();
+                                writer.writeStart("d:" + name.replace('.', '_'), "m:null", "true").writeEnd();
 
                             } else {
                                 if (value instanceof Date) {
                                     value = ISODateTimeFormat.dateTime().print(new DateTime(value).withZone(DateTimeZone.UTC));
                                 }
 
-                                writer.start("d:" + name.replace('.', '_'), "m:type", getEdmType(field));
-                                    writer.html(value);
-                                writer.end();
+                                writer.writeStart("d:" + name.replace('.', '_'), "m:type", getEdmType(field));
+                                    writer.writeHtml(value);
+                                writer.writeEnd();
                             }
                         }
                     }
-                writer.end();
-            writer.end();
-        writer.end();
+                writer.writeEnd();
+            writer.writeEnd();
+        writer.writeEnd();
     }
 
     private static class XmlWriter extends HtmlWriter {

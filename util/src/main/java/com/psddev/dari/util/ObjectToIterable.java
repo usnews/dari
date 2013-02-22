@@ -3,7 +3,6 @@ package com.psddev.dari.util;
 import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -22,6 +21,7 @@ public class ObjectToIterable implements ConversionFunction<Object, Iterable<Obj
      * {@link #convert} in that it'll return a {@code null} instead of
      * returning a collection of one if it doesn't recognize the type.
      */
+    @SuppressWarnings("unchecked")
     public static Iterable<Object> iterable(Object object) {
 
         if (object == null) {
@@ -47,6 +47,7 @@ public class ObjectToIterable implements ConversionFunction<Object, Iterable<Obj
     // --- ConversionFunction support ---
 
     @Override
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public Iterable<Object> convert(Converter converter, Type returnType, Object object) throws Exception {
 
         Iterable<Object> iterable;

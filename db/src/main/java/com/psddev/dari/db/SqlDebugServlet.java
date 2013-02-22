@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.DebugFilter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StringUtils;
-
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -15,6 +11,10 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.psddev.dari.util.DebugFilter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
 
 @DebugFilter.Path("db-sql")
 @SuppressWarnings("serial")
@@ -43,34 +43,34 @@ public class SqlDebugServlet extends HttpServlet {
 
                 String sql = page.param(String.class, "sql");
 
-                start("h2").html("Query").end();
-                start("form", "action", page.url(null), "class", "form-inline", "method", "post");
+                writeStart("h2").writeHtml("Query").writeEnd();
+                writeStart("form", "action", page.url(null), "class", "form-inline", "method", "post");
 
-                    start("select", "class", "span6", "name", "db");
+                    writeStart("select", "class", "span6", "name", "db");
                         for (SqlDatabase db : Database.Static.getByClass(SqlDatabase.class)) {
                             String dbName = db.getName();
-                            start("option",
+                            writeStart("option",
                                     "selected", db.equals(database) ? "selected" : null,
                                     "value", dbName);
-                                html(dbName);
-                            end();
+                                writeHtml(dbName);
+                            writeEnd();
                         }
-                    end();
+                    writeEnd();
 
-                    start("textarea",
+                    writeStart("textarea",
                             "class", "span6",
                             "name", "sql",
                             "placeholder", "SQL Statement",
                             "rows", 4,
                             "style", "margin: 4px 0; width: 100%;");
-                        html(sql);
-                    end();
+                        writeHtml(sql);
+                    writeEnd();
 
-                    tag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
-                end();
+                    writeTag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
+                writeEnd();
 
                 if (!ObjectUtils.isBlank(sql)) {
-                    start("h2").html("Result").end();
+                    writeStart("h2").writeHtml("Result").writeEnd();
                     Connection connection = database.openConnection();
 
                     try {
@@ -79,15 +79,15 @@ public class SqlDebugServlet extends HttpServlet {
                         try {
                             long startTime = System.nanoTime();
                             statement.execute(sql);
-                            start("p").html("Took ").start("strong").object((System.nanoTime() - startTime) / 1e6).end().html(" milliseconds.");
+                            writeStart("p").writeHtml("Took ").writeStart("strong").writeObject((System.nanoTime() - startTime) / 1e6).writeEnd().writeHtml(" milliseconds.");
 
                             for (; true; statement.getMoreResults()) {
                                 int updateCount = statement.getUpdateCount();
 
                                 if (updateCount > -1) {
-                                    start("p", "class", "alert alert-info");
-                                        start("strong").object(updateCount).end().html(" items updated!");
-                                    end();
+                                    writeStart("p", "class", "alert alert-info");
+                                        writeStart("strong").writeObject(updateCount).writeEnd().writeHtml(" items updated!");
+                                    writeEnd();
 
                                 } else {
                                     ResultSet result = statement.getResultSet();
@@ -98,32 +98,32 @@ public class SqlDebugServlet extends HttpServlet {
                                     ResultSetMetaData meta = result.getMetaData();
                                     int count = meta.getColumnCount();
 
-                                    start("table", "class", "table table-condensed");
-                                        start("thead");
-                                            start("tr");
+                                    writeStart("table", "class", "table table-condensed");
+                                        writeStart("thead");
+                                            writeStart("tr");
                                                 for (int i = 1; i <= count; ++ i) {
-                                                    start("th");
-                                                        html(meta.getColumnLabel(i));
-                                                    end();
+                                                    writeStart("th");
+                                                        writeHtml(meta.getColumnLabel(i));
+                                                    writeEnd();
                                                 }
-                                            end();
-                                        end();
-                                        start("tbody");
+                                            writeEnd();
+                                        writeEnd();
+                                        writeStart("tbody");
                                             while (result.next()) {
-                                                start("tr");
+                                                writeStart("tr");
                                                     for (int i = 1; i <= count; ++ i) {
                                                         Object value = result.getObject(i);
                                                         if (value instanceof byte[]) {
                                                             value = new String(result.getBytes(i), StringUtils.UTF_8);
                                                         }
-                                                        start("td");
-                                                            object(value);
-                                                        end();
+                                                        writeStart("td");
+                                                            writeObject(value);
+                                                        writeEnd();
                                                     }
-                                                end();
+                                                writeEnd();
                                             }
-                                        end();
-                                    end();
+                                        writeEnd();
+                                    writeEnd();
                                 }
                             }
 
@@ -132,9 +132,9 @@ public class SqlDebugServlet extends HttpServlet {
                         }
 
                     } catch (Exception ex) {
-                        start("div", "class", "alert alert-error");
-                            object(ex);
-                        end();
+                        writeStart("div", "class", "alert alert-error");
+                            writeObject(ex);
+                        writeEnd();
 
                     } finally {
                         database.closeConnection(connection);

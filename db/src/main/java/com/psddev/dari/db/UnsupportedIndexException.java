@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+@SuppressWarnings("serial")
 public class UnsupportedIndexException
         extends UnsupportedOperationException {
 

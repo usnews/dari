@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -28,6 +22,12 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
 
 /** Represents how the {@link Record}s are structured. */
 @Record.LabelFields("name")
@@ -194,6 +194,7 @@ public class ObjectType extends Record implements ObjectStruct {
             String[] extraFields = null;
             boolean isUnique = false;
             boolean caseSensitive = false;
+            boolean visibility = false;
 
             FieldUnique uniqueAnnotation = javaField.getAnnotation(FieldUnique.class);
             if (uniqueAnnotation != null) {
@@ -212,6 +213,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 extraFields = indexedAnnotation.extraFields();
                 isUnique = isUnique || indexedAnnotation.unique() || indexedAnnotation.isUnique();
                 caseSensitive = indexedAnnotation.caseSensitive();
+                visibility = indexedAnnotation.visibility();
             }
 
             if (extraFields != null) {
@@ -232,6 +234,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 newIndex.setType(field.getInternalItemType());
                 newIndex.setUnique(isUnique);
                 newIndex.setCaseSensitive(caseSensitive);
+                newIndex.setVisibility(visibility);
                 newIndex.setJavaDeclaringClassName(declaringClass);
                 newIndex.getOptions().putAll(new ObjectField(field.getParent(), field.toDefinition()).getOptions());
                 indexes.add(newIndex);

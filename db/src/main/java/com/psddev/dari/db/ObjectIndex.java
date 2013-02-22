@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectToIterable;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.TypeReference;
-
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -15,6 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.psddev.dari.util.ObjectToIterable;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.TypeReference;
+
 /** Description of how field values in a state can be queried. */
 public class ObjectIndex {
 
@@ -22,6 +22,7 @@ public class ObjectIndex {
     private static final String TYPE_KEY = "type";
     private static final String IS_UNIQUE_KEY = "isUnique";
     private static final String CASE_SENSITIVE_KEY = "caseSensitive";
+    private static final String VISIBILITY_KEY = "visibility";
     private static final String JAVA_DECLARING_CLASS_NAME_KEY = "java.declaringClass";
     private static final String LEGACY_FIELD_KEY = "field";
 
@@ -32,6 +33,7 @@ public class ObjectIndex {
     private String type;
     private boolean isUnique;
     private boolean caseSensitive;
+    private boolean visibility;
     private String javaDeclaringClassName;
     private Map<String, Object> options;
 
@@ -64,6 +66,7 @@ public class ObjectIndex {
         setType(ObjectUtils.to(String.class, definition.remove(TYPE_KEY)));
         setUnique(ObjectUtils.to(boolean.class, definition.remove(IS_UNIQUE_KEY)));
         setCaseSensitive(ObjectUtils.to(boolean.class, definition.remove(CASE_SENSITIVE_KEY)));
+        setVisibility(ObjectUtils.to(boolean.class, definition.remove(VISIBILITY_KEY)));
         setJavaDeclaringClassName(ObjectUtils.to(String.class, definition.remove(JAVA_DECLARING_CLASS_NAME_KEY)));
         setOptions(definition);
     }
@@ -76,6 +79,7 @@ public class ObjectIndex {
         definition.put(TYPE_KEY, getType());
         definition.put(IS_UNIQUE_KEY, isUnique());
         definition.put(CASE_SENSITIVE_KEY, isCaseSensitive());
+        definition.put(VISIBILITY_KEY, isVisibility());
         definition.put(JAVA_DECLARING_CLASS_NAME_KEY, getJavaDeclaringClassName());
         definition.put(LEGACY_FIELD_KEY, getField());
         return definition;
@@ -156,6 +160,14 @@ public class ObjectIndex {
 
     public void setCaseSensitive(boolean caseSensitive) {
         this.caseSensitive = caseSensitive;
+    }
+
+    public boolean isVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(boolean visibility) {
+        this.visibility = visibility;
     }
 
     /** Returns the name of the class that declared this index. */

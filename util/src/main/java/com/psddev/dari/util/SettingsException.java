@@ -4,6 +4,7 @@ package com.psddev.dari.util;
  * Thrown when there is an error working with
  * {@linkplain Settings setting values}.
  */
+@SuppressWarnings("serial")
 public class SettingsException extends IllegalArgumentException {
 
     private final String key;
