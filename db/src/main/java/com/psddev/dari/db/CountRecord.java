@@ -175,6 +175,27 @@ public class CountRecord {
         }
     }
 
+    public void setCount(Integer amount) throws SQLException {
+        // This only works if we're not tracking eventDate
+        if (getEventDatePrecision() != EventDatePrecision.NONE) {
+            throw new RuntimeException("CountRecord.setCount() can only be used if EventDatePrecision is NONE");
+        }
+        // find the countId, it might be null
+        UUID countId = getCountId();
+        if (dimensionsSaved) {
+            Static.doSetUpdateOrInsert(getDatabase(), countId, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
+                    getDimensionsSymbol(), amount, getUpdateDate(),
+                    getEventDate());
+        } else {
+            Static.doInserts(getDatabase(), countId, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
+                    dimensions, amount, getUpdateDate(), getEventDate());
+            dimensionsSaved = true;
+        }
+        if (isSummaryPossible()) {
+            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.record.getId());
+        }
+    }
+
     /** This only needs to be executed if the summary has fallen out of sync due to data model change or some other operation */
     public void syncCountSummary() throws SQLException {
         if (isSummaryPossible()) {
@@ -705,6 +726,28 @@ public class CountRecord {
                     parameters = new ArrayList<Object>();
                     sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol,
                             dimensionsSymbol, incrementAmount, updateDate,
+                            eventDate);
+                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+        }
+
+        static void doSetUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, 
+                String actionSymbol, String dimensionsSymbol, int amount,
+                long updateDate, long eventDate) throws SQLException {
+            Connection connection = db.openConnection();
+            try {
+                List<Object> parameters = new ArrayList<Object>();
+                String sql = getUpdateSql(db, parameters, countId, actionSymbol,
+                        amount, updateDate, eventDate, false);
+                int rowsAffected = SqlDatabase.Static.executeUpdateWithList(
+                        connection, sql, parameters);
+                if (rowsAffected == 0) {
+                    parameters = new ArrayList<Object>();
+                    sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol,
+                            dimensionsSymbol, amount, updateDate,
                             eventDate);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }

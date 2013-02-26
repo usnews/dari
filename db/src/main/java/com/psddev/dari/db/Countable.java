@@ -78,6 +78,29 @@ public interface Countable extends Recordable {
             }
         }
 
+        public void setCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
+            try {
+                getCountRecord(modificationClass).setCount(c);
+                if (getCountField(modificationClass) != null) {
+                    // also set the summary field so it can be immediately available, 
+                    // even though CountRecord will (probably) do the actual update of the 
+                    // summary field in the database.
+                    String fieldName = getCountField(modificationClass).getInternalName();
+                    getState().put(fieldName, c);
+                }
+            } catch (SQLException e) {
+                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.incrementCount() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public void deleteCount(Class<? extends Modification<? extends Countable>> modificationClass) {
+            try {
+                getCountRecord(modificationClass).deleteCount();
+            } catch (SQLException e) {
+                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.deleteCount() : " + e.getLocalizedMessage());
+            }
+        }
+
         public int getCount(Class<? extends Modification<? extends Countable>> modificationClass) {
             try {
                 return getCountRecord(modificationClass).getCount();
