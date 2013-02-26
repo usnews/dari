@@ -126,8 +126,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private boolean isResolveToReferenceOnly;
     private Double timeout;
     private String countActionSymbol;
-    private Long countActionStartDate;
-    private Long countActionEndDate;
     private transient Map<String, Object> options;
     private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
@@ -248,14 +246,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     public void setCountActionSymbol(String actionSymbol) {
         this.countActionSymbol = actionSymbol;
     }
-
-    public Long getCountActionStartDate() {
-        return this.countActionStartDate;
-    } 
-
-    public Long getCountActionEndDate() {
-        return this.countActionEndDate;
-    } 
 
     /**
      * Returns the database to be used with the read methods.
@@ -553,16 +543,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     public Query<E> counting(String countableFieldName) {
         MappedKey key = mapKey(getDatabase().getEnvironment(), countableFieldName, true);
         this.countActionSymbol = key.getField().getUniqueName();
-        return this;
-    }
-
-    public Query<E> countingDateRange(Date startDate, Date endDate) {
-        return countingDateRange(startDate.getTime(), endDate.getTime());
-    }
-
-    public Query<E> countingDateRange(Long startDateMillis, Long endDateMillis) {
-        this.countActionStartDate = startDateMillis;
-        this.countActionEndDate = endDateMillis;
         return this;
     }
 

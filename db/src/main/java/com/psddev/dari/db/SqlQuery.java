@@ -849,24 +849,6 @@ class SqlQuery {
             statementBuilder.append(" = ");
             vendor.appendValue(statementBuilder, actionSymbolId);
 
-            if (query.getCountActionStartDate() != null) {
-                statementBuilder.append(" AND ");
-                vendor.appendIdentifier(statementBuilder, "r");
-                statementBuilder.append(".");
-                vendor.appendIdentifier(statementBuilder, "eventDate");
-                statementBuilder.append(" >= ");
-                vendor.appendValue(statementBuilder, query.getCountActionStartDate());
-            }
-
-            if (query.getCountActionEndDate() != null) {
-                statementBuilder.append(" AND ");
-                vendor.appendIdentifier(statementBuilder, "r");
-                statementBuilder.append(".");
-                vendor.appendIdentifier(statementBuilder, "eventDate");
-                statementBuilder.append(" < ");
-                vendor.appendValue(statementBuilder, query.getCountActionEndDate());
-            }
-
         } else {
             statementBuilder.append("SELECT COUNT(");
             if (needsDistinct) {
@@ -1011,24 +993,6 @@ class SqlQuery {
 
             statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
             statementBuilder.append(whereClause);
-
-            if (query.getCountActionStartDate() != null) {
-                statementBuilder.append(" AND ");
-                vendor.appendIdentifier(statementBuilder, "r");
-                statementBuilder.append(".");
-                vendor.appendIdentifier(statementBuilder, "eventDate");
-                statementBuilder.append(" >= ");
-                vendor.appendValue(statementBuilder, query.getCountActionStartDate());
-            }
-
-            if (query.getCountActionEndDate() != null) {
-                statementBuilder.append(" AND ");
-                vendor.appendIdentifier(statementBuilder, "r");
-                statementBuilder.append(".");
-                vendor.appendIdentifier(statementBuilder, "eventDate");
-                statementBuilder.append(" < ");
-                vendor.appendValue(statementBuilder, query.getCountActionEndDate());
-            }
 
             for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
                 Join join = entry.getValue();
@@ -1257,7 +1221,12 @@ class SqlQuery {
     }
 
     private Join createJoin(String queryKey) {
-        Join join = new Join("i" + joins.size(), queryKey);
+        ObjectField field = mappedKeys.get(queryKey).getField();
+        String alias = "i" + joins.size();
+        if (field != null && field.as(Countable.CountableFieldData.class).isEventDateField()) {
+            alias = "r";
+        }
+        Join join = new Join(alias, queryKey);
         joins.add(join);
         if (queryKey.equals(query.getOptions().get(SqlDatabase.MYSQL_INDEX_HINT_QUERY_OPTION))) {
             mysqlIndexHint = join;
@@ -1368,6 +1337,24 @@ class SqlQuery {
                 tableName = null;
                 idField = null;
                 keyField = null;
+
+            } else if (alias.equals("r")) {
+
+                likeValuePrefix = null;
+                valueField = null;
+                sqlIndexTable = this.sqlIndex.getReadTable(database, index);
+
+                StringBuilder tableBuilder = new StringBuilder();
+                tableName = sqlIndexTable.getName(database, index);
+                vendor.appendIdentifier(tableBuilder, tableName);
+                tableBuilder.append(" ");
+                tableBuilder.append(aliasPrefix);
+                tableBuilder.append(alias);
+                table = tableBuilder.toString();
+
+                idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
+                keyField = null;
+                needsIndexTable = false;
 
             } else {
                 needsIndexTable = true;
