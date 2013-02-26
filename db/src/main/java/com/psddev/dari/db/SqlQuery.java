@@ -939,7 +939,12 @@ class SqlQuery {
                     }
                     selectedIndexes.put(groupField, selectedIndex);
                 }
-                groupJoins.put(groupField, getJoin(groupField));
+                Join join = getJoin(groupField);
+                ObjectField joinField = join.index.getParent().getField(join.index.getField());
+                if (joinField.as(Countable.CountableFieldData.class).isDimension()) {
+                    join.type = JoinType.LEFT_OUTER;
+                }
+                groupJoins.put(groupField, join);
             }
         }
 
@@ -981,7 +986,7 @@ class SqlQuery {
             statementBuilder.append(" ");
             statementBuilder.append(aliasPrefix);
             statementBuilder.append("r");
-            // We only have to join record here because when records are deleted, CountRecord is not cleaned up.
+            // We only have to join record here because when records are deleted, CountRecord is not always cleaned up.
             statementBuilder.append(" JOIN ");
             vendor.appendIdentifier(statementBuilder, "Record");
             statementBuilder.append(" ");
