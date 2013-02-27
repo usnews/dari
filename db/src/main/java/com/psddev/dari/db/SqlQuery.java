@@ -963,6 +963,11 @@ class SqlQuery {
             }
             */
 
+            for (String field : orderBySelectColumns) {
+                statementBuilder.append(", ");
+                statementBuilder.append(field);
+            }
+
             statementBuilder.append(" FROM ");
             vendor.appendIdentifier(statementBuilder, "CountRecord");
             statementBuilder.append(" ");
@@ -985,11 +990,6 @@ class SqlQuery {
             statementBuilder.append(".");
             vendor.appendIdentifier(statementBuilder, "id");
             statementBuilder.append(") ");
-
-            for (String field : orderBySelectColumns) {
-                statementBuilder.append(", ");
-                statementBuilder.append(field);
-            }
 
             statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
             statementBuilder.append(whereClause);
@@ -1056,14 +1056,14 @@ class SqlQuery {
 
             int i = 0;
             for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
-                if (i++ == 1) {
+                if (i++ > 0) {
                     statementBuilder.append(", ");
                 }
                 statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
             }
 
             for (String field : orderBySelectColumns) {
-                if (i++ == 1) {
+                if (i++ > 0) {
                     statementBuilder.append(", ");
                 }
                 statementBuilder.append(field);
