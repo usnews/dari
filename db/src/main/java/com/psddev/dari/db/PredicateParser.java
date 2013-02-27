@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <li>{@value GREATER_THAN_OPERATOR}
  * <li>{@value GREATER_THAN_OR_EQUALS_OPERATOR}
  * <li>{@value STARTS_WITH_OPERATOR}
+ * <li>{@value CONTAINS_OPERATOR}
  * <li>{@value MATCHES_ANY_OPERATOR}
  * <li>{@value MATCHES_ALL_OPERATOR}
  * </ul>
@@ -56,6 +57,7 @@ public class PredicateParser {
     public static final String GREATER_THAN_OPERATOR = "greaterthan";
     public static final String GREATER_THAN_OR_EQUALS_OPERATOR = "greaterthanorequals";
     public static final String STARTS_WITH_OPERATOR = "startswith";
+    public static final String CONTAINS_OPERATOR = "contains";
     public static final String MATCHES_ANY_OPERATOR = "matchesany";
     public static final String MATCHES_ALL_OPERATOR = "matchesall";
 
@@ -117,6 +119,8 @@ public class PredicateParser {
         m.put("startswith", STARTS_WITH_OPERATOR);
         m.put("sw", STARTS_WITH_OPERATOR);
         m.put("^=", STARTS_WITH_OPERATOR);
+
+        m.put(CONTAINS_OPERATOR, CONTAINS_OPERATOR);
 
         m.put(MATCHES_ANY_OPERATOR, MATCHES_ANY_OPERATOR);
         m.put("matchesany", MATCHES_ANY_OPERATOR);

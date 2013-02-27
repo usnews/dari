@@ -665,8 +665,10 @@ class SqlQuery {
 
             } else {
                 boolean isStartsWith = PredicateParser.STARTS_WITH_OPERATOR.equals(operator);
+                boolean isContains = PredicateParser.CONTAINS_OPERATOR.equals(operator);
                 String sqlOperator =
                         isStartsWith ? "LIKE" :
+                        isContains ? "LIKE" :
                         PredicateParser.LESS_THAN_OPERATOR.equals(operator) ? "<" :
                         PredicateParser.LESS_THAN_OR_EQUALS_OPERATOR.equals(operator) ? "<=" :
                         PredicateParser.GREATER_THAN_OPERATOR.equals(operator) ? ">" :
@@ -695,6 +697,8 @@ class SqlQuery {
                             comparisonBuilder.append(" ");
                             if (isStartsWith) {
                                 value = value.toString() + "%";
+                            } else if (isContains) {
+                                value = "%" + value.toString() + "%";
                             }
                             join.appendValue(comparisonBuilder, comparisonPredicate, value);
                         }
