@@ -50,7 +50,7 @@ public class CountRecord {
     private final CountRecordQuery query;
     private final Record record;
 
-    private EventDatePrecision eventDatePrecision = EventDatePrecision.HOUR;
+    private EventDatePrecision eventDatePrecision = EventDatePrecision.NONE;
     private UUID countId;
 
     private Long updateDate;

@@ -12,9 +12,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
-
 public interface Countable extends Recordable {
 
     /** Specifies whether the target field value is indexed in the CountRecord dimension tables. 
@@ -32,7 +29,6 @@ public interface Countable extends Recordable {
     @ObjectField.AnnotationProcessorClass(CountFieldProcessor.class)
     @Target(ElementType.FIELD)
     public @interface CountField {
-        CountRecord.EventDatePrecision precision() default CountRecord.EventDatePrecision.HOUR;
     }
 
     /** Specifies that the target field virtually represents the EventDate field and optionally an SQL date format, and can be queried against. 
@@ -42,17 +38,14 @@ public interface Countable extends Recordable {
     @ObjectField.AnnotationProcessorClass(EventDateProcessor.class)
     @Target(ElementType.FIELD)
     public @interface EventDate {
-        String value() default "";
+        CountRecord.EventDatePrecision value() default CountRecord.EventDatePrecision.HOUR;
     }
 
     public static class CountAction extends Modification<Countable> {
 
-        //private static final Logger LOGGER = LoggerFactory.getLogger(CountAction.class);
-
         private transient Map<Class<?>, CountRecord> countRecords = new HashMap<Class<?>, CountRecord>();
 
         public static ObjectField getCountField(Class<? extends Modification<? extends Countable>> modificationClass) {
-            //TypeDefinition<?> definition = TypeDefinition.getInstance(modificationClass);
             ObjectType modificationType = ObjectType.getInstance(modificationClass);
             for (ObjectField objectField : modificationType.getFields()) {
                 if (objectField.as(CountableFieldData.class).isCountField()) {
@@ -62,13 +55,24 @@ public interface Countable extends Recordable {
             throw new RuntimeException("One int field must be marked as @Countable.CountField");
         }
 
+        public static ObjectField getEventDateField(Class<? extends Modification<? extends Countable>> modificationClass) {
+            ObjectType modificationType = ObjectType.getInstance(modificationClass);
+            for (ObjectField objectField : modificationType.getFields()) {
+                if (objectField.as(CountableFieldData.class).isEventDateField()) {
+                    return objectField;
+                }
+            }
+            return null;
+        }
+
         public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
             try {
                 getCountRecord(modificationClass).incrementCount(c);
                 if (getCountField(modificationClass) != null) {
-                    // also increment the summary field so it can be immediately available, 
-                    // even though CountRecord will (probably) do the actual update of the 
-                    // summary field in the database.
+                    // also increment the summary field in the state so it can
+                    // be immediately available, even though CountRecord will
+                    // (probably) do the actual update of the summary field in
+                    // the database.
                     String fieldName = getCountField(modificationClass).getInternalName();
                     int oldCountSummary = (Integer) getState().get(fieldName);
                     getState().put(fieldName, oldCountSummary + c);
@@ -82,14 +86,15 @@ public interface Countable extends Recordable {
             try {
                 getCountRecord(modificationClass).setCount(c);
                 if (getCountField(modificationClass) != null) {
-                    // also set the summary field so it can be immediately available, 
-                    // even though CountRecord will (probably) do the actual update of the 
-                    // summary field in the database.
+                    // also set the summary field in the state so it can be
+                    // immediately available, even though CountRecord will
+                    // (probably) do the actual update of the summary field in
+                    // the database.
                     String fieldName = getCountField(modificationClass).getInternalName();
                     getState().put(fieldName, c);
                 }
             } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.incrementCount() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.setCount() : " + e.getLocalizedMessage());
             }
         }
 
@@ -135,8 +140,13 @@ public interface Countable extends Recordable {
         public CountRecord getCountRecord(Class<? extends Modification<? extends Countable>> modificationClass) {
             if (! countRecords.containsKey(modificationClass)) {
                 ObjectField countField = getCountField(modificationClass);
+                ObjectField eventDateField = getEventDateField(modificationClass);
                 CountRecord countRecord = new CountRecord(this, countField.getUniqueName(), this.getDimensions(modificationClass));
-                countRecord.setEventDatePrecision(countField.as(CountableFieldData.class).getEventDatePrecision());
+                if (eventDateField != null) {
+                    countRecord.setEventDatePrecision(eventDateField.as(CountableFieldData.class).getEventDatePrecision());
+                } else {
+                    countRecord.setEventDatePrecision(CountRecord.EventDatePrecision.NONE);
+                }
                 countRecord.setSummaryField(countField);
                 countRecords.put(modificationClass, countRecord);
             }
@@ -173,7 +183,6 @@ public interface Countable extends Recordable {
 
             CountableFieldData countableFieldData = field.as(CountableFieldData.class);
             countableFieldData.setCountField(true);
-            countableFieldData.setEventDatePrecision(annotation.precision());
         }
     }
 
@@ -190,6 +199,7 @@ public interface Countable extends Recordable {
 
             CountableFieldData countableFieldData = field.as(CountableFieldData.class);
             countableFieldData.setDimension(true);
+            countableFieldData.setEventDatePrecision(annotation.value());
 
             countableFieldData.setEventDateField(true);
         }
