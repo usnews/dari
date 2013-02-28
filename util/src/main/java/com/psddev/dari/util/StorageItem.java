@@ -109,10 +109,10 @@ public interface StorageItem extends SettingsBackedObject {
                 StorageItem item = Settings.newInstance(StorageItem.class, SETTING_PREFIX + "/" + storage);
                 item.setStorage(storage);
 
-                if (item instanceof AbstractStorageItem) {
+                /*if (item instanceof AbstractStorageItem) {
                     AbstractStorageItem base = (AbstractStorageItem) item;
                     base.registerListener(new ImageResizeStorageItemListener());
-                }
+                }*/
 
                 return item;
             }
