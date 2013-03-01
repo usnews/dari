@@ -196,11 +196,21 @@ public class HtmlGrid {
         }
 
         private static HtmlGrid findGrid(ServletContext context, String selector, String path) throws IOException {
+            HtmlGrid grid = findGridSuffixed(context, selector, path, ".less");
+
+            if (grid == null) {
+                grid = findGridSuffixed(context, selector, path, ".css");
+            }
+
+            return grid;
+        }
+
+        private static HtmlGrid findGridSuffixed(ServletContext context, String selector, String path, String suffix) throws IOException {
             Set<String> children = CodeUtils.getResourcePaths(context, path);
 
             if (children != null) {
                 for (String child : children) {
-                    if (child.endsWith(".css") || child.endsWith(".less")) {
+                    if (child.endsWith(suffix)) {
                         String cssAttr = CSS_ATTRIBUTE_PREFIX + child;
                         String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + child;
                         URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
