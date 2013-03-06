@@ -926,9 +926,11 @@ class SqlQuery {
                     selectedIndexes.put(groupField, selectedIndex);
                 }
                 Join join = getJoin(groupField);
-                ObjectField joinField = join.index.getParent().getField(join.index.getField());
-                if (joinField.as(Countable.CountableFieldData.class).isDimension()) {
-                    join.type = JoinType.LEFT_OUTER;
+                if (join.index != null) {
+                    ObjectField joinField = join.index.getParent().getField(join.index.getField());
+                    if (joinField.as(Countable.CountableFieldData.class).isDimension()) {
+                        join.type = JoinType.LEFT_OUTER;
+                    }
                 }
                 groupJoins.put(groupField, join);
             }
@@ -948,8 +950,12 @@ class SqlQuery {
             for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
                 statementBuilder.append(", ");
                 Join join = entry.getValue();
-                ObjectField joinField = join.index.getParent().getField(join.index.getField());
-                if (joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
+                ObjectField joinField = null;
+                if (join.index != null) {
+                    joinField = join.index.getParent().getField(join.index.getField());
+                }
+                if (joinField != null && 
+                        joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
                     statementBuilder.append(aliasPrefix);
                     statementBuilder.append("r");
                     statementBuilder.append(".");
@@ -1000,8 +1006,12 @@ class SqlQuery {
 
             for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
                 Join join = entry.getValue();
-                ObjectField joinField = join.index.getParent().getField(join.index.getField());
-                if (joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
+                ObjectField joinField = null;
+                if (join.index != null) {
+                    joinField = join.index.getParent().getField(join.index.getField());
+                }
+                if (joinField != null &&
+                        joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
                     groupBy.append(aliasPrefix);
                     groupBy.append("r");
                     groupBy.append(".");
