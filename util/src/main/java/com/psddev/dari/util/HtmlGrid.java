@@ -105,6 +105,26 @@ public class HtmlGrid {
         return template;
     }
 
+    private CssCombinedUnit combineNonFractionals(List<CssUnit> units) {
+        List<CssUnit> filtered = new ArrayList<CssUnit>();
+
+        for (CssUnit unit : units) {
+            if (!"fr".equals(unit.getUnit())) {
+                filtered.add(unit);
+            }
+        }
+
+        return new CssCombinedUnit(filtered);
+    }
+
+    public CssCombinedUnit getMinimumWidth() {
+        return combineNonFractionals(getColumns());
+    }
+
+    public CssCombinedUnit getMinimumHeight() {
+        return combineNonFractionals(getRows());
+    }
+
     /** Returns all CSS units used by this template. */
     public Set<String> getCssUnits() {
         Set<String> units = new HashSet<String>();

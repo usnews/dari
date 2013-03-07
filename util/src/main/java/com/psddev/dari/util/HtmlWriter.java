@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
@@ -332,6 +331,7 @@ public class HtmlWriter extends Writer {
 
             for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
                 String gridSelector = gridEntry.getKey();
+                HtmlGrid grid = gridEntry.getValue();
                 String cssSuffix = "";
 
                 for (int lastBraceAt = 0, braceAt;
@@ -340,11 +340,19 @@ public class HtmlWriter extends Writer {
                     cssSuffix += '}';
                 }
 
+                CssUnit minWidth = grid.getMinimumWidth().getSingle();
+
+                if (minWidth != null) {
+                    writeCss(gridSelector,
+                            "min-width", minWidth);
+                    write(cssSuffix);
+                }
+
                 writeCss(gridSelector + " > .dari-grid-area[data-grid-area]",
                         "display", "none");
                 write(cssSuffix);
 
-                for (Area area : createAreas(gridEntry.getValue()).values()) {
+                for (Area area : createAreas(grid).values()) {
                     String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
 
                     writeCss(gridSelector + " > .dari-grid-area" + selectorSuffix,
@@ -619,7 +627,7 @@ public class HtmlWriter extends Writer {
                 areaInstance.adjustments.put("px", pxAdjustment);
 
                 // Set width explicitly if there's only one unit.
-                CombinedCssUnit width = areaInstance.width = new CombinedCssUnit(columns.subList(columnStart, columnStop));
+                CssCombinedUnit width = areaInstance.width = new CssCombinedUnit(columns.subList(columnStart, columnStop));
                 CssUnit singleWidth = areaInstance.singleWidth = width.getSingle();
 
                 if (singleWidth != null) {
@@ -627,7 +635,7 @@ public class HtmlWriter extends Writer {
                 }
 
                 // Set height explicitly if there's only one unit.
-                CombinedCssUnit height = areaInstance.height = new CombinedCssUnit(rows.subList(rowStart, rowStop));
+                CssCombinedUnit height = areaInstance.height = new CssCombinedUnit(rows.subList(rowStart, rowStop));
                 CssUnit singleHeight = areaInstance.singleHeight = height.getSingle();
 
                 if (singleHeight != null) {
@@ -665,9 +673,9 @@ public class HtmlWriter extends Writer {
         public boolean clear;
         public double frPaddingLeft;
         public double frWidth;
-        public CombinedCssUnit width;
+        public CssCombinedUnit width;
         public CssUnit singleWidth;
-        public CombinedCssUnit height;
+        public CssCombinedUnit height;
         public CssUnit singleHeight;
         public final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
 
@@ -682,51 +690,6 @@ public class HtmlWriter extends Writer {
                 adjustments.put(unit, adjustment);
             }
             return adjustment;
-        }
-    }
-
-    private static class CombinedCssUnit {
-
-        private final Map<String, CssUnit> combined = new HashMap<String, CssUnit>();
-
-        public CombinedCssUnit(Iterable<CssUnit> values) {
-            for (CssUnit value : values) {
-                String unit = value.getUnit();
-                CssUnit old = combined.get(unit);
-
-                if (old == null) {
-                    combined.put(unit, value);
-
-                } else {
-                    combined.put(unit, new CssUnit(old.getNumber() + value.getNumber(), unit));
-                }
-            }
-
-            for (Iterator<Map.Entry<String, CssUnit>> i = combined.entrySet().iterator(); i.hasNext(); ) {
-                CssUnit value = i.next().getValue();
-
-                if (!"auto".equals(value.getUnit()) && value.getNumber() == 0.0) {
-                    i.remove();
-                }
-            }
-        }
-
-        public Collection<CssUnit> getAll() {
-            return combined.values();
-        }
-
-        public CssUnit getSingle() {
-            if (combined.size() != 1) {
-                return null;
-
-            } else {
-                CssUnit value = combined.values().iterator().next();
-                return "fr".equals(value.getUnit()) ? null : value;
-            }
-        }
-
-        public boolean hasAuto() {
-            return combined.keySet().contains("auto");
         }
     }
 
