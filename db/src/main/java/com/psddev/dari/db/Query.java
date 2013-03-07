@@ -1227,7 +1227,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                 getSorters(),
                 getDatabase(),
                 isResolveToReferenceOnly(),
-                getTimeout());
+                getTimeout(),
+                getCountActionSymbol());
     }
 
     @Override
