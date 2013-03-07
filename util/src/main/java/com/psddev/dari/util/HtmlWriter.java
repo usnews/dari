@@ -367,9 +367,9 @@ public class HtmlWriter extends Writer {
                         Adjustment adjustment = entry.getValue();
 
                         writeCss(gridSelector + " .dari-grid-adj-" + unit + selectorSuffix,
-                                "height", adjustment.height,
+                                "height", adjustment.height != null ? adjustment.height : "auto",
                                 "margin", adjustment.getMargin(unit),
-                                "width", adjustment.width);
+                                "width", adjustment.width != null ? adjustment.width : "auto");
                         write(cssSuffix);
                     }
                 }
