@@ -79,6 +79,10 @@ public class CountRecord {
         this.eventDatePrecision = precision;
     }
 
+    public Record getRecord() {
+        return record;
+    }
+
     public EventDatePrecision getEventDatePrecision() {
         return this.eventDatePrecision;
     }

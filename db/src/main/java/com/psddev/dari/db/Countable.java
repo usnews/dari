@@ -167,6 +167,12 @@ public interface Countable extends Recordable {
         }
         */
 
+        public void invalidateCountRecord(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
+            try {
+                this.countRecords.get(modificationClass).remove(countFieldInternalName);
+            } catch (Exception ex) { }
+        }
+
         public CountRecord getCountRecord(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
             // if countFieldInternalName is null, it will return the *first* @CountField in the type
             if (! countRecords.containsKey(modificationClass)) {
@@ -187,6 +193,7 @@ public interface Countable extends Recordable {
             }
             return countRecords.get(modificationClass).get(countFieldInternalName);
         }
+
     }
 
     static class DimensionProcessor implements ObjectField.AnnotationProcessor<Dimension> {

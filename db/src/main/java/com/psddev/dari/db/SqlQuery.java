@@ -310,6 +310,11 @@ class SqlQuery {
                 continue;
             }
 
+            if (query.getCountActionSymbol() != null && joinField.as(Countable.CountableFieldData.class).isCountField()) {
+                // if we are actually counting() something, don't join on CountRecordSummary
+                continue;
+            }
+
             for (String indexKey : join.indexKeys) {
                 joinTableAliases.put(join.getTableName().toLowerCase() + join.quoteIndexKey(indexKey), join.getAlias());
             }
@@ -960,6 +965,10 @@ class SqlQuery {
                     statementBuilder.append("r");
                     statementBuilder.append(".");
                     vendor.appendIdentifier(statementBuilder, joinField.as(SqlDatabase.FieldData.class).getIndexTableColumnName());
+                } else if (joinField != null &&
+                        query.getCountActionSymbol() != null && joinField.as(Countable.CountableFieldData.class).isCountField()) {
+                    // if we are actually counting() something, don't join on CountRecordSummary
+                    continue;
                 } else {
                     statementBuilder.append(join.getValueField(entry.getKey(), null));
                 }
@@ -973,10 +982,12 @@ class SqlQuery {
             }
             */
 
+            /*
             for (String field : orderBySelectColumns) {
                 statementBuilder.append(", ");
                 statementBuilder.append(field);
             }
+            */
 
             statementBuilder.append(" FROM ");
             vendor.appendIdentifier(statementBuilder, "CountRecord");
@@ -1016,10 +1027,19 @@ class SqlQuery {
                     groupBy.append("r");
                     groupBy.append(".");
                     vendor.appendIdentifier(groupBy, joinField.as(SqlDatabase.FieldData.class).getIndexTableColumnName());
+                } else if (joinField != null &&
+                        query.getCountActionSymbol() != null && joinField.as(Countable.CountableFieldData.class).isCountField()) {
+                    continue;
                 } else {
                     groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
                 }
                 groupBy.append(", ");
+            }
+
+            if (groupBy.length() > 0) {
+                groupBy.setLength(groupBy.length() - 2);
+                statementBuilder.append(" GROUP BY ");
+                statementBuilder.append(groupBy);
             }
 
         } else {
@@ -1051,22 +1071,28 @@ class SqlQuery {
                 groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
                 groupBy.append(", ");
             }
+
+            if (groupBy.length() > 0) {
+                groupBy.setLength(groupBy.length() - 2);
+                statementBuilder.append(" GROUP BY ");
+                statementBuilder.append(groupBy);
+            }
+
+            for (String field : orderBySelectColumns) {
+                statementBuilder.append(", ");
+                statementBuilder.append(field);
+            }
         }
 
-
-        if (groupBy.length() > 0) {
-            groupBy.setLength(groupBy.length() - 2);
-            statementBuilder.append(" GROUP BY ");
-            statementBuilder.append(groupBy);
-        }
-
-        for (String field : orderBySelectColumns) {
-            statementBuilder.append(", ");
-            statementBuilder.append(field);
-        }
 
         if (orderBySelectColumns.size() > 0) {
-            statementBuilder.append(" ORDER BY ");
+
+            if (orderByClause.length() > 0) {
+                statementBuilder.append(orderByClause);
+                statementBuilder.append(", ");
+            } else {
+                statementBuilder.append(" ORDER BY ");
+            }
 
             int i = 0;
             for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
@@ -1318,6 +1344,11 @@ class SqlQuery {
                     SqlIndex.Static.getByIndex(this.index) :
                     SqlIndex.Static.getByType(this.indexType);
 
+            ObjectField joinField = null;
+            if (index != null) {
+                joinField = index.getParent().getField(index.getField());
+            }
+
             if (Query.ID_KEY.equals(queryKey)) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
@@ -1369,6 +1400,20 @@ class SqlQuery {
                 idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
                 keyField = null;
                 needsIndexTable = false;
+
+            } else if (query.getCountActionSymbol() != null && joinField != null && joinField.as(Countable.CountableFieldData.class).isCountField()) {
+
+                valueField = "SUM(amount)";
+                likeValuePrefix = null;
+                addIndexKey(queryKey);
+                sqlIndexTable = null;
+                needsIndexTable = false;
+
+                table = null;
+                tableName = null;
+
+                idField = null;
+                keyField = null;
 
             } else {
                 needsIndexTable = true;
