@@ -246,6 +246,10 @@ public class Css {
 
             } else if (letter == '}') {
                 ++ cssIndex;
+                String p = property.toString().trim();
+                if (p.length() > 0) {
+                    declarations.add(new CssDeclaration(p, value.toString().trim()));
+                }
                 break;
 
             } else {
