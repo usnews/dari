@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -146,31 +147,31 @@ public class HtmlGrid {
         private static final String COLUMNS_PROPERTY = "grid-definition-columns";
         private static final String ROWS_PROPERTY = "grid-definition-rows";
 
-        public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
-            if (!ObjectUtils.isBlank(cssClass)) {
-                @SuppressWarnings("unchecked")
-                Map<String, Map<String, HtmlGrid>> gridsByPath = (Map<String, Map<String, HtmlGrid>>) context.getAttribute(GRIDS_BY_PATH_ATTRIBUTE);
+        public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
+            @SuppressWarnings("unchecked")
+            Map<String, Map<String, HtmlGrid>> gridsByPath = (Map<String, Map<String, HtmlGrid>>) context.getAttribute(GRIDS_BY_PATH_ATTRIBUTE);
 
-                if (gridsByPath == null) {
-                    gridsByPath = new LinkedHashMap<String, Map<String, HtmlGrid>>();
-                    context.setAttribute(GRIDS_BY_PATH_ATTRIBUTE, gridsByPath);
-                }
-
-                findGrids(context, "/", gridsByPath, ".less");
-                findGrids(context, "/", gridsByPath, ".css");
-
-                String selector = "." + cssClass;
-
-                for (Map<String, HtmlGrid> grids : gridsByPath.values()) {
-                    HtmlGrid grid = grids.get(selector);
-
-                    if (grid != null) {
-                        return grid;
-                    }
-                }
+            if (gridsByPath == null) {
+                gridsByPath = new LinkedHashMap<String, Map<String, HtmlGrid>>();
+                context.setAttribute(GRIDS_BY_PATH_ATTRIBUTE, gridsByPath);
             }
 
-            return null;
+            findGrids(context, "/", gridsByPath, ".less");
+            findGrids(context, "/", gridsByPath, ".css");
+
+            List<Map<String, HtmlGrid>> gridsList = new ArrayList<Map<String, HtmlGrid>>(gridsByPath.values());
+            Map<String, HtmlGrid> combined = new LinkedHashMap<String, HtmlGrid>();
+
+            Collections.reverse(gridsList);
+            for (Map<String, HtmlGrid> grids : gridsList) {
+                combined.putAll(grids);
+            }
+
+            return combined;
+        }
+
+        public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
+            return ObjectUtils.isBlank(cssClass) ? null : findAll(context).get("." + cssClass);
         }
 
         private static void findGrids(
@@ -302,9 +303,6 @@ public class HtmlGrid {
                     }
                 }
             }
-        }
-
-        public static void writeGridCss(ServletContext context, HtmlWriter writer) throws IOException {
         }
     }
 }
