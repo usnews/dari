@@ -5,8 +5,11 @@ import java.io.InputStream;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.servlet.ServletContext;
@@ -90,12 +93,6 @@ public class HtmlGrid {
         return instances;
     }
 
-    private HtmlGrid(List<CssUnit> columns, List<CssUnit> rows, List<List<String>> template) {
-        this.columns = columns;
-        this.rows = rows;
-        this.template = template;
-    }
-
     public List<CssUnit> getColumns() {
         return columns;
     }
@@ -106,6 +103,26 @@ public class HtmlGrid {
 
     public List<List<String>> getTemplate() {
         return template;
+    }
+
+    private CssCombinedUnit combineNonFractionals(List<CssUnit> units) {
+        List<CssUnit> filtered = new ArrayList<CssUnit>();
+
+        for (CssUnit unit : units) {
+            if (!"fr".equals(unit.getUnit())) {
+                filtered.add(unit);
+            }
+        }
+
+        return new CssCombinedUnit(filtered);
+    }
+
+    public CssCombinedUnit getMinimumWidth() {
+        return combineNonFractionals(getColumns());
+    }
+
+    public CssCombinedUnit getMinimumHeight() {
+        return combineNonFractionals(getRows());
     }
 
     /** Returns all CSS units used by this template. */
@@ -138,197 +155,174 @@ public class HtmlGrid {
         return areas;
     }
 
-    public List<HtmlGrid> divide() {
-        List<HtmlGrid> divided = new ArrayList<HtmlGrid>();
-        List<List<String>> template = getTemplate();
-        List<CssUnit> columns = getColumns();
-        List<CssUnit> rows = getRows();
-
-        int columnSize = columns.size();
-        int rowSize = rows.size();
-
-        for (int rowStart = 0, rowStop; rowStart < rowSize; rowStart = rowStop) {
-            rowStop = rowStart + 1;
-
-            for (int i = rowStart; i < rowStop; ++ i) {
-                for (int columnIndex = 0; columnIndex < columnSize; ++ columnIndex) {
-                    String area = template.get(i).get(columnIndex);
-
-                    if (!area.equals(".")) {
-                        int j = i + 1;
-
-                        for (; j < rowSize; ++ j) {
-                            if (!area.equals(template.get(j).get(columnIndex))) {
-                                break;
-                            }
-                        }
-
-                        if (rowStop < j) {
-                            rowStop = j;
-                        }
-                    }
-                }
-            }
-
-            divided.add(new HtmlGrid(
-                    columns,
-                    rows.subList(rowStart, rowStop),
-                    template.subList(rowStart, rowStop)));
-        }
-
-        return divided;
-    }
-
     public static final class Static {
 
         private static final Logger LOGGER = LoggerFactory.getLogger(HtmlGrid.class);
 
         private static final String ATTRIBUTE_PREFIX = HtmlGrid.class.getName() + ".";
-        private static final String CSS_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + ".css.";
         private static final String CSS_MODIFIED_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + ".cssModified.";
+        private static final String GRIDS_BY_PATH_ATTRIBUTE = ATTRIBUTE_PREFIX + ".grids";
 
         private static final String TEMPLATE_PROPERTY = "grid-template";
         private static final String COLUMNS_PROPERTY = "grid-definition-columns";
         private static final String ROWS_PROPERTY = "grid-definition-rows";
 
-        public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
-            return ObjectUtils.isBlank(cssClass) ? null : findGrid(context, "." + cssClass, "/");
-        }
+        public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
+            @SuppressWarnings("unchecked")
+            Map<String, Map<String, HtmlGrid>> gridsByPath = (Map<String, Map<String, HtmlGrid>>) context.getAttribute(GRIDS_BY_PATH_ATTRIBUTE);
 
-        private static HtmlGrid findGrid(ServletContext context, String selector, String path) throws IOException {
-            HtmlGrid grid = findGridSuffixed(context, selector, path, ".less");
-
-            if (grid == null) {
-                grid = findGridSuffixed(context, selector, path, ".css");
+            if (gridsByPath == null) {
+                gridsByPath = new LinkedHashMap<String, Map<String, HtmlGrid>>();
+                context.setAttribute(GRIDS_BY_PATH_ATTRIBUTE, gridsByPath);
             }
 
-            return grid;
+            findGrids(context, "/", gridsByPath, ".less");
+            findGrids(context, "/", gridsByPath, ".css");
+
+            List<Map<String, HtmlGrid>> gridsList = new ArrayList<Map<String, HtmlGrid>>(gridsByPath.values());
+            Map<String, HtmlGrid> combined = new LinkedHashMap<String, HtmlGrid>();
+
+            Collections.reverse(gridsList);
+            for (Map<String, HtmlGrid> grids : gridsList) {
+                combined.putAll(grids);
+            }
+
+            return combined;
         }
 
-        private static HtmlGrid findGridSuffixed(ServletContext context, String selector, String path, String suffix) throws IOException {
+        public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
+            return ObjectUtils.isBlank(cssClass) ? null : findAll(context).get("." + cssClass);
+        }
+
+        private static void findGrids(
+                ServletContext context,
+                String path,
+                Map<String, Map<String, HtmlGrid>> gridsByPath,
+                String suffix)
+                throws IOException {
+
             Set<String> children = CodeUtils.getResourcePaths(context, path);
 
-            if (children != null) {
-                for (String child : children) {
-                    if (child.endsWith(suffix)) {
-                        String cssAttr = CSS_ATTRIBUTE_PREFIX + child;
-                        String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + child;
-                        URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
-                        Css css = (Css) context.getAttribute(cssAttr);
-                        InputStream cssInput = cssConnection.getInputStream();
+            if (children == null) {
+                return;
+            }
 
-                        try {
-                            long cssModified = cssConnection.getLastModified();
+            for (String child : children) {
+                if (child.endsWith("/")) {
+                    findGrids(context, child, gridsByPath, suffix);
 
-                            if (css != null) {
-                                Long oldModified = (Long) context.getAttribute(modifiedAttr);
+                } else if (child.endsWith(suffix)) {
+                    String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + child;
+                    URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
+                    Css css = null;
+                    InputStream cssInput = cssConnection.getInputStream();
 
-                                if (oldModified == null || oldModified != cssModified) {
-                                    css = null;
-                                }
-                            }
+                    try {
+                        Long oldModified = (Long) context.getAttribute(modifiedAttr);
+                        long cssModified = cssConnection.getLastModified();
 
-                            if (css == null) {
-                                LOGGER.info("Reading stylesheet [{}] modified [{}]", child, cssModified);
-                                css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
-                                context.setAttribute(modifiedAttr, cssModified);
-                                context.setAttribute(cssAttr, css);
-                            }
-
-                        } finally {
-                            cssInput.close();
+                        if (oldModified != null && oldModified == cssModified) {
+                            gridsByPath.put(child, gridsByPath.remove(child));
+                            continue;
                         }
 
-                        if ("grid".equals(css.getValue(selector, "display"))) {
-                            LOGGER.info("Using grid matching [{}] in [{}]", selector, child);
+                        LOGGER.info("Reading stylesheet [{}] modified [{}]", child, cssModified);
+                        css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
+                        context.setAttribute(modifiedAttr, cssModified);
 
-                            String templateValue = css.getValue(selector, TEMPLATE_PROPERTY);
+                    } finally {
+                        cssInput.close();
+                    }
 
-                            if (ObjectUtils.isBlank(templateValue)) {
-                                throw new IllegalStateException(String.format(
-                                        "Path: [%s], Selector: [%s], Missing [%s]!",
-                                        child, selector, TEMPLATE_PROPERTY));
-                            }
+                    Map<String, HtmlGrid> grids = new LinkedHashMap<String, HtmlGrid>();
+                    gridsByPath.remove(child);
+                    gridsByPath.put(child, grids);
 
-                            String columnsValue = css.getValue(selector, COLUMNS_PROPERTY);
+                    for (CssRule rule : css.getRules()) {
+                        if (!"grid".equals(rule.getValue("display"))) {
+                            continue;
+                        }
 
-                            if (ObjectUtils.isBlank(columnsValue)) {
-                                throw new IllegalStateException(String.format(
-                                        "Path: [%s], Selector: [%s], Missing [%s]!",
-                                        child, selector, COLUMNS_PROPERTY));
-                            }
+                        String selector = rule.getSelector();
+                        LOGGER.info("Found grid matching [{}] in [{}]", selector, child);
 
-                            String rowsValue = css.getValue(selector, ROWS_PROPERTY);
+                        String templateValue = rule.getValue(TEMPLATE_PROPERTY);
 
-                            if (ObjectUtils.isBlank(rowsValue)) {
-                                throw new IllegalStateException(String.format(
-                                        "Path: [%s], Selector: [%s], Missing [%s]!",
-                                        child, selector, ROWS_PROPERTY));
-                            }
+                        if (ObjectUtils.isBlank(templateValue)) {
+                            throw new IllegalStateException(String.format(
+                                    "Path: [%s], Selector: [%s], Missing [%s]!",
+                                    child, selector, TEMPLATE_PROPERTY));
+                        }
 
-                            char[] letters = templateValue.toCharArray();
-                            StringBuilder word = new StringBuilder();
-                            List<String> list = new ArrayList<String>();
+                        String columnsValue = rule.getValue(COLUMNS_PROPERTY);
 
-                            for (int i = 0, length = letters.length; i < length; ++ i) {
-                                char letter = letters[i];
+                        if (ObjectUtils.isBlank(columnsValue)) {
+                            throw new IllegalStateException(String.format(
+                                    "Path: [%s], Selector: [%s], Missing [%s]!",
+                                    child, selector, COLUMNS_PROPERTY));
+                        }
 
-                                if (letter == '"') {
-                                    for (++ i; i < length; ++ i) {
-                                        letter = letters[i];
+                        String rowsValue = rule.getValue(ROWS_PROPERTY);
 
-                                        if (letter == '"') {
-                                            list.add(word.toString());
-                                            word.setLength(0);
-                                            break;
+                        if (ObjectUtils.isBlank(rowsValue)) {
+                            throw new IllegalStateException(String.format(
+                                    "Path: [%s], Selector: [%s], Missing [%s]!",
+                                    child, selector, ROWS_PROPERTY));
+                        }
 
-                                        } else {
-                                            word.append(letter);
-                                        }
-                                    }
+                        char[] letters = templateValue.toCharArray();
+                        StringBuilder word = new StringBuilder();
+                        List<String> list = new ArrayList<String>();
 
-                                } else if (Character.isWhitespace(letter)) {
-                                    if (word.length() > 0) {
+                        for (int i = 0, length = letters.length; i < length; ++ i) {
+                            char letter = letters[i];
+
+                            if (letter == '"') {
+                                for (++ i; i < length; ++ i) {
+                                    letter = letters[i];
+
+                                    if (letter == '"') {
                                         list.add(word.toString());
                                         word.setLength(0);
+                                        break;
+
+                                    } else {
+                                        word.append(letter);
                                     }
-
-                                } else {
-                                    word.append(letter);
                                 }
-                            }
 
-                            StringBuilder t = new StringBuilder();
+                            } else if (Character.isWhitespace(letter)) {
+                                if (word.length() > 0) {
+                                    list.add(word.toString());
+                                    word.setLength(0);
+                                }
 
-                            for (String v : list) {
-                                t.append(v);
-                                t.append("\n");
-                            }
-
-                            try {
-                                return new HtmlGrid(
-                                        columnsValue,
-                                        rowsValue,
-                                        t.toString());
-
-                            } catch (IllegalArgumentException error) {
-                                throw new IllegalArgumentException(String.format(
-                                        "Path: [%s], Selector: [%s], %s",
-                                        child, selector, error.getMessage()));
+                            } else {
+                                word.append(letter);
                             }
                         }
 
-                    } else if (child.endsWith("/")) {
-                        HtmlGrid grid = findGrid(context, selector, child);
-                        
-                        if (grid != null) {
-                            return grid;
+                        StringBuilder t = new StringBuilder();
+
+                        for (String v : list) {
+                            t.append(v);
+                            t.append("\n");
+                        }
+
+                        try {
+                            grids.put(selector, new HtmlGrid(
+                                    columnsValue,
+                                    rowsValue,
+                                    t.toString()));
+
+                        } catch (IllegalArgumentException error) {
+                            throw new IllegalArgumentException(String.format(
+                                    "Path: [%s], Selector: [%s], %s",
+                                    child, selector, error.getMessage()));
                         }
                     }
                 }
             }
-
-            return null;
         }
     }
 }

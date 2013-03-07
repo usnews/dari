@@ -9,12 +9,12 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.UUID;
+
+import javax.servlet.ServletContext;
 
 /** Writer implementation that adds basic HTML formatting. */
 public class HtmlWriter extends Writer {
@@ -309,13 +309,83 @@ public class HtmlWriter extends Writer {
         return this;
     }
 
+    /** Writes all grid CSS found within the given {@code context}. */
+    public HtmlWriter writeGridCss(ServletContext context) throws IOException {
+        writeStart("style", "type", "text/css");
+            writeCss(".dari-grid-area",
+                    "-moz-box-sizing", "content-box",
+                    "-webkit-box-sizing", "content-box",
+                    "box-sizing", "content-box",
+                    "float", "left",
+                    "margin", "0 -100% 0 -30000px");
+
+            writeCss(".dari-grid-adj",
+                    "float", "left");
+
+            writeCss(".dari-grid-adj-px:before",
+                    "content", "'" + GRID_PADDING + "'",
+                    "display", "block",
+                    "height", 0,
+                    "overflow", "hidden",
+                    "visibility", "hidden");
+
+            for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
+                String gridSelector = gridEntry.getKey();
+                HtmlGrid grid = gridEntry.getValue();
+                String cssSuffix = "";
+
+                for (int lastBraceAt = 0, braceAt;
+                        (braceAt = gridSelector.indexOf('{', lastBraceAt)) > -1;
+                        lastBraceAt = braceAt + 1) {
+                    cssSuffix += '}';
+                }
+
+                CssUnit minWidth = grid.getMinimumWidth().getSingle();
+
+                if (minWidth != null) {
+                    writeCss(gridSelector,
+                            "min-width", minWidth);
+                    write(cssSuffix);
+                }
+
+                writeCss(gridSelector + " > .dari-grid-area[data-grid-area]",
+                        "display", "none");
+                write(cssSuffix);
+
+                for (Area area : createAreas(grid).values()) {
+                    String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
+
+                    writeCss(gridSelector + " > .dari-grid-area" + selectorSuffix,
+                            "clear", area.clear ? "left" : null,
+                            "display", "block",
+                            "padding-left", area.frPaddingLeft + "%",
+                            "width", area.frWidth + "%");
+                    write(cssSuffix);
+
+                    for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
+                        String unit = entry.getKey();
+                        Adjustment adjustment = entry.getValue();
+
+                        writeCss(gridSelector + " .dari-grid-adj-" + unit + selectorSuffix,
+                                "height", adjustment.height,
+                                "margin", adjustment.getMargin(unit),
+                                "width", adjustment.width);
+                        write(cssSuffix);
+                    }
+                }
+            }
+        writeEnd();
+
+        return this;
+    }
+
     /**
      * Writes the given {@code object} and positions it according to the
      * given {@code grid}.
      *
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
-    public HtmlWriter writeGrid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
+    public HtmlWriter writeGrid(Object object, HtmlGrid grid) throws IOException {
         Map<String, Area> areas = createAreas(grid);
         boolean debug;
 
@@ -323,39 +393,6 @@ public class HtmlWriter extends Writer {
             debug = !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
         } catch (Exception error) {
             debug = false;
-        }
-
-        if (!inlineCss) {
-            writeStart("style", "type", "text/css");
-                writeCss(".dari-grid-area",
-                        "-moz-box-sizing", "content-box",
-                        "-webkit-box-sizing", "content-box",
-                        "box-sizing", "content-box",
-                        "float", "left",
-                        "margin", "0 -100% 0 -30000px");
-
-                writeCss(".dari-grid-adj",
-                        "float", "left");
-
-                for (Area area : areas.values()) {
-                    String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.name + "\"]";
-
-                    writeCss(selector,
-                            "clear", area.clear ? "left" : null,
-                            "padding-left", area.frPaddingLeft + "%",
-                            "width", area.frWidth + "%");
-
-                    for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
-                        String unit = entry.getKey();
-                        Adjustment adjustment = entry.getValue();
-
-                        writeCss(selector + "-" + unit,
-                                "height", adjustment.height,
-                                "margin", adjustment.getMargin(unit),
-                                "width", adjustment.width);
-                    }
-                }
-            writeEnd();
         }
 
         if (object == null) {
@@ -371,41 +408,17 @@ public class HtmlWriter extends Writer {
             // other elements that come before.
             writeStart("div",
                     "class", "dari-grid-area",
-                    "id", area.id,
-                    "data-grid-area", areaName,
-                    "style", !inlineCss ? null : cssString(
-                            "-moz-box-sizing", "content-box",
-                            "-webkit-box-sizing", "content-box",
-                            "box-sizing", "content-box",
-                            "clear", area.clear ? "left" : null,
-                            "float", "left",
-                            "margin", "0 -100% 0 -30000px",
-                            "padding-left", area.frPaddingLeft + "%",
-                            "width", area.frWidth + "%"));
+                    "data-grid-area", areaName);
 
                 int adjustments = 0;
 
-                for (Map.Entry<String, Adjustment> adjustmentEntry : area.adjustments.entrySet()) {
+                for (String unit : area.adjustments.keySet()) {
                     ++ adjustments;
-                    String unit = adjustmentEntry.getKey();
-                    Adjustment adjustment = adjustmentEntry.getValue();
 
                     writeStart("div",
-                            "class", "dari-grid-adj",
-                            "id", area.id + "-" + unit,
-                            "style", !inlineCss ? null : cssString(
-                                    "float", "left",
-                                    "height", adjustment.height,
-                                    "margin", adjustment.getMargin(unit),
-                                    "width", adjustment.width));
+                            "class", "dari-grid-adj dari-grid-adj-" + unit,
+                            "data-grid-area", areaName);
                 }
-
-                writeStart("div", "style", cssString(
-                        "height", 0,
-                        "overflow", "hidden",
-                        "visibility", "hidden"));
-                    write(GRID_PADDING);
-                writeEnd();
 
                 if (debug) {
                     writeStart("div", "style", cssString(
@@ -614,7 +627,7 @@ public class HtmlWriter extends Writer {
                 areaInstance.adjustments.put("px", pxAdjustment);
 
                 // Set width explicitly if there's only one unit.
-                CombinedCssUnit width = areaInstance.width = new CombinedCssUnit(columns.subList(columnStart, columnStop));
+                CssCombinedUnit width = areaInstance.width = new CssCombinedUnit(columns.subList(columnStart, columnStop));
                 CssUnit singleWidth = areaInstance.singleWidth = width.getSingle();
 
                 if (singleWidth != null) {
@@ -622,7 +635,7 @@ public class HtmlWriter extends Writer {
                 }
 
                 // Set height explicitly if there's only one unit.
-                CombinedCssUnit height = areaInstance.height = new CombinedCssUnit(rows.subList(rowStart, rowStop));
+                CssCombinedUnit height = areaInstance.height = new CssCombinedUnit(rows.subList(rowStart, rowStop));
                 CssUnit singleHeight = areaInstance.singleHeight = height.getSingle();
 
                 if (singleHeight != null) {
@@ -646,16 +659,6 @@ public class HtmlWriter extends Writer {
 
     /**
      * Writes the given {@code object} and positions it according to the
-     * given {@code grid}.
-     *
-     * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
-     */
-    public HtmlWriter writeGrid(Object object, HtmlGrid grid) throws IOException {
-        return writeGrid(object, grid, false);
-    }
-
-    /**
-     * Writes the given {@code object} and positions it according to the
      * grid rules as specified by the given parameters.
      *
      * @see #grid(Object, HtmlGrid)
@@ -667,13 +670,12 @@ public class HtmlWriter extends Writer {
     private static class Area {
 
         public final String name;
-        public final String id = "i" + UUID.randomUUID().toString().replaceAll("-", "");
         public boolean clear;
         public double frPaddingLeft;
         public double frWidth;
-        public CombinedCssUnit width;
+        public CssCombinedUnit width;
         public CssUnit singleWidth;
-        public CombinedCssUnit height;
+        public CssCombinedUnit height;
         public CssUnit singleHeight;
         public final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
 
@@ -688,51 +690,6 @@ public class HtmlWriter extends Writer {
                 adjustments.put(unit, adjustment);
             }
             return adjustment;
-        }
-    }
-
-    private class CombinedCssUnit {
-
-        private final Map<String, CssUnit> combined = new HashMap<String, CssUnit>();
-
-        public CombinedCssUnit(Iterable<CssUnit> values) {
-            for (CssUnit value : values) {
-                String unit = value.getUnit();
-                CssUnit old = combined.get(unit);
-
-                if (old == null) {
-                    combined.put(unit, value);
-
-                } else {
-                    combined.put(unit, new CssUnit(old.getNumber() + value.getNumber(), unit));
-                }
-            }
-
-            for (Iterator<Map.Entry<String, CssUnit>> i = combined.entrySet().iterator(); i.hasNext(); ) {
-                CssUnit value = i.next().getValue();
-
-                if (!"auto".equals(value.getUnit()) && value.getNumber() == 0.0) {
-                    i.remove();
-                }
-            }
-        }
-
-        public Collection<CssUnit> getAll() {
-            return combined.values();
-        }
-
-        public CssUnit getSingle() {
-            if (combined.size() != 1) {
-                return null;
-
-            } else {
-                CssUnit value = combined.values().iterator().next();
-                return "fr".equals(value.getUnit()) ? null : value;
-            }
-        }
-
-        public boolean hasAuto() {
-            return combined.keySet().contains("auto");
         }
     }
 
@@ -906,5 +863,11 @@ public class HtmlWriter extends Writer {
     @Deprecated
     public HtmlWriter grid(Object object, String columns, String rows, String... template) throws IOException {
         return writeGrid(object, columns, rows, template);
+    }
+
+    /** @deprecated Use {@link #writeGrid(Object, HtmlGrid)} instead. */
+    @Deprecated
+    public HtmlWriter writeGrid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
+        return writeGrid(object, grid);
     }
 }
