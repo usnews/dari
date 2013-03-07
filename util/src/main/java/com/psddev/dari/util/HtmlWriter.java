@@ -315,7 +315,7 @@ public class HtmlWriter extends Writer {
      *
      * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
      */
-    public HtmlWriter writeGrid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
+    public HtmlWriter writeGrid(Object object, HtmlGrid grid) throws IOException {
         Map<String, Area> areas = createAreas(grid);
         boolean debug;
 
@@ -325,38 +325,36 @@ public class HtmlWriter extends Writer {
             debug = false;
         }
 
-        if (!inlineCss) {
-            writeStart("style", "type", "text/css");
-                writeCss(".dari-grid-area",
-                        "-moz-box-sizing", "content-box",
-                        "-webkit-box-sizing", "content-box",
-                        "box-sizing", "content-box",
-                        "float", "left",
-                        "margin", "0 -100% 0 -30000px");
+        writeStart("style", "type", "text/css");
+            writeCss(".dari-grid-area",
+                    "-moz-box-sizing", "content-box",
+                    "-webkit-box-sizing", "content-box",
+                    "box-sizing", "content-box",
+                    "float", "left",
+                    "margin", "0 -100% 0 -30000px");
 
-                writeCss(".dari-grid-adj",
-                        "float", "left");
+            writeCss(".dari-grid-adj",
+                    "float", "left");
 
-                for (Area area : areas.values()) {
-                    String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.name + "\"]";
+            for (Area area : areas.values()) {
+                String selector = area.id != null ? "#" + area.id : ".dari-grid-area[data-grid-area=\"" + area.name + "\"]";
 
-                    writeCss(selector,
-                            "clear", area.clear ? "left" : null,
-                            "padding-left", area.frPaddingLeft + "%",
-                            "width", area.frWidth + "%");
+                writeCss(selector,
+                        "clear", area.clear ? "left" : null,
+                        "padding-left", area.frPaddingLeft + "%",
+                        "width", area.frWidth + "%");
 
-                    for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
-                        String unit = entry.getKey();
-                        Adjustment adjustment = entry.getValue();
+                for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
+                    String unit = entry.getKey();
+                    Adjustment adjustment = entry.getValue();
 
-                        writeCss(selector + "-" + unit,
-                                "height", adjustment.height,
-                                "margin", adjustment.getMargin(unit),
-                                "width", adjustment.width);
-                    }
+                    writeCss(selector + "-" + unit,
+                            "height", adjustment.height,
+                            "margin", adjustment.getMargin(unit),
+                            "width", adjustment.width);
                 }
-            writeEnd();
-        }
+            }
+        writeEnd();
 
         if (object == null) {
             object = areas;
@@ -372,32 +370,17 @@ public class HtmlWriter extends Writer {
             writeStart("div",
                     "class", "dari-grid-area",
                     "id", area.id,
-                    "data-grid-area", areaName,
-                    "style", !inlineCss ? null : cssString(
-                            "-moz-box-sizing", "content-box",
-                            "-webkit-box-sizing", "content-box",
-                            "box-sizing", "content-box",
-                            "clear", area.clear ? "left" : null,
-                            "float", "left",
-                            "margin", "0 -100% 0 -30000px",
-                            "padding-left", area.frPaddingLeft + "%",
-                            "width", area.frWidth + "%"));
+                    "data-grid-area", areaName);
 
                 int adjustments = 0;
 
                 for (Map.Entry<String, Adjustment> adjustmentEntry : area.adjustments.entrySet()) {
                     ++ adjustments;
                     String unit = adjustmentEntry.getKey();
-                    Adjustment adjustment = adjustmentEntry.getValue();
 
                     writeStart("div",
                             "class", "dari-grid-adj",
-                            "id", area.id + "-" + unit,
-                            "style", !inlineCss ? null : cssString(
-                                    "float", "left",
-                                    "height", adjustment.height,
-                                    "margin", adjustment.getMargin(unit),
-                                    "width", adjustment.width));
+                            "id", area.id + "-" + unit);
                 }
 
                 writeStart("div", "style", cssString(
@@ -642,16 +625,6 @@ public class HtmlWriter extends Writer {
         }
 
         return areaInstances;
-    }
-
-    /**
-     * Writes the given {@code object} and positions it according to the
-     * given {@code grid}.
-     *
-     * @see <a href="http://dev.w3.org/csswg/css3-grid-layout/">CSS Grid Layout</a>
-     */
-    public HtmlWriter writeGrid(Object object, HtmlGrid grid) throws IOException {
-        return writeGrid(object, grid, false);
     }
 
     /**
@@ -906,5 +879,11 @@ public class HtmlWriter extends Writer {
     @Deprecated
     public HtmlWriter grid(Object object, String columns, String rows, String... template) throws IOException {
         return writeGrid(object, columns, rows, template);
+    }
+
+    /** @deprecated Use {@link #writeGrid(Object, HtmlGrid)} instead. */
+    @Deprecated
+    public HtmlWriter writeGrid(Object object, HtmlGrid grid, boolean inlineCss) throws IOException {
+        return writeGrid(object, grid);
     }
 }
