@@ -2,6 +2,7 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,7 +15,8 @@ public class Css {
     private final int cssLength;
     private int cssIndex;
 
-    private final Map<String, List<CssDeclaration>> rules = new LinkedHashMap<String, List<CssDeclaration>>();
+    private final Map<String, List<CssDeclaration>> rulesMap = new LinkedHashMap<String, List<CssDeclaration>>();
+    private final List<CssRule> rules;
 
     public Css(String css) throws IOException {
         this.css = css.toCharArray();
@@ -22,10 +24,31 @@ public class Css {
 
         while (readRule(null)) {
         }
+
+        List<CssRule> rules = new ArrayList<CssRule>();
+
+        for (Map.Entry<String, List<CssDeclaration>> entry : rulesMap.entrySet()) {
+            String selector = entry.getKey();
+            int atRulesCount = 0;
+
+            for (int lastBraceAt = 0, braceAt;
+                    (braceAt = selector.indexOf('{', lastBraceAt)) > -1;
+                    lastBraceAt = braceAt + 1) {
+                ++ atRulesCount;
+            }
+
+            rules.add(new CssRule(selector, atRulesCount, entry.getValue()));
+        }
+
+        this.rules = Collections.unmodifiableList(rules);
+    }
+
+    public List<CssRule> getRules() {
+        return rules;
     }
 
     public String getValue(String selector, String property) {
-        List<CssDeclaration> declarations = rules.get(selector);
+        List<CssDeclaration> declarations = rulesMap.get(selector);
 
         if (declarations != null) {
             for (int i = declarations.size() - 1; i >= 0; -- i) {
@@ -102,7 +125,7 @@ public class Css {
                 char letter = css[cssIndex];
 
                 if (letter == '{') {
-                    String atRuleString = atRule.toString().trim();
+                    String atRuleString = atRule.toString().trim() + " {";
                     Set<String> atRuleParents = new LinkedHashSet<String>();
 
                     if (parents == null) {
@@ -179,10 +202,10 @@ public class Css {
         List<CssDeclaration> declarations = readDeclarations(selectors);
 
         for (String selector : selectors) {
-            List<CssDeclaration> selectorDeclarations = rules.get(selector);
+            List<CssDeclaration> selectorDeclarations = rulesMap.get(selector);
 
             if (selectorDeclarations == null) {
-                rules.put(selector, new ArrayList<CssDeclaration>(declarations));
+                rulesMap.put(selector, new ArrayList<CssDeclaration>(declarations));
 
             } else {
                 selectorDeclarations.addAll(declarations);
