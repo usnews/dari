@@ -12,6 +12,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+
 public interface Countable extends Recordable {
 
     /** Specifies whether the target field value is indexed in the CountRecord dimension tables. 
@@ -43,16 +46,19 @@ public interface Countable extends Recordable {
 
     public static class CountAction extends Modification<Countable> {
 
-        private transient Map<Class<?>, CountRecord> countRecords = new HashMap<Class<?>, CountRecord>();
+        //private static final Logger LOGGER = LoggerFactory.getLogger(CountAction.class);
 
-        public static ObjectField getCountField(Class<? extends Modification<? extends Countable>> modificationClass) {
+        private transient Map<Class<?>, Map<String, CountRecord>> countRecords = new HashMap<Class<?>, Map<String, CountRecord>>();
+
+        public static ObjectField getCountField(Class<? extends Modification<? extends Countable>> modificationClass, String internalName) {
             ObjectType modificationType = ObjectType.getInstance(modificationClass);
             for (ObjectField objectField : modificationType.getFields()) {
-                if (objectField.as(CountableFieldData.class).isCountField()) {
+                if (objectField.as(CountableFieldData.class).isCountField() && 
+                        (internalName == null || internalName.equals(objectField.getInternalName()))) {
                     return objectField;
                 }
             }
-            throw new RuntimeException("One int field must be marked as @Countable.CountField");
+            throw new RuntimeException("At least one int field must be marked as @Countable.CountField");
         }
 
         public static ObjectField getEventDateField(Class<? extends Modification<? extends Countable>> modificationClass) {
@@ -66,59 +72,75 @@ public interface Countable extends Recordable {
         }
 
         public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
+            incrementCount(modificationClass, null, c);
+        }
+
+        public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName, int c) {
             try {
-                getCountRecord(modificationClass).incrementCount(c);
-                if (getCountField(modificationClass) != null) {
+                getCountRecord(modificationClass, countFieldInternalName).incrementCount(c);
+                if (getCountField(modificationClass, countFieldInternalName) != null) {
                     // also increment the summary field in the state so it can
                     // be immediately available, even though CountRecord will
                     // (probably) do the actual update of the summary field in
                     // the database.
-                    String fieldName = getCountField(modificationClass).getInternalName();
+                    String fieldName = getCountField(modificationClass, countFieldInternalName).getInternalName();
                     int oldCountSummary = (Integer) getState().get(fieldName);
                     getState().put(fieldName, oldCountSummary + c);
                 }
             } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.incrementCount() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getCountRecord(modificationClass, countFieldInternalName).getDatabase(), "Error in CountRecord.incrementCount() : " + e.getLocalizedMessage());
             }
         }
 
-        public void setCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
+        public void setCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName, int c) {
             try {
-                getCountRecord(modificationClass).setCount(c);
-                if (getCountField(modificationClass) != null) {
+                getCountRecord(modificationClass, countFieldInternalName).setCount(c);
+                if (getCountField(modificationClass, countFieldInternalName) != null) {
                     // also set the summary field in the state so it can be
                     // immediately available, even though CountRecord will
                     // (probably) do the actual update of the summary field in
                     // the database.
-                    String fieldName = getCountField(modificationClass).getInternalName();
+                    String fieldName = getCountField(modificationClass, countFieldInternalName).getInternalName();
                     getState().put(fieldName, c);
                 }
             } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.setCount() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getCountRecord(modificationClass, countFieldInternalName).getDatabase(), "Error in CountRecord.setCount() : " + e.getLocalizedMessage());
             }
         }
 
         public void deleteCount(Class<? extends Modification<? extends Countable>> modificationClass) {
+            deleteCount(modificationClass, null);
+        }
+
+        public void deleteCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
             try {
-                getCountRecord(modificationClass).deleteCount();
+                getCountRecord(modificationClass, countFieldInternalName).deleteCount();
             } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.deleteCount() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getCountRecord(modificationClass, countFieldInternalName).getDatabase(), "Error in CountRecord.deleteCount() : " + e.getLocalizedMessage());
             }
         }
 
         public int getCount(Class<? extends Modification<? extends Countable>> modificationClass) {
+            return getCount(modificationClass, null);
+        }
+
+        public int getCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
             try {
-                return getCountRecord(modificationClass).getCount();
+                return getCountRecord(modificationClass, countFieldInternalName).getCount();
             } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getCountRecord(modificationClass, countFieldInternalName).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
             }
         }
 
         public void syncCountSummary(Class<? extends Modification<? extends Countable>> modificationClass) {
+            syncCountSummary(modificationClass, null);
+        }
+
+        public void syncCountSummary(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
             try {
-                getCountRecord(modificationClass).syncCountSummary();
+                getCountRecord(modificationClass, countFieldInternalName).syncCountSummary();
             } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(modificationClass).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getCountRecord(modificationClass, countFieldInternalName).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
             }
         }
 
@@ -130,16 +152,29 @@ public interface Countable extends Recordable {
             for (ObjectField objectField : objectType.getFields()) {
                 CountableFieldData countableFieldData = objectField.as(CountableFieldData.class);
                 if (countableFieldData.isDimension()) {
-                    dimensions.add(objectField);
+                    if (objectField.getJavaDeclaringClassName().equals(modificationClass.getName())) {
+                        dimensions.add(objectField);
+                    }
                 }
             }
-
             return dimensions;
         }
 
+        /*
         public CountRecord getCountRecord(Class<? extends Modification<? extends Countable>> modificationClass) {
+            ObjectField countField = getCountField(modificationClass, null);
+            return getCountRecord(modificationClass, countField.getInternalName());
+        }
+        */
+
+        public CountRecord getCountRecord(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
+            // if countFieldInternalName is null, it will return the *first* @CountField in the type
             if (! countRecords.containsKey(modificationClass)) {
-                ObjectField countField = getCountField(modificationClass);
+                Map<String, CountRecord> countRecordMap = new HashMap<String, CountRecord>();
+                countRecords.put(modificationClass, countRecordMap);
+            }
+            if (! countRecords.get(modificationClass).containsKey(countFieldInternalName)) {
+                ObjectField countField = getCountField(modificationClass, countFieldInternalName);
                 ObjectField eventDateField = getEventDateField(modificationClass);
                 CountRecord countRecord = new CountRecord(this, countField.getUniqueName(), this.getDimensions(modificationClass));
                 if (eventDateField != null) {
@@ -148,11 +183,10 @@ public interface Countable extends Recordable {
                     countRecord.setEventDatePrecision(CountRecord.EventDatePrecision.NONE);
                 }
                 countRecord.setSummaryField(countField);
-                countRecords.put(modificationClass, countRecord);
+                countRecords.get(modificationClass).put(countFieldInternalName, countRecord);
             }
-            return countRecords.get(modificationClass);
+            return countRecords.get(modificationClass).get(countFieldInternalName);
         }
-
     }
 
     static class DimensionProcessor implements ObjectField.AnnotationProcessor<Dimension> {
