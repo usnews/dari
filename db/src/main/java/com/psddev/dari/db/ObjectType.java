@@ -162,7 +162,15 @@ public class ObjectType extends Record implements ObjectStruct {
             ObjectField field = new ObjectField(type != null ? type : environment, null);
             field.getState().setDatabase(database);
             field.setInternalName(internalName);
-            field.setInternalType(environment, definition.getObjectClass(), javaField.getGenericType());
+
+            try {
+                field.setInternalType(environment, definition.getObjectClass(), javaField.getGenericType());
+
+            } catch (IllegalArgumentException error) {
+                LOGGER.warn(error.getMessage());
+                continue;
+            }
+
             field.setJavaFieldName(javaField.getName());
             field.setJavaDeclaringClassName(declaringClass);
 
