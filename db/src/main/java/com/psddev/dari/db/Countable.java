@@ -58,7 +58,7 @@ public interface Countable extends Recordable {
                     return objectField;
                 }
             }
-            throw new RuntimeException("At least one int field must be marked as @Countable.CountField");
+            throw new RuntimeException("At least one double field must be marked as @Countable.CountField");
         }
 
         public static ObjectField getEventDateField(Class<? extends Modification<? extends Countable>> modificationClass) {
@@ -71,11 +71,11 @@ public interface Countable extends Recordable {
             return null;
         }
 
-        public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, int c) {
+        public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, double c) {
             incrementCount(modificationClass, null, c);
         }
 
-        public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName, int c) {
+        public void incrementCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName, double c) {
             try {
                 getCountRecord(modificationClass, countFieldInternalName).incrementCount(c);
                 if (getCountField(modificationClass, countFieldInternalName) != null) {
@@ -84,7 +84,7 @@ public interface Countable extends Recordable {
                     // (probably) do the actual update of the summary field in
                     // the database.
                     String fieldName = getCountField(modificationClass, countFieldInternalName).getInternalName();
-                    int oldCountSummary = (Integer) getState().get(fieldName);
+                    double oldCountSummary = (Double) getState().get(fieldName);
                     getState().put(fieldName, oldCountSummary + c);
                 }
             } catch (SQLException e) {
@@ -92,7 +92,7 @@ public interface Countable extends Recordable {
             }
         }
 
-        public void setCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName, int c) {
+        public void setCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName, double c) {
             try {
                 getCountRecord(modificationClass, countFieldInternalName).setCount(c);
                 if (getCountField(modificationClass, countFieldInternalName) != null) {
@@ -120,11 +120,11 @@ public interface Countable extends Recordable {
             }
         }
 
-        public int getCount(Class<? extends Modification<? extends Countable>> modificationClass) {
+        public double getCount(Class<? extends Modification<? extends Countable>> modificationClass) {
             return getCount(modificationClass, null);
         }
 
-        public int getCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
+        public double getCount(Class<? extends Modification<? extends Countable>> modificationClass, String countFieldInternalName) {
             try {
                 return getCountRecord(modificationClass, countFieldInternalName).getCount();
             } catch (SQLException e) {

@@ -8,7 +8,7 @@ CREATE TABLE CountRecord (
     typeId BINARY(16) NOT NULL,
     dimensionsSymbolId INT NOT NULL,
     actionSymbolId INT NOT NULL,
-    amount BIGINT NOT NULL,
+    amount DOUBLE NOT NULL,
     createDate BIGINT NOT NULL,
     updateDate BIGINT NOT NULL,
     eventDate BIGINT NOT NULL,
@@ -124,7 +124,7 @@ CREATE TABLE CountRecordSummary (
     id binary(16) not null, 
     /*typeId binary(16) not null, XXX: needs feature/countperformance to work */
     symbolId int not null, 
-    value int not null,
+    value double not null,
     PRIMARY KEY (symbolId, value, /*typeId, */id),
     KEY k_id (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;

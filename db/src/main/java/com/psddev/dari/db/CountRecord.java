@@ -158,11 +158,11 @@ public class CountRecord {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
 
-    public Integer getCount() throws SQLException {
+    public Double getCount() throws SQLException {
         return Static.getCountByDimensions(getDatabase(), getQuery());
     }
 
-    public void incrementCount(Integer amount) throws SQLException {
+    public void incrementCount(Double amount) throws SQLException {
         // find the countId, it might be null
         UUID countId = getCountId();
         if (dimensionsSaved) {
@@ -179,7 +179,7 @@ public class CountRecord {
         }
     }
 
-    public void setCount(Integer amount) throws SQLException {
+    public void setCount(Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
         if (getEventDatePrecision() != EventDatePrecision.NONE) {
             throw new RuntimeException("CountRecord.setCount() can only be used if EventDatePrecision is NONE");
@@ -557,7 +557,7 @@ public class CountRecord {
 
         static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID countId,
                 UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol,
-                DimensionSet dimensions, int amount, long createDate,
+                DimensionSet dimensions, double amount, long createDate,
                 long eventDate) {
             ArrayList<String> sqls = new ArrayList<String>();
             // insert countrecord
@@ -580,7 +580,7 @@ public class CountRecord {
         }
 
         static String getCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID countId,
-                UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, int amount,
+                UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount,
                 long createDate, long eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
@@ -640,7 +640,7 @@ public class CountRecord {
         }
 
         static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID countId,
-                String actionSymbol, int amount, long updateDate,
+                String actionSymbol, double amount, long updateDate,
                 long eventDate, boolean increment) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
@@ -697,7 +697,7 @@ public class CountRecord {
         }
 
         static void doInserts(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol,
-                String dimensionsSymbol, DimensionSet dimensions, int amount,
+                String dimensionsSymbol, DimensionSet dimensions, double amount,
                 long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
@@ -716,7 +716,7 @@ public class CountRecord {
         }
 
         static void doIncrementUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, 
-                String actionSymbol, String dimensionsSymbol, int incrementAmount,
+                String actionSymbol, String dimensionsSymbol, double incrementAmount,
                 long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
@@ -739,7 +739,7 @@ public class CountRecord {
         }
 
         static void doSetUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, 
-                String actionSymbol, String dimensionsSymbol, int amount,
+                String actionSymbol, String dimensionsSymbol, double amount,
                 long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
@@ -760,7 +760,7 @@ public class CountRecord {
             }
         }
 
-        static String getUpdateSummarySql(SqlDatabase db, List<Object> parameters, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName, boolean increment) {
+        static String getUpdateSummarySql(SqlDatabase db, List<Object> parameters, double amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName, boolean increment) {
             /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
@@ -785,7 +785,7 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
-        static String getInsertSummarySql(SqlDatabase db, List<Object> parameters, int amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName) {
+        static String getInsertSummarySql(SqlDatabase db, List<Object> parameters, double amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName) {
             /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
@@ -867,7 +867,7 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
-        static void doCountSummaryUpdateOrInsert(SqlDatabase db, int amount, ObjectField countField, UUID summaryRecordId, boolean increment) throws SQLException {
+        static void doCountSummaryUpdateOrInsert(SqlDatabase db, double amount, ObjectField countField, UUID summaryRecordId, boolean increment) throws SQLException {
             Connection connection = db.openConnection();
             StringBuilder symbolBuilder = new StringBuilder();
             symbolBuilder.append(countField.getJavaDeclaringClassName());
@@ -899,11 +899,11 @@ public class CountRecord {
             
         }
 
-        static void doIncrementCountSummaryUpdateOrInsert(SqlDatabase db, int amount, ObjectField countField, UUID summaryRecordId) throws SQLException {
+        static void doIncrementCountSummaryUpdateOrInsert(SqlDatabase db, double amount, ObjectField countField, UUID summaryRecordId) throws SQLException {
             doCountSummaryUpdateOrInsert(db, amount, countField, summaryRecordId, true);
         }
 
-        static void doSetCountSummaryUpdateOrInsert(SqlDatabase db, int amount, ObjectField countField, UUID summaryRecordId) throws SQLException {
+        static void doSetCountSummaryUpdateOrInsert(SqlDatabase db, double amount, ObjectField countField, UUID summaryRecordId) throws SQLException {
             doCountSummaryUpdateOrInsert(db, amount, countField, summaryRecordId, false);
         }
 
@@ -945,16 +945,16 @@ public class CountRecord {
             }
         }
 
-        static Integer getCountByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
+        static Double getCountByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
             String sql = getSelectCountSql(db, query);
             //LOGGER.info("===== [4] " + sql);
             Connection connection = db.openReadConnection();
-            Integer count = 0;
+            Double count = 0.0;
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
-                    count = result.getInt(1);
+                    count = result.getDouble(1);
                 }
                 result.close();
                 statement.close();
@@ -1009,8 +1009,8 @@ class CountRecordQuery {
     private final String actionSymbol;
     private final DimensionSet dimensions;
     private final Record record;
-    private Integer startTimestamp;
-    private Integer endTimestamp;
+    private Long startTimestamp;
+    private Long endTimestamp;
     private DimensionSet groupByDimensions;
     private String[] orderByDimensions;
 
@@ -1053,15 +1053,15 @@ class CountRecordQuery {
         return record;
     }
 
-    public Integer getStartTimestamp() {
+    public Long getStartTimestamp() {
         return startTimestamp;
     }
 
-    public Integer getEndTimestamp() {
+    public Long getEndTimestamp() {
         return endTimestamp;
     }
 
-    public void setDateRange(int startTimestamp, int endTimestamp) {
+    public void setDateRange(long startTimestamp, long endTimestamp) {
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
     }
