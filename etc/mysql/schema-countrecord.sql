@@ -3,7 +3,7 @@
 
 DROP TABLE IF EXISTS CountRecord;
 CREATE TABLE CountRecord (
-    id BINARY(16) NOT NULL,
+    id BINARY(16) NULL,
     countId BINARY(16) NOT NULL,
     typeId BINARY(16) NOT NULL,
     dimensionsSymbolId INT NOT NULL,
@@ -33,7 +33,7 @@ JOIN Symbol ls ON (c.actionSymbolId = ls.symbolId);
 
 DROP TABLE IF EXISTS CountRecordString;
 CREATE TABLE CountRecordString (
-    id BINARY(16) NOT NULL,
+    id BINARY(16) NULL,
     countId BINARY(16) NOT NULL,
     dimensionsSymbolId INT NOT NULL,
     symbolId INT NOT NULL,
@@ -55,7 +55,7 @@ JOIN Symbol s ON (c.symbolId = s.symbolId);
 
 DROP TABLE IF EXISTS CountRecordNumber;
 CREATE TABLE CountRecordNumber (
-    id BINARY(16) NOT NULL,
+    id BINARY(16) NULL,
     countId BINARY(16) NOT NULL,
     dimensionsSymbolId INT NOT NULL,
     symbolId INT NOT NULL,
@@ -76,7 +76,7 @@ JOIN Symbol s ON (c.symbolId = s.symbolId);
 
 DROP TABLE IF EXISTS CountRecordUuid;
 CREATE TABLE CountRecordUuid (
-    id BINARY(16) NOT NULL,
+    id BINARY(16) NULL,
     countId BINARY(16) NOT NULL,
     dimensionsSymbolId INT NOT NULL,
     symbolId INT NOT NULL,
@@ -98,7 +98,7 @@ JOIN Symbol s ON (c.symbolId = s.symbolId);
 
 DROP TABLE IF EXISTS CountRecordLocation;
 CREATE TABLE CountRecordLocation (
-    id BINARY(16) NOT NULL,
+    id BINARY(16) NULL,
     countId BINARY(16) NOT NULL,
     dimensionsSymbolId INT NOT NULL,
     symbolId INT NOT NULL,
@@ -121,10 +121,10 @@ JOIN Symbol s ON (c.symbolId = s.symbolId);
 
 DROP TABLE IF EXISTS CountRecordSummary;
 CREATE TABLE CountRecordSummary (
-    id binary(16) not null, 
-    /*typeId binary(16) not null, XXX: needs feature/countperformance to work */
-    symbolId int not null, 
-    value double not null,
+    id binary(16) NOT NULL, 
+    /*typeId binary(16) NOT NULL, XXX: needs feature/countperformance to work */
+    symbolId int NOT NULL, 
+    value double NOT NULL,
     PRIMARY KEY (symbolId, value, /*typeId, */id),
     KEY k_id (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;

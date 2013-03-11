@@ -64,7 +64,6 @@ public class CountRecord {
         this.db = database; 
         this.query = new CountRecordQuery(dimensionsSymbol, actionSymbol, record, this.dimensions);
         this.record = record;
-        //this.summaryRecordId = record.getId();
     }
 
     public CountRecord(Record record, String actionSymbol, Set<ObjectField> dimensions) {
@@ -154,6 +153,10 @@ public class CountRecord {
         return this.eventDate;
     }
 
+    public void setIncludeSelfDimension(boolean includeSelfDimension) {
+        getQuery().setIncludeSelfDimension(includeSelfDimension);
+    }
+
     public void setQueryDateRange(int startTimestamp, int endTimestamp) {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
@@ -166,16 +169,16 @@ public class CountRecord {
         // find the countId, it might be null
         UUID countId = getCountId();
         if (dimensionsSaved) {
-            Static.doIncrementUpdateOrInsert(getDatabase(), countId, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
+            Static.doIncrementUpdateOrInsert(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
                     getDimensionsSymbol(), amount, getUpdateDate(),
                     getEventDate());
         } else {
-            Static.doInserts(getDatabase(), countId, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
+            Static.doInserts(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
                     dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
         if (isSummaryPossible()) {
-            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.record.getId());
+            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.getRecordIdForInsert());
         }
     }
 
@@ -187,31 +190,35 @@ public class CountRecord {
         // find the countId, it might be null
         UUID countId = getCountId();
         if (dimensionsSaved) {
-            Static.doSetUpdateOrInsert(getDatabase(), countId, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
+            Static.doSetUpdateOrInsert(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
                     getDimensionsSymbol(), amount, getUpdateDate(),
                     getEventDate());
         } else {
-            Static.doInserts(getDatabase(), countId, this.record.getId(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
+            Static.doInserts(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
                     dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
         if (isSummaryPossible()) {
-            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.record.getId());
+            Static.doIncrementCountSummaryUpdateOrInsert(getDatabase(), amount, this.countField, this.getRecordIdForInsert());
         }
     }
 
     /** This only needs to be executed if the summary has fallen out of sync due to data model change or some other operation */
     public void syncCountSummary() throws SQLException {
         if (isSummaryPossible()) {
-            Static.doSetCountSummaryUpdateOrInsert(getDatabase(), getCount(), this.countField, this.record.getId());
+            Static.doSetCountSummaryUpdateOrInsert(getDatabase(), getCount(), this.countField, this.getRecordIdForInsert());
         }
     }
 
     public void deleteCount() throws SQLException {
-        Static.doCountDelete(getDatabase(), this.record.getId(), getQuery().getDimensions(), getQuery().getActionSymbol());
+        Static.doCountDelete(getDatabase(), this.getRecordIdForInsert(), getQuery().getDimensions(), getQuery().getActionSymbol());
         if (isSummaryPossible()) {
-            Static.doCountSummaryDelete(getDatabase(), this.record.getId(), this.countField);
+            Static.doCountSummaryDelete(getDatabase(), this.getRecordIdForInsert(), this.countField);
         }
+    }
+
+    private UUID getRecordIdForInsert() {
+        return this.getQuery().getRecordIdForInsert();
     }
 
     private boolean isSummaryPossible() {
@@ -220,6 +227,7 @@ public class CountRecord {
         //Boolean isReadOnly = fieldData.isIndexTableReadOnly();
         Boolean isSource = fieldData.isIndexTableSource();
         if (indexTable != null &&
+                query.isIncludeSelfDimension() &&
                 /*isReadOnly &&*/
                 isSource) {
             return true;
@@ -307,13 +315,17 @@ public class CountRecord {
                     whereBuilder.append(" = ");
                     vendor.appendValue(whereBuilder, db.getSymbolId(query.getSymbol()));
                 }
-                if (query.getRecord() != null) {
+                if (query.getRecordIdForInsert() != null || preciseMatch) {
                     whereBuilder.append(" AND ");
                     vendor.appendIdentifier(whereBuilder, alias);
                     whereBuilder.append(".");
                     vendor.appendIdentifier(whereBuilder, "id");
-                    whereBuilder.append(" = ");
-                    vendor.appendValue(whereBuilder, query.getRecord().getId());
+                    if (query.getRecordIdForInsert() == null) {
+                        whereBuilder.append(" IS NULL ");
+                    } else {
+                        whereBuilder.append(" = ");
+                        vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
+                    }
                 }
                 if (query.getStartTimestamp() != null && query.getEndTimestamp() != null) {
                     whereBuilder.append(" AND ");
@@ -814,8 +826,12 @@ public class CountRecord {
             vendor.appendIdentifier(sqlBuilder, table);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, recordId);
+            if (recordId == null) {
+                sqlBuilder.append(" IS NULL ");
+            } else {
+                sqlBuilder.append(" = ");
+                vendor.appendValue(sqlBuilder, recordId);
+            }
             sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
             sqlBuilder.append(" IN (");
@@ -825,8 +841,12 @@ public class CountRecord {
             vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, recordId);
+            if (recordId == null) {
+                sqlBuilder.append(" IS NULL ");
+            } else {
+                sqlBuilder.append(" = ");
+                vendor.appendValue(sqlBuilder, recordId);
+            }
             sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
             sqlBuilder.append(" = ");
@@ -842,8 +862,12 @@ public class CountRecord {
             vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, recordId);
+            if (recordId == null) {
+                sqlBuilder.append(" IS NULL ");
+            } else {
+                sqlBuilder.append(" = ");
+                vendor.appendValue(sqlBuilder, recordId);
+            }
             sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
             sqlBuilder.append(" = ");
@@ -858,8 +882,12 @@ public class CountRecord {
             vendor.appendIdentifier(sqlBuilder, table);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, recordId);
+            if (recordId == null) {
+                sqlBuilder.append(" IS NULL ");
+            } else {
+                sqlBuilder.append(" = ");
+                vendor.appendValue(sqlBuilder, recordId);
+            }
             sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, "symbolId");
             sqlBuilder.append(" = ");
@@ -1013,6 +1041,7 @@ class CountRecordQuery {
     private Long endTimestamp;
     private DimensionSet groupByDimensions;
     private String[] orderByDimensions;
+    public boolean includeSelfDimension;
 
     public CountRecordQuery(String symbol, String actionSymbol, DimensionSet dimensions) {
         this.symbol = symbol;
@@ -1027,6 +1056,22 @@ class CountRecordQuery {
         this.actionSymbol = actionSymbol;
         this.dimensions = dimensions;
         this.record = record;
+    }
+
+    public UUID getRecordIdForInsert() {
+        if (isIncludeSelfDimension()) {
+            return this.record.getId();
+        } else {
+            return null;
+        }
+    }
+
+    public boolean isIncludeSelfDimension() {
+        return includeSelfDimension;
+    }
+
+    public void setIncludeSelfDimension(boolean includeSelfDimension) {
+        this.includeSelfDimension = includeSelfDimension;
     }
 
     public void setOrderByDimensions(String[] orderByDimensions) {
