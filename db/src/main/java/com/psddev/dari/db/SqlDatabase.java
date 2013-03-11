@@ -1258,6 +1258,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 bone.setMinConnectionsPerPartition(connectionsPerPartition);
                 bone.setMaxConnectionsPerPartition(connectionsPerPartition);
                 bone.setPartitionCount(partitionCount);
+                bone.setConnectionTimeoutInMs(5000L);
                 return bone;
             }
         }
