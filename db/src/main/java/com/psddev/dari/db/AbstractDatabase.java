@@ -809,7 +809,6 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         List<DistributedLock> locks = validate(validates, true);
-        C connection = openConnection();
 
         try {
             if (locks != null && !locks.isEmpty()) {
@@ -824,22 +823,29 @@ public abstract class AbstractDatabase<C> implements Database {
 
             for (int i = 0, limit = Settings.getOrDefault(int.class, "dari/databaseWriteRetryLimit", 10); i < limit; ++ i) {
                 try {
-                    try {
-                        beginTransaction(connection, isImmediate);
-                        doWrites(connection, isImmediate, saves, indexes, deletes);
-                        commitTransaction(connection, isImmediate);
-                        isCommitted = true;
-                        break;
+                    C connection = openConnection();
 
-                    } finally {
+                    try {
                         try {
-                            if (!isCommitted) {
-                                rollbackTransaction(connection, isImmediate);
-                            }
+                            beginTransaction(connection, isImmediate);
+                            doWrites(connection, isImmediate, saves, indexes, deletes);
+                            commitTransaction(connection, isImmediate);
+                            isCommitted = true;
+                            break;
 
                         } finally {
-                            endTransaction(connection, isImmediate);
+                            try {
+                                if (!isCommitted) {
+                                    rollbackTransaction(connection, isImmediate);
+                                }
+
+                            } finally {
+                                endTransaction(connection, isImmediate);
+                            }
                         }
+
+                    } finally {
+                        closeConnection(connection);
                     }
 
                 } catch (Exception error) {
@@ -876,8 +882,6 @@ public abstract class AbstractDatabase<C> implements Database {
             }
 
         } finally {
-            closeConnection(connection);
-
             if (locks != null && !locks.isEmpty()) {
                 for (DistributedLock lock : locks) {
                     try {
