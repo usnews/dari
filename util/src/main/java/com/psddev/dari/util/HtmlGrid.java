@@ -160,31 +160,30 @@ public class HtmlGrid {
         private static final Logger LOGGER = LoggerFactory.getLogger(HtmlGrid.class);
 
         private static final String ATTRIBUTE_PREFIX = HtmlGrid.class.getName() + ".";
-        private static final String CSS_MODIFIED_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + ".cssModified.";
-        private static final String GRIDS_BY_PATH_ATTRIBUTE = ATTRIBUTE_PREFIX + ".grids";
+        private static final String CSS_MODIFIED_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "cssModified.";
+        private static final String GRIDS_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "grids.";
 
         private static final String TEMPLATE_PROPERTY = "grid-template";
         private static final String COLUMNS_PROPERTY = "grid-definition-columns";
         private static final String ROWS_PROPERTY = "grid-definition-rows";
 
         public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
-            @SuppressWarnings("unchecked")
-            Map<String, Map<String, HtmlGrid>> gridsByPath = (Map<String, Map<String, HtmlGrid>>) context.getAttribute(GRIDS_BY_PATH_ATTRIBUTE);
+            List<String> gridPaths = new ArrayList<String>();
 
-            if (gridsByPath == null) {
-                gridsByPath = new LinkedHashMap<String, Map<String, HtmlGrid>>();
-                context.setAttribute(GRIDS_BY_PATH_ATTRIBUTE, gridsByPath);
-            }
+            findGrids(context, "/", gridPaths, ".less");
+            findGrids(context, "/", gridPaths, ".css");
 
-            findGrids(context, "/", gridsByPath, ".less");
-            findGrids(context, "/", gridsByPath, ".css");
-
-            List<Map<String, HtmlGrid>> gridsList = new ArrayList<Map<String, HtmlGrid>>(gridsByPath.values());
             Map<String, HtmlGrid> combined = new LinkedHashMap<String, HtmlGrid>();
 
-            Collections.reverse(gridsList);
-            for (Map<String, HtmlGrid> grids : gridsList) {
-                combined.putAll(grids);
+            Collections.reverse(gridPaths);
+
+            for (String gridPath : gridPaths) {
+                @SuppressWarnings("unchecked")
+                Map<String, HtmlGrid> grids = (Map<String, HtmlGrid>) context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + gridPath);
+
+                if (grids != null) {
+                    combined.putAll(grids);
+                }
             }
 
             return combined;
@@ -197,7 +196,7 @@ public class HtmlGrid {
         private static void findGrids(
                 ServletContext context,
                 String path,
-                Map<String, Map<String, HtmlGrid>> gridsByPath,
+                List<String> gridPaths,
                 String suffix)
                 throws IOException {
 
@@ -209,19 +208,20 @@ public class HtmlGrid {
 
             for (String child : children) {
                 if (child.endsWith("/")) {
-                    findGrids(context, child, gridsByPath, suffix);
+                    findGrids(context, child, gridPaths, suffix);
 
                 } else if (child.endsWith(suffix)) {
                     String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + child;
                     URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
                     InputStream cssInput = cssConnection.getInputStream();
 
+                    gridPaths.add(child);
+
                     try {
                         Long oldModified = (Long) context.getAttribute(modifiedAttr);
                         long cssModified = cssConnection.getLastModified();
 
                         if (oldModified != null && oldModified == cssModified) {
-                            gridsByPath.put(child, gridsByPath.remove(child));
                             continue;
                         }
 
@@ -229,8 +229,6 @@ public class HtmlGrid {
 
                         Css css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
                         Map<String, HtmlGrid> grids = new LinkedHashMap<String, HtmlGrid>();
-                        gridsByPath.remove(child);
-                        gridsByPath.put(child, grids);
 
                         for (CssRule rule : css.getRules()) {
                             if (!"grid".equals(rule.getValue("display"))) {
@@ -317,6 +315,7 @@ public class HtmlGrid {
                         }
 
                         context.setAttribute(modifiedAttr, cssModified);
+                        context.setAttribute(GRIDS_ATTRIBUTE_PREFIX + child, grids);
 
                     } finally {
                         cssInput.close();
