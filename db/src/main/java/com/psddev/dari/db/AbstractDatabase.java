@@ -848,6 +848,9 @@ public abstract class AbstractDatabase<C> implements Database {
                         closeConnection(connection);
                     }
 
+                } catch (Retry error) {
+                    -- i;
+
                 } catch (Exception error) {
                     lastError = error;
 
@@ -1105,6 +1108,26 @@ public abstract class AbstractDatabase<C> implements Database {
      *        connection} to the underlying database.
      */
     protected void doDeletes(C connection, boolean isImmediate, List<State> states) throws Exception {
+    }
+
+    @SuppressWarnings("serial")
+    private static class Retry extends Error {
+
+        @Override
+        public Throwable fillInStackTrace() {
+            return null;
+        }
+    }
+
+    private static final Retry RETRY_INSTANCE = new Retry();
+
+    /**
+     * Retries the current writes. This method should only be called within
+     * {@link #doWrites}, {@link #doSaves}, {@link #doIndexes}, or
+     * {@link #doDeletes}.
+     */
+    protected void retryWrites() {
+        throw RETRY_INSTANCE;
     }
 
     // --- Implementation helpers ---
