@@ -1762,6 +1762,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         UUID oldTypeId = oldState.getTypeId();
                         byte[] oldData = Static.getOriginalData(oldObject);
 
+                        state.setValues(oldState.getValues());
+
                         for (AtomicOperation operation : atomicOperations) {
                             String field = operation.getField();
                             state.putValue(field, oldState.getValue(field));
