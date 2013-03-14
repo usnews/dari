@@ -13,8 +13,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public interface Countable extends Recordable {
 
@@ -50,7 +50,7 @@ public interface Countable extends Recordable {
 
     public static class CountAction extends Modification<Countable> {
 
-        //private static final Logger LOGGER = LoggerFactory.getLogger(CountAction.class);
+        static final Logger LOGGER = LoggerFactory.getLogger(CountAction.class);
 
         private transient Map<Class<?>, Map<String, CountRecord>> countRecords = new HashMap<Class<?>, Map<String, CountRecord>>();
 
@@ -71,6 +71,9 @@ public interface Countable extends Recordable {
             String eventDateFieldName = countField.as(CountableFieldData.class).getEventDateFieldName();
             if (eventDateFieldName != null) {
                 ObjectField eventDateField = recordType.getField(eventDateFieldName);
+                if (eventDateField == null) {
+                    throw new RuntimeException("Invalid eventDate field : " + eventDateFieldName);
+                }
                 if (eventDateField.as(CountableFieldData.class).isEventDateField()) {
                     return eventDateField;
                 } else {
@@ -154,6 +157,39 @@ public interface Countable extends Recordable {
 
         public double getCount(Class<? extends Record> recordClass, String countFieldInternalName) {
             try {
+                CountRecord cr = getCountRecord(recordClass, countFieldInternalName);
+                cr.setQueryDateRange(null, null);
+                return getCountRecord(recordClass, countFieldInternalName).getCount();
+            } catch (SQLException e) {
+                throw new DatabaseException(getCountRecord(recordClass, countFieldInternalName).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public double getCountSinceDate(Class<? extends Record> recordClass, Long startTimestamp) {
+            return getCountOverDateRange(recordClass, null, startTimestamp, null);
+        }
+
+        public double getCountSinceDate(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp) {
+            return getCountOverDateRange(recordClass, countFieldInternalName, startTimestamp, null);
+        }
+
+        public double getCountAsOfDate(Class<? extends Record> recordClass, Long endTimestamp) {
+            return getCountOverDateRange(recordClass, null, null, endTimestamp);
+        }
+
+        public double getCountAsOfDate(Class<? extends Record> recordClass, String countFieldInternalName, Long endTimestamp) {
+            return getCountOverDateRange(recordClass, countFieldInternalName, null, endTimestamp);
+        }
+
+        public double getCountOverDateRange(Class<? extends Record> recordClass, Long startTimestamp, Long endTimestamp) {
+            return getCountOverDateRange(recordClass, null, startTimestamp, endTimestamp);
+        }
+
+        public double getCountOverDateRange(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp, Long endTimestamp) {
+            try {
+                // TODO: throw exception if precision = NONE
+                CountRecord cr = getCountRecord(recordClass, countFieldInternalName);
+                cr.setQueryDateRange(startTimestamp, endTimestamp);
                 return getCountRecord(recordClass, countFieldInternalName).getCount();
             } catch (SQLException e) {
                 throw new DatabaseException(getCountRecord(recordClass, countFieldInternalName).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());

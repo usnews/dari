@@ -8,14 +8,18 @@ CREATE TABLE CountRecord (
     typeId BINARY(16) NOT NULL,
     dimensionsSymbolId INT NOT NULL,
     actionSymbolId INT NOT NULL,
-    amount DOUBLE NOT NULL,
+    /*amount DOUBLE NOT NULL,*/
+    /*cumulativeAmount DOUBLE NOT NULL,*/
     createDate BIGINT NOT NULL,
     updateDate BIGINT NOT NULL,
-    eventDate BIGINT NOT NULL,
-    PRIMARY KEY (actionSymbolId, countId, eventDate),
+    /*eventDate BIGINT NOT NULL,*/
+    data BINARY(20) NOT NULL,
+    PRIMARY KEY (actionSymbolId, countId, data),
     KEY k_dimensionsid (dimensionsSymbolId),
-    KEY k_recordid (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
+    KEY k_recordid (id),
+    KEY k_typeid (typeId),
+    UNIQUE KEY k_dataEventDate (actionSymbolId, countId, data(4))
+) ENGINE=InnoDB DEFAULT CHARSET=binary ROW_FORMAT=DYNAMIC;
 
 CREATE OR REPLACE VIEW CountRecord_d AS
 SELECT hex(c.id) as id
@@ -23,10 +27,13 @@ SELECT hex(c.id) as id
 , hex(c.typeId) as typeId
 , ds.value as dimensionsSymbol
 , ls.value as actionSymbol
-, amount
+, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, 10) / 1000000, 6) amount
+, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, 10) / 1000000, 6) cumulativeAmount
 , FROM_UNIXTIME(createDate/1000) as createDate
 , FROM_UNIXTIME(updateDate/1000) as updateDate
-, FROM_UNIXTIME(eventDate/1000) as eventDate
+, FROM_UNIXTIME(CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60) eventDate
+/*, HEX(data) AS data
+, CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000 eventTimestamp*/
 FROM CountRecord c
 JOIN Symbol ds ON (c.dimensionsSymbolId = ds.symbolId)
 JOIN Symbol ls ON (c.actionSymbolId = ls.symbolId);

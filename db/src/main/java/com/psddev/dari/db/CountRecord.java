@@ -23,7 +23,7 @@ import com.psddev.dari.util.UuidUtils;
 
 public class CountRecord {
 
-    //private static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
+    //static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
 
     static final String COUNTRECORD_TABLE = "CountRecord";
     static final String COUNTRECORD_STRINGINDEX_TABLE = "CountRecordString";
@@ -31,7 +31,15 @@ public class CountRecord {
     static final String COUNTRECORD_UUIDINDEX_TABLE = "CountRecordUuid";
     static final String COUNTRECORD_LOCATIONINDEX_TABLE = "CountRecordLocation";
     static final String COUNTRECORD_COUNTID_FIELD = "countId";
+    static final String COUNTRECORD_DATA_FIELD = "data";
     static final int QUERY_TIMEOUT = 3;
+    static final long AMOUNT_DECIMAL_SHIFT = 1000000L;
+    static final int AMOUNT_DECIMAL_PLACES = 6;
+    static final long DATE_DECIMAL_SHIFT = 60000L;
+    static final int DATE_BYTE_SIZE = 4;
+    static final int AMOUNT_BYTE_SIZE = 8;
+    static final int CUMULATIVEAMOUNT_POSITION = 1;
+    static final int AMOUNT_POSITION = 2;
 
     public static enum EventDatePrecision {
         HOUR,
@@ -157,24 +165,27 @@ public class CountRecord {
         getQuery().setIncludeSelfDimension(includeSelfDimension);
     }
 
-    public void setQueryDateRange(int startTimestamp, int endTimestamp) {
+    public void setQueryDateRange(Long startTimestamp, Long endTimestamp) {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
 
     public Double getCount() throws SQLException {
-        return Static.getCountByDimensions(getDatabase(), getQuery());
+        if (dimensionsSaved != null && dimensionsSaved == true) {
+            // We already know we're dealing with exactly 1 countId, so look it up directly.
+            return Static.getCountByCountId(getDatabase(), getCountId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        } else {
+            return Static.getCountByDimensions(getDatabase(), getQuery());
+        }
     }
 
     public void incrementCount(Double amount) throws SQLException {
         // find the countId, it might be null
+        if (amount == 0) return; // This actually causes some problems if it's not here
         UUID countId = getCountId();
         if (dimensionsSaved) {
-            Static.doIncrementUpdateOrInsert(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
-                    getDimensionsSymbol(), amount, getUpdateDate(),
-                    getEventDate());
+            Static.doIncrementUpdateOrInsert(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), amount, getUpdateDate(), getEventDate());
         } else {
-            Static.doInserts(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
-                    dimensions, amount, getUpdateDate(), getEventDate());
+            Static.doInserts(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
         if (isSummaryPossible()) {
@@ -265,317 +276,48 @@ public class CountRecord {
         private Static() {
         }
 
-        static String getSelectSql(SqlDatabase db, CountRecordQuery query,
-                boolean preciseMatch, boolean selectAmount) {
-            SqlVendor vendor = db.getVendor();
-            StringBuilder selectBuilder = new StringBuilder("SELECT ");
-            StringBuilder fromBuilder = new StringBuilder();
-            StringBuilder whereBuilder = new StringBuilder();
-            StringBuilder groupByBuilder = new StringBuilder();
-            StringBuilder orderByBuilder = new StringBuilder();
-            boolean joinCountRecordTable = false;
-            int i = 0;
-            int count = 1;
-            String alias = "cr" + i;
-
-            vendor.appendIdentifier(selectBuilder, alias);
-            selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, COUNTRECORD_COUNTID_FIELD);
-
-            if (selectAmount || preciseMatch || query.getDimensions().size() == 0)
-                joinCountRecordTable = true;
-
-            if (joinCountRecordTable) {
-                if (selectAmount) {
-                    selectBuilder.append(", ");
-                    vendor.appendIdentifier(selectBuilder, alias);
-                    selectBuilder.append(".");
-                    vendor.appendIdentifier(selectBuilder, "amount");
-                }
-                selectBuilder.append(", ");
-                vendor.appendIdentifier(selectBuilder, alias);
-                selectBuilder.append(".");
-                vendor.appendIdentifier(selectBuilder, "eventDate");
-
-                fromBuilder.append(" \nFROM ");
-                vendor.appendIdentifier(fromBuilder, COUNTRECORD_TABLE);
-                fromBuilder.append(" ");
-                vendor.appendIdentifier(fromBuilder, alias);
-                whereBuilder.append(" \nWHERE ");
-                vendor.appendIdentifier(whereBuilder, alias);
-                whereBuilder.append(".");
-                vendor.appendIdentifier(whereBuilder, "actionSymbolId");
-                whereBuilder.append(" = ");
-                whereBuilder.append(db.getSymbolId(query.getActionSymbol()));
-                if (preciseMatch) {
-                    whereBuilder.append(" AND ");
-                    vendor.appendIdentifier(whereBuilder, alias);
-                    whereBuilder.append(".");
-                    vendor.appendIdentifier(whereBuilder, "dimensionsSymbolId");
-                    whereBuilder.append(" = ");
-                    vendor.appendValue(whereBuilder, db.getSymbolId(query.getSymbol()));
-                }
-                if (query.getRecordIdForInsert() != null || preciseMatch) {
-                    whereBuilder.append(" AND ");
-                    vendor.appendIdentifier(whereBuilder, alias);
-                    whereBuilder.append(".");
-                    vendor.appendIdentifier(whereBuilder, "id");
-                    if (query.getRecordIdForInsert() == null) {
-                        whereBuilder.append(" IS NULL ");
-                    } else {
-                        whereBuilder.append(" = ");
-                        vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
-                    }
-                }
-                if (query.getStartTimestamp() != null && query.getEndTimestamp() != null) {
-                    whereBuilder.append(" AND ");
-                    vendor.appendIdentifier(whereBuilder, alias);
-                    whereBuilder.append(".");
-                    vendor.appendIdentifier(whereBuilder, "eventDate");
-                    whereBuilder.append(" >= ");
-                    vendor.appendValue(whereBuilder, query.getStartTimestamp());
-                    whereBuilder.append(" AND ");
-                    vendor.appendIdentifier(whereBuilder, alias);
-                    whereBuilder.append(".");
-                    vendor.appendIdentifier(whereBuilder, "eventDate");
-                    whereBuilder.append(" <= ");
-                    vendor.appendValue(whereBuilder, query.getEndTimestamp());
-                }
-                ++i;
-            }
-
-            for (String table : Static.getIndexTables(query.getDimensions(),
-                    query.getGroupByDimensions())) {
-                alias = "cr" + i;
-                if (i == 0) {
-                    fromBuilder.append(" \nFROM ");
-                    vendor.appendIdentifier(fromBuilder, table);
-                    fromBuilder.append(" ");
-                    vendor.appendIdentifier(fromBuilder, alias);
-                    whereBuilder.append(" \nWHERE ");
-                    if (preciseMatch) {
-                        vendor.appendIdentifier(whereBuilder, alias);
-                        whereBuilder.append(".");
-                        vendor.appendIdentifier(whereBuilder, "dimensionsSymbolId");
-                        whereBuilder.append(" = ");
-                        whereBuilder.append(db.getSymbolId(query.getSymbol()));
-                    } else {
-                        whereBuilder.append("1 = 1");
-                    }
-                } else {
-                    fromBuilder.append(" \nJOIN ");
-                    vendor.appendIdentifier(fromBuilder, table);
-                    fromBuilder.append(" ");
-                    vendor.appendIdentifier(fromBuilder, alias);
-                    fromBuilder.append(" ON (");
-                    vendor.appendIdentifier(fromBuilder, "cr0");
-                    fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, "dimensionsSymbolId");
-                    fromBuilder.append(" = ");
-                    vendor.appendIdentifier(fromBuilder, alias);
-                    fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, "dimensionsSymbolId");
-                    fromBuilder.append(" AND ");
-                    vendor.appendIdentifier(fromBuilder, "cr0");
-                    fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
-                    fromBuilder.append(" = ");
-                    vendor.appendIdentifier(fromBuilder, alias);
-                    fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
-                    fromBuilder.append(")");
-                }
-
-                int numFilters = 0;
-                // append to where statement
-                whereBuilder.append(" \nAND (");
-                for (Dimension dimension : Static.getDimensionsByIndexTable(
-                        table, query.getDimensions())) {
-                    Set<Object> values = dimension.getValues();
-                    whereBuilder.append("(");
-                    vendor.appendIdentifier(whereBuilder, alias);
-                    whereBuilder.append(".");
-                    vendor.appendIdentifier(whereBuilder, "symbolId");
-                    whereBuilder.append(" = ");
-                    whereBuilder.append(db.getSymbolId(dimension.getSymbol()));
-                    whereBuilder.append(" AND ");
-                    vendor.appendIdentifier(whereBuilder, alias);
-                    whereBuilder.append(".");
-                    vendor.appendIdentifier(whereBuilder, "value");
-                    whereBuilder.append(" IN (");
-                    for (Object v : values) {
-                        vendor.appendValue(whereBuilder, v);
-                        whereBuilder.append(',');
-                        ++numFilters;
-                    }
-                    whereBuilder.setLength(whereBuilder.length() - 1);
-                    whereBuilder.append("))");
-                    whereBuilder.append(" \n  OR "); // 7 chars below
-                }
-                if (query.getGroupByDimensions() != null) {
-                    for (Dimension dimension : getDimensionsByIndexTable(table,
-                            query.getGroupByDimensions())) {
-                        if (!query.getDimensions().keySet().contains(
-                                dimension.getKey())) {
-                            whereBuilder.append("(");
-                            vendor.appendIdentifier(whereBuilder, alias);
-                            whereBuilder.append(".");
-                            vendor.appendIdentifier(whereBuilder, "symbolId");
-                            whereBuilder.append(" = ");
-                            whereBuilder.append(db.getSymbolId(dimension
-                                    .getSymbol()));
-                            whereBuilder.append(")");
-                            whereBuilder.append(" \n  OR "); // 7 chars below
-                            ++numFilters;
-                        }
-                        selectBuilder.append(", MAX(IF(");
-                        vendor.appendIdentifier(selectBuilder, alias);
-                        selectBuilder.append(".");
-                        vendor.appendIdentifier(selectBuilder, "symbolId");
-                        selectBuilder.append(" = ");
-                        selectBuilder.append(db.getSymbolId(dimension.getSymbol()));
-                        selectBuilder.append(", ");
-                        vendor.appendIdentifier(selectBuilder, alias);
-                        selectBuilder.append(".");
-                        vendor.appendIdentifier(selectBuilder, "value");
-                        selectBuilder.append(", null)) AS ");
-                        vendor.appendIdentifier(selectBuilder, dimension.getKey());
-                    }
-                }
-                whereBuilder.setLength(whereBuilder.length() - 7);
-                whereBuilder.append(") ");
-                count = count * numFilters;
-                ++i;
-            }
-
-            groupByBuilder.append("\nGROUP BY ");
-            vendor.appendIdentifier(groupByBuilder, "cr0");
-            groupByBuilder.append(".");
-            vendor.appendIdentifier(groupByBuilder, COUNTRECORD_COUNTID_FIELD);
-            orderByBuilder.append("\nORDER BY ");
-            vendor.appendIdentifier(orderByBuilder, "cr0");
-            orderByBuilder.append(".");
-            vendor.appendIdentifier(orderByBuilder, COUNTRECORD_COUNTID_FIELD);
-            if (joinCountRecordTable) {
-                orderByBuilder.append(", ");
-                vendor.appendIdentifier(orderByBuilder, "cr0");
-                orderByBuilder.append(".");
-                vendor.appendIdentifier(orderByBuilder, "eventDate");
-                orderByBuilder.append(" DESC");
-                groupByBuilder.append(", ");
-                vendor.appendIdentifier(groupByBuilder, "cr0");
-                groupByBuilder.append(".");
-                vendor.appendIdentifier(groupByBuilder, "eventDate");
-                if (selectAmount) {
-                    groupByBuilder.append(", ");
-                    vendor.appendIdentifier(groupByBuilder, "cr0");
-                    groupByBuilder.append(".");
-                    vendor.appendIdentifier(groupByBuilder, "amount");
-                }
-            }
-            groupByBuilder.append(" HAVING COUNT(*) = ");
-            groupByBuilder.append(count);
-            return selectBuilder.toString() + " " + fromBuilder.toString()
-                    + " " + whereBuilder.toString() + " "
-                    + groupByBuilder.toString() + orderByBuilder.toString();
-        }
-
-        static String getSelectCountGroupBySql(SqlDatabase db,
-                CountRecordQuery query) {
-            StringBuilder selectBuilder = new StringBuilder();
-            StringBuilder fromBuilder = new StringBuilder();
-            StringBuilder groupBuilder = new StringBuilder();
-            StringBuilder orderBuilder = new StringBuilder();
-            SqlVendor vendor = db.getVendor();
-            selectBuilder.append("SELECT SUM(");
-            vendor.appendIdentifier(selectBuilder, "x");
-            selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, "amount");
-            selectBuilder.append(") AS ");
-            vendor.appendIdentifier(selectBuilder, "amount");
-            fromBuilder.append(" FROM (");
-            fromBuilder.append(getSelectSql(db, query, false, true));
-            fromBuilder.append(") x");
-            // handle additional dimensions
-            if (query.getGroupByDimensions() != null) {
-                groupBuilder.append(" GROUP BY ");
-                for (String key : query.getGroupByDimensions().keySet()) {
-                    // select additional dimensions
-                    selectBuilder.append(", ");
-                    vendor.appendIdentifier(selectBuilder, "x");
-                    selectBuilder.append(".");
-                    vendor.appendIdentifier(selectBuilder, key);
-                    // group by additional dimensions
-                    vendor.appendIdentifier(groupBuilder, "x");
-                    groupBuilder.append(".");
-                    vendor.appendIdentifier(groupBuilder, key);
-                    groupBuilder.append(", ");
-                }
-                if (groupBuilder.toString().equals(" GROUP BY ")) {
-                    groupBuilder.setLength(0);
-                } else {
-                    groupBuilder.setLength(groupBuilder.length() - 2);
-                }
-                if (query.getOrderByDimensions() != null
-                        && groupBuilder.length() > 0) {
-                    orderBuilder.append(" ORDER BY ");
-                    for (String key : query.getOrderByDimensions()) {
-                        if (query.getGroupByDimensions().keySet().contains(key)) {
-                            // order by additional dimensions
-                            vendor.appendIdentifier(orderBuilder, "x");
-                            orderBuilder.append(".");
-                            vendor.appendIdentifier(orderBuilder, key);
-                            orderBuilder.append(", ");
-                        }
-                    }
-                    if (orderBuilder.toString().equals(" ORDER BY ")) {
-                        orderBuilder.setLength(0);
-                    } else {
-                        orderBuilder.setLength(orderBuilder.length() - 2);
+        static Set<String> getIndexTables(DimensionSet... dimensionSets) {
+            LinkedHashSet<String> tables = new LinkedHashSet<String>();
+            for (DimensionSet dimensions : dimensionSets) {
+                if (dimensions != null) {
+                    for (Dimension dimension : dimensions) {
+                        tables.add(dimension.getIndexTable());
                     }
                 }
             }
-            return selectBuilder.toString() + fromBuilder.toString()
-                    + groupBuilder.toString() + orderBuilder.toString();
+            return tables;
         }
 
-        static String getSelectPreciseIdSql(SqlDatabase db,
-                CountRecordQuery query) {
-            return getSelectSql(db, query, true, false);
+        static String getIndexTable(ObjectField field) {
+            String fieldType = field.getInternalItemType();
+            if (fieldType.equals(ObjectField.UUID_TYPE)) {
+                return CountRecord.COUNTRECORD_UUIDINDEX_TABLE;
+            } else if (fieldType.equals(ObjectField.LOCATION_TYPE)) {
+                return CountRecord.COUNTRECORD_LOCATIONINDEX_TABLE;
+            } else if (fieldType.equals(ObjectField.NUMBER_TYPE) || 
+                    fieldType.equals(ObjectField.DATE_TYPE)) {
+                return CountRecord.COUNTRECORD_NUMBERINDEX_TABLE;
+            } else {
+                return CountRecord.COUNTRECORD_STRINGINDEX_TABLE;
+            }
         }
 
-        /*
-        static String getSelectPreciseCountSql(SqlDatabase db,
-                CountRecordQuery query) {
-            return getSelectSql(db, query, true, true);
-        }
-        */
-
-        static String getSelectCountSql(SqlDatabase db, CountRecordQuery query) {
-            StringBuilder selectBuilder = new StringBuilder();
-            StringBuilder fromBuilder = new StringBuilder();
-            SqlVendor vendor = db.getVendor();
-            selectBuilder.append("SELECT SUM(");
-            vendor.appendIdentifier(selectBuilder, "x");
-            selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, "amount");
-            selectBuilder.append(") AS ");
-            vendor.appendIdentifier(selectBuilder, "amount");
-            fromBuilder.append(" FROM (");
-            fromBuilder.append(getSelectSql(db, query, false, true));
-            fromBuilder.append(") x");
-            return selectBuilder.toString() + fromBuilder.toString();
+        static DimensionSet getDimensionsByIndexTable(String table, DimensionSet dimensions) {
+            //HashMap<String, Object> dims = new HashMap<String, Object>();
+            DimensionSet dims = new DimensionSet();
+            for (Dimension dimension : dimensions) {
+                if (table.equals(dimension.getIndexTable())) {
+                    dims.add(dimension);
+                }
+            }
+            return dims;
         }
 
-        static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID countId,
-                UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol,
-                DimensionSet dimensions, double amount, long createDate,
-                long eventDate) {
+        static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long createDate, long eventDate) {
             ArrayList<String> sqls = new ArrayList<String>();
             // insert countrecord
             List<Object> parameters = new ArrayList<Object>();
-            sqls.add(getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol,
-                    amount, createDate, eventDate));
+            sqls.add(getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, createDate, eventDate));
             parametersList.add(parameters);
             // insert indexes
             for (Dimension dimension : dimensions) {
@@ -583,17 +325,144 @@ public class CountRecord {
                 String table = dimension.getIndexTable();
                 for (Object value : values) {
                     parameters = new ArrayList<Object>();
-                    sqls.add(getDimensionInsertRowSql(db, parameters, countId, recordId, dimensionsSymbol,
-                            dimension, value, table));
+                    sqls.add(getDimensionInsertRowSql(db, parameters, countId, recordId, dimensionsSymbol, dimension, value, table));
                     parametersList.add(parameters);
                 }
             }
             return sqls;
         }
 
-        static String getCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID countId,
-                UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount,
-                long createDate, long eventDate) {
+        // methods that generate SQL
+
+        static String getCountByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) {
+            StringBuilder sqlBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+
+            StringBuilder maxDataBuilder = new StringBuilder();
+            maxDataBuilder.append("MAX(");
+            vendor.appendIdentifier(maxDataBuilder, COUNTRECORD_DATA_FIELD);
+            maxDataBuilder.append(")");
+
+            StringBuilder minDataBuilder = new StringBuilder();
+            minDataBuilder.append("MIN(");
+            vendor.appendIdentifier(minDataBuilder, COUNTRECORD_DATA_FIELD);
+            minDataBuilder.append(")");
+
+            sqlBuilder.append("SELECT ");
+
+            sqlBuilder.append("ROUND(");
+
+            appendSelectAmountSql(sqlBuilder, vendor, maxDataBuilder.toString(), CUMULATIVEAMOUNT_POSITION);
+
+            sqlBuilder.append(" / ");
+            vendor.appendValue(sqlBuilder, AMOUNT_DECIMAL_SHIFT);
+            sqlBuilder.append(", ");
+            vendor.appendValue(sqlBuilder, AMOUNT_DECIMAL_PLACES);
+            sqlBuilder.append(")");
+
+            sqlBuilder.append(" FROM ");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
+            sqlBuilder.append(" WHERE ");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, countId);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, db.getSymbolId(actionSymbol));
+
+            if (maxEventDate != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                sqlBuilder.append(" <= ");
+                sqlBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
+                sqlBuilder.append(")");
+            }
+
+            if (minEventDate != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                sqlBuilder.append(" > ");
+                sqlBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
+                sqlBuilder.append(")");
+            }
+
+            return sqlBuilder.toString();
+        }
+
+        static String getMaxEventDateByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) {
+            StringBuilder sqlBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+
+            StringBuilder dataBuilder = new StringBuilder();
+            dataBuilder.append("MAX(");
+            vendor.appendIdentifier(dataBuilder, COUNTRECORD_DATA_FIELD);
+            dataBuilder.append(")");
+
+            sqlBuilder.append("SELECT ");
+
+            sqlBuilder.append("ROUND(");
+            appendSelectTimestampSql(sqlBuilder, vendor, dataBuilder.toString());
+
+            sqlBuilder.append(" * ");
+            vendor.appendValue(sqlBuilder, DATE_DECIMAL_SHIFT);
+            sqlBuilder.append(", ");
+            vendor.appendValue(sqlBuilder, 0);
+            sqlBuilder.append(")");
+
+            sqlBuilder.append(" FROM ");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
+            sqlBuilder.append(" WHERE ");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, countId);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, db.getSymbolId(actionSymbol));
+
+            if (maxEventDate != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                sqlBuilder.append(" <= ");
+                sqlBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
+                sqlBuilder.append(")");
+            }
+
+            return sqlBuilder.toString();
+        }
+
+        private static void appendSelectAmountSql(StringBuilder str, SqlVendor vendor, String columnIdentifier, int position) {
+            // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic.
+            // position is 1 or 2
+            // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
+            str.append("CONV(");
+                str.append("HEX(");
+                    str.append("SUBSTR(");
+                        str.append(columnIdentifier);
+                        str.append(",");
+                        vendor.appendValue(str, 1+DATE_BYTE_SIZE + ((position-1)*AMOUNT_BYTE_SIZE));
+                        str.append(",");
+                        vendor.appendValue(str, AMOUNT_BYTE_SIZE);
+                    str.append(")");
+                str.append(")");
+            str.append(", 16, 10)");
+        }
+
+        private static void appendSelectTimestampSql(StringBuilder str, SqlVendor vendor, String columnIdentifier) {
+            // This does NOT shift the decimal place. Do it yourself AFTER any other arithmetic.
+            // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
+            str.append("CONV(");
+            appendHexEncodeExistingTimestampSql(str, vendor, columnIdentifier);
+            str.append(", 16, 10)");
+        }
+
+        static String getCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, COUNTRECORD_TABLE);
@@ -604,10 +473,9 @@ public class CountRecord {
             cols.put("typeId", typeId);
             cols.put("actionSymbolId", db.getSymbolId(actionSymbol));
             cols.put("dimensionsSymbolId", db.getSymbolId(dimensionsSymbol));
-            cols.put("amount", amount);
             cols.put("createDate", createDate);
             cols.put("updateDate", createDate);
-            cols.put("eventDate", eventDate);
+            cols.put(COUNTRECORD_DATA_FIELD, toBytes(eventDate, cumulativeAmount, amount));
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendIdentifier(insertBuilder, entry.getKey());
                 insertBuilder.append(", ");
@@ -623,9 +491,39 @@ public class CountRecord {
             return insertBuilder.toString();
         }
 
-        static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID countId,
-                UUID recordId, String dimensionsSymbol, Dimension dimension, Object value,
-                String table) {
+        static byte[] toBytes(long eventDate, double cumulativeAmount, double amount) {
+
+            Long cumulativeAmountLong = (long) (cumulativeAmount * AMOUNT_DECIMAL_SHIFT);
+            Long amountLong = (long) (amount * AMOUNT_DECIMAL_SHIFT);
+            Integer eventDateInt = (int) (eventDate / DATE_DECIMAL_SHIFT);
+
+            int size, offset = 0;
+            byte[] bytes = new byte[DATE_BYTE_SIZE+AMOUNT_BYTE_SIZE+AMOUNT_BYTE_SIZE];
+
+            // first 4 bytes: timestamp
+            size = DATE_BYTE_SIZE;
+            for (int i = 0; i < size; ++i) {
+                bytes[i+offset] = (byte) (eventDateInt >> (size - i - 1 << 3));
+            }
+            offset += size;
+
+            // second 8 bytes: cumulativeAmount
+            size = AMOUNT_BYTE_SIZE;
+            for (int i = 0; i < size; ++i) {
+                bytes[i+offset] = (byte) (cumulativeAmountLong >> (size - i - 1 << 3));
+            }
+            offset += size;
+
+            // last 8 bytes: amount
+            size = AMOUNT_BYTE_SIZE;
+            for (int i = 0; i < 8; ++i) {
+                bytes[i+offset] = (byte) (amountLong >> (size - i - 1 << 3));
+            }
+
+            return bytes;
+        }
+
+        static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID countId, UUID recordId, String dimensionsSymbol, Dimension dimension, Object value, String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, table);
@@ -651,20 +549,44 @@ public class CountRecord {
             return insertBuilder.toString();
         }
 
-        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID countId,
-                String actionSymbol, double amount, long updateDate,
-                long eventDate, boolean increment) {
+        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID countId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
             vendor.appendIdentifier(updateBuilder, COUNTRECORD_TABLE);
             updateBuilder.append(" SET ");
-            vendor.appendIdentifier(updateBuilder, "amount");
+
+            vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
             updateBuilder.append(" = ");
-            if (increment) {
-                vendor.appendIdentifier(updateBuilder, "amount");
-                updateBuilder.append(" + ");
-            }
-            vendor.appendBindValue(updateBuilder, amount, parameters);
+            updateBuilder.append(" UNHEX(");
+                updateBuilder.append("CONCAT(");
+                    // timestamp
+                    appendHexEncodeExistingTimestampSql(updateBuilder, vendor, COUNTRECORD_DATA_FIELD);
+                    updateBuilder.append(',');
+                    // cumulativeAmount and amount
+                    if (increment) {
+                        appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
+                        updateBuilder.append(',');
+                        updateBuilder.append("IF (");
+                            vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
+                            updateBuilder.append(" LIKE ");
+                                updateBuilder.append(" CONCAT(");
+                                    updateBuilder.append(" UNHEX(");
+                                        appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
+                                    updateBuilder.append(")");
+                                updateBuilder.append(", '%')");
+                                updateBuilder.append(","); // if it's the exact date, then update the amount
+                                appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, amount);
+                                updateBuilder.append(","); // if it's a date in the future, leave the date alone
+                                appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, 0);
+                            updateBuilder.append(")");
+                    } else {
+                        appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
+                        updateBuilder.append(',');
+                        appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
+                    }
+                updateBuilder.append(" )");
+            updateBuilder.append(" )");
+
             updateBuilder.append(", ");
             vendor.appendIdentifier(updateBuilder, "updateDate");
             updateBuilder.append(" = ");
@@ -678,102 +600,75 @@ public class CountRecord {
             updateBuilder.append(" = ");
             vendor.appendBindValue(updateBuilder, db.getSymbolId(actionSymbol), parameters);
             updateBuilder.append(" AND ");
-            vendor.appendIdentifier(updateBuilder, "eventDate");
-            updateBuilder.append(" = ");
-            vendor.appendBindValue(updateBuilder, eventDate, parameters);
+
+            vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
+            // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
+            updateBuilder.append(" >= ");
+            updateBuilder.append(" UNHEX(");
+            appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, '0');
+            updateBuilder.append(")");
+
             return updateBuilder.toString();
         }
 
-        static Set<String> getIndexTables(DimensionSet... dimensionSets) {
-            LinkedHashSet<String> tables = new LinkedHashSet<String>();
-            for (DimensionSet dimensions : dimensionSets) {
-                if (dimensions != null) {
-                    for (Dimension dimension : dimensions) {
-                        tables.add(dimension.getIndexTable());
+        private static void appendHexEncodeTimestampSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, long timestamp, Character rpadChar) {
+            if (rpadChar != null) {
+                str.append("RPAD(");
+            }
+            str.append("LPAD(");
+                str.append("HEX(");
+                    if (parameters == null) {
+                        vendor.appendValue(str, (int) (timestamp / DATE_DECIMAL_SHIFT));
+                    } else {
+                        vendor.appendBindValue(str, (int) (timestamp / DATE_DECIMAL_SHIFT), parameters);
                     }
-                }
-            }
-            return tables;
-        }
-
-        static DimensionSet getDimensionsByIndexTable(String table,
-                DimensionSet dimensions) {
-            //HashMap<String, Object> dims = new HashMap<String, Object>();
-            DimensionSet dims = new DimensionSet();
-            for (Dimension dimension : dimensions) {
-                if (table.equals(dimension.getIndexTable())) {
-                    dims.add(dimension);
-                }
-            }
-            return dims;
-        }
-
-        static void doInserts(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol,
-                String dimensionsSymbol, DimensionSet dimensions, double amount,
-                long updateDate, long eventDate) throws SQLException {
-            Connection connection = db.openConnection();
-            try {
-                List<List<Object>> parametersList = new ArrayList<List<Object>>();
-                List<String> sqls = getInsertSqls(db, parametersList, countId, recordId, typeId, actionSymbol,
-                        dimensionsSymbol, dimensions, amount, updateDate,
-                        eventDate);
-                Iterator<List<Object>> parametersIterator = parametersList.iterator();
-                for (String sql : sqls) {
-                    //LOGGER.info("===== [1] " + sql);
-                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parametersIterator.next());
-                }
-            } finally {
-                db.closeConnection(connection);
+                str.append(")");
+            str.append(", "+(DATE_BYTE_SIZE*2)+", '0')");
+            if (rpadChar != null) {
+                str.append(",");
+                vendor.appendValue(str, DATE_BYTE_SIZE*2+AMOUNT_BYTE_SIZE*2+AMOUNT_BYTE_SIZE*2);
+                str.append(", '");
+                str.append(rpadChar);
+                str.append("')");
             }
         }
 
-        static void doIncrementUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, 
-                String actionSymbol, String dimensionsSymbol, double incrementAmount,
-                long updateDate, long eventDate) throws SQLException {
-            Connection connection = db.openConnection();
-            try {
-                List<Object> parameters = new ArrayList<Object>();
-                String sql = getUpdateSql(db, parameters, countId, actionSymbol,
-                        incrementAmount, updateDate, eventDate, true);
-                //LOGGER.info("===== [2] " + sql);
-                int rowsAffected = SqlDatabase.Static.executeUpdateWithList(
-                        connection, sql, parameters);
-                if (rowsAffected == 0) {
-                    parameters = new ArrayList<Object>();
-                    sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol,
-                            dimensionsSymbol, incrementAmount, updateDate,
-                            eventDate);
-                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
-                }
-            } finally {
-                db.closeConnection(connection);
-            }
+        private static void appendHexEncodeExistingTimestampSql(StringBuilder str, SqlVendor vendor, String columnIdentifier) {
+            // columnName is "data" or "max(`data`)"
+            str.append("HEX(");
+                str.append("SUBSTR(");
+                    str.append(columnIdentifier);
+                    str.append(",");
+                    vendor.appendValue(str, 1);
+                    str.append(",");
+                    vendor.appendValue(str, DATE_BYTE_SIZE);
+                str.append(")");
+            str.append(")");
         }
 
-        static void doSetUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, 
-                String actionSymbol, String dimensionsSymbol, double amount,
-                long updateDate, long eventDate) throws SQLException {
-            Connection connection = db.openConnection();
-            try {
-                List<Object> parameters = new ArrayList<Object>();
-                String sql = getUpdateSql(db, parameters, countId, actionSymbol,
-                        amount, updateDate, eventDate, false);
-                int rowsAffected = SqlDatabase.Static.executeUpdateWithList(
-                        connection, sql, parameters);
-                if (rowsAffected == 0) {
-                    parameters = new ArrayList<Object>();
-                    sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol,
-                            dimensionsSymbol, amount, updateDate,
-                            eventDate);
-                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
-                }
-            } finally {
-                db.closeConnection(connection);
-            }
+        private static void appendHexEncodeSetAmountSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, double amount) {
+            str.append("LPAD(");
+                str.append("HEX(");
+                    vendor.appendBindValue(str, (int) (amount * AMOUNT_DECIMAL_SHIFT), parameters);
+                str.append(" )");
+            str.append(", "+(AMOUNT_BYTE_SIZE*2)+", '0')");
+        }
+
+        private static void appendHexEncodeIncrementAmountSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, String columnName, int position, double amount) {
+            // position is 1 or 2
+            // columnName is "data" unless it is aliased
+            str.append("LPAD(");
+                str.append("HEX(");
+                    // conv(hex(substr(data, 1+4, 8)), 16, 10)
+                    appendSelectAmountSql(str, vendor, columnName, position);
+                    str.append("+");
+                    vendor.appendBindValue(str, (long)(amount * AMOUNT_DECIMAL_SHIFT), parameters);
+                str.append(" )");
+            str.append(", "+(AMOUNT_BYTE_SIZE*2)+", '0')");
         }
 
         static String getUpdateSummarySql(SqlDatabase db, List<Object> parameters, double amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName, boolean increment) {
-            /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
+            /* TO DO: this is going to have to change once countperformance is merged in - this table does not have typeId */
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("UPDATE ");
@@ -798,7 +693,7 @@ public class CountRecord {
         }
 
         static String getInsertSummarySql(SqlDatabase db, List<Object> parameters, double amount, UUID summaryRecordId, int summaryFieldSymbolId, String tableName, String valueColumnName) {
-            /* TODO: this is going to have to change once countperformance is merged in - this table does not have typeId */
+            /* TO DO: this is going to have to change once countperformance is merged in - this table does not have typeId */
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("INSERT INTO ");
@@ -895,6 +790,247 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
+        static String getCountIdsByDimensionsSelectSql(SqlDatabase db, CountRecordQuery query, boolean preciseMatch) {
+            SqlVendor vendor = db.getVendor();
+            StringBuilder selectBuilder = new StringBuilder();
+            StringBuilder fromBuilder = new StringBuilder();
+            StringBuilder whereBuilder = new StringBuilder();
+            StringBuilder groupByBuilder = new StringBuilder();
+            StringBuilder orderByBuilder = new StringBuilder();
+
+            int i = 0;
+            int count = 1;
+            String alias;
+            selectBuilder.append("SELECT ");
+            vendor.appendIdentifier(selectBuilder, "cr0");
+            selectBuilder.append(".");
+            vendor.appendIdentifier(selectBuilder, COUNTRECORD_COUNTID_FIELD);
+
+            for (String table : Static.getIndexTables(query.getDimensions(),
+                    query.getGroupByDimensions())) {
+                alias = "cr" + i;
+                if (i == 0) {
+                    fromBuilder.append(" \nFROM ");
+                    vendor.appendIdentifier(fromBuilder, table);
+                    fromBuilder.append(" ");
+                    vendor.appendIdentifier(fromBuilder, alias);
+                    whereBuilder.append(" \nWHERE ");
+                    if (preciseMatch) {
+                        vendor.appendIdentifier(whereBuilder, alias);
+                        whereBuilder.append(".");
+                        vendor.appendIdentifier(whereBuilder, "dimensionsSymbolId");
+                        whereBuilder.append(" = ");
+                        whereBuilder.append(db.getSymbolId(query.getSymbol()));
+                    } else {
+                        whereBuilder.append("1 = 1");
+                    }
+                    if (query.getRecordIdForInsert() != null) {
+                        whereBuilder.append(" AND ");
+                        vendor.appendIdentifier(whereBuilder, alias);
+                        whereBuilder.append(".");
+                        vendor.appendIdentifier(whereBuilder, "id");
+                        whereBuilder.append(" = ");
+                        vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
+                    }
+                } else {
+                    fromBuilder.append(" \nJOIN ");
+                    vendor.appendIdentifier(fromBuilder, table);
+                    fromBuilder.append(" ");
+                    vendor.appendIdentifier(fromBuilder, alias);
+                    fromBuilder.append(" ON (");
+                    vendor.appendIdentifier(fromBuilder, "cr0");
+                    fromBuilder.append(".");
+                    vendor.appendIdentifier(fromBuilder, "dimensionsSymbolId");
+                    fromBuilder.append(" = ");
+                    vendor.appendIdentifier(fromBuilder, alias);
+                    fromBuilder.append(".");
+                    vendor.appendIdentifier(fromBuilder, "dimensionsSymbolId");
+                    fromBuilder.append(" AND ");
+                    vendor.appendIdentifier(fromBuilder, "cr0");
+                    fromBuilder.append(".");
+                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
+                    fromBuilder.append(" = ");
+                    vendor.appendIdentifier(fromBuilder, alias);
+                    fromBuilder.append(".");
+                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
+                    if (query.getRecordIdForInsert() != null) {
+                        fromBuilder.append(" AND ");
+                        vendor.appendIdentifier(fromBuilder, alias);
+                        fromBuilder.append(".");
+                        vendor.appendIdentifier(fromBuilder, "id");
+                        fromBuilder.append(" = ");
+                        vendor.appendValue(fromBuilder, query.getRecordIdForInsert());
+                    }
+                    fromBuilder.append(")");
+                }
+
+                int numFilters = 0;
+                // append to where statement
+                whereBuilder.append(" \nAND (");
+                for (Dimension dimension : Static.getDimensionsByIndexTable(
+                        table, query.getDimensions())) {
+                    Set<Object> values = dimension.getValues();
+                    whereBuilder.append("(");
+                    vendor.appendIdentifier(whereBuilder, alias);
+                    whereBuilder.append(".");
+                    vendor.appendIdentifier(whereBuilder, "symbolId");
+                    whereBuilder.append(" = ");
+                    whereBuilder.append(db.getSymbolId(dimension.getSymbol()));
+                    whereBuilder.append(" AND ");
+                    vendor.appendIdentifier(whereBuilder, alias);
+                    whereBuilder.append(".");
+                    vendor.appendIdentifier(whereBuilder, "value");
+                    whereBuilder.append(" IN (");
+                    for (Object v : values) {
+                        vendor.appendValue(whereBuilder, v);
+                        whereBuilder.append(',');
+                        ++numFilters;
+                    }
+                    whereBuilder.setLength(whereBuilder.length() - 1);
+                    whereBuilder.append("))");
+                    whereBuilder.append(" \n  OR "); // 7 chars below
+                }
+                whereBuilder.setLength(whereBuilder.length() - 7);
+                whereBuilder.append(") ");
+                count = count * numFilters;
+                ++i;
+            }
+            groupByBuilder.append("\nGROUP BY ");
+            vendor.appendIdentifier(groupByBuilder, "cr0");
+            groupByBuilder.append(".");
+            vendor.appendIdentifier(groupByBuilder, COUNTRECORD_COUNTID_FIELD);
+            //orderByBuilder.append("\nORDER BY ");
+            //vendor.appendIdentifier(orderByBuilder, "cr0");
+            //orderByBuilder.append(".");
+            //vendor.appendIdentifier(orderByBuilder, COUNTRECORD_COUNTID_FIELD);
+            groupByBuilder.append(" HAVING COUNT(*) = ");
+            groupByBuilder.append(count);
+
+            return selectBuilder.toString() + 
+                " " + fromBuilder.toString() + 
+                " " + whereBuilder.toString() + 
+                " " + groupByBuilder.toString() + 
+                " " + orderByBuilder.toString();
+        }
+
+        static String getSelectCountSql(SqlDatabase db, CountRecordQuery query) {
+            SqlVendor vendor = db.getVendor();
+            boolean selectMinData = false;
+
+            StringBuilder selectBuilder = new StringBuilder();
+            StringBuilder fromBuilder = new StringBuilder();
+            StringBuilder whereBuilder = new StringBuilder();
+
+            selectBuilder.append("SELECT ");
+            selectBuilder.append("ROUND(SUM(");
+
+            // Always select maxData.cumulativeAmount
+            appendSelectAmountSql(selectBuilder, vendor, "maxData", CUMULATIVEAMOUNT_POSITION);
+
+            if (query.getStartTimestamp() != null) {
+                // maxData.cumulativeAmount - minData.cumulativeAmount + minData.amount
+                selectMinData = true;
+                selectBuilder.append(" - ");
+                appendSelectAmountSql(selectBuilder, vendor, "minData", CUMULATIVEAMOUNT_POSITION);
+                selectBuilder.append(" + ");
+                appendSelectAmountSql(selectBuilder, vendor, "minData", AMOUNT_POSITION);
+            }
+
+            selectBuilder.append(") / ");
+            vendor.appendValue(selectBuilder, AMOUNT_DECIMAL_SHIFT);
+            selectBuilder.append(",");
+            vendor.appendValue(selectBuilder, AMOUNT_DECIMAL_PLACES);
+            selectBuilder.append(")");
+
+            selectBuilder.append(" FROM (SELECT ");
+
+            selectBuilder.append("MAX(");
+            vendor.appendIdentifier(selectBuilder, "cr");
+            selectBuilder.append(".");
+            vendor.appendIdentifier(selectBuilder, COUNTRECORD_DATA_FIELD);
+            selectBuilder.append(") ");
+            vendor.appendIdentifier(selectBuilder, "maxData");
+
+            if (selectMinData) {
+                selectBuilder.append(", ");
+                selectBuilder.append("MIN(");
+                vendor.appendIdentifier(selectBuilder, "cr");
+                selectBuilder.append(".");
+                vendor.appendIdentifier(selectBuilder, COUNTRECORD_DATA_FIELD);
+                selectBuilder.append(") ");
+                vendor.appendIdentifier(selectBuilder, "minData");
+            }
+
+            fromBuilder.append(" \nFROM ");
+            vendor.appendIdentifier(fromBuilder, COUNTRECORD_TABLE);
+            fromBuilder.append(" ");
+            vendor.appendIdentifier(fromBuilder, "cr");
+            whereBuilder.append(" \nWHERE ");
+            if (query.getRecordIdForInsert() != null) {
+                vendor.appendIdentifier(whereBuilder, "cr");
+                whereBuilder.append(".");
+                vendor.appendIdentifier(whereBuilder, "id");
+                whereBuilder.append(" = ");
+                vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
+            } else {
+                whereBuilder.append(" 1 = 1 ");
+            }
+            whereBuilder.append(" AND ");
+            vendor.appendIdentifier(whereBuilder, "cr");
+            whereBuilder.append(".");
+            vendor.appendIdentifier(whereBuilder, "actionSymbolId");
+            whereBuilder.append(" = ");
+            vendor.appendValue(whereBuilder, db.getSymbolId(query.getActionSymbol()));
+
+            // for dates
+            StringBuilder dateDataBuilder = new StringBuilder();
+            vendor.appendIdentifier(dateDataBuilder, "cr");
+            dateDataBuilder.append(".");
+            vendor.appendIdentifier(dateDataBuilder, COUNTRECORD_DATA_FIELD);
+
+            if (query.getStartTimestamp() != null) {
+                whereBuilder.append(" AND ");
+                whereBuilder.append(dateDataBuilder);
+                whereBuilder.append(" > ");
+                whereBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(whereBuilder, null, vendor, query.getStartTimestamp(), 'F');
+                whereBuilder.append(")");
+            }
+
+            if (query.getEndTimestamp() != null) {
+                whereBuilder.append(" AND ");
+                whereBuilder.append(dateDataBuilder);
+                whereBuilder.append(" <= ");
+                whereBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(whereBuilder, null, vendor, query.getEndTimestamp(), 'F');
+                whereBuilder.append(")");
+            }
+
+            fromBuilder.append(" JOIN (");
+            fromBuilder.append(getCountIdsByDimensionsSelectSql(db, query, false));
+            fromBuilder.append(") x");
+            fromBuilder.append(" ON (");
+            vendor.appendIdentifier(fromBuilder, "x");
+            fromBuilder.append(".");
+            vendor.appendIdentifier(fromBuilder, "countId");
+            fromBuilder.append(" = ");
+            vendor.appendIdentifier(fromBuilder, "cr");
+            fromBuilder.append(".");
+            vendor.appendIdentifier(fromBuilder, "countId");
+            fromBuilder.append(")");
+
+            whereBuilder.append(") y");
+
+            return selectBuilder.toString() + fromBuilder.toString() + whereBuilder.toString();
+        }
+
+        static String getSelectCountIdSql(SqlDatabase db, CountRecordQuery query) {
+            return getCountIdsByDimensionsSelectSql(db, query, true);
+        }
+
+        // methods that actually touch the database
+
+        // SUMMARY INSERT/UPDATE
         static void doCountSummaryUpdateOrInsert(SqlDatabase db, double amount, ObjectField countField, UUID summaryRecordId, boolean increment) throws SQLException {
             Connection connection = db.openConnection();
             StringBuilder symbolBuilder = new StringBuilder();
@@ -914,7 +1050,6 @@ public class CountRecord {
             try {
                 List<Object> parameters = new ArrayList<Object>();
                 String sql = getUpdateSummarySql(db, parameters, amount, summaryRecordId, summaryFieldSymbolId, summaryTable, columnName, increment);
-                //LOGGER.info("===== [3] " + sql);
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 if (rowsAffected == 0) {
                     parameters = new ArrayList<Object>();
@@ -933,6 +1068,75 @@ public class CountRecord {
 
         static void doSetCountSummaryUpdateOrInsert(SqlDatabase db, double amount, ObjectField countField, UUID summaryRecordId) throws SQLException {
             doCountSummaryUpdateOrInsert(db, amount, countField, summaryRecordId, false);
+        }
+
+        static void doCountSummaryDelete(SqlDatabase db, UUID recordId, ObjectField countField) throws SQLException {
+            Connection connection = db.openConnection();
+            List<Object> parameters = new ArrayList<Object>();
+            StringBuilder symbolBuilder = new StringBuilder();
+            symbolBuilder.append(countField.getJavaDeclaringClassName());
+            symbolBuilder.append("/");
+            symbolBuilder.append(countField.getInternalName());
+            int summaryFieldSymbolId = db.getSymbolId(symbolBuilder.toString());
+            try {
+                String summaryTable = countField.as(SqlDatabase.FieldData.class).getIndexTable();
+                String sql = getDeleteSummarySql(db, recordId, summaryTable, summaryFieldSymbolId);
+                SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+            } finally {
+                db.closeConnection(connection);
+            }
+        }
+
+        // COUNTRECORD INSERT/UPDATE/DELETE
+        static void doInserts(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
+            Connection connection = db.openConnection();
+            try {
+                List<List<Object>> parametersList = new ArrayList<List<Object>>();
+                List<String> sqls = getInsertSqls(db, parametersList, countId, recordId, typeId, actionSymbol, dimensionsSymbol, dimensions, amount, updateDate, eventDate);
+                Iterator<List<Object>> parametersIterator = parametersList.iterator();
+                for (String sql : sqls) {
+                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parametersIterator.next());
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+        }
+
+        static void doIncrementUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double incrementAmount, long updateDate, long eventDate) throws SQLException {
+            Connection connection = db.openConnection();
+            try {
+                List<Object> parameters = new ArrayList<Object>();
+                String sql = getUpdateSql(db, parameters, countId, actionSymbol, incrementAmount, updateDate, eventDate, true);
+                int rowsAffected = SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
+                if (rowsAffected == 0 || getMaxEventDateByCountId(db, countId, actionSymbol, eventDate) != eventDate) {
+                    // Sometimes, rowsAffected will be > 1, but if we're editing an old row (and all rows newer than it), we need to make sure we actually updated that row, if not we need to insert a new one.
+                    double previousCumulativeAmount = getCountByCountId(db, countId, actionSymbol, null, eventDate);
+                    parameters = new ArrayList<Object>();
+                    sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
+                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+        }
+
+        static void doSetUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, long updateDate, long eventDate) throws SQLException {
+            Connection connection = db.openConnection();
+            if (eventDate != 0L) {
+                throw new RuntimeException("CountRecord.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
+            }
+            try {
+                List<Object> parameters = new ArrayList<Object>();
+                String sql = getUpdateSql(db, parameters, countId, actionSymbol, amount, updateDate, eventDate, false);
+                int rowsAffected = SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
+                if (rowsAffected == 0) {
+                    parameters = new ArrayList<Object>();
+                    sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, updateDate, eventDate);
+                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
         }
 
         static void doCountDelete(SqlDatabase db, UUID recordId, DimensionSet dimensions, String actionSymbol) throws SQLException {
@@ -956,26 +1160,11 @@ public class CountRecord {
             }
         }
 
-        static void doCountSummaryDelete(SqlDatabase db, UUID recordId, ObjectField countField) throws SQLException {
-            Connection connection = db.openConnection();
-            List<Object> parameters = new ArrayList<Object>();
-            StringBuilder symbolBuilder = new StringBuilder();
-            symbolBuilder.append(countField.getJavaDeclaringClassName());
-            symbolBuilder.append("/");
-            symbolBuilder.append(countField.getInternalName());
-            int summaryFieldSymbolId = db.getSymbolId(symbolBuilder.toString());
-            try {
-                String summaryTable = countField.as(SqlDatabase.FieldData.class).getIndexTable();
-                String sql = getDeleteSummarySql(db, recordId, summaryTable, summaryFieldSymbolId);
-                SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
-            } finally {
-                db.closeConnection(connection);
-            }
-        }
-
+        // COUNTRECORD SELECT
         static Double getCountByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
-            String sql = getSelectCountSql(db, query);
-            //LOGGER.info("===== [4] " + sql);
+            String sql = null;
+            //UUID countId = Static.getCountIdByDimensions(db, query);
+            sql = getSelectCountSql(db, query);
             Connection connection = db.openReadConnection();
             Double count = 0.0;
             try {
@@ -992,19 +1181,48 @@ public class CountRecord {
             }
         }
 
-        static UUID getCountIdByDimensions(SqlDatabase db, CountRecordQuery query)
-                throws SQLException {
+        static Double getCountByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+            String sql = Static.getCountByCountIdSql(db, countId, actionSymbol, minEventDate, maxEventDate);
+            double cumulativeAmount = 0.0;
+            Connection connection = db.openReadConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                if (result.next()) {
+                    cumulativeAmount = result.getDouble(1);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            return cumulativeAmount;
+        }
+
+        static Long getMaxEventDateByCountId(SqlDatabase db, UUID countId, String actionSymbol, long maxEventDate) throws SQLException {
+            String sql = Static.getMaxEventDateByCountIdSql(db, countId, actionSymbol, maxEventDate);
+            long eventDate = 0L;
+            Connection connection = db.openReadConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                if (result.next()) {
+                    eventDate = result.getLong(1);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            return eventDate;
+        }
+
+        static UUID getCountIdByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
             UUID countId = null;
             // find the countId, it might be null
-            String sql = Static.getSelectPreciseIdSql(db, query);
-            //LOGGER.info("===== [6] " + sql);
+            String sql = Static.getSelectCountIdSql(db, query);
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
                     countId = UuidUtils.fromBytes(result.getBytes(1));
-                    //LOGGER.info(this.countId.toString());
                 }
                 result.close();
                 statement.close();
@@ -1012,20 +1230,6 @@ public class CountRecord {
                 db.closeConnection(connection);
             }
             return countId;
-        }
-
-        public static String getIndexTable(ObjectField field) {
-            String fieldType = field.getInternalItemType();
-            if (fieldType.equals(ObjectField.UUID_TYPE)) {
-                return CountRecord.COUNTRECORD_UUIDINDEX_TABLE;
-            } else if (fieldType.equals(ObjectField.LOCATION_TYPE)) {
-                return CountRecord.COUNTRECORD_LOCATIONINDEX_TABLE;
-            } else if (fieldType.equals(ObjectField.NUMBER_TYPE) || 
-                    fieldType.equals(ObjectField.DATE_TYPE)) {
-                return CountRecord.COUNTRECORD_NUMBERINDEX_TABLE;
-            } else {
-                return CountRecord.COUNTRECORD_STRINGINDEX_TABLE;
-            }
         }
 
     }
@@ -1106,7 +1310,7 @@ class CountRecordQuery {
         return endTimestamp;
     }
 
-    public void setDateRange(long startTimestamp, long endTimestamp) {
+    public void setDateRange(Long startTimestamp, Long endTimestamp) {
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
     }
@@ -1117,6 +1321,10 @@ class CountRecordQuery {
 
     public String[] getOrderByDimensions() {
         return orderByDimensions;
+    }
+
+    public String toString() {
+        return "action: " + getActionSymbol() + " recordId: " + getRecordIdForInsert() + " date range: " + startTimestamp + " - " + endTimestamp + " dimensions: " + dimensions;
     }
 }
 
