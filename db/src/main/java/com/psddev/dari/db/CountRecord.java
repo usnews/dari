@@ -33,8 +33,8 @@ public class CountRecord {
     static final String COUNTRECORD_COUNTID_FIELD = "countId";
     static final String COUNTRECORD_DATA_FIELD = "data";
     static final int QUERY_TIMEOUT = 3;
-    static final long AMOUNT_DECIMAL_SHIFT = 1000000L;
     static final int AMOUNT_DECIMAL_PLACES = 6;
+    static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
     static final long DATE_DECIMAL_SHIFT = 60000L;
     static final int DATE_BYTE_SIZE = 4;
     static final int AMOUNT_BYTE_SIZE = 8;
@@ -334,31 +334,23 @@ public class CountRecord {
 
         // methods that generate SQL
 
-        static String getCountByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) {
+        static String getDataByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate, boolean selectMinData) {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 
-            StringBuilder maxDataBuilder = new StringBuilder();
-            maxDataBuilder.append("MAX(");
-            vendor.appendIdentifier(maxDataBuilder, COUNTRECORD_DATA_FIELD);
-            maxDataBuilder.append(")");
-
-            StringBuilder minDataBuilder = new StringBuilder();
-            minDataBuilder.append("MIN(");
-            vendor.appendIdentifier(minDataBuilder, COUNTRECORD_DATA_FIELD);
-            minDataBuilder.append(")");
-
             sqlBuilder.append("SELECT ");
 
-            sqlBuilder.append("ROUND(");
+            sqlBuilder.append("MAX(");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+            sqlBuilder.append(") ");
+            vendor.appendIdentifier(sqlBuilder, "maxData");
 
-            appendSelectAmountSql(sqlBuilder, vendor, maxDataBuilder.toString(), CUMULATIVEAMOUNT_POSITION);
-
-            sqlBuilder.append(" / ");
-            vendor.appendValue(sqlBuilder, AMOUNT_DECIMAL_SHIFT);
-            sqlBuilder.append(", ");
-            vendor.appendValue(sqlBuilder, AMOUNT_DECIMAL_PLACES);
-            sqlBuilder.append(")");
+            if (selectMinData) {
+                sqlBuilder.append(", MIN(");
+                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                sqlBuilder.append(") ");
+                vendor.appendIdentifier(sqlBuilder, "minData");
+            }
 
             sqlBuilder.append(" FROM ");
             vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
@@ -384,87 +376,9 @@ public class CountRecord {
             if (minEventDate != null) {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
-                sqlBuilder.append(" > ");
+                sqlBuilder.append(" >= ");
                 sqlBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
-                sqlBuilder.append(")");
-            }
-
-            return sqlBuilder.toString();
-        }
-
-        static String getMaxEventDateByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) {
-            StringBuilder sqlBuilder = new StringBuilder();
-            SqlVendor vendor = db.getVendor();
-
-            StringBuilder dataBuilder = new StringBuilder();
-            dataBuilder.append("MAX(");
-            vendor.appendIdentifier(dataBuilder, COUNTRECORD_DATA_FIELD);
-            dataBuilder.append(")");
-
-            sqlBuilder.append("SELECT ");
-
-            sqlBuilder.append("ROUND(");
-            appendSelectTimestampSql(sqlBuilder, vendor, dataBuilder.toString());
-
-            sqlBuilder.append(" * ");
-            vendor.appendValue(sqlBuilder, DATE_DECIMAL_SHIFT);
-            sqlBuilder.append(", ");
-            vendor.appendValue(sqlBuilder, 0);
-            sqlBuilder.append(")");
-
-            sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
-            sqlBuilder.append(" WHERE ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, countId);
-
-            sqlBuilder.append(" AND ");
-            vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, db.getSymbolId(actionSymbol));
-
-            if (maxEventDate != null) {
-                sqlBuilder.append(" AND ");
-                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
-                sqlBuilder.append(" <= ");
-                sqlBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
-                sqlBuilder.append(")");
-            }
-
-            return sqlBuilder.toString();
-        }
-
-        static String getMaxDataByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) {
-            StringBuilder sqlBuilder = new StringBuilder();
-            SqlVendor vendor = db.getVendor();
-
-            sqlBuilder.append("SELECT ");
-
-            sqlBuilder.append("MAX(");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
-            sqlBuilder.append(")");
-
-            sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
-            sqlBuilder.append(" WHERE ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, countId);
-
-            sqlBuilder.append(" AND ");
-            vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, db.getSymbolId(actionSymbol));
-
-            if (maxEventDate != null) {
-                sqlBuilder.append(" AND ");
-                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
-                sqlBuilder.append(" <= ");
-                sqlBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
+                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, minEventDate, '0');
                 sqlBuilder.append(")");
             }
 
@@ -485,14 +399,6 @@ public class CountRecord {
                         vendor.appendValue(str, AMOUNT_BYTE_SIZE);
                     str.append(")");
                 str.append(")");
-            str.append(", 16, 10)");
-        }
-
-        private static void appendSelectTimestampSql(StringBuilder str, SqlVendor vendor, String columnIdentifier) {
-            // This does NOT shift the decimal place. Do it yourself AFTER any other arithmetic.
-            // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
-            str.append("CONV(");
-            appendHexEncodeExistingTimestampSql(str, vendor, columnIdentifier);
             str.append(", 16, 10)");
         }
 
@@ -988,7 +894,6 @@ public class CountRecord {
 
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
-            StringBuilder whereBuilder = new StringBuilder();
 
             selectBuilder.append("SELECT ");
             selectBuilder.append("ROUND(SUM(");
@@ -1010,8 +915,20 @@ public class CountRecord {
             selectBuilder.append(",");
             vendor.appendValue(selectBuilder, AMOUNT_DECIMAL_PLACES);
             selectBuilder.append(")");
+            fromBuilder.append(" FROM (");
+            fromBuilder.append(getSelectCountIdDataSql(db, query, selectMinData));
+            fromBuilder.append(") x2");
 
-            selectBuilder.append(" FROM (SELECT ");
+            return selectBuilder.toString() + fromBuilder.toString();
+        }
+
+        static String getSelectCountIdDataSql(SqlDatabase db, CountRecordQuery query, boolean selectMinData) {
+            StringBuilder selectBuilder = new StringBuilder();
+            StringBuilder fromBuilder = new StringBuilder();
+            StringBuilder whereBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+
+            selectBuilder.append("SELECT ");
 
             selectBuilder.append("MAX(");
             vendor.appendIdentifier(selectBuilder, "cr");
@@ -1087,8 +1004,6 @@ public class CountRecord {
             fromBuilder.append(".");
             vendor.appendIdentifier(fromBuilder, "countId");
             fromBuilder.append(")");
-
-            whereBuilder.append(") y");
 
             return selectBuilder.toString() + fromBuilder.toString() + whereBuilder.toString();
         }
@@ -1177,7 +1092,7 @@ public class CountRecord {
                 List<Object> parameters = new ArrayList<Object>();
 
                 // First, find the max eventDate. Under normal circumstances, this will either be null (INSERT), before our eventDate (INSERT) or equal to our eventDate (UPDATE).
-                byte[] data = getMaxDataByCountId(db, countId, actionSymbol, null);
+                byte[] data = getDataByCountId(db, countId, actionSymbol, null, null);
                 String sql;
 
                 if (data == null || timestampFromBytes(data) < eventDate) {
@@ -1261,39 +1176,28 @@ public class CountRecord {
         }
 
         static Double getCountByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
-            String sql = Static.getCountByCountIdSql(db, countId, actionSymbol, minEventDate, maxEventDate);
-            double cumulativeAmount = 0.0;
-            Connection connection = db.openReadConnection();
-            try {
-                Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                if (result.next()) {
-                    cumulativeAmount = result.getDouble(1);
-                }
-            } finally {
-                db.closeConnection(connection);
+            if (minEventDate == null) {
+                byte[] data = getDataByCountId(db, countId, actionSymbol, minEventDate, maxEventDate);
+                if (data == null) return null;
+                return amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
+            } else {
+                List<byte[]> datas = getMinMaxDataByCountId(db, countId, actionSymbol, minEventDate, maxEventDate);
+                if (datas.size() == 0) return null;
+                double maxCumulativeAmount = amountFromBytes(datas.get(0), CUMULATIVEAMOUNT_POSITION);
+                double minCumulativeAmount = amountFromBytes(datas.get(1), CUMULATIVEAMOUNT_POSITION);
+                double minAmount = amountFromBytes(datas.get(1), AMOUNT_POSITION);
+                return maxCumulativeAmount - minCumulativeAmount + minAmount;
             }
-            return cumulativeAmount;
         }
 
-        static Long getMaxEventDateByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) throws SQLException {
-            String sql = Static.getMaxEventDateByCountIdSql(db, countId, actionSymbol, maxEventDate);
-            long eventDate = 0L;
-            Connection connection = db.openReadConnection();
-            try {
-                Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                if (result.next()) {
-                    eventDate = result.getLong(1);
-                }
-            } finally {
-                db.closeConnection(connection);
-            }
-            return eventDate;
+        static Long getMaxEventDateByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+            byte[] data = getDataByCountId(db, countId, actionSymbol, minEventDate, maxEventDate);
+            if (data == null) return null;
+            return timestampFromBytes(data);
         }
 
-        static byte[] getMaxDataByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) throws SQLException {
-            String sql = Static.getMaxDataByCountIdSql(db, countId, actionSymbol, maxEventDate);
+        static byte[] getDataByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+            String sql = Static.getDataByCountIdSql(db, countId, actionSymbol, minEventDate, maxEventDate, false);
             byte[] data = null;
             Connection connection = db.openReadConnection();
             try {
@@ -1306,6 +1210,23 @@ public class CountRecord {
                 db.closeConnection(connection);
             }
             return data;
+        }
+
+        static List<byte[]> getMinMaxDataByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+            List<byte[]> datas = new ArrayList<byte[]>();
+            String sql = Static.getDataByCountIdSql(db, countId, actionSymbol, minEventDate, maxEventDate, true);
+            Connection connection = db.openReadConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                if (result.next()) {
+                    datas.add(result.getBytes(1));
+                    datas.add(result.getBytes(2));
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            return datas;
         }
 
         static UUID getCountIdByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
