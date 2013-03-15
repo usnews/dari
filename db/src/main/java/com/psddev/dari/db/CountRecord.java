@@ -437,6 +437,40 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
+        static String getMaxDataByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) {
+            StringBuilder sqlBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+
+            sqlBuilder.append("SELECT ");
+
+            sqlBuilder.append("MAX(");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+            sqlBuilder.append(")");
+
+            sqlBuilder.append(" FROM ");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
+            sqlBuilder.append(" WHERE ");
+            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, countId);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, db.getSymbolId(actionSymbol));
+
+            if (maxEventDate != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                sqlBuilder.append(" <= ");
+                sqlBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
+                sqlBuilder.append(")");
+            }
+
+            return sqlBuilder.toString();
+        }
+
         private static void appendSelectAmountSql(StringBuilder str, SqlVendor vendor, String columnIdentifier, int position) {
             // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic.
             // position is 1 or 2
@@ -523,6 +557,28 @@ public class CountRecord {
             return bytes;
         }
 
+        static long timestampFromBytes(byte[] bytes) {
+            long timestamp = 0;
+
+            for (int i = 0; i < DATE_BYTE_SIZE; ++i) {
+                timestamp = (timestamp << 8) | (bytes[i] & 0xff);
+            }
+
+            return timestamp * DATE_DECIMAL_SHIFT;
+        }
+
+        static double amountFromBytes(byte[] bytes, int position) {
+            long amountLong = 0;
+
+            int offset = DATE_BYTE_SIZE + ((position-1)*AMOUNT_BYTE_SIZE);
+
+            for (int i = 0; i < AMOUNT_BYTE_SIZE; ++i) {
+                amountLong = (amountLong << 8) | (bytes[i+offset] & 0xff);
+            }
+
+            return (double) amountLong / AMOUNT_DECIMAL_SHIFT;
+        }
+
         static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID countId, UUID recordId, String dimensionsSymbol, Dimension dimension, Object value, String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
@@ -549,7 +605,7 @@ public class CountRecord {
             return insertBuilder.toString();
         }
 
-        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID countId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment) {
+        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID countId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment, boolean updateFuture) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
             vendor.appendIdentifier(updateBuilder, COUNTRECORD_TABLE);
@@ -566,19 +622,23 @@ public class CountRecord {
                     if (increment) {
                         appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
                         updateBuilder.append(',');
-                        updateBuilder.append("IF (");
-                            vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
-                            updateBuilder.append(" LIKE ");
-                                updateBuilder.append(" CONCAT(");
-                                    updateBuilder.append(" UNHEX(");
-                                        appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
-                                    updateBuilder.append(")");
-                                updateBuilder.append(", '%')");
-                                updateBuilder.append(","); // if it's the exact date, then update the amount
-                                appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, amount);
-                                updateBuilder.append(","); // if it's a date in the future, leave the date alone
-                                appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, 0);
+                        if (updateFuture) {
+                            updateBuilder.append("IF (");
+                                vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
+                                updateBuilder.append(" LIKE ");
+                                    updateBuilder.append(" CONCAT(");
+                                        updateBuilder.append(" UNHEX(");
+                                            appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
+                                        updateBuilder.append(")");
+                                    updateBuilder.append(", '%')");
+                                    updateBuilder.append(","); // if it's the exact date, then update the amount
+                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, amount);
+                                    updateBuilder.append(","); // if it's a date in the future, leave the date alone
+                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, 0);
                             updateBuilder.append(")");
+                        } else {
+                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
+                        }
                     } else {
                         appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
                         updateBuilder.append(',');
@@ -602,11 +662,20 @@ public class CountRecord {
             updateBuilder.append(" AND ");
 
             vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
-            // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
-            updateBuilder.append(" >= ");
-            updateBuilder.append(" UNHEX(");
-            appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, '0');
-            updateBuilder.append(")");
+            if (updateFuture) {
+                // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
+                updateBuilder.append(" >= ");
+                updateBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, '0');
+                updateBuilder.append(")");
+            } else {
+                updateBuilder.append(" LIKE ");
+                updateBuilder.append(" CONCAT(");
+                updateBuilder.append(" UNHEX(");
+                appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
+                updateBuilder.append(")");
+                updateBuilder.append(", '%')");
+            }
 
             return updateBuilder.toString();
         }
@@ -1106,15 +1175,25 @@ public class CountRecord {
             Connection connection = db.openConnection();
             try {
                 List<Object> parameters = new ArrayList<Object>();
-                String sql = getUpdateSql(db, parameters, countId, actionSymbol, incrementAmount, updateDate, eventDate, true);
-                int rowsAffected = SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
-                if (rowsAffected == 0 || getMaxEventDateByCountId(db, countId, actionSymbol, eventDate) != eventDate) {
-                    // Sometimes, rowsAffected will be > 1, but if we're editing an old row (and all rows newer than it), we need to make sure we actually updated that row, if not we need to insert a new one.
-                    double previousCumulativeAmount = getCountByCountId(db, countId, actionSymbol, null, eventDate);
+
+                // First, find the max eventDate. Under normal circumstances, this will either be null (INSERT), before our eventDate (INSERT) or equal to our eventDate (UPDATE).
+                byte[] data = getMaxDataByCountId(db, countId, actionSymbol, null);
+                String sql;
+
+                if (data == null || timestampFromBytes(data) < eventDate) {
+                    // No data for this eventDate; insert.
+                    double previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                     parameters = new ArrayList<Object>();
                     sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
-                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                } else if (timestampFromBytes(data) == eventDate) {
+                    // There is data for this eventDate; update it.
+                    sql = getUpdateSql(db, parameters, countId, actionSymbol, incrementAmount, updateDate, eventDate, true, false);
+                } else { // if (timestampFromBytes(data) > eventDate) {
+                    // We are updating a row in the past, so we need to tell updateSql to update the cumulativeAmount for all rows in the future.
+                    sql = getUpdateSql(db, parameters, countId, actionSymbol, incrementAmount, updateDate, eventDate, true, true);
                 }
+                SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
+
             } finally {
                 db.closeConnection(connection);
             }
@@ -1127,7 +1206,7 @@ public class CountRecord {
             }
             try {
                 List<Object> parameters = new ArrayList<Object>();
-                String sql = getUpdateSql(db, parameters, countId, actionSymbol, amount, updateDate, eventDate, false);
+                String sql = getUpdateSql(db, parameters, countId, actionSymbol, amount, updateDate, eventDate, false, false);
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 if (rowsAffected == 0) {
                     parameters = new ArrayList<Object>();
@@ -1197,7 +1276,7 @@ public class CountRecord {
             return cumulativeAmount;
         }
 
-        static Long getMaxEventDateByCountId(SqlDatabase db, UUID countId, String actionSymbol, long maxEventDate) throws SQLException {
+        static Long getMaxEventDateByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) throws SQLException {
             String sql = Static.getMaxEventDateByCountIdSql(db, countId, actionSymbol, maxEventDate);
             long eventDate = 0L;
             Connection connection = db.openReadConnection();
@@ -1211,6 +1290,22 @@ public class CountRecord {
                 db.closeConnection(connection);
             }
             return eventDate;
+        }
+
+        static byte[] getMaxDataByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long maxEventDate) throws SQLException {
+            String sql = Static.getMaxDataByCountIdSql(db, countId, actionSymbol, maxEventDate);
+            byte[] data = null;
+            Connection connection = db.openReadConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                if (result.next()) {
+                    data = result.getBytes(1);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            return data;
         }
 
         static UUID getCountIdByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
