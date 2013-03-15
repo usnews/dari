@@ -1,12 +1,11 @@
 package com.psddev.dari.util;
 
-import org.apache.commons.lang.StringEscapeUtils;
-
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
@@ -21,6 +20,11 @@ import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.lang.StringEscapeUtils;
 
 /** String utility methods. */
 public class StringUtils {
@@ -448,6 +452,32 @@ public class StringUtils {
     /** Hashes the given {@code string} using the SHA-512 algorithm. */
     public static byte[] sha512(String string) {
         return hash("SHA-512", string);
+    }
+
+    /**
+     * Hashes the given {@code string} using the given HMAC {@code algorithm}
+     * and {@code key}.
+     */
+    public static byte[] hmac(String algorithm, String key, String string) {
+        try {
+            Mac mac = Mac.getInstance(algorithm);
+            mac.init(new SecretKeySpec(key.getBytes(StringUtils.UTF_8), algorithm));
+            return mac.doFinal(string.getBytes(StringUtils.UTF_8));
+
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalArgumentException(String.format("[%s] isn't a valid HMAC algorithm!", algorithm), error);
+
+        } catch (InvalidKeyException error) {
+            throw new IllegalArgumentException(String.format("[%s] isn't a valid key!", key), error);
+        }
+    }
+
+    /**
+     * Hashes the given {@code string} using the HMAC SHA-1 algorithm
+     * and the given {@code key}.
+     */
+    public static byte[] hmacSha1(String key, String string) {
+        return hmac("HmacSHA1", key, string);
     }
 
     // --- URL/URI ---
