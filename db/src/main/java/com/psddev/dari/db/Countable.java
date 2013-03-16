@@ -196,18 +196,6 @@ public interface Countable extends Recordable {
             }
         }
 
-        public void syncCountSummary(Class<? extends Record> recordClass) {
-            syncCountSummary(recordClass, null);
-        }
-
-        public void syncCountSummary(Class<? extends Record> recordClass, String countFieldInternalName) {
-            try {
-                getCountRecord(recordClass, countFieldInternalName).syncCountSummary();
-            } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(recordClass, countFieldInternalName).getDatabase(), "Error in CountRecord.getCount() : " + e.getLocalizedMessage());
-            }
-        }
-
         /*
         public CountRecord getCountRecord(Class<? extends Record> recordClass) {
             ObjectField countField = getCountField(recordClass, null);
@@ -239,7 +227,6 @@ public interface Countable extends Recordable {
                 if (countField.as(CountableFieldData.class).isIncludeSelfDimension()) {
                     countRecord.setIncludeSelfDimension(true);
                 }
-                countRecord.setSummaryField(countField);
                 countRecords.get(recordClass).put(countFieldInternalName, countRecord);
             }
             return countRecords.get(recordClass).get(countFieldInternalName);
