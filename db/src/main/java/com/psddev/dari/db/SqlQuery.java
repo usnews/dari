@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -36,12 +37,16 @@ class SqlQuery {
     private final Map<String, Query.MappedKey> mappedKeys;
     private final Map<String, ObjectIndex> selectedIndexes;
 
+    private String selectClause;
     private String fromClause;
     private String whereClause;
+    private String groupByClause;
     private String havingClause;
     private String orderByClause;
     private String extraSourceColumns;
+    private String lastRecordJoinTableAlias;
     private List<String> orderBySelectColumns = new ArrayList<String>();
+    private List<String> groupBySelectColumnAliases = new ArrayList<String>();
     private final List<Join> joins = new ArrayList<Join>();
     private final Map<Query<?>, String> subQueries = new LinkedHashMap<Query<?>, String>();
     private final Map<Query<?>, SqlQuery> subSqlQueries = new HashMap<Query<?>, SqlQuery>();
@@ -49,6 +54,7 @@ class SqlQuery {
     private boolean needsDistinct;
     private Join mysqlIndexHint;
     private boolean forceLeftJoins;
+    private boolean doCountInGroupBy = true;
 
     /**
      * Creates an instance that can translate the given {@code query}
@@ -145,7 +151,12 @@ class SqlQuery {
             for (ObjectType type : queryTypes) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    if (fieldData.isIndexTableSource() && ! field.as(Countable.CountableFieldData.class).isDimension()) {
+                    Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
+                    if (fieldData.isIndexTableSource() && 
+                            fieldData.getIndexTable() != null &&
+                            ! countableFieldData.isDimension() && 
+                            ! countableFieldData.isEventDateField() && 
+                            ! countableFieldData.isCountField()) {
                         // TODO/performance: if this is a count(), don't join to this table. 
                         // if this is a groupBy() and they don't want to group by 
                         // a field in this table, don't join to this table.
@@ -167,8 +178,7 @@ class SqlQuery {
                 if (type != null) {
                     for (ObjectField field : type.getFields()) {
                         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-
-                        if (fieldData.isIndexTableSource()) {
+                        if (fieldData.isIndexTableSource() && fieldData.getIndexTable() != null) {
                             sourceTables.add(field);
                         }
                     }
@@ -231,6 +241,7 @@ class SqlQuery {
         }
 
         Predicate predicate = query.getPredicate();
+
         if (predicate != null) {
             whereBuilder.append("\nAND (");
             addWherePredicate(whereBuilder, predicate, null, false);
@@ -300,13 +311,41 @@ class SqlQuery {
         HashMap<String, String> joinTableAliases = new HashMap<String, String>();
 
         for (Join join : joins) {
-            if (join.indexKeys.isEmpty()) {
-                continue;
+
+            if (join.recordJoinTable != null) {
+                fromBuilder.append("\n");
+                fromBuilder.append((forceLeftJoins ? JoinType.LEFT_OUTER : join.type).token);
+                fromBuilder.append(" ");
+                fromBuilder.append(join.recordJoinTable);
+                fromBuilder.append(" ON ");
+                fromBuilder.append(join.recordJoinIdField);
+                fromBuilder.append(" = ");
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "id");
+
+                fromBuilder.append(" AND ");
+                vendor.appendIdentifier(fromBuilder, join.recordJoinTableAlias);
+                fromBuilder.append(".");
+                vendor.appendIdentifier(fromBuilder, "typeId");
+                fromBuilder.append(" = ");
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "typeId");
+
+                if (join.joinToPreviousRecordJoinTable != null) {
+                    fromBuilder.append(" AND ");
+                    vendor.appendIdentifier(fromBuilder, join.recordJoinTableAlias);
+                    fromBuilder.append(".");
+                    vendor.appendIdentifier(fromBuilder, "countId");
+                    fromBuilder.append(" = ");
+                    vendor.appendIdentifier(fromBuilder, join.joinToPreviousRecordJoinTable);
+                    fromBuilder.append(".");
+                    vendor.appendIdentifier(fromBuilder, "countId");
+                }
             }
 
-            ObjectField joinField = join.index.getParent().getField(join.index.getField());
-            if (joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
-                // don't ever join on CountRecord like this - disaster!
+            if (join.indexKeys.isEmpty()) {
                 continue;
             }
 
@@ -332,9 +371,16 @@ class SqlQuery {
             fromBuilder.append(" ON ");
             fromBuilder.append(join.idField);
             fromBuilder.append(" = ");
-            fromBuilder.append(aliasPrefix);
-            fromBuilder.append("r.");
-            vendor.appendIdentifier(fromBuilder, "id");
+            if (join.recordJoinTable == null) {
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "id");
+            } else {
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append(join.alias);
+                fromBuilder.append("rjt.");
+                vendor.appendIdentifier(fromBuilder, "countId");
+            }
             fromBuilder.append(" AND ");
             fromBuilder.append(join.keyField);
             fromBuilder.append(" IN (");
@@ -540,6 +586,14 @@ class SqlQuery {
             String queryKey = comparisonPredicate.getKey();
             Query.MappedKey mappedKey = mappedKeys.get(queryKey);
             boolean isFieldCollection = mappedKey.isInternalCollectionType();
+
+            if (mappedKey.getField() != null) {
+                Countable.CountableFieldData countableFieldData = mappedKey.getField().as(Countable.CountableFieldData.class);
+                if (countableFieldData.isDimension()) {
+                    usesLeftJoin = true;
+                    needsDistinct = true;
+                }
+            }
 
             Join join = null;
             if (mappedKey.getField() != null &&
@@ -846,19 +900,16 @@ class SqlQuery {
         Map<String, Join> groupJoins = new LinkedHashMap<String, Join>();
         if (groupFields != null) {
             for (String groupField : groupFields) {
-                /*
-                if (query.getCountActionSymbol() != null && groupField.toLowerCase().startsWith("eventdate[")) {
-                    Matcher eventDateFormatMatcher = EVENT_DATE_FORMAT_PATTERN.matcher(groupField);
-                    if (eventDateFormatMatcher.find()) {
-                        String dateFormat = eventDateFormatMatcher.group(1);
-                        LOGGER.info("===== dateFormat: " + dateFormat);
-                        //eventDateFormatStrings.add(dateFormat);
-                        groupJoins.put(dateFormat, null);
-                        //orderBySelectColumns.add("'"+dateFormat+"'");
-                    }
-                } else {
-                */
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
+                if (mappedKey.getField() != null) {
+                    Countable.CountableFieldData countableFieldData = mappedKey.getField().as(Countable.CountableFieldData.class);
+                    if (countableFieldData.isCountField()) {
+                        throw new RuntimeException("Unable to group by @CountField: " + groupField);
+                    }
+                    if (countableFieldData.isEventDateField()) { // TODO: this one has to work . . .
+                        continue;
+                    }
+                }
                 mappedKeys.put(groupField, mappedKey);
                 Iterator<ObjectIndex> indexesIterator = mappedKey.getIndexes().iterator();
                 if (indexesIterator.hasNext()) {
@@ -872,12 +923,6 @@ class SqlQuery {
                     selectedIndexes.put(groupField, selectedIndex);
                 }
                 Join join = getJoin(groupField);
-                if (join.index != null) {
-                    ObjectField joinField = join.index.getParent().getField(join.index.getField());
-                    if (joinField.as(Countable.CountableFieldData.class).isDimension()) {
-                        join.type = JoinType.LEFT_OUTER;
-                    }
-                }
                 groupJoins.put(groupField, join);
             }
         }
@@ -886,21 +931,42 @@ class SqlQuery {
         StringBuilder groupBy = new StringBuilder();
         initializeClauses();
 
-        statementBuilder.append("SELECT COUNT(");
-        if (needsDistinct) {
-            statementBuilder.append("DISTINCT ");
+        if (doCountInGroupBy) {
+            statementBuilder.append("SELECT COUNT(");
+            if (needsDistinct) {
+                statementBuilder.append("DISTINCT ");
+            }
+            statementBuilder.append(recordIdField);
+            statementBuilder.append(")");
+            statementBuilder.append(" ");
+            vendor.appendIdentifier(statementBuilder, "_count");
+        } else {
+            statementBuilder.append("SELECT ");
         }
-        statementBuilder.append(recordIdField);
-        statementBuilder.append(")");
+        int columnNum = 0;
         for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
-            statementBuilder.append(", ");
+            if (statementBuilder.length() > "SELECT ".length()) {
+                statementBuilder.append(", ");
+            }
             statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+            statementBuilder.append(" ");
+            String columnAlias = null;
+            if (! entry.getValue().queryKey.equals(Query.COUNTID_KEY)) { // Special case for countId
+                // These column names just need to be unique if we put this statement in a subquery
+                columnAlias = "value" + columnNum;
+                groupBySelectColumnAliases.add(columnAlias);
+            }
+            ++columnNum;
+            if (columnAlias != null) {
+                vendor.appendIdentifier(statementBuilder, columnAlias);
+            }
         }
 
         for (String field : orderBySelectColumns) {
             statementBuilder.append(", ");
             statementBuilder.append(field);
         }
+        selectClause = statementBuilder.toString();
 
         statementBuilder.append("\nFROM ");
         vendor.appendIdentifier(statementBuilder, "Record");
@@ -915,16 +981,18 @@ class SqlQuery {
             groupBy.append(", ");
         }
 
-        if (groupBy.length() > 0) {
-            groupBy.setLength(groupBy.length() - 2);
-            statementBuilder.append(" GROUP BY ");
-            statementBuilder.append(groupBy);
+        for (String field : orderBySelectColumns) {
+            groupBy.append(field);
+            groupBy.append(", ");
         }
 
-        for (String field : orderBySelectColumns) {
-            statementBuilder.append(", ");
-            statementBuilder.append(field);
+        if (groupBy.length() > 0) {
+            groupBy.setLength(groupBy.length() - 2);
+            groupBy.insert(0, " GROUP BY ");
         }
+        groupByClause = groupBy.toString();
+
+        statementBuilder.append(groupByClause);
 
         if (orderBySelectColumns.size() > 0) {
 
@@ -954,6 +1022,126 @@ class SqlQuery {
         statementBuilder.append(havingClause);
 
         return statementBuilder.toString();
+    }
+
+    /**
+     * Returns an SQL statement that can be used to get the sum 
+     * of the specified CountRecord {@code countFieldName} grouped by the values 
+     * of the given {@code groupFields}.
+     */
+    public String groupedCountRecordSql(String countFieldName, String[] fields) {
+
+        Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), countFieldName);
+        if (mappedKey.getField() == null) {
+            throw new RuntimeException("Invalid CountRecord field: " + countFieldName);
+        }
+        ObjectField countField = mappedKey.getField();
+
+        String actionSymbol = countField.getJavaDeclaringClassName() + "/" + countField.getInternalName();
+
+        String[] innerGroupByFields = Arrays.copyOf(fields, fields.length+1);
+        innerGroupByFields[fields.length] = Query.COUNTID_KEY;
+        doCountInGroupBy = false;
+        String innerSql = groupStatement(innerGroupByFields);
+        assert fields.length == groupBySelectColumnAliases.size();
+        // Important to note that count(*) is the 1st column, 
+
+        StringBuilder selectBuilder = new StringBuilder();
+        StringBuilder fromBuilder = new StringBuilder();
+        StringBuilder whereBuilder = new StringBuilder();
+        StringBuilder groupByBuilder = new StringBuilder();
+
+        selectBuilder.append("SELECT MAX(");
+        vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_TABLE);
+        selectBuilder.append(".");
+        vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_DATA_FIELD);
+        selectBuilder.append(") maxData");
+        // TODO: minData for ranges 
+
+        for (String field : groupBySelectColumnAliases) {
+            selectBuilder.append(", ");
+            vendor.appendIdentifier(selectBuilder, field);
+        }
+
+        // when feature/countperformance is merged in, we might have to do something different here
+
+        fromBuilder.append(" \nFROM (");
+        fromBuilder.append(innerSql);
+        fromBuilder.append(" ) x ");
+        fromBuilder.append(" JOIN ");
+        vendor.appendIdentifier(fromBuilder, CountRecord.COUNTRECORD_TABLE);
+        fromBuilder.append(" ON (");
+        vendor.appendIdentifier(fromBuilder, "x");
+        fromBuilder.append(".");
+        vendor.appendIdentifier(fromBuilder, "countId");
+        fromBuilder.append(" = ");
+        vendor.appendIdentifier(fromBuilder, CountRecord.COUNTRECORD_TABLE);
+        fromBuilder.append(".");
+        vendor.appendIdentifier(fromBuilder, "countId");
+
+        fromBuilder.append(") ");
+
+        whereBuilder.append(" WHERE ");
+        vendor.appendIdentifier(whereBuilder, CountRecord.COUNTRECORD_TABLE);
+        whereBuilder.append(".");
+        vendor.appendIdentifier(whereBuilder, "actionSymbolId");
+        whereBuilder.append(" = ");
+        vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
+
+        groupByBuilder.append(" GROUP BY ");
+        vendor.appendIdentifier(groupByBuilder, CountRecord.COUNTRECORD_TABLE);
+        groupByBuilder.append(".");
+        vendor.appendIdentifier(groupByBuilder, CountRecord.COUNTRECORD_COUNTID_FIELD);
+        for (String field : groupBySelectColumnAliases) {
+            groupByBuilder.append(", ");
+            vendor.appendIdentifier(groupByBuilder, field);
+        }
+
+        // Now, wrap that again
+        innerSql = selectBuilder + 
+            " " + fromBuilder +
+            " " + whereBuilder +
+            " " + groupByBuilder;
+
+        selectBuilder = new StringBuilder();
+        fromBuilder = new StringBuilder();
+        whereBuilder = new StringBuilder();
+        groupByBuilder = new StringBuilder();
+
+        selectBuilder.append("SELECT ");
+        selectBuilder.append("ROUND(SUM(");
+        CountRecord.Static.appendSelectAmountSql(selectBuilder, vendor, "maxData", CountRecord.CUMULATIVEAMOUNT_POSITION);
+        // TODO: minData for ranges 
+        selectBuilder.append(") / ");
+        vendor.appendValue(selectBuilder, CountRecord.AMOUNT_DECIMAL_SHIFT);
+        selectBuilder.append(",");
+        vendor.appendValue(selectBuilder, CountRecord.AMOUNT_DECIMAL_PLACES);
+        selectBuilder.append(") ");
+        vendor.appendIdentifier(selectBuilder, "amount");
+
+        for (String field : groupBySelectColumnAliases) {
+            selectBuilder.append(", ");
+            vendor.appendIdentifier(selectBuilder, field);
+        }
+
+        fromBuilder.append(" \nFROM (");
+        fromBuilder.append(innerSql);
+        fromBuilder.append(" ) x2 ");
+
+        if (groupBySelectColumnAliases.size() > 0) {
+            groupByBuilder.append(" GROUP BY ");
+        }
+        for (String field : groupBySelectColumnAliases) {
+            if (groupByBuilder.length() > " GROUP BY ".length()) {
+                groupByBuilder.append(", ");
+            }
+            vendor.appendIdentifier(groupByBuilder, field);
+        }
+
+        return selectBuilder + 
+            " " + fromBuilder +
+            " " + whereBuilder +
+            " " + groupByBuilder;
     }
 
     /**
@@ -1102,11 +1290,7 @@ class SqlQuery {
     }
 
     private Join createJoin(String queryKey) {
-        ObjectField field = mappedKeys.get(queryKey).getField();
         String alias = "i" + joins.size();
-        if (field != null && field.as(Countable.CountableFieldData.class).isEventDateField()) {
-            alias = "r";
-        }
         Join join = new Join(alias, queryKey);
         joins.add(join);
         if (queryKey.equals(query.getOptions().get(SqlDatabase.MYSQL_INDEX_HINT_QUERY_OPTION))) {
@@ -1152,6 +1336,10 @@ class SqlQuery {
         return join;
     }
 
+    public String getAliasPrefix() {
+        return aliasPrefix;
+    }
+
     private class Join {
 
         public Predicate parent;
@@ -1163,6 +1351,10 @@ class SqlQuery {
         public final String indexType;
         public final String table;
         public final String idField;
+        public final String recordJoinTable;
+        public final String recordJoinTableAlias;
+        public final String recordJoinIdField;
+        public final String joinToPreviousRecordJoinTable;
         public final String keyField;
         public final List<String> indexKeys = new ArrayList<String>();
 
@@ -1185,6 +1377,10 @@ class SqlQuery {
                     SqlIndex.Static.getByIndex(this.index) :
                     SqlIndex.Static.getByType(this.indexType);
 
+            ObjectField joinField = null;
+            if (this.index != null)
+                joinField = this.index.getParent().getField(this.index.getField());
+
             if (Query.ID_KEY.equals(queryKey)) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
@@ -1194,6 +1390,10 @@ class SqlQuery {
                 tableName = null;
                 idField = null;
                 keyField = null;
+                recordJoinTable = null;
+                recordJoinTableAlias = null;
+                recordJoinIdField = null;
+                joinToPreviousRecordJoinTable = null;
 
             } else if (Query.TYPE_KEY.equals(queryKey)) {
                 needsIndexTable = false;
@@ -1204,6 +1404,46 @@ class SqlQuery {
                 tableName = null;
                 idField = null;
                 keyField = null;
+                recordJoinTable = null;
+                recordJoinTableAlias = null;
+                recordJoinIdField = null;
+                joinToPreviousRecordJoinTable = null;
+
+            } else if (Query.COUNTID_KEY.equals(queryKey) && lastRecordJoinTableAlias != null) {
+                needsIndexTable = false;
+                likeValuePrefix = null;
+                valueField = aliasedField(lastRecordJoinTableAlias, CountRecord.COUNTRECORD_COUNTID_FIELD);
+                sqlIndexTable = null;
+                table = null;
+                tableName = null;
+                idField = null;
+                keyField = null;
+                recordJoinTable = null;
+                recordJoinTableAlias = null;
+                recordJoinIdField = null;
+                joinToPreviousRecordJoinTable = null;
+
+            } else if (Query.COUNTID_KEY.equals(queryKey) && lastRecordJoinTableAlias == null) {
+                needsIndexTable = false;
+                likeValuePrefix = null;
+                valueField = aliasedField(alias, CountRecord.COUNTRECORD_COUNTID_FIELD);
+                sqlIndexTable = null;
+
+                tableName = null;
+                table = null;
+
+                idField = CountRecord.COUNTRECORD_COUNTID_FIELD;
+                keyField = null;
+
+                StringBuilder recordJoinTableBuilder = new StringBuilder();
+                vendor.appendIdentifier(recordJoinTableBuilder, CountRecord.RECORDCOUNTRECORD_TABLE);
+                recordJoinTableBuilder.append(" ");
+                vendor.appendIdentifier(recordJoinTableBuilder, alias);
+                recordJoinTable = recordJoinTableBuilder.toString();
+                recordJoinTableAlias = alias;
+                joinToPreviousRecordJoinTable = null;
+                recordJoinIdField = aliasedField(alias, "id");
+                lastRecordJoinTableAlias = recordJoinTableAlias;
 
             } else if (Query.ANY_KEY.equals(queryKey)) {
                 throw new UnsupportedIndexException(database, queryKey);
@@ -1218,10 +1458,15 @@ class SqlQuery {
                 tableName = null;
                 idField = null;
                 keyField = null;
+                recordJoinTable = null;
+                recordJoinTableAlias = null;
+                recordJoinIdField = null;
+                joinToPreviousRecordJoinTable = null;
 
-            } else if (alias.equals("r")) {
-
+            } else if (joinField != null && joinField.as(Countable.CountableFieldData.class).isDimension()) {
+                needsIndexTable = true;
                 likeValuePrefix = null;
+                addIndexKey(queryKey);
                 valueField = null;
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
@@ -1233,9 +1478,22 @@ class SqlQuery {
                 tableBuilder.append(alias);
                 table = tableBuilder.toString();
 
-                idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
-                keyField = null;
-                needsIndexTable = false;
+                recordJoinTableAlias = aliasPrefix + alias + "rjt";
+                StringBuilder extraTableBuilder = new StringBuilder();
+                vendor.appendIdentifier(extraTableBuilder, joinField.as(Countable.CountableFieldData.class).getRecordIdJoinTableName());
+                extraTableBuilder.append(" ");
+                extraTableBuilder.append(recordJoinTableAlias);
+                recordJoinTable = extraTableBuilder.toString();
+
+                idField = aliasedField(alias, joinField.as(Countable.CountableFieldData.class).getRecordIdJoinColumnName());
+                keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
+                recordJoinIdField = aliasedField(alias + "rjt", sqlIndexTable.getIdField(database, index));
+                if (lastRecordJoinTableAlias != null) {
+                    joinToPreviousRecordJoinTable = lastRecordJoinTableAlias;
+                } else {
+                    joinToPreviousRecordJoinTable = null;
+                }
+                lastRecordJoinTableAlias = recordJoinTableAlias;
 
             } else {
                 needsIndexTable = true;
@@ -1254,6 +1512,10 @@ class SqlQuery {
 
                 idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
+                recordJoinTable = null;
+                recordJoinTableAlias = null;
+                recordJoinIdField = null;
+                joinToPreviousRecordJoinTable = null;
             }
         }
 

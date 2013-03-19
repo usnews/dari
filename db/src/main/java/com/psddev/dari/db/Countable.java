@@ -35,7 +35,7 @@ public interface Countable extends Recordable {
     public @interface CountField {
         String[] dimensions() default {};
         String eventDate() default "";
-        boolean includeSelfDimension() default true;
+        //boolean includeSelfDimension() default true; /* This isn't supported in SqlQuery yet, so don't use it. */
     }
 
     /** Specifies that the target field virtually represents the EventDate field and optionally an SQL date format, and can be queried against. 
@@ -239,13 +239,16 @@ public interface Countable extends Recordable {
         @Override
         public void process(ObjectType type, ObjectField field, Dimension annotation) {
             SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
+            countableFieldData.setDimension(true);
+            countableFieldData.setRecordIdJoinTableName(CountRecord.RECORDCOUNTRECORD_TABLE);
+            countableFieldData.setRecordIdJoinColumnName(CountRecord.COUNTRECORD_COUNTID_FIELD);
+
             fieldData.setIndexTable(CountRecord.Static.getIndexTable(field));
             fieldData.setIndexTableSameColumnNames(false);
             fieldData.setIndexTableSource(true);
             fieldData.setIndexTableReadOnly(true);
 
-            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
-            countableFieldData.setDimension(true);
         }
     }
 
@@ -255,7 +258,7 @@ public interface Countable extends Recordable {
         public void process(ObjectType type, ObjectField field, CountField annotation) {
 
             SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-            fieldData.setIndexTable("CountRecordSummary");
+            fieldData.setIndexTable(null);
             fieldData.setIndexTableSameColumnNames(false);
             fieldData.setIndexTableSource(true);
             fieldData.setIndexTableReadOnly(true);
@@ -264,9 +267,10 @@ public interface Countable extends Recordable {
             countableFieldData.setCountField(true);
             Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
 
-            if (annotation.includeSelfDimension()) {
+            // includeSelfDimension=false is not supported by SqlQuery yet. 
+            //if (annotation.includeSelfDimension()) {
                 countableFieldData.setIncludeSelfDimension(true);
-            }
+            //}
             countableFieldData.setDimensions(dimensions);
             if (annotation.eventDate().equals("")) {
                 countableFieldData.setEventDateFieldName(null);
@@ -281,8 +285,7 @@ public interface Countable extends Recordable {
         @Override
         public void process(ObjectType type, ObjectField field, EventDate annotation) {
             SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-            //fieldData.setIndexTable("CountRecord");
-            //fieldData.setIndexTableSameColumnNames(false);
+            fieldData.setIndexTable("CountRecord");
             fieldData.setIndexTableColumnName("eventDate");
             fieldData.setIndexTableSource(true);
             fieldData.setIndexTableReadOnly(true);
@@ -304,6 +307,8 @@ public interface Countable extends Recordable {
         private CountRecord.EventDatePrecision eventDatePrecision;
         private Set<String> dimensions = new HashSet<String>();
         private String eventDateFieldName;
+        private String recordIdJoinTableName;
+        private String recordIdJoinColumnName;
 
         public boolean isDimension() {
             return dimension;
@@ -359,6 +364,22 @@ public interface Countable extends Recordable {
 
         public void setEventDateFieldName(String eventDateFieldName) {
             this.eventDateFieldName = eventDateFieldName;
+        }
+
+        public String getRecordIdJoinTableName() {
+            return recordIdJoinTableName;
+        }
+
+        public void setRecordIdJoinTableName(String recordIdJoinTableName) {
+            this.recordIdJoinTableName = recordIdJoinTableName;
+        }
+
+        public String getRecordIdJoinColumnName() {
+            return recordIdJoinColumnName;
+        }
+
+        public void setRecordIdJoinColumnName(String recordIdJoinColumnName) {
+            this.recordIdJoinColumnName = recordIdJoinColumnName;
         }
 
     }

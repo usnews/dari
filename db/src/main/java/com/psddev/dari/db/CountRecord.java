@@ -356,7 +356,7 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
-        private static void appendSelectAmountSql(StringBuilder str, SqlVendor vendor, String columnIdentifier, int position) {
+        public static void appendSelectAmountSql(StringBuilder str, SqlVendor vendor, String columnIdentifier, int position) {
             // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic.
             // position is 1 or 2
             // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped

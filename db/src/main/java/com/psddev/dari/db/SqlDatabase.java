@@ -535,6 +535,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return new SqlQuery(this, query).groupStatement(groupFields);
     }
 
+    public String buildGroupedCountRecordStatement(Query<?> query, String countFieldName, String... groupFields) {
+        return new SqlQuery(this, query).groupedCountRecordSql(countFieldName, groupFields);
+    }
+
     /**
      * Builds an SQL statement that can be used to get when the objects
      * matching the given {@code query} were last updated.
@@ -672,7 +676,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                 Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
 
-                if (fieldData.isIndexTableSource() && !countableFieldData.isDimension()) {
+                if (fieldData.isIndexTableSource() && !countableFieldData.isDimension() && fieldData.getIndexTable() != null) {
                     loadExtraFields.add(field);
                 }
             }
@@ -717,7 +721,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     // Creates an SQL statement to return a single row from a FieldIndexTable
     // used as a source table.
     //
-    // TODO, maybe: move this to SqlQuery and use initializeClauses() and
+    // Maybe: move this to SqlQuery and use initializeClauses() and
     // needsRecordTable=false instead of passing id to this method. Needs
     // countperformance branch to do this.
     private String extraSourceSelectStatementById(ObjectField field, UUID id) {
@@ -1531,7 +1535,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 for (int j = 0; j < fieldsLength; ++ j) {
                     keys.add(result.getObject(j + 2));
                 }
-                groupings.add(new SqlGrouping<T>(keys, query, fields, count));
+                groupings.add(new SqlGrouping<T>(keys, query, fields, count, groupings));
             }
 
             int groupingsSize = groupings.size();
@@ -1576,9 +1580,82 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         private long count;
 
-        public SqlGrouping(List<Object> keys, Query<T> query, String[] fields, long count) {
+        private final Map<String,Double> countRecordSums = new HashMap<String,Double>();
+
+        private final List<Grouping<T>> groupings;
+
+        public SqlGrouping(List<Object> keys, Query<T> query, String[] fields, long count, List<Grouping<T>> groupings) {
             super(keys, query, fields);
             this.count = count;
+            this.groupings = groupings;
+        }
+
+        @Override
+        public double getSum(String field) {
+            Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
+            ObjectField sumField = mappedKey.getField();
+            if (sumField.as(Countable.CountableFieldData.class).isCountField()) {
+                if (! countRecordSums.containsKey(field)) {
+
+                    String sqlQuery = buildGroupedCountRecordStatement(query, field, fields);
+                    Connection connection = null;
+                    Statement statement = null;
+                    ResultSet result = null;
+                    try {
+                        connection = openQueryConnection(query);
+                        statement = connection.createStatement();
+                        result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
+
+                        if (this.getKeys().size() == 0) {
+                            // Special case for .groupby() without any fields
+                            assert this.groupings.size() == 1;
+                            if (result.next()) {
+                                this.setSum(field, result.getDouble(1));
+                            } else {
+                                this.setSum(field, 0);
+                            }
+                        } else {
+                            // Find the ObjectFields for the specified fields
+                            List<ObjectField> objectFields = new ArrayList<ObjectField>();
+                            for (String fieldName : fields) {
+                                objectFields.add(query.mapEmbeddedKey(getEnvironment(), fieldName).getField());
+                            }
+
+                            // index the groupings by their keys
+                            Map<List<Object>, SqlGrouping<T>> groupingMap = new HashMap<List<Object>, SqlGrouping<T>>();
+                            for (Grouping<T> grouping : groupings) {
+                                if (grouping instanceof SqlGrouping) {
+                                    groupingMap.put(grouping.getKeys(), (SqlGrouping<T>) grouping);
+                                }
+                            }
+
+                            // Find the sums and set them on each grouping
+                            while (result.next()) {
+                                // TODO: limit/offset
+                                List<Object> keys = new ArrayList<Object>();
+                                for (int j = 0; j < objectFields.size(); ++ j) {
+                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+2)));
+                                }
+                                if (groupingMap.containsKey(keys)) {
+                                    groupingMap.get(keys).setSum(field, result.getDouble(1));
+                                }
+                            }
+                        }
+                    } catch (SQLException ex) {
+                        throw createQueryException(ex, sqlQuery, query);
+                    } finally {
+                        closeResources(connection, statement, result);
+                    }
+                }
+                return countRecordSums.get(field);
+            } else {
+                // If it's not a CountField, we don't need to override it.
+                return super.getSum(field);
+            }
+       }
+
+        private void setSum(String field, double sum) {
+            countRecordSums.put(field, sum);
         }
 
         // --- AbstractGrouping support ---

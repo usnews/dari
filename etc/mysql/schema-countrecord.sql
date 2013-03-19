@@ -51,7 +51,7 @@ CREATE TABLE CountRecordString (
     value VARCHAR(500) NOT NULL,
     PRIMARY KEY (symbolId, value, dimensionsSymbolId, countId),
     KEY k_countId (countId)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
 
 CREATE OR REPLACE VIEW CountRecordString_d AS
 SELECT hex(c.countId) AS countId
