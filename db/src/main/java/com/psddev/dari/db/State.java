@@ -986,6 +986,35 @@ public class State implements Map<String, Object> {
         return null;
     }
 
+    /**
+     * Returns the label that identifies the current visibility in effect.
+     *
+     * @return May be {@code null}.
+     * @see VisibilityLabel
+     */
+    public String getVisibilityLabel() {
+        @SuppressWarnings("unchecked")
+        List<String> visibilities = (List<String>) get("dari.visibilities");
+
+        if (visibilities != null && !visibilities.isEmpty()) {
+            String fieldName = visibilities.get(visibilities.size() - 1);
+            ObjectField field = getField(fieldName);
+
+            if (field != null) {
+                Class<?> fieldDeclaring = ObjectUtils.getClassByName(field.getJavaDeclaringClassName());
+
+                if (fieldDeclaring != null &&
+                        VisibilityLabel.class.isAssignableFrom(fieldDeclaring)) {
+                    return ((VisibilityLabel) as(fieldDeclaring)).createVisibilityLabel(field);
+                }
+            }
+
+            return ObjectUtils.to(String.class, get(fieldName));
+        }
+
+        return null;
+    }
+
     public void prefetch() {
         prefetch(getValues());
     }
