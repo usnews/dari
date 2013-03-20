@@ -458,7 +458,7 @@ public class State implements Map<String, Object> {
     }
 
     /** Returns the field value associated with the given {@code path}. */
-    public Object getValue(String path) {
+    public Object getByPath(String path) {
         if (path == null) {
             return null;
         }
@@ -563,7 +563,7 @@ public class State implements Map<String, Object> {
 
     /** Puts the given field value at given name. */
     @SuppressWarnings("unchecked")
-    public void putValue(String name, Object value) {
+    public void putByPath(String name, Object value) {
         Map<String, Object> parent = getValues();
         String[] parts = StringUtils.split(name, "/");
         int last = parts.length - 1;
@@ -1466,7 +1466,7 @@ public class State implements Map<String, Object> {
         }
         return modifications;
     }
-    
+
     // --- Database bridge ---
 
     /** @see Database#beginWrites() */
@@ -1678,4 +1678,15 @@ public class State implements Map<String, Object> {
         replaceAtomically(name, value);
     }
 
+    /** @deprecated Use {@link #getByPath} instead. */
+    @Deprecated
+    public Object getValue(String path) {
+        return getByPath(path);
+    }
+
+    /** @deprecated Use {@link #putByPath} instead. */
+    @Deprecated
+    public void putValue(String path, Object value) {
+        putByPath(path, value);
+    }
 }
