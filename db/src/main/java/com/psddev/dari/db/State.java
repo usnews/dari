@@ -41,6 +41,8 @@ public class State implements Map<String, Object> {
      */
     public static final String REFERENCE_RESOLVING_QUERY_OPTION = "dari.referenceResolving";
 
+    public static final String REFERENCE_FIELD_QUERY_OPTION = "dari.referenceField";
+
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
@@ -1075,12 +1077,18 @@ public class State implements Map<String, Object> {
     }
 
     /**
-     * Resolves all references to other objects in this state. This method
-     * shouldn't be used directly, because it's called automatically on
-     * demand using {@link LazyLoadEnhancer}.
+     * Resolves the reference possibly stored in the given {@code field}.
+     * This method doesn't need to be used directly in typical cases, because
+     * it will be called automatically by {@link LazyLoadEnhancer}.
+     *
+     * @param field If {@code null}, resolves all references.
      */
-    public void resolveReferences() {
+    public void resolveReference(String field) {
         if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+            return;
+        }
+
+        if (field != null && rawValues.get(field) == null) {
             return;
         }
 
@@ -1096,7 +1104,7 @@ public class State implements Map<String, Object> {
             }
 
             Object object = linkedObjects.values().iterator().next();
-            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values());
+            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
 
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
@@ -1110,6 +1118,15 @@ public class State implements Map<String, Object> {
                 put(e.getKey(), e.getValue());
             }
         }
+    }
+
+    /**
+     * Resolves all references to other objects. This method doesn't need to
+     * be used directly in typical cases, because it will be called
+     * automatically by {@link LazyLoadEnhancer}.
+     */
+    public void resolveReferences() {
+        resolveReference(null);
     }
 
     /**

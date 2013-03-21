@@ -75,7 +75,7 @@ abstract class StateValueUtils {
     }
 
     /** Resolves all object references within the given {@code items}. */
-    public static Map<UUID, Object> resolveReferences(Database database, Object parent, Iterable<?> items) {
+    public static Map<UUID, Object> resolveReferences(Database database, Object parent, Iterable<?> items, String field) {
         State parentState = State.getInstance(parent);
 
         if (parentState != null && parentState.isResolveToReferenceOnly()) {
@@ -137,6 +137,7 @@ abstract class StateValueUtils {
                         where("_id = ?", unresolvedIds).
                         using(database).
                         option(State.REFERENCE_RESOLVING_QUERY_OPTION, parent).
+                        option(State.REFERENCE_FIELD_QUERY_OPTION, field).
                         option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds).
                         selectAll()) {
                     UUID id = State.getInstance(object).getId();
@@ -156,6 +157,10 @@ abstract class StateValueUtils {
                 CIRCULAR_REFERENCES.remove();
             }
         }
+    }
+
+    public static Map<UUID, Object> resolveReferences(Database database, Object parent, Iterable<?> items) {
+        return resolveReferences(database, parent, items, null);
     }
 
     /**
