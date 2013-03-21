@@ -235,7 +235,6 @@ public class Css {
                 cssIndex = lastDeclaration;
                 property.setLength(0);
                 readRule(selectors);
-                ++ cssIndex;
                 lastDeclaration = cssIndex;
 
             } else if (letter == ':') {
