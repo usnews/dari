@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -161,24 +160,33 @@ public class HtmlGrid {
 
         private static final String ATTRIBUTE_PREFIX = HtmlGrid.class.getName() + ".";
         private static final String CSS_MODIFIED_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "cssModified.";
+        private static final String GRID_PATHS_ATTRIBUTE = ATTRIBUTE_PREFIX + "gridPaths";
         private static final String GRIDS_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "grids.";
 
         private static final String TEMPLATE_PROPERTY = "grid-template";
         private static final String COLUMNS_PROPERTY = "grid-definition-columns";
         private static final String ROWS_PROPERTY = "grid-definition-rows";
 
+        @SuppressWarnings("unchecked")
         public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
-            List<String> gridPaths = new ArrayList<String>();
+            List<String> gridPaths = null;
 
-            findGrids(context, "/", gridPaths, ".less");
-            findGrids(context, "/", gridPaths, ".css");
+            if (Settings.isProduction()) {
+                gridPaths = (List<String>) context.getAttribute(GRID_PATHS_ATTRIBUTE);
+            }
+
+            if (gridPaths == null) {
+                gridPaths = new ArrayList<String>();
+
+                findGrids(context, "/", gridPaths, ".less");
+                findGrids(context, "/", gridPaths, ".css");
+                context.setAttribute(GRID_PATHS_ATTRIBUTE, gridPaths);
+            }
 
             Map<String, HtmlGrid> combined = new LinkedHashMap<String, HtmlGrid>();
 
-            Collections.reverse(gridPaths);
-
-            for (String gridPath : gridPaths) {
-                @SuppressWarnings("unchecked")
+            for (int i = gridPaths.size() - 1; i >= 0; -- i) {
+                String gridPath = gridPaths.get(i);
                 Map<String, HtmlGrid> grids = (Map<String, HtmlGrid>) context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + gridPath);
 
                 if (grids != null) {
