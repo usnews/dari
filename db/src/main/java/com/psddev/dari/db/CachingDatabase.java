@@ -128,7 +128,7 @@ public class CachingDatabase extends ForwardingDatabase {
         if (state.isReferenceOnly()) {
             referenceCache.put(id, object);
 
-        } else {
+        } else if (!state.isResolveToReferenceOnly()) {
             objectCache.put(id, object);
         }
     }
