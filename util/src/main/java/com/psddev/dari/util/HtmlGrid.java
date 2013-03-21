@@ -189,6 +189,8 @@ public class HtmlGrid {
             return combined;
         }
 
+        /** @deprecated Use {@link #findAll} instead. */
+        @Deprecated
         public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
             return ObjectUtils.isBlank(cssClass) ? null : findAll(context).get("." + cssClass);
         }
