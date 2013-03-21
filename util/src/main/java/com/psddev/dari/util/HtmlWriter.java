@@ -305,7 +305,7 @@ public class HtmlWriter extends Writer {
         write(selector);
         write('{');
         write(cssString(properties));
-        write("}\n");
+        write('}');
         return this;
     }
 
@@ -330,6 +330,8 @@ public class HtmlWriter extends Writer {
                     "visibility", "hidden");
 
             for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
+                write("\n\n");
+
                 String gridSelector = gridEntry.getKey();
                 HtmlGrid grid = gridEntry.getValue();
                 String cssSuffix = "";
