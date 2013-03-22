@@ -433,10 +433,8 @@ public class HtmlWriter extends Writer {
 
                                 write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
                                     write("var $layout = $(this);");
-                                    write("console.log($layout[0]);");
 
                                     for (String area : grid.getAreas()) {
-                                    write("console.log('"); write(StringUtils.escapeJavaScript(area)); write("');");
                                         write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
                                         write(StringUtils.escapeJavaScript(area));
                                         write("\"]')[0]);");
