@@ -381,6 +381,89 @@ public class HtmlWriter extends Writer {
         return this;
     }
 
+    /** Writes all grid JavaScript found within the given {@code context}. */
+    public void writeGridJavaScript(ServletContext context) throws IOException {
+        Map<String, Map<String, HtmlGrid>> gridsByMedia = new LinkedHashMap<String, Map<String, HtmlGrid>>();
+
+        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
+            String gridSelector = gridEntry.getKey();
+            HtmlGrid grid = gridEntry.getValue();
+            String media = null;
+
+            if (gridSelector.startsWith("@media")) {
+                gridSelector = gridSelector.substring(6).trim();
+                int braceAt = gridSelector.indexOf('{');
+
+                if (braceAt > -1) {
+                    media = gridSelector.substring(0, braceAt).trim();
+                    gridSelector = gridSelector.substring(braceAt + 1).trim();
+                }
+            }
+
+            Map<String, HtmlGrid> grids = gridsByMedia.get(media);
+
+            if (grids == null) {
+                grids = new HashMap<String, HtmlGrid>();
+                gridsByMedia.put(media, grids);
+            }
+
+            grids.put(gridSelector, grid);
+        }
+
+        Map<String, HtmlGrid> defaultGrids = gridsByMedia.remove(null);
+
+        if (defaultGrids != null) {
+            gridsByMedia.put(null, defaultGrids);
+        }
+
+        writeStart("script", "type", "text/javascript");
+            write("if (typeof jQuery !== 'undefined') (function($, win, undef) {");
+                write("var reorder, reorderTimer;");
+                write("if (!window.matchMedia) return;");
+
+                write("reorder = function() {");
+                    for (Map.Entry<String, Map<String, HtmlGrid>> entry : gridsByMedia.entrySet()) {
+                        String media = entry.getKey();
+                        Map<String, HtmlGrid> grids = entry.getValue();
+
+                        write("if (window.matchMedia('"); write(StringUtils.escapeJavaScript(media)); write("').matches) {");
+                            for (Map.Entry<String, HtmlGrid> gridEntry : grids.entrySet()) {
+                                String selector = gridEntry.getKey();
+                                HtmlGrid grid = gridEntry.getValue();
+
+                                write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
+                                    write("var $layout = $(this);");
+                                    write("console.log($layout[0]);");
+
+                                    for (String area : grid.getAreas()) {
+                                    write("console.log('"); write(StringUtils.escapeJavaScript(area)); write("');");
+                                        write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
+                                        write(StringUtils.escapeJavaScript(area));
+                                        write("\"]')[0]);");
+                                    }
+
+                                    write("$layout[0].appendChild($layout.find('> .dari-grid-clear')[0]);");
+                                write("});");
+                            }
+                            write("return;");
+                        write("}");
+                    }
+                write("};");
+
+                write("$(reorder);");
+
+                write("$(win).resize(function() {");
+                    write("if (!reorderTimer) {");
+                        write("reorderTimer = setTimeout(function() {");
+                            write("reorder();");
+                            write("reorderTimer = null;");
+                        write("}, 100);");
+                    write("}");
+                write("});");
+            write("})(jQuery, window);");
+        writeEnd();
+    }
+
     /**
      * Writes the given {@code object} and positions it according to the
      * given {@code grid}.
@@ -486,7 +569,9 @@ public class HtmlWriter extends Writer {
             writeEnd();
         }
 
-        writeStart("div", "style", cssString("clear", "left"));
+        writeStart("div",
+                "class", "dari-grid-clear",
+                "style", cssString("clear", "left"));
         writeEnd();
 
         return this;
