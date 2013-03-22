@@ -214,6 +214,10 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         getState().saveEventually();
     }
 
+    public void saveUniquely() {
+        getState().saveUniquely();
+    }
+
     // --- JSTL support ---
 
     public Map<String, Object> getAs() {

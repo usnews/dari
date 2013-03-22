@@ -1577,6 +1577,61 @@ public class State implements Map<String, Object> {
         getDatabase().saveUnsafely(this);
     }
 
+    public void saveUniquely() {
+        ObjectType type = getType();
+
+        if (type == null) {
+            throw new IllegalStateException("No type!");
+        }
+
+        Query<?> query = Query.fromType(type);
+
+        query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
+
+        for (ObjectIndex index : type.getIndexes()) {
+            if (index.isUnique()) {
+                for (String field : index.getFields()) {
+                    Object value = get(field);
+                    query.and(field + " = ?", value != null ? value : Query.MISSING_VALUE);
+                }
+            }
+        }
+
+        if (query.getPredicate() == null) {
+            throw new IllegalStateException("No unique indexes!");
+        }
+
+        DatabaseException lastError = null;
+        boolean ignoreRead = Database.Static.isIgnoreReadConnection();
+
+        try {
+            Database.Static.setIgnoreReadConnection(true);
+
+            for (int i = 0; i < 10; ++ i) {
+                Object object = query.first();
+
+                if (object != null) {
+                    setValues(State.getInstance(object).getValues());
+                    return;
+
+                } else {
+                    try {
+                        saveImmediately();
+                        return;
+
+                    } catch (DatabaseException error) {
+                        lastError = error;
+                    }
+                }
+            }
+
+        } finally {
+            Database.Static.setIgnoreReadConnection(ignoreRead);
+        }
+
+        throw lastError;
+    }
+
     /**
      * {@linkplain Database#index Indexes} this state data in the
      * {@linkplain #getDatabase originating database}.
