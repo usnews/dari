@@ -1088,10 +1088,6 @@ public class State implements Map<String, Object> {
             return;
         }
 
-        if (field != null && rawValues.get(field) == null) {
-            return;
-        }
-
         synchronized (this) {
             if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
                 return;
