@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -141,7 +142,7 @@ public class HtmlGrid {
 
     /** Returns all area names used by this template. */
     public Set<String> getAreas() {
-        Set<String> areas = new HashSet<String>();
+        Set<String> areas = new LinkedHashSet<String>();
 
         for (List<String> row : getTemplate()) {
             for (String area : row) {
