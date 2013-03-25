@@ -41,6 +41,8 @@ public class State implements Map<String, Object> {
      */
     public static final String REFERENCE_RESOLVING_QUERY_OPTION = "dari.referenceResolving";
 
+    public static final String REFERENCE_FIELD_QUERY_OPTION = "dari.referenceField";
+
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
@@ -458,7 +460,7 @@ public class State implements Map<String, Object> {
     }
 
     /** Returns the field value associated with the given {@code path}. */
-    public Object getValue(String path) {
+    public Object getByPath(String path) {
         if (path == null) {
             return null;
         }
@@ -563,7 +565,7 @@ public class State implements Map<String, Object> {
 
     /** Puts the given field value at given name. */
     @SuppressWarnings("unchecked")
-    public void putValue(String name, Object value) {
+    public void putByPath(String name, Object value) {
         Map<String, Object> parent = getValues();
         String[] parts = StringUtils.split(name, "/");
         int last = parts.length - 1;
@@ -986,6 +988,35 @@ public class State implements Map<String, Object> {
         return null;
     }
 
+    /**
+     * Returns the label that identifies the current visibility in effect.
+     *
+     * @return May be {@code null}.
+     * @see VisibilityLabel
+     */
+    public String getVisibilityLabel() {
+        @SuppressWarnings("unchecked")
+        List<String> visibilities = (List<String>) get("dari.visibilities");
+
+        if (visibilities != null && !visibilities.isEmpty()) {
+            String fieldName = visibilities.get(visibilities.size() - 1);
+            ObjectField field = getField(fieldName);
+
+            if (field != null) {
+                Class<?> fieldDeclaring = ObjectUtils.getClassByName(field.getJavaDeclaringClassName());
+
+                if (fieldDeclaring != null &&
+                        VisibilityLabel.class.isAssignableFrom(fieldDeclaring)) {
+                    return ((VisibilityLabel) as(fieldDeclaring)).createVisibilityLabel(field);
+                }
+            }
+
+            return ObjectUtils.to(String.class, get(fieldName));
+        }
+
+        return null;
+    }
+
     public void prefetch() {
         prefetch(getValues());
     }
@@ -1046,11 +1077,13 @@ public class State implements Map<String, Object> {
     }
 
     /**
-     * Resolves all references to other objects in this state. This method
-     * shouldn't be used directly, because it's called automatically on
-     * demand using {@link LazyLoadEnhancer}.
+     * Resolves the reference possibly stored in the given {@code field}.
+     * This method doesn't need to be used directly in typical cases, because
+     * it will be called automatically by {@link LazyLoadEnhancer}.
+     *
+     * @param field If {@code null}, resolves all references.
      */
-    public void resolveReferences() {
+    public void resolveReference(String field) {
         if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
             return;
         }
@@ -1067,7 +1100,7 @@ public class State implements Map<String, Object> {
             }
 
             Object object = linkedObjects.values().iterator().next();
-            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values());
+            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
 
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
@@ -1081,6 +1114,15 @@ public class State implements Map<String, Object> {
                 put(e.getKey(), e.getValue());
             }
         }
+    }
+
+    /**
+     * Resolves all references to other objects. This method doesn't need to
+     * be used directly in typical cases, because it will be called
+     * automatically by {@link LazyLoadEnhancer}.
+     */
+    public void resolveReferences() {
+        resolveReference(null);
     }
 
     /**
@@ -1466,7 +1508,7 @@ public class State implements Map<String, Object> {
         }
         return modifications;
     }
-    
+
     // --- Database bridge ---
 
     /** @see Database#beginWrites() */
@@ -1529,6 +1571,61 @@ public class State implements Map<String, Object> {
      */
     public void saveUnsafely() {
         getDatabase().saveUnsafely(this);
+    }
+
+    public void saveUniquely() {
+        ObjectType type = getType();
+
+        if (type == null) {
+            throw new IllegalStateException("No type!");
+        }
+
+        Query<?> query = Query.fromType(type);
+
+        query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
+
+        for (ObjectIndex index : type.getIndexes()) {
+            if (index.isUnique()) {
+                for (String field : index.getFields()) {
+                    Object value = get(field);
+                    query.and(field + " = ?", value != null ? value : Query.MISSING_VALUE);
+                }
+            }
+        }
+
+        if (query.getPredicate() == null) {
+            throw new IllegalStateException("No unique indexes!");
+        }
+
+        DatabaseException lastError = null;
+        boolean ignoreRead = Database.Static.isIgnoreReadConnection();
+
+        try {
+            Database.Static.setIgnoreReadConnection(true);
+
+            for (int i = 0; i < 10; ++ i) {
+                Object object = query.first();
+
+                if (object != null) {
+                    setValues(State.getInstance(object).getValues());
+                    return;
+
+                } else {
+                    try {
+                        saveImmediately();
+                        return;
+
+                    } catch (DatabaseException error) {
+                        lastError = error;
+                    }
+                }
+            }
+
+        } finally {
+            Database.Static.setIgnoreReadConnection(ignoreRead);
+        }
+
+        throw lastError;
     }
 
     /**
@@ -1678,4 +1775,15 @@ public class State implements Map<String, Object> {
         replaceAtomically(name, value);
     }
 
+    /** @deprecated Use {@link #getByPath} instead. */
+    @Deprecated
+    public Object getValue(String path) {
+        return getByPath(path);
+    }
+
+    /** @deprecated Use {@link #putByPath} instead. */
+    @Deprecated
+    public void putValue(String path, Object value) {
+        putByPath(path, value);
+    }
 }

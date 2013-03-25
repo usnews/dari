@@ -84,6 +84,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String UPDATE_DATE_COLUMN = "updateDate";
     public static final String VALUE_COLUMN = "value";
 
+    public static final String CONNECTION_QUERY_OPTION = "sql.connection";
     public static final String EXTRA_COLUMNS_QUERY_OPTION = "sql.extraColumns";
     public static final String EXTRA_JOINS_QUERY_OPTION = "sql.extraJoins";
     public static final String EXTRA_WHERE_QUERY_OPTION = "sql.extraWhere";
@@ -425,7 +426,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     throw createQueryException(ex, selectSql, null);
 
                 } finally {
-                    closeResources(null, statement, result);
+                    closeResources(null, null, statement, result);
                 }
 
             } finally {
@@ -478,7 +479,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 throw createQueryException(ex, selectSql, null);
 
             } finally {
-                closeResources(connection, statement, result);
+                closeResources(null, connection, statement, result);
             }
         }
     };
@@ -556,7 +557,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /** Closes all the given SQL resources safely. */
-    private void closeResources(Connection connection, Statement statement, ResultSet result) {
+    private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
             try {
                 result.close();
@@ -571,7 +572,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (connection != null) {
+        if (connection != null &&
+                (query == null ||
+                !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
             try {
                 connection.close();
             } catch (SQLException ex) {
@@ -706,12 +709,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         }
 
                     } finally {
-                        closeResources(null, extraStatement, extraResult);
+                        closeResources(null, null, extraStatement, extraResult);
                     }
                 }
 
             } finally {
-                closeConnection(connection);
+                closeResources(query, connection, null, null);
             }
         }
 
@@ -829,7 +832,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -866,7 +869,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -937,7 +940,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         public void close() {
             hasNext = false;
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
 
         @Override
@@ -1069,6 +1072,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     // Opens a connection that should be used to execute the given query.
     private Connection openQueryConnection(Query<?> query) {
         if (query != null) {
+            Connection connection = (Connection) query.getOptions().get(CONNECTION_QUERY_OPTION);
+
+            if (connection != null) {
+                return connection;
+            }
+
             Boolean useRead = ObjectUtils.to(Boolean.class, query.getOptions().get(USE_READ_DATA_SOURCE_QUERY_OPTION));
             if (useRead == null) {
                 useRead = Boolean.TRUE;
@@ -1263,6 +1272,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 bone.setMinConnectionsPerPartition(connectionsPerPartition);
                 bone.setMaxConnectionsPerPartition(connectionsPerPartition);
                 bone.setPartitionCount(partitionCount);
+                bone.setConnectionTimeoutInMs(5000L);
                 return bone;
             }
         }
@@ -1312,7 +1322,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -1473,7 +1483,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -1571,7 +1581,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -1644,7 +1654,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     } catch (SQLException ex) {
                         throw createQueryException(ex, sqlQuery, query);
                     } finally {
-                        closeResources(connection, statement, result);
+                        closeResources(query, connection, statement, result);
                     }
                 }
                 return countRecordSums.get(field);
@@ -1816,18 +1826,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                                 from(Object.class).
                                 where("_id = ?", id).
                                 using(this).
-                                resolveToReferenceOnly().
+                                option(CONNECTION_QUERY_OPTION, connection).
                                 option(RETURN_ORIGINAL_DATA_QUERY_OPTION, Boolean.TRUE).
                                 option(USE_READ_DATA_SOURCE_QUERY_OPTION, Boolean.FALSE).
                                 first();
                         if (oldObject == null) {
-                            isNew = true;
-                            continue;
+                            retryWrites();
+                            break;
                         }
 
                         State oldState = State.getInstance(oldObject);
                         UUID oldTypeId = oldState.getVisibilityAwareTypeId();
                         byte[] oldData = Static.getOriginalData(oldObject);
+
+                        state.setValues(oldState.getValues());
 
                         for (AtomicOperation operation : atomicOperations) {
                             String field = operation.getField();
@@ -1875,7 +1887,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendBindValue(updateBuilder, oldData, parameters);
 
                         if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
-                            continue;
+                            retryWrites();
+                            break;
                         }
                     }
                 }

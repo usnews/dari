@@ -1,6 +1,5 @@
 package com.psddev.dari.util;
 
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -12,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
+
+import org.imgscalr.Scalr;
 
 public class ImageResizeStorageItemListener implements StorageItemListener {
 
@@ -88,11 +89,7 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
                 width = Math.round(height * aspect);
             }
 
-            BufferedImage resizedImage = new BufferedImage(width, height, original.getType());
-            Graphics2D g = resizedImage.createGraphics();
-            g.drawImage(original, 0, 0, width, height, null);
-            g.dispose();
-
+            BufferedImage resizedImage = Scalr.resize(original, width, height);
             String url = item.getPath();
             List<String> parts = Arrays.asList(url.split("/"));
 

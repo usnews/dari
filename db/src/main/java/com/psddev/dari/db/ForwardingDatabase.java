@@ -160,4 +160,16 @@ public abstract class ForwardingDatabase implements Database {
     public void deleteByQuery(Query<?> query) {
         getDelegate().deleteByQuery(query);
     }
+
+    // --- Object support ---
+
+    @Override
+    public String toString() {
+        StringBuilder s = new StringBuilder();
+        s.append(super.toString());
+        s.append("(delegate=");
+        s.append(getDelegate().toString());
+        s.append(")");
+        return s.toString();
+    }
 }

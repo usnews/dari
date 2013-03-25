@@ -809,7 +809,6 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         List<DistributedLock> locks = validate(validates, true);
-        C connection = openConnection();
 
         try {
             if (locks != null && !locks.isEmpty()) {
@@ -824,23 +823,33 @@ public abstract class AbstractDatabase<C> implements Database {
 
             for (int i = 0, limit = Settings.getOrDefault(int.class, "dari/databaseWriteRetryLimit", 10); i < limit; ++ i) {
                 try {
-                    try {
-                        beginTransaction(connection, isImmediate);
-                        doWrites(connection, isImmediate, saves, indexes, deletes);
-                        commitTransaction(connection, isImmediate);
-                        isCommitted = true;
-                        break;
+                    C connection = openConnection();
 
-                    } finally {
+                    try {
                         try {
-                            if (!isCommitted) {
-                                rollbackTransaction(connection, isImmediate);
-                            }
+                            beginTransaction(connection, isImmediate);
+                            doWrites(connection, isImmediate, saves, indexes, deletes);
+                            commitTransaction(connection, isImmediate);
+                            isCommitted = true;
+                            break;
 
                         } finally {
-                            endTransaction(connection, isImmediate);
+                            try {
+                                if (!isCommitted) {
+                                    rollbackTransaction(connection, isImmediate);
+                                }
+
+                            } finally {
+                                endTransaction(connection, isImmediate);
+                            }
                         }
+
+                    } finally {
+                        closeConnection(connection);
                     }
+
+                } catch (Retry error) {
+                    -- i;
 
                 } catch (Exception error) {
                     lastError = error;
@@ -876,8 +885,6 @@ public abstract class AbstractDatabase<C> implements Database {
             }
 
         } finally {
-            closeConnection(connection);
-
             if (locks != null && !locks.isEmpty()) {
                 for (DistributedLock lock : locks) {
                     try {
@@ -1101,6 +1108,26 @@ public abstract class AbstractDatabase<C> implements Database {
      *        connection} to the underlying database.
      */
     protected void doDeletes(C connection, boolean isImmediate, List<State> states) throws Exception {
+    }
+
+    @SuppressWarnings("serial")
+    private static class Retry extends Error {
+
+        @Override
+        public Throwable fillInStackTrace() {
+            return null;
+        }
+    }
+
+    private static final Retry RETRY_INSTANCE = new Retry();
+
+    /**
+     * Retries the current writes. This method should only be called within
+     * {@link #doWrites}, {@link #doSaves}, {@link #doIndexes}, or
+     * {@link #doDeletes}.
+     */
+    protected void retryWrites() {
+        throw RETRY_INSTANCE;
     }
 
     // --- Implementation helpers ---

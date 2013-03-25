@@ -214,6 +214,10 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         getState().saveEventually();
     }
 
+    public void saveUniquely() {
+        getState().saveUniquely();
+    }
+
     // --- CountRecord support ---
 
     /** @see CountRecord.incrementCount */
@@ -233,7 +237,7 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
 
     /** @see CountRecord.deleteCounts */
     public void deleteCounts() {
-        //this.as(Countable.CountAction.class).deleteCounts();
+        this.as(Countable.CountAction.class).deleteCounts();
     }
 
     // --- JSTL support ---

@@ -63,7 +63,7 @@ public class Css {
         return null;
     }
 
-    private void readComment() throws IOException {
+    private void readComments() throws IOException {
         for (; cssIndex < cssLength; ++ cssIndex) {
             if (!Character.isWhitespace(css[cssIndex])) {
                 break;
@@ -79,11 +79,13 @@ public class Css {
             char letter = css[cssIndex];
 
             if (letter == '/') {
-                if (started) {
-                    inSingle = true;
-
-                } else if (multiEnding) {
+                if (multiEnding) {
+                    ++ cssIndex;
+                    readComments();
                     break;
+
+                } else if (started) {
+                    inSingle = true;
 
                 } else {
                     started = true;
@@ -99,6 +101,8 @@ public class Css {
                 }
 
             } else if (inSingle && (letter == '\r' || letter == '\n')) {
+                ++ cssIndex;
+                readComments();
                 break;
 
             } else if (!(inSingle || inMulti)) {
@@ -111,7 +115,7 @@ public class Css {
     }
 
     private boolean readRule(Set<String> parents) throws IOException {
-        readComment();
+        readComments();
 
         if (cssIndex < cssLength) {
             if (css[cssIndex] != '@') {
@@ -155,12 +159,10 @@ public class Css {
     }
 
     private boolean readSelector(Set<String> parents) throws IOException {
-        readComment();
-
         Set<String> selectors = null;
         StringBuilder newSelector = new StringBuilder();
 
-        for (; cssIndex < cssLength; ++ cssIndex) {
+        while (cssIndex < cssLength) {
             char letter = css[cssIndex];
             boolean brace = letter == '{';
 
@@ -187,11 +189,13 @@ public class Css {
                     break;
 
                 } else {
-                    readComment();
+                    ++ cssIndex;
+                    readComments();
                 }
 
             } else {
                 newSelector.append(letter);
+                ++ cssIndex;
             }
         }
 
@@ -216,40 +220,48 @@ public class Css {
     }
 
     private List<CssDeclaration> readDeclarations(Set<String> selectors) throws IOException {
-        readComment();
+        readComments();
 
         List<CssDeclaration> declarations = new ArrayList<CssDeclaration>();
         StringBuilder property = new StringBuilder();
         StringBuilder value = new StringBuilder();
         StringBuilder current = property;
+        int lastDeclaration = cssIndex;
 
-        for (int lastDeclaration = cssIndex; cssIndex < cssLength; ++ cssIndex) {
+        while (cssIndex < cssLength) {
             char letter = css[cssIndex];
 
             if (letter == '{') {
                 cssIndex = lastDeclaration;
                 property.setLength(0);
                 readRule(selectors);
-                lastDeclaration = cssIndex + 1;
+                lastDeclaration = cssIndex;
 
             } else if (letter == ':') {
                 current = value;
-                readComment();
+                ++ cssIndex;
+                readComments();
 
             } else if (letter == ';') {
                 declarations.add(new CssDeclaration(property.toString().trim(), value.toString().trim()));
                 property.setLength(0);
                 value.setLength(0);
                 current = property;
-                lastDeclaration = cssIndex + 1;
-                readComment();
+                ++ cssIndex;
+                lastDeclaration = cssIndex;
+                readComments();
 
             } else if (letter == '}') {
+                String p = property.toString().trim();
+                if (p.length() > 0) {
+                    declarations.add(new CssDeclaration(p, value.toString().trim()));
+                }
                 ++ cssIndex;
                 break;
 
             } else {
                 current.append(letter);
+                ++ cssIndex;
             }
         }
 

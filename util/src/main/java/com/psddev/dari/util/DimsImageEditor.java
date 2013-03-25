@@ -284,7 +284,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                 }
             }
 
-            /*Command lastResizeCommand = dimsUrl.getLastResizeCommand();
+            Command lastResizeCommand = dimsUrl.getLastResizeCommand();
             if (lastResizeCommand instanceof AbstractResizeCommand) {
                 AbstractResizeCommand lastResize = (AbstractResizeCommand) lastResizeCommand;
                 boolean overridden = ImageResizeStorageItemListener.overridePathWithNearestSize(image,
@@ -297,7 +297,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                     } catch(MalformedURLException mue) {
                     }
                 }
-            }*/
+            }
 
             newImage = dimsUrl.toStorageItem();
         }

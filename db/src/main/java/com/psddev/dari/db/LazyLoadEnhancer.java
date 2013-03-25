@@ -126,7 +126,8 @@ public class LazyLoadEnhancer extends ClassEnhancer {
                                 visitInsn(Opcodes.DUP);
                                 visitLdcInsn(name);
                                 visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "beforeFieldGet", "(Ljava/lang/String;)V");
-                                visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
+                                visitLdcInsn(name);
+                                visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReference", "(Ljava/lang/String;)V");
 
                             } else {
                                 visitInsn(Opcodes.DUP);
@@ -140,7 +141,8 @@ public class LazyLoadEnhancer extends ClassEnhancer {
                             visitInsn(Opcodes.SWAP);
                             visitInsn(Opcodes.DUP);
                             visitMethodInsn(Opcodes.INVOKEINTERFACE, "com/psddev/dari/db/Recordable", "getState", "()Lcom/psddev/dari/db/State;");
-                            visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReferences", "()V");
+                            visitLdcInsn(name);
+                            visitMethodInsn(Opcodes.INVOKEVIRTUAL, "com/psddev/dari/db/State", "resolveReference", "(Ljava/lang/String;)V");
                             visitInsn(Opcodes.SWAP);
                         }
                     }

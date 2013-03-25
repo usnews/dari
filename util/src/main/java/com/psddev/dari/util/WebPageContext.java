@@ -1,6 +1,7 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -104,15 +105,30 @@ public class WebPageContext extends HtmlWriter {
         return response;
     }
 
+    @Override
+    public Writer getDelegate() {
+        Writer delegate = super.getDelegate();
+
+        if (delegate != null) {
+            return delegate;
+
+        } else {
+            try {
+                setDelegate(getResponse().getWriter());
+                return super.getDelegate();
+
+            } catch (IOException error) {
+                throw new IllegalStateException(error);
+            }
+        }
+    }
+
     /**
      * Returns the original output writer.
      *
      * @return Never {@code null}.
      */
     public HtmlWriter getWriter() throws IOException {
-        if (getDelegate() == null) {
-            setDelegate(getResponse().getWriter());
-        }
         return this;
     }
 
