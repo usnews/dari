@@ -42,8 +42,8 @@ public class JspBufferFilter extends AbstractFilter {
         }
 
         /** Overrides the current JSP buffer value for this thread. */
-        public static void overrideBuffer(int buffer) {
-            BUFFER_OVERRIDE.push(buffer);
+        public static Integer overrideBuffer(int buffer) {
+            return BUFFER_OVERRIDE.push(buffer);
         }
 
         /** Restores the last JSP buffer value for this thread. */

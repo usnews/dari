@@ -7,15 +7,22 @@ public class ThreadLocalStack<T> {
 
     private final ThreadLocal<Deque<T>> stackLocal = new ThreadLocal<Deque<T>>();
 
-    public void push(T object) {
+    public T push(T object) {
         Deque<T> stack = stackLocal.get();
+        T current;
 
         if (stack == null) {
             stack = new ArrayDeque<T>();
             stackLocal.set(stack);
+            current = null;
+
+        } else {
+            current = stack.peekFirst();
         }
 
         stack.addFirst(object);
+
+        return current;
     }
 
     public T get() {
