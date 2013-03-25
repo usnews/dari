@@ -8,12 +8,12 @@ import javax.servlet.jsp.PageContext;
 /**
  * Allows per-thread JSP buffer override.
  *
- * @see Static#setBuffer
- * @see Static#removeBuffer
+ * @see Static#overrideBuffer
+ * @see Static#restoreBuffer
  */
 public class JspBufferFilter extends AbstractFilter {
 
-    private static final ThreadLocal<Integer> BUFFER_OVERRIDE = new ThreadLocal<Integer>();
+    private static final ThreadLocalStack<Integer> BUFFER_OVERRIDE = new ThreadLocalStack<Integer>();
 
     @Override
     protected void doInit() {
@@ -41,12 +41,24 @@ public class JspBufferFilter extends AbstractFilter {
         private Static() {
         }
 
-        /** Sets the JSP buffer override for this thread. */
+        /** Overrides the current JSP buffer value for this thread. */
+        public static void overrideBuffer(int buffer) {
+            BUFFER_OVERRIDE.push(buffer);
+        }
+
+        /** Restores the last JSP buffer value for this thread. */
+        public static Integer restoreBuffer() {
+            return BUFFER_OVERRIDE.pop();
+        }
+
+        /** @deprecated Use {@link #pushBufferOverride} instead. */
+        @Deprecated
         public static void setBufferOverride(int buffer) {
             BUFFER_OVERRIDE.set(buffer);
         }
 
-        /** Removes the JSP buffer override for this thread. */
+        /** @deprecated Use {@link #popBufferOverride} instead. */
+        @Deprecated
         public static void removeBufferOverride() {
             BUFFER_OVERRIDE.remove();
         }
