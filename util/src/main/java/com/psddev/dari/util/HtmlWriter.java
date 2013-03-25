@@ -450,14 +450,14 @@ public class HtmlWriter extends Writer {
 
                 write("$(reorder);");
 
-                write("$(win).resize(function() {");
+                /*write("$(win).resize(function() {");
                     write("if (!reorderTimer) {");
                         write("reorderTimer = setTimeout(function() {");
                             write("reorder();");
                             write("reorderTimer = null;");
                         write("}, 100);");
                     write("}");
-                write("});");
+                write("});");*/
             write("})(jQuery, window);");
         writeEnd();
     }
