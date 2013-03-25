@@ -426,24 +426,33 @@ public class HtmlWriter extends Writer {
                         String media = entry.getKey();
                         Map<String, HtmlGrid> grids = entry.getValue();
 
-                        write("if (window.matchMedia('"); write(StringUtils.escapeJavaScript(media)); write("').matches) {");
-                            for (Map.Entry<String, HtmlGrid> gridEntry : grids.entrySet()) {
-                                String selector = gridEntry.getKey();
-                                HtmlGrid grid = gridEntry.getValue();
+                        if (media == null) {
+                            write("if (true) {");
 
-                                write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
-                                    write("var $layout = $(this);");
+                        } else {
+                            write("if (window.matchMedia('");
+                            write(StringUtils.escapeJavaScript(media));
+                            write("').matches) {");
+                        }
 
-                                    for (String area : grid.getAreas()) {
-                                        write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
-                                        write(StringUtils.escapeJavaScript(area));
-                                        write("\"]')[0]);");
-                                    }
+                        for (Map.Entry<String, HtmlGrid> gridEntry : grids.entrySet()) {
+                            String selector = gridEntry.getKey();
+                            HtmlGrid grid = gridEntry.getValue();
 
-                                    write("$layout[0].appendChild($layout.find('> .dari-grid-clear')[0]);");
-                                write("});");
-                            }
-                            write("return;");
+                            write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
+                                write("var $layout = $(this);");
+
+                                for (String area : grid.getAreas()) {
+                                    write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
+                                    write(StringUtils.escapeJavaScript(area));
+                                    write("\"]')[0]);");
+                                }
+
+                                write("$layout[0].appendChild($layout.find('> .dari-grid-clear')[0]);");
+                            write("});");
+                        }
+                        write("return;");
+
                         write("}");
                     }
                 write("};");
