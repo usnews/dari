@@ -71,6 +71,11 @@
             <optional>true</optional>
         </dependency>
 
+        <dependency>
+            <groupId>org.imgscalr</groupId>
+            <artifactId>imgscalr-lib</artifactId>
+        </dependency>
+
         <!-- JSON -->
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
