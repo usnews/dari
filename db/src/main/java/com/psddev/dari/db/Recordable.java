@@ -7,12 +7,15 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 public interface Recordable {
+
 
     /**
      * Returns the state {@linkplain State#linkObject linked} to this
@@ -32,6 +35,17 @@ public interface Recordable {
      * to this object.
      */
     public <T> T as(Class<T> modificationClass);
+
+    public static enum CountEventDatePrecision {
+        HOUR,
+        DAY,
+        WEEK, // Same as WEEK_MONDAY
+        WEEK_SUNDAY,
+        WEEK_MONDAY,
+        MONTH,
+        YEAR,
+        NONE
+    }
 
     // --- Annotations ---
 
@@ -274,6 +288,36 @@ public interface Recordable {
     @Target(ElementType.FIELD)
     public @interface Where {
         String value();
+    }
+
+    /** Specifies whether the target field value is indexed in the CountRecord dimension tables. 
+     * This field's value will not be loaded or saved into the state. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(CountDimensionProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface CountDimension {
+    }
+
+    /** Specifies the field the count is recorded in */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(CountValueProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface CountValue {
+        String[] dimensions() default {};
+        String eventDate() default "";
+        //boolean includeSelfDimension() default true; /* This isn't supported in SqlQuery yet, so don't use it. */
+    }
+
+    /** Specifies that the target field virtually represents the EventDate field and optionally an SQL date format, and can be queried against. 
+     * This field's value will not be loaded or saved into the state. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(CountEventDateProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface CountEventDate {
+        CountEventDatePrecision value() default CountEventDatePrecision.HOUR;
     }
 
     // --- Deprecated ---
@@ -690,3 +734,67 @@ class WhereProcessor implements ObjectField.AnnotationProcessor<Recordable.Where
         field.setPredicate(annotation.value());
     }
 }
+
+class CountDimensionProcessor implements ObjectField.AnnotationProcessor<Recordable.CountDimension> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.CountDimension annotation) {
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
+        countableFieldData.setDimension(true);
+        countableFieldData.setRecordIdJoinTableName(CountRecord.RECORDCOUNTRECORD_TABLE);
+        countableFieldData.setRecordIdJoinColumnName(CountRecord.COUNTRECORD_COUNTID_FIELD);
+
+        fieldData.setIndexTable(CountRecord.Static.getIndexTable(field));
+        fieldData.setIndexTableSameColumnNames(false);
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+    }
+}
+
+class CountValueProcessor implements ObjectField.AnnotationProcessor<Recordable.CountValue> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.CountValue annotation) {
+
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        fieldData.setIndexTable(null);
+        fieldData.setIndexTableSameColumnNames(false);
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+        Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
+        countableFieldData.setCountField(true);
+        Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
+
+        // includeSelfDimension=false is not supported by SqlQuery yet. 
+        //if (annotation.includeSelfDimension()) {
+            countableFieldData.setIncludeSelfDimension(true);
+        //}
+        countableFieldData.setDimensions(dimensions);
+        if (annotation.eventDate().equals("")) {
+            countableFieldData.setEventDateFieldName(null);
+        } else {
+            countableFieldData.setEventDateFieldName(annotation.eventDate());
+        }
+    }
+}
+
+class CountEventDateProcessor implements ObjectField.AnnotationProcessor<Recordable.CountEventDate> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.CountEventDate annotation) {
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        fieldData.setIndexTable("CountRecord");
+        fieldData.setIndexTableColumnName("eventDate");
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+        Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
+        countableFieldData.setDimension(true);
+        countableFieldData.setEventDatePrecision(annotation.value());
+        countableFieldData.setEventDateField(true);
+    }
+}
+

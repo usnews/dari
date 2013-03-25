@@ -1,64 +1,120 @@
 package com.psddev.dari.db;
 
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
-
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public interface Countable extends Recordable {
 
-    /** Specifies whether the target field value is indexed in the CountRecord dimension tables. 
-     * This field's value will not be loaded or saved into the state. */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(DimensionProcessor.class)
-    @Target(ElementType.FIELD)
-    public @interface Dimension {
+    @FieldInternalNamePrefix("countable.")
+    public static class CountableFieldData extends Modification<ObjectField> {
+
+        private boolean dimension;
+        private boolean countField;
+        private boolean eventDateField;
+        private boolean includeSelfDimension;
+        private Record.CountEventDatePrecision eventDatePrecision;
+        private Set<String> dimensions = new HashSet<String>();
+        private String eventDateFieldName;
+        private String recordIdJoinTableName;
+        private String recordIdJoinColumnName;
+
+        public boolean isDimension() {
+            return dimension;
+        }
+
+        public void setDimension(boolean dimension) {
+            this.dimension = dimension;
+        }
+
+        public boolean isCountField() {
+            return countField;
+        }
+
+        public void setCountField(boolean countField) {
+            this.countField = countField;
+        }
+
+        public boolean isEventDateField() {
+            return eventDateField;
+        }
+
+        public void setEventDateField(boolean eventDateField) {
+            this.eventDateField = eventDateField;
+        }
+
+        public boolean isIncludeSelfDimension() {
+            return includeSelfDimension;
+        }
+
+        public void setIncludeSelfDimension(boolean includeSelfDimension) {
+            this.includeSelfDimension = includeSelfDimension;
+        }
+
+        public Record.CountEventDatePrecision getEventDatePrecision() {
+            return eventDatePrecision;
+        }
+
+        public void setEventDatePrecision(Record.CountEventDatePrecision eventDatePrecision) {
+            this.eventDatePrecision = eventDatePrecision;
+        }
+
+        public Set<String> getDimensions() {
+            return dimensions;
+        }
+
+        public void setDimensions(Set<String> dimensions) {
+            this.dimensions = dimensions;
+        }
+
+        public String getEventDateFieldName() {
+            return eventDateFieldName;
+        }
+
+        public void setEventDateFieldName(String eventDateFieldName) {
+            this.eventDateFieldName = eventDateFieldName;
+        }
+
+        public String getRecordIdJoinTableName() {
+            return recordIdJoinTableName;
+        }
+
+        public void setRecordIdJoinTableName(String recordIdJoinTableName) {
+            this.recordIdJoinTableName = recordIdJoinTableName;
+        }
+
+        public String getRecordIdJoinColumnName() {
+            return recordIdJoinColumnName;
+        }
+
+        public void setRecordIdJoinColumnName(String recordIdJoinColumnName) {
+            this.recordIdJoinColumnName = recordIdJoinColumnName;
+        }
+
     }
 
-    /** Specifies the field the count is recorded in */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(CountFieldProcessor.class)
-    @Target(ElementType.FIELD)
-    public @interface CountField {
-        String[] dimensions() default {};
-        String eventDate() default "";
-        //boolean includeSelfDimension() default true; /* This isn't supported in SqlQuery yet, so don't use it. */
-    }
+    public static class CountAction extends Modification<Recordable> {
 
-    /** Specifies that the target field virtually represents the EventDate field and optionally an SQL date format, and can be queried against. 
-     * This field's value will not be loaded or saved into the state. */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(EventDateProcessor.class)
-    @Target(ElementType.FIELD)
-    public @interface EventDate {
-        CountRecord.EventDatePrecision value() default CountRecord.EventDatePrecision.HOUR;
-    }
-
-    public static class CountAction extends Modification<Countable> {
-
-        static final Logger LOGGER = LoggerFactory.getLogger(CountAction.class);
+        public static final Logger LOGGER = LoggerFactory.getLogger(CountAction.class);
 
         private transient Map<Class<?>, Map<String, CountRecord>> countRecords = new HashMap<Class<?>, Map<String, CountRecord>>();
 
         private static ObjectField getCountField(Class<? extends Record> recordClass, String internalName) {
             ObjectType recordType = ObjectType.getInstance(recordClass);
-            for (ObjectField objectField : recordType.getFields()) {
-                if (objectField.as(CountableFieldData.class).isCountField() && 
-                        (internalName == null || internalName.equals(objectField.getInternalName()))) {
+            if (internalName == null) {
+                for (ObjectField objectField : recordType.getFields()) {
+                    if (objectField.as(CountableFieldData.class).isCountField()) {
+                        return objectField;
+                    }
+                }
+            } else {
+                ObjectField objectField = recordType.getField(internalName);
+                if (objectField != null && objectField.as(CountableFieldData.class).isCountField()) {
                     return objectField;
                 }
             }
@@ -98,10 +154,6 @@ public interface Countable extends Recordable {
             return dimensions;
         }
 
-        public void incrementCount(Class<? extends Record> recordClass, double c) {
-            incrementCount(recordClass, null, c);
-        }
-
         public void incrementCount(Class<? extends Record> recordClass, String countFieldInternalName, double c) {
             try {
                 getCountRecord(recordClass, countFieldInternalName).incrementCount(c);
@@ -119,43 +171,23 @@ public interface Countable extends Recordable {
             }
         }
 
-        public void setCount(Class<? extends Record> recordClass, double c) {
-            setCount(recordClass, null, c);
-        }
-
         public void setCount(Class<? extends Record> recordClass, String countFieldInternalName, double c) {
             try {
                 getCountRecord(recordClass, countFieldInternalName).setCount(c);
-                if (getCountField(recordClass, countFieldInternalName) != null) {
-                    // also set the summary field in the state so it can be
-                    // immediately available, even though CountRecord will
-                    // (probably) do the actual update of the summary field in
-                    // the database.
-                    String fieldName = getCountField(recordClass, countFieldInternalName).getInternalName();
-                    getState().put(fieldName, c);
-                }
             } catch (SQLException e) {
                 throw new DatabaseException(getCountRecord(recordClass, countFieldInternalName).getDatabase(), "Error in CountRecord.setCount() : " + e.getLocalizedMessage());
             }
         }
 
-        public void deleteCount(Class<? extends Record> recordClass) {
-            deleteCount(recordClass, null);
-        }
-
-        public void deleteCount(Class<? extends Record> recordClass, String countFieldInternalName) {
+        public void deleteCounts(Class<? extends Record> recordClass) {
             try {
-                getCountRecord(recordClass, countFieldInternalName).deleteCount();
+                getCountRecord(recordClass, null).deleteCounts();
             } catch (SQLException e) {
-                throw new DatabaseException(getCountRecord(recordClass, countFieldInternalName).getDatabase(), "Error in CountRecord.deleteCount() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getCountRecord(recordClass, null).getDatabase(), "Error in CountRecord.deleteCounts() : " + e.getLocalizedMessage());
             }
         }
 
-        public double getCount(Class<? extends Record> recordClass) {
-            return getCount(recordClass, null);
-        }
-
-        public double getCount(Class<? extends Record> recordClass, String countFieldInternalName) {
+        protected double getCount(Class<? extends Record> recordClass, String countFieldInternalName) {
             try {
                 CountRecord cr = getCountRecord(recordClass, countFieldInternalName);
                 cr.setQueryDateRange(null, null);
@@ -165,30 +197,20 @@ public interface Countable extends Recordable {
             }
         }
 
-        public double getCountSinceDate(Class<? extends Record> recordClass, Long startTimestamp) {
-            return getCountOverDateRange(recordClass, null, startTimestamp, null);
-        }
-
-        public double getCountSinceDate(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp) {
+        protected double getCountSinceDate(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp) {
             return getCountOverDateRange(recordClass, countFieldInternalName, startTimestamp, null);
         }
 
-        public double getCountAsOfDate(Class<? extends Record> recordClass, Long endTimestamp) {
-            return getCountOverDateRange(recordClass, null, null, endTimestamp);
-        }
-
-        public double getCountAsOfDate(Class<? extends Record> recordClass, String countFieldInternalName, Long endTimestamp) {
+        protected double getCountAsOfDate(Class<? extends Record> recordClass, String countFieldInternalName, Long endTimestamp) {
             return getCountOverDateRange(recordClass, countFieldInternalName, null, endTimestamp);
         }
 
-        public double getCountOverDateRange(Class<? extends Record> recordClass, Long startTimestamp, Long endTimestamp) {
-            return getCountOverDateRange(recordClass, null, startTimestamp, endTimestamp);
-        }
-
-        public double getCountOverDateRange(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp, Long endTimestamp) {
+        protected double getCountOverDateRange(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp, Long endTimestamp) {
             try {
-                // TODO: throw exception if precision = NONE
                 CountRecord cr = getCountRecord(recordClass, countFieldInternalName);
+                if (cr.getEventDatePrecision().equals(Record.CountEventDatePrecision.NONE)) {
+                    throw new RuntimeException("Date range does not apply for EventDatePrecision.NONE");
+                }
                 cr.setQueryDateRange(startTimestamp, endTimestamp);
                 return getCountRecord(recordClass, countFieldInternalName).getCount();
             } catch (SQLException e) {
@@ -222,7 +244,7 @@ public interface Countable extends Recordable {
                 if (eventDateField != null) {
                     countRecord.setEventDatePrecision(eventDateField.as(CountableFieldData.class).getEventDatePrecision());
                 } else {
-                    countRecord.setEventDatePrecision(CountRecord.EventDatePrecision.NONE);
+                    countRecord.setEventDatePrecision(Record.CountEventDatePrecision.NONE);
                 }
                 if (countField.as(CountableFieldData.class).isIncludeSelfDimension()) {
                     countRecord.setIncludeSelfDimension(true);
@@ -230,156 +252,6 @@ public interface Countable extends Recordable {
                 countRecords.get(recordClass).put(countFieldInternalName, countRecord);
             }
             return countRecords.get(recordClass).get(countFieldInternalName);
-        }
-
-    }
-
-    static class DimensionProcessor implements ObjectField.AnnotationProcessor<Dimension> {
-
-        @Override
-        public void process(ObjectType type, ObjectField field, Dimension annotation) {
-            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
-            countableFieldData.setDimension(true);
-            countableFieldData.setRecordIdJoinTableName(CountRecord.RECORDCOUNTRECORD_TABLE);
-            countableFieldData.setRecordIdJoinColumnName(CountRecord.COUNTRECORD_COUNTID_FIELD);
-
-            fieldData.setIndexTable(CountRecord.Static.getIndexTable(field));
-            fieldData.setIndexTableSameColumnNames(false);
-            fieldData.setIndexTableSource(true);
-            fieldData.setIndexTableReadOnly(true);
-
-        }
-    }
-
-    static class CountFieldProcessor implements ObjectField.AnnotationProcessor<CountField> {
-
-        @Override
-        public void process(ObjectType type, ObjectField field, CountField annotation) {
-
-            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-            fieldData.setIndexTable(null);
-            fieldData.setIndexTableSameColumnNames(false);
-            fieldData.setIndexTableSource(true);
-            fieldData.setIndexTableReadOnly(true);
-
-            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
-            countableFieldData.setCountField(true);
-            Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
-
-            // includeSelfDimension=false is not supported by SqlQuery yet. 
-            //if (annotation.includeSelfDimension()) {
-                countableFieldData.setIncludeSelfDimension(true);
-            //}
-            countableFieldData.setDimensions(dimensions);
-            if (annotation.eventDate().equals("")) {
-                countableFieldData.setEventDateFieldName(null);
-            } else {
-                countableFieldData.setEventDateFieldName(annotation.eventDate());
-            }
-        }
-    }
-
-    static class EventDateProcessor implements ObjectField.AnnotationProcessor<EventDate> {
-
-        @Override
-        public void process(ObjectType type, ObjectField field, EventDate annotation) {
-            SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-            fieldData.setIndexTable("CountRecord");
-            fieldData.setIndexTableColumnName("eventDate");
-            fieldData.setIndexTableSource(true);
-            fieldData.setIndexTableReadOnly(true);
-
-            CountableFieldData countableFieldData = field.as(CountableFieldData.class);
-            countableFieldData.setDimension(true);
-            countableFieldData.setEventDatePrecision(annotation.value());
-            countableFieldData.setEventDateField(true);
-        }
-    }
-
-    @FieldInternalNamePrefix("countable.")
-    public static class CountableFieldData extends Modification<ObjectField> {
-
-        private boolean dimension;
-        private boolean countField;
-        private boolean eventDateField;
-        private boolean includeSelfDimension;
-        private CountRecord.EventDatePrecision eventDatePrecision;
-        private Set<String> dimensions = new HashSet<String>();
-        private String eventDateFieldName;
-        private String recordIdJoinTableName;
-        private String recordIdJoinColumnName;
-
-        public boolean isDimension() {
-            return dimension;
-        }
-
-        public void setDimension(boolean dimension) {
-            this.dimension = dimension;
-        }
-
-        public boolean isCountField() {
-            return countField;
-        }
-
-        public void setCountField(boolean countField) {
-            this.countField = countField;
-        }
-
-        public boolean isEventDateField() {
-            return eventDateField;
-        }
-
-        public void setEventDateField(boolean eventDateField) {
-            this.eventDateField = eventDateField;
-        }
-
-        public boolean isIncludeSelfDimension() {
-            return includeSelfDimension;
-        }
-
-        public void setIncludeSelfDimension(boolean includeSelfDimension) {
-            this.includeSelfDimension = includeSelfDimension;
-        }
-
-        public CountRecord.EventDatePrecision getEventDatePrecision() {
-            return eventDatePrecision;
-        }
-
-        public void setEventDatePrecision(CountRecord.EventDatePrecision eventDatePrecision) {
-            this.eventDatePrecision = eventDatePrecision;
-        }
-
-        public Set<String> getDimensions() {
-            return dimensions;
-        }
-
-        public void setDimensions(Set<String> dimensions) {
-            this.dimensions = dimensions;
-        }
-
-        public String getEventDateFieldName() {
-            return eventDateFieldName;
-        }
-
-        public void setEventDateFieldName(String eventDateFieldName) {
-            this.eventDateFieldName = eventDateFieldName;
-        }
-
-        public String getRecordIdJoinTableName() {
-            return recordIdJoinTableName;
-        }
-
-        public void setRecordIdJoinTableName(String recordIdJoinTableName) {
-            this.recordIdJoinTableName = recordIdJoinTableName;
-        }
-
-        public String getRecordIdJoinColumnName() {
-            return recordIdJoinColumnName;
-        }
-
-        public void setRecordIdJoinColumnName(String recordIdJoinColumnName) {
-            this.recordIdJoinColumnName = recordIdJoinColumnName;
         }
 
     }

@@ -42,24 +42,13 @@ public class CountRecord {
     static final int CUMULATIVEAMOUNT_POSITION = 1;
     static final int AMOUNT_POSITION = 2;
 
-    public static enum EventDatePrecision {
-        HOUR,
-        DAY,
-        WEEK,
-        WEEK_SUNDAY,
-        WEEK_MONDAY,
-        MONTH,
-        YEAR,
-        NONE
-    }
-
     private final DimensionSet dimensions;
     private final String dimensionsSymbol;
     private final SqlDatabase db; 
     private final CountRecordQuery query;
     private final Record record;
 
-    private EventDatePrecision eventDatePrecision = EventDatePrecision.NONE;
+    private Record.CountEventDatePrecision eventDatePrecision = Record.CountEventDatePrecision.NONE;
     private UUID countId;
 
     private Long updateDate;
@@ -78,7 +67,7 @@ public class CountRecord {
         this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol, dimensions);
     }
 
-    public void setEventDatePrecision(EventDatePrecision precision) {
+    public void setEventDatePrecision(Record.CountEventDatePrecision precision) {
         this.eventDatePrecision = precision;
     }
 
@@ -86,7 +75,7 @@ public class CountRecord {
         return record;
     }
 
-    public EventDatePrecision getEventDatePrecision() {
+    public Record.CountEventDatePrecision getEventDatePrecision() {
         return this.eventDatePrecision;
     }
 
@@ -188,7 +177,7 @@ public class CountRecord {
 
     public void setCount(Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
-        if (getEventDatePrecision() != EventDatePrecision.NONE) {
+        if (getEventDatePrecision() != Record.CountEventDatePrecision.NONE) {
             throw new RuntimeException("CountRecord.setCount() can only be used if EventDatePrecision is NONE");
         }
         // find the countId, it might be null
@@ -204,8 +193,8 @@ public class CountRecord {
         }
     }
 
-    public void deleteCount() throws SQLException {
-        Static.doCountDelete(getDatabase(), this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getDimensions(), getQuery().getActionSymbol());
+    public void deleteCounts() throws SQLException {
+        Static.doCountDelete(getDatabase(), this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getDimensions());
     }
 
     private UUID getRecordIdForInsert() {
@@ -634,9 +623,7 @@ public class CountRecord {
             str.append(", "+(AMOUNT_BYTE_SIZE*2)+", '0')");
         }
 
-        static String getDeleteDimensionSql(SqlDatabase db, UUID recordId, String table, int actionSymbolId) {
-            // XXX What about actionSymbol???
-            // TODO: this needs typeId in order to quickly look up rows in RecordCountRecord
+        static String getDeleteDimensionSql(SqlDatabase db, UUID recordId, UUID typeId, String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
@@ -649,6 +636,10 @@ public class CountRecord {
             sqlBuilder.append(" FROM ");
             vendor.appendIdentifier(sqlBuilder, RECORDCOUNTRECORD_TABLE);
             sqlBuilder.append(" WHERE ");
+            vendor.appendIdentifier(sqlBuilder, "typeId");
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, typeId);
+            sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, "id");
             sqlBuilder.append(" = ");
             vendor.appendValue(sqlBuilder, recordId);
@@ -656,7 +647,7 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
-        static String getDeleteCountRecordSql(SqlDatabase db, UUID recordId, int actionSymbolId) {
+        static String getDeleteCountRecordSql(SqlDatabase db, UUID recordId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
@@ -672,10 +663,12 @@ public class CountRecord {
             sqlBuilder.append(" = ");
             vendor.appendValue(sqlBuilder, recordId);
             sqlBuilder.append(") ");
+            /*
             sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
             sqlBuilder.append(" = ");
             vendor.appendValue(sqlBuilder, actionSymbolId);
+            */
             return sqlBuilder.toString();
         }
 
@@ -1008,11 +1001,10 @@ public class CountRecord {
             }
         }
 
-        static void doCountDelete(SqlDatabase db, UUID recordId, UUID typeId, DimensionSet dimensions, String actionSymbol) throws SQLException {
-            if (recordId == null) return; // XXX ???
+        static void doCountDelete(SqlDatabase db, UUID recordId, UUID typeId, DimensionSet dimensions) throws SQLException {
+            if (recordId == null) return; // XXX need to handle this.
             Connection connection = db.openConnection();
             List<Object> parameters = new ArrayList<Object>();
-            int actionSymbolId = db.getSymbolId(actionSymbol);
             try {
                 Set<String> tables = new HashSet<String>();
                 for (Dimension dimension : dimensions) {
@@ -1020,10 +1012,10 @@ public class CountRecord {
                 }
                 // This needs to be executed BEFORE DeleteCountRecordSql
                 for (String table : tables) {
-                    String sql = getDeleteDimensionSql(db, recordId, table, actionSymbolId);
+                    String sql = getDeleteDimensionSql(db, recordId, typeId, table);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
-                String sql = getDeleteCountRecordSql(db, recordId, actionSymbolId);
+                String sql = getDeleteCountRecordSql(db, recordId);
                 SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 if (recordId != null) {
                     sql = getDeleteRecordCountRecordSql(db, typeId, recordId);
