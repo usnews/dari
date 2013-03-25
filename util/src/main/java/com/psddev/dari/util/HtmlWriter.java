@@ -311,72 +311,70 @@ public class HtmlWriter extends Writer {
 
     /** Writes all grid CSS found within the given {@code context}. */
     public HtmlWriter writeGridCss(ServletContext context) throws IOException {
-        writeStart("style", "type", "text/css");
-            writeCss(".dari-grid-area",
-                    "-moz-box-sizing", "content-box",
-                    "-webkit-box-sizing", "content-box",
-                    "box-sizing", "content-box",
-                    "float", "left",
-                    "margin", "0 -100% 0 -30000px");
+        writeCss(".dari-grid-area",
+                "-moz-box-sizing", "content-box",
+                "-webkit-box-sizing", "content-box",
+                "box-sizing", "content-box",
+                "float", "left",
+                "margin", "0 -100% 0 -30000px");
 
-            writeCss(".dari-grid-adj",
-                    "float", "left");
+        writeCss(".dari-grid-adj",
+                "float", "left");
 
-            writeCss(".dari-grid-adj-px:before",
-                    "content", "'" + GRID_PADDING + "'",
-                    "display", "block",
-                    "height", 0,
-                    "overflow", "hidden",
-                    "visibility", "hidden");
+        writeCss(".dari-grid-adj-px:before",
+                "content", "'" + GRID_PADDING + "'",
+                "display", "block",
+                "height", 0,
+                "overflow", "hidden",
+                "visibility", "hidden");
 
-            for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
-                write("\n\n");
+        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
+            write("\n\n");
 
-                String gridSelector = gridEntry.getKey();
-                HtmlGrid grid = gridEntry.getValue();
-                String cssSuffix = "";
+            String gridSelector = gridEntry.getKey();
+            HtmlGrid grid = gridEntry.getValue();
+            String cssSuffix = "";
 
-                for (int lastBraceAt = 0, braceAt;
-                        (braceAt = gridSelector.indexOf('{', lastBraceAt)) > -1;
-                        lastBraceAt = braceAt + 1) {
-                    cssSuffix += '}';
-                }
+            for (int lastBraceAt = 0, braceAt;
+                    (braceAt = gridSelector.indexOf('{', lastBraceAt)) > -1;
+                    lastBraceAt = braceAt + 1) {
+                cssSuffix += '}';
+            }
 
-                CssUnit minWidth = grid.getMinimumWidth().getSingle();
+            CssUnit minWidth = grid.getMinimumWidth().getSingle();
 
-                if (minWidth != null) {
-                    writeCss(gridSelector,
-                            "min-width", minWidth);
-                    write(cssSuffix);
-                }
+            if (minWidth != null) {
+                writeCss(gridSelector,
+                        "min-width", minWidth);
+                write(cssSuffix);
+            }
 
-                writeCss(gridSelector + " > .dari-grid-area[data-grid-area]",
-                        "display", "none");
+            writeCss(gridSelector + " > .dari-grid-area[data-grid-area]",
+                    "display", "none");
+            write(cssSuffix);
+
+            for (Area area : createAreas(grid).values()) {
+                String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
+
+                writeCss(gridSelector + " > .dari-grid-area" + selectorSuffix,
+                        "clear", area.clear ? "left" : null,
+                        "display", "block",
+                        "padding-left", area.frPaddingLeft + "%",
+                        "width", area.frWidth + "%");
                 write(cssSuffix);
 
-                for (Area area : createAreas(grid).values()) {
-                    String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
+                for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
+                    String unit = entry.getKey();
+                    Adjustment adjustment = entry.getValue();
 
-                    writeCss(gridSelector + " > .dari-grid-area" + selectorSuffix,
-                            "clear", area.clear ? "left" : null,
-                            "display", "block",
-                            "padding-left", area.frPaddingLeft + "%",
-                            "width", area.frWidth + "%");
+                    writeCss(gridSelector + " .dari-grid-adj-" + unit + selectorSuffix,
+                            "height", adjustment.height != null ? adjustment.height : "auto",
+                            "margin", adjustment.getMargin(unit),
+                            "width", adjustment.width != null ? adjustment.width : "auto");
                     write(cssSuffix);
-
-                    for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
-                        String unit = entry.getKey();
-                        Adjustment adjustment = entry.getValue();
-
-                        writeCss(gridSelector + " .dari-grid-adj-" + unit + selectorSuffix,
-                                "height", adjustment.height != null ? adjustment.height : "auto",
-                                "margin", adjustment.getMargin(unit),
-                                "width", adjustment.width != null ? adjustment.width : "auto");
-                        write(cssSuffix);
-                    }
                 }
             }
-        writeEnd();
+        }
 
         return this;
     }
@@ -416,59 +414,57 @@ public class HtmlWriter extends Writer {
             gridsByMedia.put(null, defaultGrids);
         }
 
-        writeStart("script", "type", "text/javascript");
-            write("if (typeof jQuery !== 'undefined') (function($, win, undef) {");
-                write("var reorder, reorderTimer;");
-                write("if (!window.matchMedia) return;");
+        write("if (typeof jQuery !== 'undefined') (function($, win, undef) {");
+            write("var reorder, reorderTimer;");
+            write("if (!window.matchMedia) return;");
 
-                write("reorder = function() {");
-                    for (Map.Entry<String, Map<String, HtmlGrid>> entry : gridsByMedia.entrySet()) {
-                        String media = entry.getKey();
-                        Map<String, HtmlGrid> grids = entry.getValue();
+            write("reorder = function() {");
+                for (Map.Entry<String, Map<String, HtmlGrid>> entry : gridsByMedia.entrySet()) {
+                    String media = entry.getKey();
+                    Map<String, HtmlGrid> grids = entry.getValue();
 
-                        if (media == null) {
-                            write("if (true) {");
+                    if (media == null) {
+                        write("if (true) {");
 
-                        } else {
-                            write("if (window.matchMedia('");
-                            write(StringUtils.escapeJavaScript(media));
-                            write("').matches) {");
-                        }
-
-                        for (Map.Entry<String, HtmlGrid> gridEntry : grids.entrySet()) {
-                            String selector = gridEntry.getKey();
-                            HtmlGrid grid = gridEntry.getValue();
-
-                            write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
-                                write("var $layout = $(this);");
-
-                                for (String area : grid.getAreas()) {
-                                    write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
-                                    write(StringUtils.escapeJavaScript(area));
-                                    write("\"]')[0]);");
-                                }
-
-                                write("$layout[0].appendChild($layout.find('> .dari-grid-clear')[0]);");
-                            write("});");
-                        }
-                        write("return;");
-
-                        write("}");
+                    } else {
+                        write("if (window.matchMedia('");
+                        write(StringUtils.escapeJavaScript(media));
+                        write("').matches) {");
                     }
-                write("};");
 
-                write("$(reorder);");
+                    for (Map.Entry<String, HtmlGrid> gridEntry : grids.entrySet()) {
+                        String selector = gridEntry.getKey();
+                        HtmlGrid grid = gridEntry.getValue();
 
-                /*write("$(win).resize(function() {");
-                    write("if (!reorderTimer) {");
-                        write("reorderTimer = setTimeout(function() {");
-                            write("reorder();");
-                            write("reorderTimer = null;");
-                        write("}, 100);");
+                        write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
+                            write("var $layout = $(this);");
+
+                            for (String area : grid.getAreas()) {
+                                write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
+                                write(StringUtils.escapeJavaScript(area));
+                                write("\"]')[0]);");
+                            }
+
+                            write("$layout[0].appendChild($layout.find('> .dari-grid-clear')[0]);");
+                        write("});");
+                    }
+                    write("return;");
+
                     write("}");
-                write("});");*/
-            write("})(jQuery, window);");
-        writeEnd();
+                }
+            write("};");
+
+            write("$(reorder);");
+
+            /*write("$(win).resize(function() {");
+                write("if (!reorderTimer) {");
+                    write("reorderTimer = setTimeout(function() {");
+                        write("reorder();");
+                        write("reorderTimer = null;");
+                    write("}, 100);");
+                write("}");
+            write("});");*/
+        write("})(jQuery, window);");
     }
 
     /**
