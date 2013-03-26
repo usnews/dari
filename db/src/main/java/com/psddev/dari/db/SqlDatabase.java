@@ -1540,12 +1540,31 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
 
-                long count = ObjectUtils.to(long.class, result.getObject(1));
+
                 List<Object> keys = new ArrayList<Object>();
-                for (int j = 0; j < fieldsLength; ++ j) {
-                    keys.add(result.getObject(j + 2));
+                
+                SqlGrouping<T> grouping;
+                ResultSetMetaData meta = result.getMetaData();
+                String aggregateColumnName = meta.getColumnName(1);
+                if (aggregateColumnName.equals("_count")) {
+                    long count = ObjectUtils.to(long.class, result.getObject(1));
+                    for (int j = 0; j < fieldsLength; ++ j) {
+                        keys.add(result.getObject(j + 2));
+                    }
+                    grouping = new SqlGrouping<T>(keys, query, fields, count, groupings);
+                } else {
+                    Double amount = ObjectUtils.to(Double.class, result.getObject(1));
+                    for (int j = 0; j < fieldsLength; ++ j) {
+                        keys.add(result.getObject(j + 3));
+                    }
+                    long count = 0L;
+                    if (meta.getColumnName(2).equals("_count")) {
+                        count = ObjectUtils.to(long.class, result.getObject(2));
+                    }
+                    grouping = new SqlGrouping<T>(keys, query, fields, count, groupings);
+                    grouping.setSum(aggregateColumnName, amount);
                 }
-                groupings.add(new SqlGrouping<T>(keys, query, fields, count, groupings));
+                groupings.add(grouping);
             }
 
             int groupingsSize = groupings.size();
@@ -1604,10 +1623,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public double getSum(String field) {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
-            if (sumField.as(Countable.CountableFieldData.class).isCountField()) {
+            if (sumField.as(Countable.CountableFieldData.class).isCountValue()) {
                 if (! countRecordSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedCountRecordStatement(query, field, fields);
+                    LOGGER.info("sqlQuery: " + sqlQuery);
                     Connection connection = null;
                     Statement statement = null;
                     ResultSet result = null;
@@ -1644,7 +1664,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                                 // TODO: limit/offset
                                 List<Object> keys = new ArrayList<Object>();
                                 for (int j = 0; j < objectFields.size(); ++ j) {
-                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+2)));
+                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+3)));
                                 }
                                 if (groupingMap.containsKey(keys)) {
                                     groupingMap.get(keys).setSum(field, result.getDouble(1));
@@ -1657,7 +1677,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         closeResources(query, connection, statement, result);
                     }
                 }
-                return countRecordSums.get(field);
+                if (countRecordSums.containsKey(field))
+                    return countRecordSums.get(field);
+                else
+                    return 0;
             } else {
                 // If it's not a CountField, we don't need to override it.
                 return super.getSum(field);

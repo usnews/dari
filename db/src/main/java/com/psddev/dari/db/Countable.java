@@ -15,7 +15,7 @@ public interface Countable extends Recordable {
     public static class CountableFieldData extends Modification<ObjectField> {
 
         private boolean dimension;
-        private boolean countField;
+        private boolean countValue;
         private boolean eventDateField;
         private boolean includeSelfDimension;
         private Record.CountEventDatePrecision eventDatePrecision;
@@ -32,12 +32,12 @@ public interface Countable extends Recordable {
             this.dimension = dimension;
         }
 
-        public boolean isCountField() {
-            return countField;
+        public boolean isCountValue() {
+            return countValue;
         }
 
-        public void setCountField(boolean countField) {
-            this.countField = countField;
+        public void setCountValue(boolean countValue) {
+            this.countValue = countValue;
         }
 
         public boolean isEventDateField() {
@@ -108,13 +108,13 @@ public interface Countable extends Recordable {
             ObjectType recordType = ObjectType.getInstance(recordClass);
             if (internalName == null) {
                 for (ObjectField objectField : recordType.getFields()) {
-                    if (objectField.as(CountableFieldData.class).isCountField()) {
+                    if (objectField.as(CountableFieldData.class).isCountValue()) {
                         return objectField;
                     }
                 }
             } else {
                 ObjectField objectField = recordType.getField(internalName);
-                if (objectField != null && objectField.as(CountableFieldData.class).isCountField()) {
+                if (objectField != null && objectField.as(CountableFieldData.class).isCountValue()) {
                     return objectField;
                 }
             }

@@ -760,12 +760,13 @@ class CountValueProcessor implements ObjectField.AnnotationProcessor<Recordable.
 
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
         fieldData.setIndexTable(null);
+        fieldData.setIndexTableColumnName("data");
         fieldData.setIndexTableSameColumnNames(false);
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
         Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
-        countableFieldData.setCountField(true);
+        countableFieldData.setCountValue(true);
         Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
 
         // includeSelfDimension=false is not supported by SqlQuery yet. 
