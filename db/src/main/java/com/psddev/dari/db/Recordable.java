@@ -787,12 +787,12 @@ class CountEventDateProcessor implements ObjectField.AnnotationProcessor<Recorda
     public void process(ObjectType type, ObjectField field, Recordable.CountEventDate annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
         fieldData.setIndexTable("CountRecord");
-        fieldData.setIndexTableColumnName("eventDate");
+        fieldData.setIndexTableColumnName("data");
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
         Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
-        countableFieldData.setDimension(true);
+        countableFieldData.setDimension(false);
         countableFieldData.setEventDatePrecision(annotation.value());
         countableFieldData.setEventDateField(true);
     }

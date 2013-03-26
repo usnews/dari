@@ -679,7 +679,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                 Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
 
-                if (fieldData.isIndexTableSource() && !countableFieldData.isDimension() && fieldData.getIndexTable() != null) {
+                if (fieldData.isIndexTableSource() && !countableFieldData.isDimension() && !countableFieldData.isEventDateField() && fieldData.getIndexTable() != null) {
                     loadExtraFields.add(field);
                 }
             }

@@ -37,7 +37,6 @@ class SqlQuery {
     private final Map<String, Query.MappedKey> mappedKeys;
     private final Map<String, ObjectIndex> selectedIndexes;
 
-    private String selectClause;
     private String fromClause;
     private String whereClause;
     private String groupByClause;
@@ -55,6 +54,9 @@ class SqlQuery {
     private Join mysqlIndexHint;
     private boolean forceLeftJoins;
     private boolean doCountInGroupBy = true;
+
+    private List<Predicate> countRecordPredicates;
+    private List<Predicate> countRecordParentPredicates;
 
     /**
      * Creates an instance that can translate the given {@code query}
@@ -243,9 +245,13 @@ class SqlQuery {
         Predicate predicate = query.getPredicate();
 
         if (predicate != null) {
-            whereBuilder.append("\nAND (");
-            addWherePredicate(whereBuilder, predicate, null, false);
-            whereBuilder.append(')');
+            StringBuilder childBuilder = new StringBuilder();
+            addWherePredicate(childBuilder, predicate, null, false, true);
+            if (childBuilder.length() > 0) {
+                whereBuilder.append("\nAND (");
+                whereBuilder.append(childBuilder);
+                whereBuilder.append(')');
+            }
         }
 
         if (!ObjectUtils.isBlank(extraWhere)) {
@@ -521,7 +527,8 @@ class SqlQuery {
             StringBuilder whereBuilder,
             Predicate predicate,
             Predicate parentPredicate,
-            boolean usesLeftJoin) {
+            boolean usesLeftJoin,
+            boolean deferCountRecordPredicates) {
 
         if (predicate instanceof CompoundPredicate) {
             CompoundPredicate compoundPredicate = (CompoundPredicate) predicate;
@@ -542,9 +549,13 @@ class SqlQuery {
                 }
 
                 for (Predicate child : children) {
-                    compoundBuilder.append("(");
-                    addWherePredicate(compoundBuilder, child, predicate, usesLeftJoinChildren);
-                    compoundBuilder.append(")\nOR ");
+                    StringBuilder childBuilder = new StringBuilder();
+                    addWherePredicate(childBuilder, child, predicate, usesLeftJoinChildren, deferCountRecordPredicates);
+                    if (childBuilder.length() > 0) {
+                        compoundBuilder.append("(");
+                        compoundBuilder.append(childBuilder);
+                        compoundBuilder.append(")\nOR ");
+                    }
                 }
 
                 if (compoundBuilder.length() > 0) {
@@ -568,9 +579,13 @@ class SqlQuery {
                 StringBuilder compoundBuilder = new StringBuilder();
 
                 for (Predicate child : compoundPredicate.getChildren()) {
-                    compoundBuilder.append("(");
-                    addWherePredicate(compoundBuilder, child, predicate, usesLeftJoin);
-                    compoundBuilder.append(")\nAND ");
+                    StringBuilder childBuilder = new StringBuilder();
+                    addWherePredicate(childBuilder, child, predicate, usesLeftJoin, deferCountRecordPredicates);
+                    if (childBuilder.length() > 0) {
+                        compoundBuilder.append("(");
+                        compoundBuilder.append(childBuilder);
+                        compoundBuilder.append(")\nAND ");
+                    }
                 }
 
                 if (compoundBuilder.length() > 0) {
@@ -592,6 +607,15 @@ class SqlQuery {
                 if (countableFieldData.isDimension()) {
                     usesLeftJoin = true;
                     needsDistinct = true;
+                } 
+                else if (countableFieldData.isEventDateField() && deferCountRecordPredicates) {
+                    if (countRecordPredicates == null && countRecordParentPredicates == null) {
+                        countRecordPredicates = new ArrayList<Predicate>();
+                        countRecordParentPredicates = new ArrayList<Predicate>();
+                    }
+                    countRecordPredicates.add(predicate);
+                    countRecordParentPredicates.add(parentPredicate);
+                    return;
                 }
             }
 
@@ -907,6 +931,7 @@ class SqlQuery {
                         throw new RuntimeException("Unable to group by @CountField: " + groupField);
                     }
                     if (countableFieldData.isEventDateField()) { // TODO: this one has to work . . .
+                        //LOGGER.info("===== eventDateField: " + mappedKey.getField().getInternalName());
                         continue;
                     }
                 }
@@ -966,7 +991,6 @@ class SqlQuery {
             statementBuilder.append(", ");
             statementBuilder.append(field);
         }
-        selectClause = statementBuilder.toString();
 
         statementBuilder.append("\nFROM ");
         vendor.appendIdentifier(statementBuilder, "Record");
@@ -1046,17 +1070,35 @@ class SqlQuery {
         assert fields.length == groupBySelectColumnAliases.size();
         // Important to note that count(*) is the 1st column, 
 
+        boolean hasMinEventDate = false;
+        if (countRecordPredicates != null) {
+            for (Predicate predicate : countRecordPredicates) {
+                if (PredicateParser.GREATER_THAN_OPERATOR.equals(predicate.getOperator()) || 
+                        PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(predicate.getOperator())) {
+                    hasMinEventDate = true;
+                }
+            }
+        }
+
         StringBuilder selectBuilder = new StringBuilder();
         StringBuilder fromBuilder = new StringBuilder();
         StringBuilder whereBuilder = new StringBuilder();
         StringBuilder groupByBuilder = new StringBuilder();
 
-        selectBuilder.append("SELECT MAX(");
+        selectBuilder.append("SELECT ");
+        selectBuilder.append(" MAX(");
         vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_TABLE);
         selectBuilder.append(".");
         vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_DATA_FIELD);
         selectBuilder.append(") maxData");
-        // TODO: minData for ranges 
+
+        if (hasMinEventDate) {
+            selectBuilder.append(", MIN(");
+            vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_TABLE);
+            selectBuilder.append(".");
+            vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_DATA_FIELD);
+            selectBuilder.append(") minData");
+        }
 
         for (String field : groupBySelectColumnAliases) {
             selectBuilder.append(", ");
@@ -1088,6 +1130,19 @@ class SqlQuery {
         whereBuilder.append(" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
+        // Apply deferred predicates (eventDates)
+        if (countRecordParentPredicates != null && countRecordPredicates != null) {
+            assert countRecordParentPredicates.size() == countRecordPredicates.size();
+            StringBuilder childBuilder = new StringBuilder();
+            for (int i = 0; i < countRecordPredicates.size(); i++) {
+                childBuilder.append(" AND ");
+                addWherePredicate(childBuilder, countRecordPredicates.get(i), countRecordParentPredicates.get(i), false, false);
+            }
+            if (childBuilder.length() > 0) {
+                whereBuilder.append(childBuilder);
+            }
+        }
+
         groupByBuilder.append(" GROUP BY ");
         vendor.appendIdentifier(groupByBuilder, CountRecord.COUNTRECORD_TABLE);
         groupByBuilder.append(".");
@@ -1111,7 +1166,12 @@ class SqlQuery {
         selectBuilder.append("SELECT ");
         selectBuilder.append("ROUND(SUM(");
         CountRecord.Static.appendSelectAmountSql(selectBuilder, vendor, "maxData", CountRecord.CUMULATIVEAMOUNT_POSITION);
-        // TODO: minData for ranges 
+        if (hasMinEventDate) {
+            selectBuilder.append(" - ");
+            CountRecord.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", CountRecord.CUMULATIVEAMOUNT_POSITION);
+            selectBuilder.append(" + ");
+            CountRecord.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", CountRecord.AMOUNT_POSITION);
+        }
         selectBuilder.append(") / ");
         vendor.appendValue(selectBuilder, CountRecord.AMOUNT_DECIMAL_SHIFT);
         selectBuilder.append(",");
@@ -1495,6 +1555,28 @@ class SqlQuery {
                 }
                 lastRecordJoinTableAlias = recordJoinTableAlias;
 
+            } else if (joinField != null && joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
+                needsIndexTable = false;
+                likeValuePrefix = null;
+                //addIndexKey(queryKey);
+                sqlIndexTable = this.sqlIndex.getReadTable(database, index);
+
+                StringBuilder tableBuilder = new StringBuilder();
+                tableName = sqlIndexTable.getName(database, index);
+                vendor.appendIdentifier(tableBuilder, tableName);
+                table = tableBuilder.toString();
+                alias = CountRecord.COUNTRECORD_TABLE;
+
+                valueField = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
+
+                idField = null;
+                keyField = null;
+                recordJoinIdField = null;
+                joinToPreviousRecordJoinTable = null;
+
+                recordJoinTableAlias = null;
+                recordJoinTable = null;
+
             } else {
                 needsIndexTable = true;
                 likeValuePrefix = null;
@@ -1573,7 +1655,17 @@ class SqlQuery {
                 }
             }
 
-            vendor.appendValue(builder, value);
+            if (field != null && field.as(Countable.CountableFieldData.class).isEventDateField()) {
+                // EventDates in CountRecord are smaller than long
+                char padChar = 'F';
+                if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) || 
+                        PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
+                    padChar = '0';
+                }
+                CountRecord.Static.appendBinEncodeTimestampSql(builder, null, vendor, (long) value, padChar);
+            } else {
+                vendor.appendValue(builder, value);
+            }
         }
 
         public String getValueField(String queryKey, ComparisonPredicate comparison) {

@@ -187,7 +187,7 @@ public interface Countable extends Recordable {
             }
         }
 
-        protected double getCount(Class<? extends Record> recordClass, String countFieldInternalName) {
+        public double getCount(Class<? extends Record> recordClass, String countFieldInternalName) {
             try {
                 CountRecord cr = getCountRecord(recordClass, countFieldInternalName);
                 cr.setQueryDateRange(null, null);
@@ -197,15 +197,15 @@ public interface Countable extends Recordable {
             }
         }
 
-        protected double getCountSinceDate(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp) {
+        public double getCountSinceDate(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp) {
             return getCountOverDateRange(recordClass, countFieldInternalName, startTimestamp, null);
         }
 
-        protected double getCountAsOfDate(Class<? extends Record> recordClass, String countFieldInternalName, Long endTimestamp) {
+        public double getCountAsOfDate(Class<? extends Record> recordClass, String countFieldInternalName, Long endTimestamp) {
             return getCountOverDateRange(recordClass, countFieldInternalName, null, endTimestamp);
         }
 
-        protected double getCountOverDateRange(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp, Long endTimestamp) {
+        public double getCountOverDateRange(Class<? extends Record> recordClass, String countFieldInternalName, Long startTimestamp, Long endTimestamp) {
             try {
                 CountRecord cr = getCountRecord(recordClass, countFieldInternalName);
                 if (cr.getEventDatePrecision().equals(Record.CountEventDatePrecision.NONE)) {

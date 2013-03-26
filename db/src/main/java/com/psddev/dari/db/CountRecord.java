@@ -328,18 +328,14 @@ public class CountRecord {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
                 sqlBuilder.append(" <= ");
-                sqlBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
-                sqlBuilder.append(")");
+                appendBinEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
             }
 
             if (minEventDate != null) {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
                 sqlBuilder.append(" >= ");
-                sqlBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(sqlBuilder, null, vendor, minEventDate, '0');
-                sqlBuilder.append(")");
+                appendBinEncodeTimestampSql(sqlBuilder, null, vendor, minEventDate, '0');
             }
 
             return sqlBuilder.toString();
@@ -514,9 +510,7 @@ public class CountRecord {
                                 vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
                                 updateBuilder.append(" LIKE ");
                                     updateBuilder.append(" CONCAT(");
-                                        updateBuilder.append(" UNHEX(");
-                                            appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
-                                        updateBuilder.append(")");
+                                        appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
                                     updateBuilder.append(", '%')");
                                     updateBuilder.append(","); // if it's the exact date, then update the amount
                                     appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, amount);
@@ -552,22 +546,18 @@ public class CountRecord {
             if (updateFuture) {
                 // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
                 updateBuilder.append(" >= ");
-                updateBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, '0');
-                updateBuilder.append(")");
+                appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, '0');
             } else {
                 updateBuilder.append(" LIKE ");
                 updateBuilder.append(" CONCAT(");
-                updateBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
-                updateBuilder.append(")");
+                appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
                 updateBuilder.append(", '%')");
             }
 
             return updateBuilder.toString();
         }
 
-        private static void appendHexEncodeTimestampSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, long timestamp, Character rpadChar) {
+        public static void appendHexEncodeTimestampSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, long timestamp, Character rpadChar) {
             if (rpadChar != null) {
                 str.append("RPAD(");
             }
@@ -587,6 +577,12 @@ public class CountRecord {
                 str.append(rpadChar);
                 str.append("')");
             }
+        }
+
+        public static void appendBinEncodeTimestampSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, long timestamp, Character rpadHexChar) {
+            str.append("UNHEX(");
+            appendHexEncodeTimestampSql(str, parameters, vendor, timestamp, rpadHexChar);
+            str.append(")");
         }
 
         private static void appendHexEncodeExistingTimestampSql(StringBuilder str, SqlVendor vendor, String columnIdentifier) {
@@ -903,18 +899,14 @@ public class CountRecord {
                 whereBuilder.append(" AND ");
                 whereBuilder.append(dateDataBuilder);
                 whereBuilder.append(" > ");
-                whereBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(whereBuilder, null, vendor, query.getStartTimestamp(), 'F');
-                whereBuilder.append(")");
+                appendBinEncodeTimestampSql(whereBuilder, null, vendor, query.getStartTimestamp(), 'F');
             }
 
             if (query.getEndTimestamp() != null) {
                 whereBuilder.append(" AND ");
                 whereBuilder.append(dateDataBuilder);
                 whereBuilder.append(" <= ");
-                whereBuilder.append(" UNHEX(");
-                appendHexEncodeTimestampSql(whereBuilder, null, vendor, query.getEndTimestamp(), 'F');
-                whereBuilder.append(")");
+                appendBinEncodeTimestampSql(whereBuilder, null, vendor, query.getEndTimestamp(), 'F');
             }
 
             fromBuilder.append(" JOIN (");
