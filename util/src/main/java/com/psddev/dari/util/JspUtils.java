@@ -496,12 +496,25 @@ public class JspUtils {
     }
     
     /**
-     * Returns {@code true} if the given {@code request} is made with
-     * SSL ({@code javax.Servlet.ServletRequest#isSecure()} returns {@code true} 
-     * or X-Forwarded-Proto header is "https").
+     * Returns {@code true} if the given {@code request} is secure. This method 
+     * checks:
+     *
+     * <ul>
+     * <li>{@link ServletRequest#isSecure}</li>
+     * <li>{@code X-Forwarded-Proto} header</li>
+     * <li>{@code HTTPS} environment variable</li>
+     * </ul>
      */
+    public static boolean isSecure(HttpServletRequest request) {
+        return request.isSecure() ||
+                "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto")) ||
+                System.getenv("HTTPS") != null;
+    }
+
+    /** @deprecated Use {@link #isSecure} instead. */
+    @Deprecated
     public static boolean isSecureRequest(HttpServletRequest request) {
-        return (request.isSecure() || (request.getHeader("X-Forwarded-Proto") != null && request.getHeader("X-Forwarded-Proto").equalsIgnoreCase("https")));
+        return isSecure(request);
     }
 
     /**
