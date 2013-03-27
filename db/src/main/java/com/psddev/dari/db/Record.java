@@ -222,17 +222,22 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
 
     /** @see CountRecord.incrementCount */
     public void incrementCount(String name, double value) {
-        this.as(Countable.CountAction.class).incrementCount(this.getClass(), name, value);
+        this.as(Countable.CountAction.class).incrementCount(name, value);
     }
     
     /** @see CountRecord.setCount */
     public void setCount(String name, double value) {
-        this.as(Countable.CountAction.class).setCount(this.getClass(), name, value);
+        this.as(Countable.CountAction.class).setCount(name, value);
     }
 
     /** @see CountRecord.setEventDate */
     public void setCountEventDate(String name, long timestampMillis) {
-        this.as(Countable.CountAction.class).getCountRecord(this.getClass(), name).setEventDate(timestampMillis);
+        this.as(Countable.CountAction.class).getCountRecord(name).setEventDate(timestampMillis);
+    }
+
+    /** @see CountRecord.getCountByRecordId */
+    public double getCount(String name) {
+        return this.as(Countable.CountAction.class).getCountByRecordId(name);
     }
 
     /** @see CountRecord.deleteCounts */

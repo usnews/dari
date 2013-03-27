@@ -44,7 +44,7 @@ public class CountRecord {
 
     private final DimensionSet dimensions;
     private final String dimensionsSymbol;
-    private final SqlDatabase db; 
+    private final SqlDatabase db;
     private final CountRecordQuery query;
     private final Record record;
 
@@ -58,7 +58,7 @@ public class CountRecord {
     public CountRecord(SqlDatabase database, Record record, String actionSymbol, Set<ObjectField> dimensions) {
         this.dimensions = DimensionSet.createDimensionSet(dimensions, record);
         this.dimensionsSymbol = this.getDimensionsSymbol(); // requires this.dimensions
-        this.db = database; 
+        this.db = database;
         this.query = new CountRecordQuery(dimensionsSymbol, actionSymbol, record, this.dimensions);
         this.record = record;
     }
@@ -163,6 +163,13 @@ public class CountRecord {
         }
     }
 
+    public Double getCountByRecordId() throws SQLException {
+        if (getRecordIdForInsert() == null) {
+            throw new RuntimeException("Can't look up count by recordId when using includeSelfDimension=false");
+        }
+        return Static.getCountByRecordId(getDatabase(), getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+    }
+
     public void incrementCount(Double amount) throws SQLException {
         // find the countId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
@@ -248,7 +255,7 @@ public class CountRecord {
                 return CountRecord.COUNTRECORD_UUIDINDEX_TABLE;
             } else if (fieldType.equals(ObjectField.LOCATION_TYPE)) {
                 return CountRecord.COUNTRECORD_LOCATIONINDEX_TABLE;
-            } else if (fieldType.equals(ObjectField.NUMBER_TYPE) || 
+            } else if (fieldType.equals(ObjectField.NUMBER_TYPE) ||
                     fieldType.equals(ObjectField.DATE_TYPE)) {
                 return CountRecord.COUNTRECORD_NUMBERINDEX_TABLE;
             } else {
@@ -684,6 +691,117 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
+        static String getSelectCountByRecordIdSql(SqlDatabase db, String actionSymbol, UUID recordId, UUID typeId, Long startTimestamp, Long endTimestamp) {
+            SqlVendor vendor = db.getVendor();
+            StringBuilder selectBuilder = new StringBuilder();
+            StringBuilder fromBuilder = new StringBuilder();
+            StringBuilder whereBuilder = new StringBuilder();
+            StringBuilder groupByBuilder = new StringBuilder();
+
+            boolean selectMinData = false;
+            if (startTimestamp != null) {
+                selectMinData = true;
+            }
+
+            selectBuilder.append("SELECT ");
+
+            selectBuilder.append("MAX( ");
+            vendor.appendIdentifier(selectBuilder, "data");
+            selectBuilder.append(") ");
+            vendor.appendIdentifier(selectBuilder, "maxData");
+            if (selectMinData) {
+                selectBuilder.append(", MIN( ");
+                vendor.appendIdentifier(selectBuilder, "data");
+                selectBuilder.append(") ");
+                vendor.appendIdentifier(selectBuilder, "minData");
+            }
+
+            fromBuilder.append(" FROM ");
+            vendor.appendIdentifier(fromBuilder, RECORDCOUNTRECORD_TABLE);
+            fromBuilder.append(" ");
+            vendor.appendIdentifier(fromBuilder, "rcr");
+
+            fromBuilder.append(" JOIN ");
+            vendor.appendIdentifier(fromBuilder, COUNTRECORD_TABLE);
+            fromBuilder.append(" ");
+            vendor.appendIdentifier(fromBuilder, "cr");
+            fromBuilder.append(" ON (");
+            vendor.appendIdentifier(fromBuilder, "rcr");
+            fromBuilder.append(".");
+            vendor.appendIdentifier(fromBuilder, "countId");
+            fromBuilder.append(" = ");
+            vendor.appendIdentifier(fromBuilder, "cr");
+            fromBuilder.append(".");
+            vendor.appendIdentifier(fromBuilder, "countId");
+            fromBuilder.append(") ");
+
+            whereBuilder.append(" WHERE ");
+            vendor.appendIdentifier(whereBuilder, "rcr");
+            whereBuilder.append(".");
+            vendor.appendIdentifier(whereBuilder, "typeId");
+            whereBuilder.append(" = ");
+            vendor.appendValue(whereBuilder, typeId);
+            whereBuilder.append(" AND ");
+            vendor.appendIdentifier(whereBuilder, "rcr");
+            whereBuilder.append(".");
+            vendor.appendIdentifier(whereBuilder, "id");
+            whereBuilder.append(" = ");
+            vendor.appendValue(whereBuilder, recordId);
+            whereBuilder.append(" AND ");
+            vendor.appendIdentifier(whereBuilder, "cr");
+            whereBuilder.append(".");
+            vendor.appendIdentifier(whereBuilder, "actionSymbolId");
+            whereBuilder.append(" = ");
+            vendor.appendValue(whereBuilder, db.getSymbolId(actionSymbol));
+
+            groupByBuilder.append(" GROUP BY ");
+            vendor.appendIdentifier(groupByBuilder, "cr");
+            groupByBuilder.append(".");
+            vendor.appendIdentifier(groupByBuilder, "countId");
+
+            // Now wrap it up for the sum()
+
+            String innerSql = selectBuilder.toString() +
+                " " + fromBuilder.toString() +
+                " " + whereBuilder.toString() +
+                " " + groupByBuilder.toString();
+
+            selectBuilder = new StringBuilder();
+            fromBuilder = new StringBuilder();
+            whereBuilder = new StringBuilder();
+            groupByBuilder = new StringBuilder();
+
+            selectBuilder.append("SELECT ");
+
+            selectBuilder.append("ROUND(SUM(");
+
+            // Always select maxData.cumulativeAmount
+            appendSelectAmountSql(selectBuilder, vendor, "maxData", CUMULATIVEAMOUNT_POSITION);
+
+            if (selectMinData) {
+                selectBuilder.append(" - ");
+                appendSelectAmountSql(selectBuilder, vendor, "minData", CUMULATIVEAMOUNT_POSITION);
+                selectBuilder.append(" + ");
+                appendSelectAmountSql(selectBuilder, vendor, "minData", AMOUNT_POSITION);
+            }
+
+            selectBuilder.append(") / ");
+            vendor.appendValue(selectBuilder, AMOUNT_DECIMAL_SHIFT);
+            selectBuilder.append(",");
+            vendor.appendValue(selectBuilder, AMOUNT_DECIMAL_PLACES);
+            selectBuilder.append(")");
+
+            fromBuilder.append(" FROM (");
+            fromBuilder.append(innerSql);
+            fromBuilder.append(") ");
+            vendor.appendIdentifier(fromBuilder, "x");
+
+            return selectBuilder.toString() +
+                " " + fromBuilder.toString() +
+                " " + whereBuilder.toString() +
+                " " + groupByBuilder.toString();
+        }
+
         static String getCountIdsByDimensionsSelectSql(SqlDatabase db, CountRecordQuery query, boolean preciseMatch) {
             SqlVendor vendor = db.getVendor();
             StringBuilder selectBuilder = new StringBuilder();
@@ -811,10 +929,10 @@ public class CountRecord {
             groupByBuilder.append(" HAVING COUNT(*) = ");
             groupByBuilder.append(count);
 
-            return selectBuilder.toString() + 
-                " " + fromBuilder.toString() + 
-                " " + whereBuilder.toString() + 
-                " " + groupByBuilder.toString() + 
+            return selectBuilder.toString() +
+                " " + fromBuilder.toString() +
+                " " + whereBuilder.toString() +
+                " " + groupByBuilder.toString() +
                 " " + orderByBuilder.toString();
         }
 
@@ -994,7 +1112,7 @@ public class CountRecord {
         }
 
         static void doCountDelete(SqlDatabase db, UUID recordId, UUID typeId, DimensionSet dimensions) throws SQLException {
-            if (recordId == null) return; // XXX need to handle this.
+            if (recordId == null) return; // TODO need to handle this.
             Connection connection = db.openConnection();
             List<Object> parameters = new ArrayList<Object>();
             try {
@@ -1021,7 +1139,6 @@ public class CountRecord {
         // COUNTRECORD SELECT
         static Double getCountByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
             String sql = null;
-            //UUID countId = Static.getCountIdByDimensions(db, query);
             sql = getSelectCountSql(db, query);
             Connection connection = db.openReadConnection();
             Double count = 0.0;
@@ -1051,6 +1168,25 @@ public class CountRecord {
                 double minCumulativeAmount = amountFromBytes(datas.get(1), CUMULATIVEAMOUNT_POSITION);
                 double minAmount = amountFromBytes(datas.get(1), AMOUNT_POSITION);
                 return maxCumulativeAmount - minCumulativeAmount + minAmount;
+            }
+        }
+
+        static Double getCountByRecordId(SqlDatabase db, UUID recordId, UUID typeId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+            String sql = null;
+            sql = getSelectCountByRecordIdSql(db, actionSymbol, recordId, typeId, minEventDate, maxEventDate);
+            Connection connection = db.openReadConnection();
+            Double count = 0.0;
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                if (result.next()) {
+                    count = result.getDouble(1);
+                }
+                result.close();
+                statement.close();
+                return count;
+            } finally {
+                db.closeConnection(connection);
             }
         }
 

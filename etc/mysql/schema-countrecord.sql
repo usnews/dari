@@ -32,14 +32,19 @@ JOIN Symbol ls ON (c.actionSymbolId = ls.symbolId);
 
 Simple query to get to the current count for a given record + actionSymbol (this eliminates CountRecordSummary) :
 
-SELECT rcr.id id, rcr.typeId typeId
-, (CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000) eventDate
-, ROUND(CONV(HEX(SUBSTR(MAX(data), 5, 8)), 16, 10) / 1000000, 6) cumulativeAmount
-FROM RecordCountRecord rcr
-JOIN CountRecord cr ON (rcr.countId = cr.countId)
-WHERE rcr.typeId = 0x0000013D26DEDF28A5BD67FFEF550010
-AND rcr.id = 0x0000013D6BBBD3E1AB7D6BBF3E3A0000
-AND cr.actionSymbolId = 13;
+SELECT id, typeId, SUM(cumulativeAmount) as amount 
+FROM (
+    SELECT rcr.id id, rcr.typeId typeId
+    , (CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000) eventDate
+    , ROUND(CONV(HEX(SUBSTR(MAX(data), 5, 8)), 16, 10) / 1000000, 6) cumulativeAmount
+    FROM RecordCountRecord rcr
+    JOIN CountRecord cr ON (rcr.countId = cr.countId)
+    WHERE rcr.typeId = 0x0000013D26DEDF28A5BD67FFEF550010
+    AND rcr.id = 0x0000013D6BBBD3E1AB7D6BBF3E3A0000
+    AND cr.actionSymbolId = 13
+    GROUP BY rcr.id, rcr.typeId, cr.countId
+) x
+GROUP BY id, typeId
 
 */
 
