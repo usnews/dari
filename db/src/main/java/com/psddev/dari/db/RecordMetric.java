@@ -7,6 +7,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -21,18 +22,18 @@ import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.UuidUtils;
 
-public class CountRecord {
+public class RecordMetric {
 
-    static final Logger LOGGER = LoggerFactory.getLogger(CountRecord.class);
+    static final Logger LOGGER = LoggerFactory.getLogger(RecordMetric.class);
 
-    static final String COUNTRECORD_TABLE = "CountRecord";
-    static final String RECORDCOUNTRECORD_TABLE = "RecordCountRecord";
-    static final String COUNTRECORD_STRINGINDEX_TABLE = "CountRecordString";
-    static final String COUNTRECORD_NUMBERINDEX_TABLE = "CountRecordNumber";
-    static final String COUNTRECORD_UUIDINDEX_TABLE = "CountRecordUuid";
-    static final String COUNTRECORD_LOCATIONINDEX_TABLE = "CountRecordLocation";
-    static final String COUNTRECORD_COUNTID_FIELD = "countId";
-    static final String COUNTRECORD_DATA_FIELD = "data";
+    static final String RECORDMETRIC_TABLE = "RecordMetric";
+    static final String RECORDRECORDMETRIC_TABLE = "RecordMetricRecord";
+    static final String RECORDMETRIC_STRINGINDEX_TABLE = "RecordMetricString";
+    static final String RECORDMETRIC_NUMBERINDEX_TABLE = "RecordMetricNumber";
+    static final String RECORDMETRIC_UUIDINDEX_TABLE = "RecordMetricUuid";
+    static final String RECORDMETRIC_LOCATIONINDEX_TABLE = "RecordMetricLocation";
+    static final String RECORDMETRIC_METRICID_FIELD = "metricId";
+    static final String RECORDMETRIC_DATA_FIELD = "data";
     static final int QUERY_TIMEOUT = 3;
     static final int AMOUNT_DECIMAL_PLACES = 6;
     static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
@@ -45,29 +46,29 @@ public class CountRecord {
     private final DimensionSet dimensions;
     private final String dimensionsSymbol;
     private final SqlDatabase db;
-    private final CountRecordQuery query;
+    private final MetricQuery query;
     private final Record record;
 
-    private Record.CountEventDatePrecision eventDatePrecision = Record.CountEventDatePrecision.NONE;
-    private UUID countId;
+    private Record.MetricEventDatePrecision eventDatePrecision = Record.MetricEventDatePrecision.NONE;
+    private UUID metricId;
 
     private Long updateDate;
     private Long eventDate;
     private Boolean dimensionsSaved;
 
-    public CountRecord(SqlDatabase database, Record record, String actionSymbol, Set<ObjectField> dimensions) {
+    public RecordMetric(SqlDatabase database, Record record, String actionSymbol, Set<ObjectField> dimensions) {
         this.dimensions = DimensionSet.createDimensionSet(dimensions, record);
         this.dimensionsSymbol = this.getDimensionsSymbol(); // requires this.dimensions
         this.db = database;
-        this.query = new CountRecordQuery(dimensionsSymbol, actionSymbol, record, this.dimensions);
+        this.query = new MetricQuery(dimensionsSymbol, actionSymbol, record, this.dimensions);
         this.record = record;
     }
 
-    public CountRecord(Record record, String actionSymbol, Set<ObjectField> dimensions) {
+    public RecordMetric(Record record, String actionSymbol, Set<ObjectField> dimensions) {
         this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol, dimensions);
     }
 
-    public void setEventDatePrecision(Record.CountEventDatePrecision precision) {
+    public void setEventDatePrecision(Record.MetricEventDatePrecision precision) {
         this.eventDatePrecision = precision;
     }
 
@@ -75,7 +76,7 @@ public class CountRecord {
         return record;
     }
 
-    public Record.CountEventDatePrecision getEventDatePrecision() {
+    public Record.MetricEventDatePrecision getEventDatePrecision() {
         return this.eventDatePrecision;
     }
 
@@ -83,7 +84,7 @@ public class CountRecord {
         return db;
     }
 
-    public CountRecordQuery getQuery() {
+    public MetricQuery getQuery() {
         return query;
     }
 
@@ -154,73 +155,73 @@ public class CountRecord {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
 
-    public Double getCount() throws SQLException {
+    public Double getMetric() throws SQLException {
         if (dimensionsSaved != null && dimensionsSaved == true) {
-            // We already know we're dealing with exactly 1 countId, so look it up directly.
-            return Static.getCountByCountId(getDatabase(), getCountId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+            // We already know we're dealing with exactly 1 metricId, so look it up directly.
+            return Static.getMetricByMetricId(getDatabase(), getMetricId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
         } else {
-            return Static.getCountByDimensions(getDatabase(), getQuery());
+            return Static.getMetricByDimensions(getDatabase(), getQuery());
         }
     }
 
-    public Double getCountByRecordId() throws SQLException {
+    public Double getMetricByRecordId() throws SQLException {
         if (getRecordIdForInsert() == null) {
-            throw new RuntimeException("Can't look up count by recordId when using includeSelfDimension=false");
+            throw new RuntimeException("Can't look up metric by recordId when using includeSelfDimension=false");
         }
-        return Static.getCountByRecordId(getDatabase(), getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return Static.getMetricByRecordId(getDatabase(), getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
-    public void incrementCount(Double amount) throws SQLException {
-        // find the countId, it might be null
+    public void incrementMetric(Double amount) throws SQLException {
+        // find the metricId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
-        UUID countId = getCountId();
+        UUID metricId = getMetricId();
         if (dimensionsSaved) {
-            Static.doIncrementUpdateOrInsert(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), amount, getUpdateDate(), getEventDate());
+            Static.doIncrementUpdateOrInsert(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), amount, getUpdateDate(), getEventDate());
         } else {
-            Static.doInserts(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), dimensions, amount, getUpdateDate(), getEventDate());
+            Static.doInserts(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
     }
 
-    public void setCount(Double amount) throws SQLException {
+    public void setMetric(Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
-        if (getEventDatePrecision() != Record.CountEventDatePrecision.NONE) {
-            throw new RuntimeException("CountRecord.setCount() can only be used if EventDatePrecision is NONE");
+        if (getEventDatePrecision() != Record.MetricEventDatePrecision.NONE) {
+            throw new RuntimeException("RecordMetric.setMetric() can only be used if EventDatePrecision is NONE");
         }
-        // find the countId, it might be null
-        UUID countId = getCountId();
+        // find the metricId, it might be null
+        UUID metricId = getMetricId();
         if (dimensionsSaved) {
-            Static.doSetUpdateOrInsert(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
+            Static.doSetUpdateOrInsert(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
                     getDimensionsSymbol(), amount, getUpdateDate(),
                     getEventDate());
         } else {
-            Static.doInserts(getDatabase(), countId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
+            Static.doInserts(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
                     dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
     }
 
-    public void deleteCounts() throws SQLException {
-        Static.doCountDelete(getDatabase(), this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getDimensions());
+    public void deleteMetrics() throws SQLException {
+        Static.doMetricDelete(getDatabase(), this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getDimensions());
     }
 
     private UUID getRecordIdForInsert() {
         return this.getQuery().getRecordIdForInsert();
     }
 
-    public UUID getCountId() throws SQLException {
-        if (countId == null) {
-            countId = Static.getCountIdByDimensions(getDatabase(), getQuery());
-            if (countId == null) {
-                // create a new countId
+    public UUID getMetricId() throws SQLException {
+        if (metricId == null) {
+            metricId = Static.getMetricIdByDimensions(getDatabase(), getQuery());
+            if (metricId == null) {
+                // create a new metricId
                 dimensionsSaved = false;
-                countId = UuidUtils.createSequentialUuid();
+                metricId = UuidUtils.createSequentialUuid();
             } else {
-                // this countId came from the DB
+                // this metricId came from the DB
                 dimensionsSaved = true;
             }
         }
-        return countId;
+        return metricId;
     }
 
     public String getDimensionsSymbol() {
@@ -231,7 +232,7 @@ public class CountRecord {
         }
     }
 
-    /** {@link CountRecord} utility methods. */
+    /** {@link RecordMetric} utility methods. */
     public static final class Static {
 
         private Static() {
@@ -252,14 +253,14 @@ public class CountRecord {
         static String getIndexTable(ObjectField field) {
             String fieldType = field.getInternalItemType();
             if (fieldType.equals(ObjectField.UUID_TYPE)) {
-                return CountRecord.COUNTRECORD_UUIDINDEX_TABLE;
+                return RecordMetric.RECORDMETRIC_UUIDINDEX_TABLE;
             } else if (fieldType.equals(ObjectField.LOCATION_TYPE)) {
-                return CountRecord.COUNTRECORD_LOCATIONINDEX_TABLE;
+                return RecordMetric.RECORDMETRIC_LOCATIONINDEX_TABLE;
             } else if (fieldType.equals(ObjectField.NUMBER_TYPE) ||
                     fieldType.equals(ObjectField.DATE_TYPE)) {
-                return CountRecord.COUNTRECORD_NUMBERINDEX_TABLE;
+                return RecordMetric.RECORDMETRIC_NUMBERINDEX_TABLE;
             } else {
-                return CountRecord.COUNTRECORD_STRINGINDEX_TABLE;
+                return RecordMetric.RECORDMETRIC_STRINGINDEX_TABLE;
             }
         }
 
@@ -274,16 +275,16 @@ public class CountRecord {
             return dims;
         }
 
-        static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long createDate, long eventDate) {
+        static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long createDate, long eventDate) {
             ArrayList<String> sqls = new ArrayList<String>();
-            // insert countrecord
+            // insert RecordMetric
             List<Object> parameters = new ArrayList<Object>();
-            sqls.add(getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, createDate, eventDate));
+            sqls.add(getRecordMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, createDate, eventDate));
             parametersList.add(parameters);
 
             if (recordId != null) {
                 parameters = new ArrayList<Object>();
-                sqls.add(getRecordCountRecordInsertSql(db, parameters, countId, recordId, typeId));
+                sqls.add(getRecordRecordMetricInsertSql(db, parameters, metricId, recordId, typeId));
                 parametersList.add(parameters);
             }
             // insert indexes
@@ -292,7 +293,7 @@ public class CountRecord {
                 String table = dimension.getIndexTable();
                 for (Object value : values) {
                     parameters = new ArrayList<Object>();
-                    sqls.add(getDimensionInsertRowSql(db, parameters, countId, recordId, dimensionsSymbol, dimension, value, table));
+                    sqls.add(getDimensionInsertRowSql(db, parameters, metricId, recordId, dimensionsSymbol, dimension, value, table));
                     parametersList.add(parameters);
                 }
             }
@@ -301,30 +302,30 @@ public class CountRecord {
 
         // methods that generate SQL
 
-        static String getDataByCountIdSql(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate, boolean selectMinData) {
+        static String getDataByMetricIdSql(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate, boolean selectMinData) {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 
             sqlBuilder.append("SELECT ");
 
             sqlBuilder.append("MAX(");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
             sqlBuilder.append(") ");
             vendor.appendIdentifier(sqlBuilder, "maxData");
 
             if (selectMinData) {
                 sqlBuilder.append(", MIN(");
-                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
                 sqlBuilder.append(") ");
                 vendor.appendIdentifier(sqlBuilder, "minData");
             }
 
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_TABLE);
             sqlBuilder.append(" WHERE ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
             sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, countId);
+            vendor.appendValue(sqlBuilder, metricId);
 
             sqlBuilder.append(" AND ");
             vendor.appendIdentifier(sqlBuilder, "actionSymbolId");
@@ -333,14 +334,14 @@ public class CountRecord {
 
             if (maxEventDate != null) {
                 sqlBuilder.append(" AND ");
-                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
                 sqlBuilder.append(" <= ");
                 appendBinEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
             }
 
             if (minEventDate != null) {
                 sqlBuilder.append(" AND ");
-                vendor.appendIdentifier(sqlBuilder, COUNTRECORD_DATA_FIELD);
+                vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
                 sqlBuilder.append(" >= ");
                 appendBinEncodeTimestampSql(sqlBuilder, null, vendor, minEventDate, '0');
             }
@@ -365,18 +366,18 @@ public class CountRecord {
             str.append(", 16, 10)");
         }
 
-        static String getCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
+        static String getRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
-            vendor.appendIdentifier(insertBuilder, COUNTRECORD_TABLE);
+            vendor.appendIdentifier(insertBuilder, RECORDMETRIC_TABLE);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
-            cols.put(COUNTRECORD_COUNTID_FIELD, countId);
+            cols.put(RECORDMETRIC_METRICID_FIELD, metricId);
             cols.put("actionSymbolId", db.getSymbolId(actionSymbol));
             cols.put("dimensionsSymbolId", db.getSymbolId(dimensionsSymbol));
             cols.put("createDate", createDate);
             cols.put("updateDate", createDate);
-            cols.put(COUNTRECORD_DATA_FIELD, toBytes(eventDate, cumulativeAmount, amount));
+            cols.put(RECORDMETRIC_DATA_FIELD, toBytes(eventDate, cumulativeAmount, amount));
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendIdentifier(insertBuilder, entry.getKey());
                 insertBuilder.append(", ");
@@ -392,15 +393,15 @@ public class CountRecord {
             return insertBuilder.toString();
         }
 
-        static String getRecordCountRecordInsertSql(SqlDatabase db, List<Object> parameters, UUID countId, UUID recordId, UUID typeId) {
+        static String getRecordRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
-            vendor.appendIdentifier(insertBuilder, RECORDCOUNTRECORD_TABLE);
+            vendor.appendIdentifier(insertBuilder, RECORDRECORDMETRIC_TABLE);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
             cols.put("id", recordId);
             cols.put("typeId", typeId);
-            cols.put("countId", countId);
+            cols.put("metricId", metricId);
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendIdentifier(insertBuilder, entry.getKey());
                 insertBuilder.append(", ");
@@ -470,13 +471,13 @@ public class CountRecord {
             return (double) amountLong / AMOUNT_DECIMAL_SHIFT;
         }
 
-        static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID countId, UUID recordId, String dimensionsSymbol, Dimension dimension, Object value, String table) {
+        static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, String dimensionsSymbol, Dimension dimension, Object value, String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, table);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
-            cols.put(COUNTRECORD_COUNTID_FIELD, countId);
+            cols.put(RECORDMETRIC_METRICID_FIELD, metricId);
             cols.put("dimensionsSymbolId", db.getSymbolId(dimensionsSymbol));
             cols.put("symbolId", db.getSymbolId(dimension.getSymbol()));
             cols.put("value", value);
@@ -495,37 +496,37 @@ public class CountRecord {
             return insertBuilder.toString();
         }
 
-        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID countId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment, boolean updateFuture) {
+        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID metricId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment, boolean updateFuture) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
-            vendor.appendIdentifier(updateBuilder, COUNTRECORD_TABLE);
+            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_TABLE);
             updateBuilder.append(" SET ");
 
-            vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
+            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_DATA_FIELD);
             updateBuilder.append(" = ");
             updateBuilder.append(" UNHEX(");
                 updateBuilder.append("CONCAT(");
                     // timestamp
-                    appendHexEncodeExistingTimestampSql(updateBuilder, vendor, COUNTRECORD_DATA_FIELD);
+                    appendHexEncodeExistingTimestampSql(updateBuilder, vendor, RECORDMETRIC_DATA_FIELD);
                     updateBuilder.append(',');
                     // cumulativeAmount and amount
                     if (increment) {
-                        appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
+                        appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
                         updateBuilder.append(',');
                         if (updateFuture) {
                             updateBuilder.append("IF (");
-                                vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
+                                vendor.appendIdentifier(updateBuilder, RECORDMETRIC_DATA_FIELD);
                                 updateBuilder.append(" LIKE ");
                                     updateBuilder.append(" CONCAT(");
                                         appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
                                     updateBuilder.append(", '%')");
                                     updateBuilder.append(","); // if it's the exact date, then update the amount
-                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, amount);
+                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, AMOUNT_POSITION, amount);
                                     updateBuilder.append(","); // if it's a date in the future, leave the date alone
-                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, AMOUNT_POSITION, 0);
+                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, AMOUNT_POSITION, 0);
                             updateBuilder.append(")");
                         } else {
-                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, COUNTRECORD_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
+                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
                         }
                     } else {
                         appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
@@ -540,16 +541,16 @@ public class CountRecord {
             updateBuilder.append(" = ");
             vendor.appendBindValue(updateBuilder, updateDate, parameters);
             updateBuilder.append(" WHERE ");
-            vendor.appendIdentifier(updateBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_METRICID_FIELD);
             updateBuilder.append(" = ");
-            vendor.appendBindValue(updateBuilder, countId, parameters);
+            vendor.appendBindValue(updateBuilder, metricId, parameters);
             updateBuilder.append(" AND ");
             vendor.appendIdentifier(updateBuilder, "actionSymbolId");
             updateBuilder.append(" = ");
             vendor.appendBindValue(updateBuilder, db.getSymbolId(actionSymbol), parameters);
             updateBuilder.append(" AND ");
 
-            vendor.appendIdentifier(updateBuilder, COUNTRECORD_DATA_FIELD);
+            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_DATA_FIELD);
             if (updateFuture) {
                 // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
                 updateBuilder.append(" >= ");
@@ -632,12 +633,12 @@ public class CountRecord {
             sqlBuilder.append("DELETE FROM ");
             vendor.appendIdentifier(sqlBuilder, table);
             sqlBuilder.append(" WHERE ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
             sqlBuilder.append(" IN (");
             sqlBuilder.append(" SELECT ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDCOUNTRECORD_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDRECORDMETRIC_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "typeId");
             sqlBuilder.append(" = ");
@@ -650,17 +651,17 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
-        static String getDeleteCountRecordSql(SqlDatabase db, UUID recordId) {
+        static String getDeleteRecordMetricSql(SqlDatabase db, UUID recordId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_TABLE);
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
             sqlBuilder.append(" IN (");
             sqlBuilder.append(" SELECT ");
-            vendor.appendIdentifier(sqlBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDCOUNTRECORD_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDRECORDMETRIC_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
             sqlBuilder.append(" = ");
@@ -675,11 +676,11 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
-        static String getDeleteRecordCountRecordSql(SqlDatabase db, UUID recordId, UUID typeId) {
+        static String getDeleteRecordMetricRecordSql(SqlDatabase db, UUID recordId, UUID typeId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDCOUNTRECORD_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDRECORDMETRIC_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
             sqlBuilder.append(" = ");
@@ -691,7 +692,7 @@ public class CountRecord {
             return sqlBuilder.toString();
         }
 
-        static String getSelectCountByRecordIdSql(SqlDatabase db, String actionSymbol, UUID recordId, UUID typeId, Long startTimestamp, Long endTimestamp) {
+        static String getSelectMetricByRecordIdSql(SqlDatabase db, String actionSymbol, UUID recordId, UUID typeId, Long startTimestamp, Long endTimestamp) {
             SqlVendor vendor = db.getVendor();
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
@@ -717,22 +718,22 @@ public class CountRecord {
             }
 
             fromBuilder.append(" FROM ");
-            vendor.appendIdentifier(fromBuilder, RECORDCOUNTRECORD_TABLE);
+            vendor.appendIdentifier(fromBuilder, RECORDRECORDMETRIC_TABLE);
             fromBuilder.append(" ");
             vendor.appendIdentifier(fromBuilder, "rcr");
 
             fromBuilder.append(" JOIN ");
-            vendor.appendIdentifier(fromBuilder, COUNTRECORD_TABLE);
+            vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
             fromBuilder.append(" ");
             vendor.appendIdentifier(fromBuilder, "cr");
             fromBuilder.append(" ON (");
             vendor.appendIdentifier(fromBuilder, "rcr");
             fromBuilder.append(".");
-            vendor.appendIdentifier(fromBuilder, "countId");
+            vendor.appendIdentifier(fromBuilder, "metricId");
             fromBuilder.append(" = ");
             vendor.appendIdentifier(fromBuilder, "cr");
             fromBuilder.append(".");
-            vendor.appendIdentifier(fromBuilder, "countId");
+            vendor.appendIdentifier(fromBuilder, "metricId");
             fromBuilder.append(") ");
 
             whereBuilder.append(" WHERE ");
@@ -757,7 +758,7 @@ public class CountRecord {
             groupByBuilder.append(" GROUP BY ");
             vendor.appendIdentifier(groupByBuilder, "cr");
             groupByBuilder.append(".");
-            vendor.appendIdentifier(groupByBuilder, "countId");
+            vendor.appendIdentifier(groupByBuilder, "metricId");
 
             // Now wrap it up for the sum()
 
@@ -802,7 +803,7 @@ public class CountRecord {
                 " " + groupByBuilder.toString();
         }
 
-        static String getCountIdsByDimensionsSelectSql(SqlDatabase db, CountRecordQuery query, boolean preciseMatch) {
+        static String getMetricIdsByDimensionsSelectSql(SqlDatabase db, MetricQuery query, boolean preciseMatch) {
             SqlVendor vendor = db.getVendor();
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
@@ -816,7 +817,7 @@ public class CountRecord {
             selectBuilder.append("SELECT ");
             vendor.appendIdentifier(selectBuilder, "cr0");
             selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(selectBuilder, RECORDMETRIC_METRICID_FIELD);
 
             for (String table : Static.getIndexTables(query.getDimensions(),
                     query.getGroupByDimensions())) {
@@ -838,26 +839,26 @@ public class CountRecord {
                     }
                     if (query.getRecordIdForInsert() != null) {
                         fromBuilder.append(" JOIN ");
-                        vendor.appendIdentifier(fromBuilder, RECORDCOUNTRECORD_TABLE);
+                        vendor.appendIdentifier(fromBuilder, RECORDRECORDMETRIC_TABLE);
                         fromBuilder.append(" ON (");
                         vendor.appendIdentifier(fromBuilder, alias);
                         fromBuilder.append(".");
-                        vendor.appendIdentifier(fromBuilder, "countId");
+                        vendor.appendIdentifier(fromBuilder, "metricId");
                         fromBuilder.append(" = ");
-                        vendor.appendIdentifier(fromBuilder, RECORDCOUNTRECORD_TABLE);
+                        vendor.appendIdentifier(fromBuilder, RECORDRECORDMETRIC_TABLE);
                         fromBuilder.append(".");
-                        vendor.appendIdentifier(fromBuilder, "countId");
+                        vendor.appendIdentifier(fromBuilder, "metricId");
                         fromBuilder.append(") ");
 
                         whereBuilder.append(" AND ");
-                        vendor.appendIdentifier(whereBuilder, RECORDCOUNTRECORD_TABLE);
+                        vendor.appendIdentifier(whereBuilder, RECORDRECORDMETRIC_TABLE);
                         whereBuilder.append(".");
                         vendor.appendIdentifier(whereBuilder, "id");
                         whereBuilder.append(" = ");
                         vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
 
                         whereBuilder.append(" AND ");
-                        vendor.appendIdentifier(whereBuilder, RECORDCOUNTRECORD_TABLE);
+                        vendor.appendIdentifier(whereBuilder, RECORDRECORDMETRIC_TABLE);
                         whereBuilder.append(".");
                         vendor.appendIdentifier(whereBuilder, "typeId");
                         whereBuilder.append(" = ");
@@ -879,11 +880,11 @@ public class CountRecord {
                     fromBuilder.append(" AND ");
                     vendor.appendIdentifier(fromBuilder, "cr0");
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
+                    vendor.appendIdentifier(fromBuilder, RECORDMETRIC_METRICID_FIELD);
                     fromBuilder.append(" = ");
                     vendor.appendIdentifier(fromBuilder, alias);
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, COUNTRECORD_COUNTID_FIELD);
+                    vendor.appendIdentifier(fromBuilder, RECORDMETRIC_METRICID_FIELD);
                     fromBuilder.append(")");
                 }
 
@@ -921,11 +922,11 @@ public class CountRecord {
             groupByBuilder.append("\nGROUP BY ");
             vendor.appendIdentifier(groupByBuilder, "cr0");
             groupByBuilder.append(".");
-            vendor.appendIdentifier(groupByBuilder, COUNTRECORD_COUNTID_FIELD);
+            vendor.appendIdentifier(groupByBuilder, RECORDMETRIC_METRICID_FIELD);
             //orderByBuilder.append("\nORDER BY ");
             //vendor.appendIdentifier(orderByBuilder, "cr0");
             //orderByBuilder.append(".");
-            //vendor.appendIdentifier(orderByBuilder, COUNTRECORD_COUNTID_FIELD);
+            //vendor.appendIdentifier(orderByBuilder, RECORDMETRIC_METRICID_FIELD);
             groupByBuilder.append(" HAVING COUNT(*) = ");
             groupByBuilder.append(count);
 
@@ -936,7 +937,7 @@ public class CountRecord {
                 " " + orderByBuilder.toString();
         }
 
-        static String getSelectCountSql(SqlDatabase db, CountRecordQuery query) {
+        static String getSelectMetricSql(SqlDatabase db, MetricQuery query) {
             SqlVendor vendor = db.getVendor();
             boolean selectMinData = false;
 
@@ -964,13 +965,13 @@ public class CountRecord {
             vendor.appendValue(selectBuilder, AMOUNT_DECIMAL_PLACES);
             selectBuilder.append(")");
             fromBuilder.append(" FROM (");
-            fromBuilder.append(getSelectCountIdDataSql(db, query, selectMinData));
+            fromBuilder.append(getSelectMetricIdDataSql(db, query, selectMinData));
             fromBuilder.append(") x2");
 
             return selectBuilder.toString() + fromBuilder.toString();
         }
 
-        static String getSelectCountIdDataSql(SqlDatabase db, CountRecordQuery query, boolean selectMinData) {
+        static String getSelectMetricIdDataSql(SqlDatabase db, MetricQuery query, boolean selectMinData) {
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
             StringBuilder whereBuilder = new StringBuilder();
@@ -981,7 +982,7 @@ public class CountRecord {
             selectBuilder.append("MAX(");
             vendor.appendIdentifier(selectBuilder, "cr");
             selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, COUNTRECORD_DATA_FIELD);
+            vendor.appendIdentifier(selectBuilder, RECORDMETRIC_DATA_FIELD);
             selectBuilder.append(") ");
             vendor.appendIdentifier(selectBuilder, "maxData");
 
@@ -990,13 +991,13 @@ public class CountRecord {
                 selectBuilder.append("MIN(");
                 vendor.appendIdentifier(selectBuilder, "cr");
                 selectBuilder.append(".");
-                vendor.appendIdentifier(selectBuilder, COUNTRECORD_DATA_FIELD);
+                vendor.appendIdentifier(selectBuilder, RECORDMETRIC_DATA_FIELD);
                 selectBuilder.append(") ");
                 vendor.appendIdentifier(selectBuilder, "minData");
             }
 
             fromBuilder.append(" \nFROM ");
-            vendor.appendIdentifier(fromBuilder, COUNTRECORD_TABLE);
+            vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
             fromBuilder.append(" ");
             vendor.appendIdentifier(fromBuilder, "cr");
             whereBuilder.append(" \nWHERE ");
@@ -1011,7 +1012,7 @@ public class CountRecord {
             StringBuilder dateDataBuilder = new StringBuilder();
             vendor.appendIdentifier(dateDataBuilder, "cr");
             dateDataBuilder.append(".");
-            vendor.appendIdentifier(dateDataBuilder, COUNTRECORD_DATA_FIELD);
+            vendor.appendIdentifier(dateDataBuilder, RECORDMETRIC_DATA_FIELD);
 
             if (query.getStartTimestamp() != null) {
                 whereBuilder.append(" AND ");
@@ -1028,33 +1029,33 @@ public class CountRecord {
             }
 
             fromBuilder.append(" JOIN (");
-            fromBuilder.append(getCountIdsByDimensionsSelectSql(db, query, false));
+            fromBuilder.append(getMetricIdsByDimensionsSelectSql(db, query, false));
             fromBuilder.append(") x");
             fromBuilder.append(" ON (");
             vendor.appendIdentifier(fromBuilder, "x");
             fromBuilder.append(".");
-            vendor.appendIdentifier(fromBuilder, "countId");
+            vendor.appendIdentifier(fromBuilder, "metricId");
             fromBuilder.append(" = ");
             vendor.appendIdentifier(fromBuilder, "cr");
             fromBuilder.append(".");
-            vendor.appendIdentifier(fromBuilder, "countId");
+            vendor.appendIdentifier(fromBuilder, "metricId");
             fromBuilder.append(")");
 
             return selectBuilder.toString() + fromBuilder.toString() + whereBuilder.toString();
         }
 
-        static String getSelectCountIdSql(SqlDatabase db, CountRecordQuery query) {
-            return getCountIdsByDimensionsSelectSql(db, query, true);
+        static String getSelectMetricIdSql(SqlDatabase db, MetricQuery query) {
+            return getMetricIdsByDimensionsSelectSql(db, query, true);
         }
 
         // methods that actually touch the database
 
-        // COUNTRECORD INSERT/UPDATE/DELETE
-        static void doInserts(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
+        // RECORDMETRIC INSERT/UPDATE/DELETE
+        static void doInserts(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<List<Object>> parametersList = new ArrayList<List<Object>>();
-                List<String> sqls = getInsertSqls(db, parametersList, countId, recordId, typeId, actionSymbol, dimensionsSymbol, dimensions, amount, updateDate, eventDate);
+                List<String> sqls = getInsertSqls(db, parametersList, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, dimensions, amount, updateDate, eventDate);
                 Iterator<List<Object>> parametersIterator = parametersList.iterator();
                 for (String sql : sqls) {
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parametersIterator.next());
@@ -1064,26 +1065,26 @@ public class CountRecord {
             }
         }
 
-        static void doIncrementUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double incrementAmount, long updateDate, long eventDate) throws SQLException {
+        static void doIncrementUpdateOrInsert(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double incrementAmount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<Object> parameters = new ArrayList<Object>();
 
                 // First, find the max eventDate. Under normal circumstances, this will either be null (INSERT), before our eventDate (INSERT) or equal to our eventDate (UPDATE).
-                byte[] data = getDataByCountId(db, countId, actionSymbol, null, null);
+                byte[] data = getDataByMetricId(db, metricId, actionSymbol, null, null);
                 String sql;
 
                 if (data == null || timestampFromBytes(data) < eventDate) {
                     // No data for this eventDate; insert.
                     double previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                     parameters = new ArrayList<Object>();
-                    sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
+                    sql = getRecordMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
                 } else if (timestampFromBytes(data) == eventDate) {
                     // There is data for this eventDate; update it.
-                    sql = getUpdateSql(db, parameters, countId, actionSymbol, incrementAmount, updateDate, eventDate, true, false);
-                } else { // if (timestampFromBytes(data) > eventDate) {
+                    sql = getUpdateSql(db, parameters, metricId, actionSymbol, incrementAmount, updateDate, eventDate, true, false);
+                } else { // if (timestampFromBytes(data) > eventDate)
                     // We are updating a row in the past, so we need to tell updateSql to update the cumulativeAmount for all rows in the future.
-                    sql = getUpdateSql(db, parameters, countId, actionSymbol, incrementAmount, updateDate, eventDate, true, true);
+                    sql = getUpdateSql(db, parameters, metricId, actionSymbol, incrementAmount, updateDate, eventDate, true, true);
                 }
                 SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
 
@@ -1092,18 +1093,18 @@ public class CountRecord {
             }
         }
 
-        static void doSetUpdateOrInsert(SqlDatabase db, UUID countId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, long updateDate, long eventDate) throws SQLException {
+        static void doSetUpdateOrInsert(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             if (eventDate != 0L) {
-                throw new RuntimeException("CountRecord.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
+                throw new RuntimeException("RecordMetric.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
             }
             try {
                 List<Object> parameters = new ArrayList<Object>();
-                String sql = getUpdateSql(db, parameters, countId, actionSymbol, amount, updateDate, eventDate, false, false);
+                String sql = getUpdateSql(db, parameters, metricId, actionSymbol, amount, updateDate, eventDate, false, false);
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 if (rowsAffected == 0) {
                     parameters = new ArrayList<Object>();
-                    sql = getCountRecordInsertSql(db, parameters, countId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, updateDate, eventDate);
+                    sql = getRecordMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, updateDate, eventDate);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
@@ -1111,7 +1112,7 @@ public class CountRecord {
             }
         }
 
-        static void doCountDelete(SqlDatabase db, UUID recordId, UUID typeId, DimensionSet dimensions) throws SQLException {
+        static void doMetricDelete(SqlDatabase db, UUID recordId, UUID typeId, DimensionSet dimensions) throws SQLException {
             if (recordId == null) return; // TODO need to handle this.
             Connection connection = db.openConnection();
             List<Object> parameters = new ArrayList<Object>();
@@ -1120,15 +1121,15 @@ public class CountRecord {
                 for (Dimension dimension : dimensions) {
                     tables.add(dimension.getIndexTable());
                 }
-                // This needs to be executed BEFORE DeleteCountRecordSql
+                // This needs to be executed BEFORE DeleteRecordMetricSql
                 for (String table : tables) {
                     String sql = getDeleteDimensionSql(db, recordId, typeId, table);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
-                String sql = getDeleteCountRecordSql(db, recordId);
+                String sql = getDeleteRecordMetricSql(db, recordId);
                 SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 if (recordId != null) {
-                    sql = getDeleteRecordCountRecordSql(db, typeId, recordId);
+                    sql = getDeleteRecordMetricRecordSql(db, typeId, recordId);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
@@ -1136,33 +1137,33 @@ public class CountRecord {
             }
         }
 
-        // COUNTRECORD SELECT
-        static Double getCountByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
+        // RECORDMETRIC SELECT
+        static Double getMetricByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
             String sql = null;
-            sql = getSelectCountSql(db, query);
+            sql = getSelectMetricSql(db, query);
             Connection connection = db.openReadConnection();
-            Double count = 0.0;
+            Double metric = 0.0;
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
-                    count = result.getDouble(1);
+                    metric = result.getDouble(1);
                 }
                 result.close();
                 statement.close();
-                return count;
+                return metric;
             } finally {
                 db.closeConnection(connection);
             }
         }
 
-        static Double getCountByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        static Double getMetricByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             if (minEventDate == null) {
-                byte[] data = getDataByCountId(db, countId, actionSymbol, minEventDate, maxEventDate);
+                byte[] data = getDataByMetricId(db, metricId, actionSymbol, minEventDate, maxEventDate);
                 if (data == null) return null;
                 return amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
             } else {
-                List<byte[]> datas = getMinMaxDataByCountId(db, countId, actionSymbol, minEventDate, maxEventDate);
+                List<byte[]> datas = getMinMaxDataByMetricId(db, metricId, actionSymbol, minEventDate, maxEventDate);
                 if (datas.size() == 0) return null;
                 double maxCumulativeAmount = amountFromBytes(datas.get(0), CUMULATIVEAMOUNT_POSITION);
                 double minCumulativeAmount = amountFromBytes(datas.get(1), CUMULATIVEAMOUNT_POSITION);
@@ -1171,33 +1172,33 @@ public class CountRecord {
             }
         }
 
-        static Double getCountByRecordId(SqlDatabase db, UUID recordId, UUID typeId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        static Double getMetricByRecordId(SqlDatabase db, UUID recordId, UUID typeId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             String sql = null;
-            sql = getSelectCountByRecordIdSql(db, actionSymbol, recordId, typeId, minEventDate, maxEventDate);
+            sql = getSelectMetricByRecordIdSql(db, actionSymbol, recordId, typeId, minEventDate, maxEventDate);
             Connection connection = db.openReadConnection();
-            Double count = 0.0;
+            Double metric = 0.0;
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
-                    count = result.getDouble(1);
+                    metric = result.getDouble(1);
                 }
                 result.close();
                 statement.close();
-                return count;
+                return metric;
             } finally {
                 db.closeConnection(connection);
             }
         }
 
-        static Long getMaxEventDateByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
-            byte[] data = getDataByCountId(db, countId, actionSymbol, minEventDate, maxEventDate);
+        static Long getMaxEventDateByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+            byte[] data = getDataByMetricId(db, metricId, actionSymbol, minEventDate, maxEventDate);
             if (data == null) return null;
             return timestampFromBytes(data);
         }
 
-        static byte[] getDataByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
-            String sql = Static.getDataByCountIdSql(db, countId, actionSymbol, minEventDate, maxEventDate, false);
+        static byte[] getDataByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+            String sql = Static.getDataByMetricIdSql(db, metricId, actionSymbol, minEventDate, maxEventDate, false);
             byte[] data = null;
             Connection connection = db.openReadConnection();
             try {
@@ -1212,9 +1213,9 @@ public class CountRecord {
             return data;
         }
 
-        static List<byte[]> getMinMaxDataByCountId(SqlDatabase db, UUID countId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        static List<byte[]> getMinMaxDataByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             List<byte[]> datas = new ArrayList<byte[]>();
-            String sql = Static.getDataByCountIdSql(db, countId, actionSymbol, minEventDate, maxEventDate, true);
+            String sql = Static.getDataByMetricIdSql(db, metricId, actionSymbol, minEventDate, maxEventDate, true);
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
@@ -1229,30 +1230,284 @@ public class CountRecord {
             return datas;
         }
 
-        static UUID getCountIdByDimensions(SqlDatabase db, CountRecordQuery query) throws SQLException {
-            UUID countId = null;
-            // find the countId, it might be null
-            String sql = Static.getSelectCountIdSql(db, query);
+        static UUID getMetricIdByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
+            UUID metricId = null;
+            // find the metricId, it might be null
+            String sql = Static.getSelectMetricIdSql(db, query);
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
-                    countId = UuidUtils.fromBytes(result.getBytes(1));
+                    metricId = UuidUtils.fromBytes(result.getBytes(1));
                 }
                 result.close();
                 statement.close();
             } finally {
                 db.closeConnection(connection);
             }
-            return countId;
+            return metricId;
+        }
+
+    }
+
+    // MODIFICATIONS 
+
+    @Record.FieldInternalNamePrefix("metrics.")
+    public static class MetricFieldData extends Modification<ObjectField> {
+
+        private boolean dimension;
+        private boolean metricValue;
+        private boolean eventDateField;
+        private boolean includeSelfDimension;
+        private Record.MetricEventDatePrecision eventDatePrecision;
+        private Set<String> dimensions = new HashSet<String>();
+        private String eventDateFieldName;
+        private String recordIdJoinTableName;
+        private String recordIdJoinColumnName;
+
+        public boolean isDimension() {
+            return dimension;
+        }
+
+        public void setDimension(boolean dimension) {
+            this.dimension = dimension;
+        }
+
+        public boolean isMetricValue() {
+            return metricValue;
+        }
+
+        public void setMetricValue(boolean metricValue) {
+            this.metricValue = metricValue;
+        }
+
+        public boolean isEventDateField() {
+            return eventDateField;
+        }
+
+        public void setEventDateField(boolean eventDateField) {
+            this.eventDateField = eventDateField;
+        }
+
+        public boolean isIncludeSelfDimension() {
+            return includeSelfDimension;
+        }
+
+        public void setIncludeSelfDimension(boolean includeSelfDimension) {
+            this.includeSelfDimension = includeSelfDimension;
+        }
+
+        public Record.MetricEventDatePrecision getEventDatePrecision() {
+            return eventDatePrecision;
+        }
+
+        public void setEventDatePrecision(Record.MetricEventDatePrecision eventDatePrecision) {
+            this.eventDatePrecision = eventDatePrecision;
+        }
+
+        public Set<String> getDimensions() {
+            return dimensions;
+        }
+
+        public void setDimensions(Set<String> dimensions) {
+            this.dimensions = dimensions;
+        }
+
+        public String getEventDateFieldName() {
+            return eventDateFieldName;
+        }
+
+        public void setEventDateFieldName(String eventDateFieldName) {
+            this.eventDateFieldName = eventDateFieldName;
+        }
+
+        public String getRecordIdJoinTableName() {
+            return recordIdJoinTableName;
+        }
+
+        public void setRecordIdJoinTableName(String recordIdJoinTableName) {
+            this.recordIdJoinTableName = recordIdJoinTableName;
+        }
+
+        public String getRecordIdJoinColumnName() {
+            return recordIdJoinColumnName;
+        }
+
+        public void setRecordIdJoinColumnName(String recordIdJoinColumnName) {
+            this.recordIdJoinColumnName = recordIdJoinColumnName;
+        }
+
+    }
+
+    public static class MetricAction extends Modification<Recordable> {
+
+        //private static final Logger LOGGER = LoggerFactory.getLogger(MetricAction.class);
+
+        private transient Map<String, RecordMetric> recordMetrics = new HashMap<String, RecordMetric>();
+        private transient Set<Integer> dimensionHashCodes;
+
+        private ObjectField getMetricField(String internalName) {
+            ObjectType recordType = ObjectType.getInstance(this.getOriginalObject().getClass());
+            if (internalName == null) {
+                for (ObjectField objectField : recordType.getFields()) {
+                    if (objectField.as(MetricFieldData.class).isMetricValue()) {
+                        return objectField;
+                    }
+                }
+            } else {
+                ObjectField objectField = recordType.getField(internalName);
+                if (objectField != null && objectField.as(MetricFieldData.class).isMetricValue()) {
+                    return objectField;
+                }
+            }
+            throw new RuntimeException("At least one numeric field must be marked as @MetricValue");
+        }
+
+        private ObjectField getEventDateField(String metricFieldInternalName) {
+            ObjectType recordType = ObjectType.getInstance(this.getOriginalObject().getClass());
+            ObjectField metricField = getMetricField(metricFieldInternalName);
+            String eventDateFieldName = metricField.as(MetricFieldData.class).getEventDateFieldName();
+            if (eventDateFieldName != null) {
+                ObjectField eventDateField = recordType.getField(eventDateFieldName);
+                if (eventDateField == null) {
+                    throw new RuntimeException("Invalid eventDate field : " + eventDateFieldName);
+                }
+                if (eventDateField.as(MetricFieldData.class).isEventDateField()) {
+                    return eventDateField;
+                } else {
+                    throw new RuntimeException("The field " + eventDateFieldName + " is not annotated as @EventDate.");
+                }
+            } else {
+                return null;
+            }
+        }
+
+        private Set<ObjectField> getDimensions(String metricFieldInternalName) {
+            // Checking each field for @Dimension annotation
+            Set<ObjectField> dimensions = new HashSet<ObjectField>();
+            ObjectField metricField = getMetricField(metricFieldInternalName);
+            ObjectType objectType = ObjectType.getInstance(getState().getType().getObjectClass());
+            for (String dimensionFieldName : metricField.as(MetricFieldData.class).getDimensions()) {
+                if (objectType.getField(dimensionFieldName) == null) {
+                    throw new RuntimeException("Invalid dimension field : " + dimensionFieldName);
+                }
+                dimensions.add(objectType.getField(dimensionFieldName));
+            }
+            return dimensions;
+        }
+
+        private boolean dimensionValuesHaveChanged(String metricFieldInternalName) {
+            Set<Integer> newDimensionHashCodes = new HashSet<Integer>();
+            for (ObjectField field : this.getDimensions(metricFieldInternalName)) {
+                if (this.getState().getByPath(field.getInternalName()) != null) {
+                    newDimensionHashCodes.add(this.getState().getByPath(field.getInternalName()).hashCode());
+                }
+            }
+            if (dimensionHashCodes == null || ! newDimensionHashCodes.equals(dimensionHashCodes)) {
+                dimensionHashCodes = newDimensionHashCodes;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        public void incrementMetric(String metricFieldInternalName, double c) {
+            try {
+                getRecordMetric(metricFieldInternalName).incrementMetric(c);
+            } catch (SQLException e) {
+                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.incrementMetric() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public void setMetric(String metricFieldInternalName, double c) {
+            try {
+                getRecordMetric(metricFieldInternalName).setMetric(c);
+            } catch (SQLException e) {
+                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.setMetric() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public void deleteMetrics() {
+            try {
+                getRecordMetric(null).deleteMetrics();
+            } catch (SQLException e) {
+                throw new DatabaseException(getRecordMetric(null).getDatabase(), "Error in RecordMetric.deleteMetrics() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public double getMetric(String metricFieldInternalName) {
+            try {
+                RecordMetric cr = getRecordMetric(metricFieldInternalName);
+                cr.setQueryDateRange(null, null);
+                return getRecordMetric(metricFieldInternalName).getMetric();
+            } catch (SQLException e) {
+                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.getMetric() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public double getMetricByRecordId(String metricFieldInternalName) {
+            try {
+                RecordMetric cr = getRecordMetric(metricFieldInternalName);
+                cr.setQueryDateRange(null, null);
+                return getRecordMetric(metricFieldInternalName).getMetricByRecordId();
+            } catch (SQLException e) {
+                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.getMetricByRecordId() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public double getMetricSinceDate(String metricFieldInternalName, Long startTimestamp) {
+            return getMetricOverDateRange(metricFieldInternalName, startTimestamp, null);
+        }
+
+        public double getMetricAsOfDate(String metricFieldInternalName, Long endTimestamp) {
+            return getMetricOverDateRange(metricFieldInternalName, null, endTimestamp);
+        }
+
+        public double getMetricOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
+            try {
+                RecordMetric cr = getRecordMetric(metricFieldInternalName);
+                if (cr.getEventDatePrecision().equals(Record.MetricEventDatePrecision.NONE)) {
+                    throw new RuntimeException("Date range does not apply for EventDatePrecision.NONE");
+                }
+                cr.setQueryDateRange(startTimestamp, endTimestamp);
+                return getRecordMetric(metricFieldInternalName).getMetric();
+            } catch (SQLException e) {
+                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.getMetric() : " + e.getLocalizedMessage());
+            }
+        }
+
+        public RecordMetric getRecordMetric(String metricFieldInternalName) {
+            // if metricFieldInternalName is null, it will return the *first* @MetricValue in the type
+
+            if (dimensionValuesHaveChanged(metricFieldInternalName)) {
+                if (recordMetrics.containsKey(metricFieldInternalName)) {
+                    recordMetrics.remove(metricFieldInternalName);
+                }
+            }
+
+            if (! recordMetrics.containsKey(metricFieldInternalName)) {
+                ObjectField metricField = getMetricField(metricFieldInternalName);
+                ObjectField eventDateField = getEventDateField(metricFieldInternalName);
+                RecordMetric recordMetric = new RecordMetric(this, metricField.getUniqueName(), this.getDimensions(metricFieldInternalName));
+                if (eventDateField != null) {
+                    recordMetric.setEventDatePrecision(eventDateField.as(MetricFieldData.class).getEventDatePrecision());
+                } else {
+                    recordMetric.setEventDatePrecision(Record.MetricEventDatePrecision.NONE);
+                }
+                if (metricField.as(MetricFieldData.class).isIncludeSelfDimension()) {
+                    recordMetric.setIncludeSelfDimension(true);
+                }
+                recordMetrics.put(metricFieldInternalName, recordMetric);
+            }
+            return recordMetrics.get(metricFieldInternalName);
         }
 
     }
 
 }
 
-class CountRecordQuery {
+class MetricQuery {
     private final String symbol;
     private final String actionSymbol;
     private final DimensionSet dimensions;
@@ -1263,14 +1518,14 @@ class CountRecordQuery {
     private String[] orderByDimensions;
     public boolean includeSelfDimension;
 
-    public CountRecordQuery(String symbol, String actionSymbol, DimensionSet dimensions) {
+    public MetricQuery(String symbol, String actionSymbol, DimensionSet dimensions) {
         this.symbol = symbol;
         this.actionSymbol = actionSymbol;
         this.dimensions = dimensions;
         this.record = null;
     }
 
-    public CountRecordQuery(String symbol, String actionSymbol, Record record,
+    public MetricQuery(String symbol, String actionSymbol, Record record,
             DimensionSet dimensions) {
         this.symbol = symbol;
         this.actionSymbol = actionSymbol;
@@ -1386,7 +1641,7 @@ class Dimension implements Comparable<Dimension> {
     }
 
     public String getIndexTable () {
-        return CountRecord.Static.getIndexTable(this.getObjectField());
+        return RecordMetric.Static.getIndexTable(this.getObjectField());
     }
 
     public String toString() {
@@ -1487,7 +1742,7 @@ class DimensionSet extends LinkedHashSet<Dimension> {
         if (symbolBuilder.length() > 0) {
             symbolBuilder.setLength(symbolBuilder.length()-1);
         }
-        symbolBuilder.append("#count");
+        symbolBuilder.append("#metric");
         return symbolBuilder.toString();
     }
 

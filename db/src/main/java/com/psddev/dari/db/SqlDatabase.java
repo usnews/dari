@@ -536,8 +536,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return new SqlQuery(this, query).groupStatement(groupFields);
     }
 
-    public String buildGroupedCountRecordStatement(Query<?> query, String countFieldName, String... groupFields) {
-        return new SqlQuery(this, query).groupedCountRecordSql(countFieldName, groupFields);
+    public String buildGroupedRecordMetricStatement(Query<?> query, String metricFieldName, String... groupFields) {
+        return new SqlQuery(this, query).groupedRecordMetricSql(metricFieldName, groupFields);
     }
 
     /**
@@ -677,9 +677,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
+                RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
 
-                if (fieldData.isIndexTableSource() && !countableFieldData.isDimension() && !countableFieldData.isEventDateField() && fieldData.getIndexTable() != null) {
+                if (fieldData.isIndexTableSource() && !metricFieldData.isDimension() && !metricFieldData.isEventDateField() && fieldData.getIndexTable() != null) {
                     loadExtraFields.add(field);
                 }
             }
@@ -1609,7 +1609,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         private long count;
 
-        private final Map<String,Double> countRecordSums = new HashMap<String,Double>();
+        private final Map<String,Double> metricSums = new HashMap<String,Double>();
 
         private final List<Grouping<T>> groupings;
 
@@ -1623,11 +1623,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public double getSum(String field) {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
-            if (sumField.as(Countable.CountableFieldData.class).isCountValue()) {
-                if (! countRecordSums.containsKey(field)) {
+            if (sumField.as(RecordMetric.MetricFieldData.class).isMetricValue()) {
+                if (! metricSums.containsKey(field)) {
 
-                    String sqlQuery = buildGroupedCountRecordStatement(query, field, fields);
-                    LOGGER.info("sqlQuery: " + sqlQuery);
+                    String sqlQuery = buildGroupedRecordMetricStatement(query, field, fields);
                     Connection connection = null;
                     Statement statement = null;
                     ResultSet result = null;
@@ -1677,18 +1676,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         closeResources(query, connection, statement, result);
                     }
                 }
-                if (countRecordSums.containsKey(field))
-                    return countRecordSums.get(field);
+                if (metricSums.containsKey(field))
+                    return metricSums.get(field);
                 else
                     return 0;
             } else {
-                // If it's not a CountField, we don't need to override it.
+                // If it's not a MetricValue, we don't need to override it.
                 return super.getSum(field);
             }
        }
 
         private void setSum(String field, double sum) {
-            countRecordSums.put(field, sum);
+            metricSums.put(field, sum);
         }
 
         // --- AbstractGrouping support ---

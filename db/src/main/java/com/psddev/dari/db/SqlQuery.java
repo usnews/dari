@@ -54,12 +54,12 @@ class SqlQuery {
     private Join mysqlIndexHint;
     private boolean forceLeftJoins;
 
-    private List<Predicate> countRecordWherePredicates;
-    private List<Predicate> countRecordParentWherePredicates;
+    private List<Predicate> recordMetricWherePredicates;
+    private List<Predicate> recordMetricParentWherePredicates;
 
-    private List<Predicate> countRecordHavingPredicates;
-    private List<Predicate> countRecordParentHavingPredicates;
-    private ObjectField countRecordField;
+    private List<Predicate> recordMetricHavingPredicates;
+    private List<Predicate> recordMetricParentHavingPredicates;
+    private ObjectField recordMetricField;
 
     /**
      * Creates an instance that can translate the given {@code query}
@@ -156,12 +156,12 @@ class SqlQuery {
             for (ObjectType type : queryTypes) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
+                    RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
                     if (fieldData.isIndexTableSource() && 
                             fieldData.getIndexTable() != null &&
-                            ! countableFieldData.isDimension() && 
-                            ! countableFieldData.isEventDateField() && 
-                            ! countableFieldData.isCountValue()) {
+                            ! metricFieldData.isDimension() && 
+                            ! metricFieldData.isEventDateField() && 
+                            ! metricFieldData.isMetricValue()) {
                         // TODO/performance: if this is a count(), don't join to this table. 
                         // if this is a groupBy() and they don't want to group by 
                         // a field in this table, don't join to this table.
@@ -346,11 +346,11 @@ class SqlQuery {
                     fromBuilder.append(" AND ");
                     vendor.appendIdentifier(fromBuilder, join.recordJoinTableAlias);
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, "countId");
+                    vendor.appendIdentifier(fromBuilder, "metricId");
                     fromBuilder.append(" = ");
                     vendor.appendIdentifier(fromBuilder, join.joinToPreviousRecordJoinTable);
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, "countId");
+                    vendor.appendIdentifier(fromBuilder, "metricId");
                 }
             }
 
@@ -388,7 +388,7 @@ class SqlQuery {
                 fromBuilder.append(aliasPrefix);
                 fromBuilder.append(join.alias);
                 fromBuilder.append("rjt.");
-                vendor.appendIdentifier(fromBuilder, "countId");
+                vendor.appendIdentifier(fromBuilder, "metricId");
             }
             fromBuilder.append(" AND ");
             fromBuilder.append(join.keyField);
@@ -531,7 +531,7 @@ class SqlQuery {
             Predicate predicate,
             Predicate parentPredicate,
             boolean usesLeftJoin,
-            boolean deferCountRecordPredicates) {
+            boolean deferMetricPredicates) {
 
         if (predicate instanceof CompoundPredicate) {
             CompoundPredicate compoundPredicate = (CompoundPredicate) predicate;
@@ -553,7 +553,7 @@ class SqlQuery {
 
                 for (Predicate child : children) {
                     StringBuilder childBuilder = new StringBuilder();
-                    addWherePredicate(childBuilder, child, predicate, usesLeftJoinChildren, deferCountRecordPredicates);
+                    addWherePredicate(childBuilder, child, predicate, usesLeftJoinChildren, deferMetricPredicates);
                     if (childBuilder.length() > 0) {
                         compoundBuilder.append("(");
                         compoundBuilder.append(childBuilder);
@@ -583,7 +583,7 @@ class SqlQuery {
 
                 for (Predicate child : compoundPredicate.getChildren()) {
                     StringBuilder childBuilder = new StringBuilder();
-                    addWherePredicate(childBuilder, child, predicate, usesLeftJoin, deferCountRecordPredicates);
+                    addWherePredicate(childBuilder, child, predicate, usesLeftJoin, deferMetricPredicates);
                     if (childBuilder.length() > 0) {
                         compoundBuilder.append("(");
                         compoundBuilder.append(childBuilder);
@@ -606,26 +606,26 @@ class SqlQuery {
             boolean isFieldCollection = mappedKey.isInternalCollectionType();
 
             if (mappedKey.getField() != null) {
-                Countable.CountableFieldData countableFieldData = mappedKey.getField().as(Countable.CountableFieldData.class);
-                if (countableFieldData.isDimension()) {
+                RecordMetric.MetricFieldData metricFieldData = mappedKey.getField().as(RecordMetric.MetricFieldData.class);
+                if (metricFieldData.isDimension()) {
                     usesLeftJoin = true;
                     needsDistinct = true;
-                } else if (countableFieldData.isEventDateField() && deferCountRecordPredicates) {
-                    if (countRecordWherePredicates == null && countRecordParentWherePredicates == null) {
-                        countRecordWherePredicates = new ArrayList<Predicate>();
-                        countRecordParentWherePredicates = new ArrayList<Predicate>();
+                } else if (metricFieldData.isEventDateField() && deferMetricPredicates) {
+                    if (recordMetricWherePredicates == null && recordMetricParentWherePredicates == null) {
+                        recordMetricWherePredicates = new ArrayList<Predicate>();
+                        recordMetricParentWherePredicates = new ArrayList<Predicate>();
                     }
-                    countRecordWherePredicates.add(predicate);
-                    countRecordParentWherePredicates.add(parentPredicate);
+                    recordMetricWherePredicates.add(predicate);
+                    recordMetricParentWherePredicates.add(parentPredicate);
                     return;
-                } else if (countableFieldData.isCountValue() && deferCountRecordPredicates) {
-                    if (countRecordHavingPredicates == null && countRecordParentHavingPredicates == null) {
-                        countRecordHavingPredicates = new ArrayList<Predicate>();
-                        countRecordParentHavingPredicates = new ArrayList<Predicate>();
-                        countRecordField = mappedKey.getField();
+                } else if (metricFieldData.isMetricValue() && deferMetricPredicates) {
+                    if (recordMetricHavingPredicates == null && recordMetricParentHavingPredicates == null) {
+                        recordMetricHavingPredicates = new ArrayList<Predicate>();
+                        recordMetricParentHavingPredicates = new ArrayList<Predicate>();
+                        recordMetricField = mappedKey.getField();
                     }
-                    countRecordHavingPredicates.add(predicate);
-                    countRecordParentHavingPredicates.add(parentPredicate);
+                    recordMetricHavingPredicates.add(predicate);
+                    recordMetricParentHavingPredicates.add(parentPredicate);
                     return;
                 }
             }
@@ -939,11 +939,11 @@ class SqlQuery {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
                 if (mappedKey.getField() != null) {
-                    Countable.CountableFieldData countableFieldData = mappedKey.getField().as(Countable.CountableFieldData.class);
-                    if (countableFieldData.isCountValue()) {
-                        throw new RuntimeException("Unable to group by @CountValue: " + groupField);
+                    RecordMetric.MetricFieldData metricFieldData = mappedKey.getField().as(RecordMetric.MetricFieldData.class);
+                    if (metricFieldData.isMetricValue()) {
+                        throw new RuntimeException("Unable to group by @MetricValue: " + groupField);
                     }
-                    if (countableFieldData.isEventDateField()) { // TODO: this one has to work . . .
+                    if (metricFieldData.isEventDateField()) { // TODO: this one has to work . . .
                         //LOGGER.info("===== eventDateField: " + mappedKey.getField().getInternalName());
                         continue;
                     }
@@ -969,10 +969,10 @@ class SqlQuery {
         StringBuilder groupBy = new StringBuilder();
         initializeClauses();
 
-        if (countRecordParentHavingPredicates != null && countRecordHavingPredicates != null) {
-            // add "countId" and "id" to groupJoins
-            mappedKeys.put(Query.COUNTID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.COUNTID_KEY));
-            groupJoins.put(Query.COUNTID_KEY, getJoin(Query.COUNTID_KEY));
+        if (recordMetricParentHavingPredicates != null && recordMetricHavingPredicates != null) {
+            // add "metricId" and "id" to groupJoins
+            mappedKeys.put(Query.METRICID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.METRICID_KEY));
+            groupJoins.put(Query.METRICID_KEY, getJoin(Query.METRICID_KEY));
 
             mappedKeys.put(Query.ID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.ID_KEY));
             groupJoins.put(Query.ID_KEY, getJoin(Query.ID_KEY));
@@ -992,7 +992,7 @@ class SqlQuery {
             statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
             statementBuilder.append(" ");
             String columnAlias = null;
-            if (! entry.getValue().queryKey.equals(Query.COUNTID_KEY) && ! entry.getValue().queryKey.equals(Query.ID_KEY)) { // Special case for id and countId
+            if (! entry.getValue().queryKey.equals(Query.METRICID_KEY) && ! entry.getValue().queryKey.equals(Query.ID_KEY)) { // Special case for id and metricId
                 // These column names just need to be unique if we put this statement in a subquery
                 columnAlias = "value" + columnNum;
                 groupBySelectColumnAliases.add(columnAlias);
@@ -1062,9 +1062,9 @@ class SqlQuery {
 
         statementBuilder.append(havingClause);
 
-        if (countRecordParentHavingPredicates != null && countRecordHavingPredicates != null) {
-            // If there are deferred HAVING predicates, we need to go ahead and execute the countrecord query
-            return wrapGroupStatementCountRecordSql(countRecordField.getInternalName(), groupFields, statementBuilder.toString());
+        if (recordMetricParentHavingPredicates != null && recordMetricHavingPredicates != null) {
+            // If there are deferred HAVING predicates, we need to go ahead and execute the metric query
+            return wrapGroupStatementRecordMetricSql(recordMetricField.getInternalName(), groupFields, statementBuilder.toString());
         } else {
             return statementBuilder.toString();
         }
@@ -1072,34 +1072,34 @@ class SqlQuery {
 
     /**
      * Returns an SQL statement that can be used to get the sum 
-     * of the specified CountRecord {@code countFieldName} grouped by the values 
+     * of the specified RecordMetric {@code metricFieldName} grouped by the values 
      * of the given {@code groupFields}.
      */
-    public String groupedCountRecordSql(String countFieldName, String[] fields) {
+    public String groupedRecordMetricSql(String metricFieldName, String[] fields) {
 
-        // Just have to add countId to the group by fields
+        // Just have to add metricId to the group by fields
         String[] innerGroupByFields = Arrays.copyOf(fields, fields.length+2);
-        innerGroupByFields[fields.length] = Query.COUNTID_KEY;
+        innerGroupByFields[fields.length] = Query.METRICID_KEY;
         innerGroupByFields[fields.length+1] = Query.ID_KEY;
-        return wrapGroupStatementCountRecordSql(countFieldName, fields, groupStatement(innerGroupByFields));
+        return wrapGroupStatementRecordMetricSql(metricFieldName, fields, groupStatement(innerGroupByFields));
 
     }
 
-    private String wrapGroupStatementCountRecordSql(String countFieldName, String[] fields, String innerSql) {
+    private String wrapGroupStatementRecordMetricSql(String metricFieldName, String[] fields, String innerSql) {
 
-        Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), countFieldName);
+        Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), metricFieldName);
         if (mappedKey.getField() == null) {
-            throw new RuntimeException("Invalid CountRecord field: " + countFieldName);
+            throw new RuntimeException("Invalid RecordMetric field: " + metricFieldName);
         }
-        ObjectField countField = mappedKey.getField();
+        ObjectField metricField = mappedKey.getField();
 
-        String actionSymbol = countField.getJavaDeclaringClassName() + "/" + countField.getInternalName();
+        String actionSymbol = metricField.getJavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         assert fields.length == groupBySelectColumnAliases.size();
 
         boolean hasMinEventDate = false;
-        if (countRecordWherePredicates != null) {
-            for (Predicate predicate : countRecordWherePredicates) {
+        if (recordMetricWherePredicates != null) {
+            for (Predicate predicate : recordMetricWherePredicates) {
                 if (PredicateParser.GREATER_THAN_OPERATOR.equals(predicate.getOperator()) || 
                         PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(predicate.getOperator())) {
                     hasMinEventDate = true;
@@ -1122,16 +1122,16 @@ class SqlQuery {
         vendor.appendIdentifier(selectBuilder, "_count");
         selectBuilder.append(", ");
         selectBuilder.append(" MAX(");
-        vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_TABLE);
+        vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_TABLE);
         selectBuilder.append(".");
-        vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_DATA_FIELD);
+        vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_DATA_FIELD);
         selectBuilder.append(") maxData");
 
         if (hasMinEventDate) {
             selectBuilder.append(", MIN(");
-            vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_TABLE);
+            vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_TABLE);
             selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, CountRecord.COUNTRECORD_DATA_FIELD);
+            vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_DATA_FIELD);
             selectBuilder.append(") minData");
         }
 
@@ -1146,32 +1146,32 @@ class SqlQuery {
         fromBuilder.append(innerSql);
         fromBuilder.append(" ) x ");
         fromBuilder.append(" JOIN ");
-        vendor.appendIdentifier(fromBuilder, CountRecord.COUNTRECORD_TABLE);
+        vendor.appendIdentifier(fromBuilder, RecordMetric.RECORDMETRIC_TABLE);
         fromBuilder.append(" ON (");
         vendor.appendIdentifier(fromBuilder, "x");
         fromBuilder.append(".");
-        vendor.appendIdentifier(fromBuilder, "countId");
+        vendor.appendIdentifier(fromBuilder, "metricId");
         fromBuilder.append(" = ");
-        vendor.appendIdentifier(fromBuilder, CountRecord.COUNTRECORD_TABLE);
+        vendor.appendIdentifier(fromBuilder, RecordMetric.RECORDMETRIC_TABLE);
         fromBuilder.append(".");
-        vendor.appendIdentifier(fromBuilder, "countId");
+        vendor.appendIdentifier(fromBuilder, "metricId");
 
         fromBuilder.append(") ");
 
         whereBuilder.append(" WHERE ");
-        vendor.appendIdentifier(whereBuilder, CountRecord.COUNTRECORD_TABLE);
+        vendor.appendIdentifier(whereBuilder, RecordMetric.RECORDMETRIC_TABLE);
         whereBuilder.append(".");
         vendor.appendIdentifier(whereBuilder, "actionSymbolId");
         whereBuilder.append(" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
         // Apply deferred WHERE predicates (eventDates)
-        if (countRecordParentWherePredicates != null && countRecordWherePredicates != null) {
-            assert countRecordParentWherePredicates.size() == countRecordWherePredicates.size();
+        if (recordMetricParentWherePredicates != null && recordMetricWherePredicates != null) {
+            assert recordMetricParentWherePredicates.size() == recordMetricWherePredicates.size();
             StringBuilder childBuilder = new StringBuilder();
-            for (int i = 0; i < countRecordWherePredicates.size(); i++) {
+            for (int i = 0; i < recordMetricWherePredicates.size(); i++) {
                 childBuilder.append(" AND ");
-                addWherePredicate(childBuilder, countRecordWherePredicates.get(i), countRecordParentWherePredicates.get(i), false, false);
+                addWherePredicate(childBuilder, recordMetricWherePredicates.get(i), recordMetricParentWherePredicates.get(i), false, false);
             }
             if (childBuilder.length() > 0) {
                 whereBuilder.append(childBuilder);
@@ -1180,9 +1180,9 @@ class SqlQuery {
 
         groupByBuilder.append(" GROUP BY ");
 
-        vendor.appendIdentifier(groupByBuilder, CountRecord.COUNTRECORD_TABLE);
+        vendor.appendIdentifier(groupByBuilder, RecordMetric.RECORDMETRIC_TABLE);
         groupByBuilder.append(".");
-        vendor.appendIdentifier(groupByBuilder, CountRecord.COUNTRECORD_COUNTID_FIELD);
+        vendor.appendIdentifier(groupByBuilder, RecordMetric.RECORDMETRIC_METRICID_FIELD);
         for (String field : groupBySelectColumnAliases) {
             groupByBuilder.append(", ");
             vendor.appendIdentifier(groupByBuilder, field);
@@ -1204,19 +1204,19 @@ class SqlQuery {
         selectBuilder.append("SELECT ");
 
         selectBuilder.append("ROUND(SUM(");
-        CountRecord.Static.appendSelectAmountSql(selectBuilder, vendor, "maxData", CountRecord.CUMULATIVEAMOUNT_POSITION);
+        RecordMetric.Static.appendSelectAmountSql(selectBuilder, vendor, "maxData", RecordMetric.CUMULATIVEAMOUNT_POSITION);
         if (hasMinEventDate) {
             selectBuilder.append(" - ");
-            CountRecord.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", CountRecord.CUMULATIVEAMOUNT_POSITION);
+            RecordMetric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", RecordMetric.CUMULATIVEAMOUNT_POSITION);
             selectBuilder.append(" + ");
-            CountRecord.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", CountRecord.AMOUNT_POSITION);
+            RecordMetric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", RecordMetric.AMOUNT_POSITION);
         }
         selectBuilder.append(") / ");
-        vendor.appendValue(selectBuilder, CountRecord.AMOUNT_DECIMAL_SHIFT);
+        vendor.appendValue(selectBuilder, RecordMetric.AMOUNT_DECIMAL_SHIFT);
         selectBuilder.append(",");
-        vendor.appendValue(selectBuilder, CountRecord.AMOUNT_DECIMAL_PLACES);
+        vendor.appendValue(selectBuilder, RecordMetric.AMOUNT_DECIMAL_PLACES);
         selectBuilder.append(") ");
-        vendor.appendIdentifier(selectBuilder, countField.getInternalName());
+        vendor.appendIdentifier(selectBuilder, metricField.getInternalName());
 
         selectBuilder.append(", SUM(");
         vendor.appendIdentifier(selectBuilder, "_count");
@@ -1243,11 +1243,11 @@ class SqlQuery {
         }
 
         // Apply deferred HAVING predicates (sums)
-        if (countRecordParentHavingPredicates != null && countRecordHavingPredicates != null) {
-            assert countRecordParentHavingPredicates.size() == countRecordHavingPredicates.size();
+        if (recordMetricParentHavingPredicates != null && recordMetricHavingPredicates != null) {
+            assert recordMetricParentHavingPredicates.size() == recordMetricHavingPredicates.size();
             StringBuilder childBuilder = new StringBuilder();
-            for (int i = 0; i < countRecordHavingPredicates.size(); i++) {
-                addWherePredicate(childBuilder, countRecordHavingPredicates.get(i), countRecordParentHavingPredicates.get(i), false, false);
+            for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
+                addWherePredicate(childBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
                 childBuilder.append(" AND ");
             }
             if (childBuilder.length() > 0) {
@@ -1532,10 +1532,10 @@ class SqlQuery {
                 joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
-            } else if (Query.COUNTID_KEY.equals(queryKey) && lastRecordJoinTableAlias != null) {
+            } else if (Query.METRICID_KEY.equals(queryKey) && lastRecordJoinTableAlias != null) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                valueField = aliasedField(lastRecordJoinTableAlias, CountRecord.COUNTRECORD_COUNTID_FIELD);
+                valueField = aliasedField(lastRecordJoinTableAlias, RecordMetric.RECORDMETRIC_METRICID_FIELD);
                 sqlIndexTable = null;
                 table = null;
                 tableName = null;
@@ -1547,20 +1547,20 @@ class SqlQuery {
                 joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = false;
 
-            } else if (Query.COUNTID_KEY.equals(queryKey) && lastRecordJoinTableAlias == null) {
+            } else if (Query.METRICID_KEY.equals(queryKey) && lastRecordJoinTableAlias == null) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                valueField = aliasedField(alias, CountRecord.COUNTRECORD_COUNTID_FIELD);
+                valueField = aliasedField(alias, RecordMetric.RECORDMETRIC_METRICID_FIELD);
                 sqlIndexTable = null;
 
                 tableName = null;
                 table = null;
 
-                idField = CountRecord.COUNTRECORD_COUNTID_FIELD;
+                idField = RecordMetric.RECORDMETRIC_METRICID_FIELD;
                 keyField = null;
 
                 StringBuilder recordJoinTableBuilder = new StringBuilder();
-                vendor.appendIdentifier(recordJoinTableBuilder, CountRecord.RECORDCOUNTRECORD_TABLE);
+                vendor.appendIdentifier(recordJoinTableBuilder, RecordMetric.RECORDRECORDMETRIC_TABLE);
                 recordJoinTableBuilder.append(" ");
                 vendor.appendIdentifier(recordJoinTableBuilder, alias);
                 recordJoinTable = recordJoinTableBuilder.toString();
@@ -1589,7 +1589,7 @@ class SqlQuery {
                 joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(Countable.CountableFieldData.class).isDimension()) {
+            } else if (joinField != null && joinField.as(RecordMetric.MetricFieldData.class).isDimension()) {
                 needsIndexTable = true;
                 likeValuePrefix = null;
                 addIndexKey(queryKey);
@@ -1606,12 +1606,12 @@ class SqlQuery {
 
                 recordJoinTableAlias = aliasPrefix + alias + "rjt";
                 StringBuilder extraTableBuilder = new StringBuilder();
-                vendor.appendIdentifier(extraTableBuilder, joinField.as(Countable.CountableFieldData.class).getRecordIdJoinTableName());
+                vendor.appendIdentifier(extraTableBuilder, joinField.as(RecordMetric.MetricFieldData.class).getRecordIdJoinTableName());
                 extraTableBuilder.append(" ");
                 extraTableBuilder.append(recordJoinTableAlias);
                 recordJoinTable = extraTableBuilder.toString();
 
-                idField = aliasedField(alias, joinField.as(Countable.CountableFieldData.class).getRecordIdJoinColumnName());
+                idField = aliasedField(alias, joinField.as(RecordMetric.MetricFieldData.class).getRecordIdJoinColumnName());
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
                 recordJoinIdField = aliasedField(alias + "rjt", sqlIndexTable.getIdField(database, index));
                 if (lastRecordJoinTableAlias != null) {
@@ -1622,7 +1622,7 @@ class SqlQuery {
                 lastRecordJoinTableAlias = recordJoinTableAlias;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(Countable.CountableFieldData.class).isEventDateField()) {
+            } else if (joinField != null && joinField.as(RecordMetric.MetricFieldData.class).isEventDateField()) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 //addIndexKey(queryKey);
@@ -1632,7 +1632,7 @@ class SqlQuery {
                 tableName = sqlIndexTable.getName(database, index);
                 vendor.appendIdentifier(tableBuilder, tableName);
                 table = tableBuilder.toString();
-                alias = CountRecord.COUNTRECORD_TABLE;
+                alias = RecordMetric.RECORDMETRIC_TABLE;
 
                 valueField = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
 
@@ -1645,7 +1645,7 @@ class SqlQuery {
                 recordJoinTable = null;
                 needsIsNotNull = false;
 
-            } else if (joinField != null && joinField.as(Countable.CountableFieldData.class).isCountValue()) {
+            } else if (joinField != null && joinField.as(RecordMetric.MetricFieldData.class).isMetricValue()) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 //addIndexKey(queryKey);
@@ -1655,7 +1655,7 @@ class SqlQuery {
                 tableName = sqlIndexTable.getName(database, index);
                 vendor.appendIdentifier(tableBuilder, tableName);
                 table = tableBuilder.toString();
-                alias = CountRecord.COUNTRECORD_TABLE;
+                alias = RecordMetric.RECORDMETRIC_TABLE;
 
                 //valueField = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
                 StringBuilder fieldBuilder = new StringBuilder();
@@ -1750,14 +1750,14 @@ class SqlQuery {
                 }
             }
 
-            if (field != null && field.as(Countable.CountableFieldData.class).isEventDateField()) {
-                // EventDates in CountRecord are smaller than long
-                char padChar = 'F';
+            if (field != null && field.as(RecordMetric.MetricFieldData.class).isEventDateField()) {
+                // EventDates in RecordMetric are smaller than long
+                Character padChar = 'F';
                 if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) || 
                         PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
                     padChar = '0';
                 }
-                CountRecord.Static.appendBinEncodeTimestampSql(builder, null, vendor, (long) value, padChar);
+                RecordMetric.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
             } else {
                 vendor.appendValue(builder, value);
             }

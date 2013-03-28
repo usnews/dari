@@ -36,7 +36,7 @@ public interface Recordable {
      */
     public <T> T as(Class<T> modificationClass);
 
-    public static enum CountEventDatePrecision {
+    public static enum MetricEventDatePrecision {
         HOUR,
         DAY,
         WEEK, // Same as WEEK_MONDAY
@@ -290,21 +290,21 @@ public interface Recordable {
         String value();
     }
 
-    /** Specifies whether the target field value is indexed in the CountRecord dimension tables. 
+    /** Specifies whether the target field value is indexed in the RecordMetric dimension tables. 
      * This field's value will not be loaded or saved into the state. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(CountDimensionProcessor.class)
+    @ObjectField.AnnotationProcessorClass(MetricDimensionProcessor.class)
     @Target(ElementType.FIELD)
-    public @interface CountDimension {
+    public @interface MetricDimension {
     }
 
-    /** Specifies the field the count is recorded in */
+    /** Specifies the field the metric is recorded in */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(CountValueProcessor.class)
+    @ObjectField.AnnotationProcessorClass(MetricValueProcessor.class)
     @Target(ElementType.FIELD)
-    public @interface CountValue {
+    public @interface MetricValue {
         String[] dimensions() default {};
         String eventDate() default "";
         //boolean includeSelfDimension() default true; /* This isn't supported in SqlQuery yet, so don't use it. */
@@ -314,10 +314,10 @@ public interface Recordable {
      * This field's value will not be loaded or saved into the state. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(CountEventDateProcessor.class)
+    @ObjectField.AnnotationProcessorClass(MetricEventDateProcessor.class)
     @Target(ElementType.FIELD)
-    public @interface CountEventDate {
-        CountEventDatePrecision value() default CountEventDatePrecision.HOUR;
+    public @interface MetricEventDate {
+        MetricEventDatePrecision value() default MetricEventDatePrecision.HOUR;
     }
 
     // --- Deprecated ---
@@ -735,17 +735,17 @@ class WhereProcessor implements ObjectField.AnnotationProcessor<Recordable.Where
     }
 }
 
-class CountDimensionProcessor implements ObjectField.AnnotationProcessor<Recordable.CountDimension> {
+class MetricDimensionProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricDimension> {
 
     @Override
-    public void process(ObjectType type, ObjectField field, Recordable.CountDimension annotation) {
+    public void process(ObjectType type, ObjectField field, Recordable.MetricDimension annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
-        countableFieldData.setDimension(true);
-        countableFieldData.setRecordIdJoinTableName(CountRecord.RECORDCOUNTRECORD_TABLE);
-        countableFieldData.setRecordIdJoinColumnName(CountRecord.COUNTRECORD_COUNTID_FIELD);
+        RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
+        metricFieldData.setDimension(true);
+        metricFieldData.setRecordIdJoinTableName(RecordMetric.RECORDRECORDMETRIC_TABLE);
+        metricFieldData.setRecordIdJoinColumnName(RecordMetric.RECORDMETRIC_METRICID_FIELD);
 
-        fieldData.setIndexTable(CountRecord.Static.getIndexTable(field));
+        fieldData.setIndexTable(RecordMetric.Static.getIndexTable(field));
         fieldData.setIndexTableSameColumnNames(false);
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
@@ -753,10 +753,10 @@ class CountDimensionProcessor implements ObjectField.AnnotationProcessor<Recorda
     }
 }
 
-class CountValueProcessor implements ObjectField.AnnotationProcessor<Recordable.CountValue> {
+class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricValue> {
 
     @Override
-    public void process(ObjectType type, ObjectField field, Recordable.CountValue annotation) {
+    public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
 
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
         fieldData.setIndexTable(null);
@@ -765,37 +765,37 @@ class CountValueProcessor implements ObjectField.AnnotationProcessor<Recordable.
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
-        Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
-        countableFieldData.setCountValue(true);
+        RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
+        metricFieldData.setMetricValue(true);
         Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
 
         // includeSelfDimension=false is not supported by SqlQuery yet. 
         //if (annotation.includeSelfDimension()) {
-            countableFieldData.setIncludeSelfDimension(true);
+            metricFieldData.setIncludeSelfDimension(true);
         //}
-        countableFieldData.setDimensions(dimensions);
+        metricFieldData.setDimensions(dimensions);
         if (annotation.eventDate().equals("")) {
-            countableFieldData.setEventDateFieldName(null);
+            metricFieldData.setEventDateFieldName(null);
         } else {
-            countableFieldData.setEventDateFieldName(annotation.eventDate());
+            metricFieldData.setEventDateFieldName(annotation.eventDate());
         }
     }
 }
 
-class CountEventDateProcessor implements ObjectField.AnnotationProcessor<Recordable.CountEventDate> {
+class MetricEventDateProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
 
     @Override
-    public void process(ObjectType type, ObjectField field, Recordable.CountEventDate annotation) {
+    public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        fieldData.setIndexTable("CountRecord");
+        fieldData.setIndexTable(RecordMetric.RECORDMETRIC_TABLE);
         fieldData.setIndexTableColumnName("data");
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
-        Countable.CountableFieldData countableFieldData = field.as(Countable.CountableFieldData.class);
-        countableFieldData.setDimension(false);
-        countableFieldData.setEventDatePrecision(annotation.value());
-        countableFieldData.setEventDateField(true);
+        RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
+        metricFieldData.setDimension(false);
+        metricFieldData.setEventDatePrecision(annotation.value());
+        metricFieldData.setEventDateField(true);
     }
 }
 

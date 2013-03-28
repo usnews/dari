@@ -218,31 +218,31 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         getState().saveUniquely();
     }
 
-    // --- CountRecord support ---
+    // --- RecordMetric support ---
 
-    /** @see CountRecord.incrementCount */
-    public void incrementCount(String name, double value) {
-        this.as(Countable.CountAction.class).incrementCount(name, value);
+    /** @see RecordMetric.incrementMetric */
+    public void incrementMetric(String name, double value) {
+        this.as(RecordMetric.MetricAction.class).incrementMetric(name, value);
     }
     
-    /** @see CountRecord.setCount */
-    public void setCount(String name, double value) {
-        this.as(Countable.CountAction.class).setCount(name, value);
+    /** @see RecordMetric.setMetric */
+    public void setMetric(String name, double value) {
+        this.as(RecordMetric.MetricAction.class).setMetric(name, value);
     }
 
-    /** @see CountRecord.setEventDate */
-    public void setCountEventDate(String name, long timestampMillis) {
-        this.as(Countable.CountAction.class).getCountRecord(name).setEventDate(timestampMillis);
+    /** @see RecordMetric.setEventDate */
+    public void setMetricEventDate(String name, long timestampMillis) {
+        this.as(RecordMetric.MetricAction.class).getRecordMetric(name).setEventDate(timestampMillis);
     }
 
-    /** @see CountRecord.getCountByRecordId */
-    public double getCount(String name) {
-        return this.as(Countable.CountAction.class).getCountByRecordId(name);
+    /** @see RecordMetric.getMetricByRecordId */
+    public double getMetric(String name) {
+        return this.as(RecordMetric.MetricAction.class).getMetricByRecordId(name);
     }
 
-    /** @see CountRecord.deleteCounts */
-    public void deleteCounts() {
-        this.as(Countable.CountAction.class).deleteCounts();
+    /** @see RecordMetrics.deleteMetrics */
+    public void deleteMetrics() {
+        this.as(RecordMetric.MetricAction.class).deleteMetrics();
     }
 
     // --- JSTL support ---
