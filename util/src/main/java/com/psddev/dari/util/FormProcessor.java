@@ -3,10 +3,9 @@ package com.psddev.dari.util;
 import javax.servlet.http.HttpServletRequest;
 
 /**
- * Processes a form.
- *
- * @see FormTag
+ * @deprecated Use {@link FormProcessor2} instead.
  */
+@Deprecated
 public interface FormProcessor {
 
     /**

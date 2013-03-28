@@ -5,6 +5,17 @@ import java.io.StringWriter;
 
 import com.psddev.dari.util.HtmlWriter;
 
+/**
+ * Skeletal implementation of {@link FormInputProcessor2}.
+ *
+ * <p>A subclass must implement:
+ *
+ * <ul>
+ * <li>{@link #doDisplay}</li>
+ * <li>{@link #update}</li>
+ * </ul>
+ *
+ */
 public abstract class AbstractFormInputProcessor2 implements FormInputProcessor2 {
 
     @Override

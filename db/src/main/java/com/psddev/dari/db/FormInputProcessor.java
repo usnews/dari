@@ -13,7 +13,10 @@ import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeReference;
 
-/** Processes individual inputs written with {@link FormWriter}. */
+/**
+ * @deprecated Use {@link FormInputProcessor2} instead.
+ */
+@Deprecated
 public interface FormInputProcessor {
 
     /** Returns an HTML string for displaying an input. */

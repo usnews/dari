@@ -11,7 +11,10 @@ import javax.servlet.http.HttpServletRequest;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.HtmlWriter;
 
-/** Writer that specializes in processing HTML forms. */
+/**
+ * @deprecated Use {@link FormWriter2} instead.
+ */
+@Deprecated
 public class FormWriter extends HtmlWriter {
 
     private FormLabelRenderer labelRenderer;

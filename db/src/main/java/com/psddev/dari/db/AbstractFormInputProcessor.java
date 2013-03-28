@@ -10,15 +10,9 @@ import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeReference;
 
 /**
- * Skeletal implementation of {@link FormInputProcessor}.
- *
- * <p>A subclass must implement:
- *
- * <ul>
- * <li>{@link #doDisplay}</li>
- * <li>{@link #update}</li>
- * </ul>
+ * @deprecated Use {@link AbstractFormInputProcessor2} instead.
  */
+@Deprecated
 public abstract class AbstractFormInputProcessor implements FormInputProcessor {
 
     @Override
