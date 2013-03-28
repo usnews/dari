@@ -786,6 +786,9 @@ class MetricEventDateProcessor implements ObjectField.AnnotationProcessor<Record
 
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
+        if (! ObjectField.DATE_TYPE.equals(field.getInternalItemType())) {
+            throw new RuntimeException("@MetricEventDate fields must be Date type");
+        }
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
         fieldData.setIndexTable(RecordMetric.RECORDMETRIC_TABLE);
         fieldData.setIndexTableColumnName("data");

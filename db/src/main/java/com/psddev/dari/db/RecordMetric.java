@@ -7,6 +7,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -1344,10 +1345,13 @@ public class RecordMetric {
 
         //private static final Logger LOGGER = LoggerFactory.getLogger(MetricAction.class);
 
-        private transient Map<String, RecordMetric> recordMetrics = new HashMap<String, RecordMetric>();
+        private transient final Map<String, RecordMetric> recordMetrics = new HashMap<String, RecordMetric>();
+        private transient final Map<String, ObjectField> eventDateFields = new HashMap<String, ObjectField>();
+        private transient final Map<String, ObjectField> metricFields = new HashMap<String, ObjectField>();
+        private transient Date oldEventDateValue;
         private transient Set<Integer> dimensionHashCodes;
 
-        private ObjectField getMetricField(String internalName) {
+        private ObjectField findMetricField(String internalName) {
             ObjectType recordType = ObjectType.getInstance(this.getOriginalObject().getClass());
             if (internalName == null) {
                 for (ObjectField objectField : recordType.getFields()) {
@@ -1364,23 +1368,33 @@ public class RecordMetric {
             throw new RuntimeException("At least one numeric field must be marked as @MetricValue");
         }
 
-        private ObjectField getEventDateField(String metricFieldInternalName) {
-            ObjectType recordType = ObjectType.getInstance(this.getOriginalObject().getClass());
-            ObjectField metricField = getMetricField(metricFieldInternalName);
-            String eventDateFieldName = metricField.as(MetricFieldData.class).getEventDateFieldName();
-            if (eventDateFieldName != null) {
-                ObjectField eventDateField = recordType.getField(eventDateFieldName);
-                if (eventDateField == null) {
-                    throw new RuntimeException("Invalid eventDate field : " + eventDateFieldName);
-                }
-                if (eventDateField.as(MetricFieldData.class).isEventDateField()) {
-                    return eventDateField;
-                } else {
-                    throw new RuntimeException("The field " + eventDateFieldName + " is not annotated as @EventDate.");
-                }
-            } else {
-                return null;
+        private ObjectField getMetricField(String internalName) {
+            if (!metricFields.containsKey(internalName)) {
+                metricFields.put(internalName, findMetricField(internalName));
             }
+            return metricFields.get(internalName);
+        }
+
+        private ObjectField getEventDateField(String metricFieldInternalName) {
+            if (! eventDateFields.containsKey(metricFieldInternalName)) {
+                ObjectType recordType = ObjectType.getInstance(this.getOriginalObject().getClass());
+                ObjectField metricField = getMetricField(metricFieldInternalName);
+                String eventDateFieldName = metricField.as(MetricFieldData.class).getEventDateFieldName();
+                if (eventDateFieldName != null) {
+                    ObjectField eventDateField = recordType.getField(eventDateFieldName);
+                    if (eventDateField == null) {
+                        throw new RuntimeException("Invalid eventDate field : " + eventDateFieldName);
+                    }
+                    if (eventDateField.as(MetricFieldData.class).isEventDateField()) {
+                        eventDateFields.put(metricFieldInternalName, eventDateField);
+                    } else {
+                        throw new RuntimeException("The field " + eventDateFieldName + " is not annotated as @EventDate.");
+                    }
+                } else {
+                    eventDateFields.put(metricFieldInternalName, null);
+                }
+            }
+            return eventDateFields.get(metricFieldInternalName);
         }
 
         private Set<ObjectField> getDimensions(String metricFieldInternalName) {
@@ -1486,9 +1500,9 @@ public class RecordMetric {
                 }
             }
 
+            ObjectField eventDateField = getEventDateField(metricFieldInternalName);
             if (! recordMetrics.containsKey(metricFieldInternalName)) {
                 ObjectField metricField = getMetricField(metricFieldInternalName);
-                ObjectField eventDateField = getEventDateField(metricFieldInternalName);
                 RecordMetric recordMetric = new RecordMetric(this, metricField.getUniqueName(), this.getDimensions(metricFieldInternalName));
                 if (eventDateField != null) {
                     recordMetric.setEventDatePrecision(eventDateField.as(MetricFieldData.class).getEventDatePrecision());
@@ -1500,6 +1514,17 @@ public class RecordMetric {
                 }
                 recordMetrics.put(metricFieldInternalName, recordMetric);
             }
+
+            if (eventDateField != null) {
+                Object eventDateValue = getState().getByPath(eventDateField.getInternalName());
+                if (eventDateValue != null && eventDateValue instanceof Date) {
+                    if (! ((Date) eventDateValue).equals(oldEventDateValue)) {
+                        recordMetrics.get(metricFieldInternalName).setEventDate(((Date) eventDateValue).getTime());
+                        oldEventDateValue = (Date)((Date) eventDateValue).clone();
+                    }
+                }
+            }
+
             return recordMetrics.get(metricFieldInternalName);
         }
 

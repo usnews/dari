@@ -230,14 +230,14 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         this.as(RecordMetric.MetricAction.class).setMetric(name, value);
     }
 
-    /** @see RecordMetric.setEventDate */
-    public void setMetricEventDate(String name, long timestampMillis) {
-        this.as(RecordMetric.MetricAction.class).getRecordMetric(name).setEventDate(timestampMillis);
+    /** @see RecordMetric.getMetricByRecordId */
+    public double getMetricByRecord(String name) {
+        return this.as(RecordMetric.MetricAction.class).getMetricByRecordId(name);
     }
 
-    /** @see RecordMetric.getMetricByRecordId */
-    public double getMetric(String name) {
-        return this.as(RecordMetric.MetricAction.class).getMetricByRecordId(name);
+    /** @see RecordMetric.getMetric */
+    public double getMetricByDimensions(String name) {
+        return this.as(RecordMetric.MetricAction.class).getMetric(name);
     }
 
     /** @see RecordMetrics.deleteMetrics */
