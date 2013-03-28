@@ -233,7 +233,7 @@ public class QueryDebugServlet extends HttpServlet {
 
                     } else if (SubAction.EDIT_FIELDED.equals(subAction)) {
                         @SuppressWarnings("all")
-                        FormWriter form = new FormWriter(this);
+                        FormWriter2 form = new FormWriter2(this);
                         form.putAllStandardInputProcessors();
 
                         if (page.isFormPost()) {
