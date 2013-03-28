@@ -54,11 +54,11 @@ class SqlQuery {
     private Join mysqlIndexHint;
     private boolean forceLeftJoins;
 
-    private List<Predicate> recordMetricWherePredicates;
-    private List<Predicate> recordMetricParentWherePredicates;
+    private final List<Predicate> recordMetricWherePredicates = new ArrayList<Predicate>();
+    private final List<Predicate> recordMetricParentWherePredicates = new ArrayList<Predicate>();
 
-    private List<Predicate> recordMetricHavingPredicates;
-    private List<Predicate> recordMetricParentHavingPredicates;
+    private final List<Predicate> recordMetricHavingPredicates = new ArrayList<Predicate>();
+    private final List<Predicate> recordMetricParentHavingPredicates = new ArrayList<Predicate>();
     private ObjectField recordMetricField;
 
     /**
@@ -610,23 +610,22 @@ class SqlQuery {
                 if (metricFieldData.isDimension()) {
                     usesLeftJoin = true;
                     needsDistinct = true;
-                } else if (metricFieldData.isEventDateField() && deferMetricPredicates) {
-                    if (recordMetricWherePredicates == null && recordMetricParentWherePredicates == null) {
-                        recordMetricWherePredicates = new ArrayList<Predicate>();
-                        recordMetricParentWherePredicates = new ArrayList<Predicate>();
-                    }
-                    recordMetricWherePredicates.add(predicate);
-                    recordMetricParentWherePredicates.add(parentPredicate);
-                    return;
-                } else if (metricFieldData.isMetricValue() && deferMetricPredicates) {
-                    if (recordMetricHavingPredicates == null && recordMetricParentHavingPredicates == null) {
-                        recordMetricHavingPredicates = new ArrayList<Predicate>();
-                        recordMetricParentHavingPredicates = new ArrayList<Predicate>();
+
+                } else if (deferMetricPredicates && (metricFieldData.isEventDateField() || metricFieldData.isMetricValue())) {
+                    if (recordMetricField == null) {
                         recordMetricField = mappedKey.getField();
+                    } else if (! recordMetricField.equals(mappedKey.getField())) {
+                        throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName() + " AND " + mappedKey.getField().getInternalName());
                     }
-                    recordMetricHavingPredicates.add(predicate);
-                    recordMetricParentHavingPredicates.add(parentPredicate);
+                    if (metricFieldData.isEventDateField()) {
+                        recordMetricWherePredicates.add(predicate);
+                        recordMetricParentWherePredicates.add(parentPredicate);
+                    } else if (metricFieldData.isMetricValue()) {
+                        recordMetricHavingPredicates.add(predicate);
+                        recordMetricParentHavingPredicates.add(parentPredicate);
+                    }
                     return;
+
                 }
             }
 
@@ -884,6 +883,14 @@ class SqlQuery {
         return false;
     }
 
+    private boolean hasDeferredRecordMetricPredicates() {
+        if (recordMetricWherePredicates.size() > 0 ||  recordMetricHavingPredicates.size() > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     /**
      * Returns an SQL statement that can be used to get a count
      * of all rows matching the query.
@@ -891,6 +898,10 @@ class SqlQuery {
     public String countStatement() {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
+
+        if (hasDeferredRecordMetricPredicates()) {
+            throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
+        }
 
         statementBuilder.append("SELECT COUNT(");
         if (needsDistinct) {
@@ -915,6 +926,10 @@ class SqlQuery {
     public String deleteStatement() {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
+
+        if (hasDeferredRecordMetricPredicates()) {
+            throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
+        }
 
         statementBuilder.append("DELETE r\nFROM ");
         vendor.appendIdentifier(statementBuilder, "Record");
@@ -943,9 +958,8 @@ class SqlQuery {
                     if (metricFieldData.isMetricValue()) {
                         throw new RuntimeException("Unable to group by @MetricValue: " + groupField);
                     }
-                    if (metricFieldData.isEventDateField()) { // TODO: this one has to work . . .
-                        //LOGGER.info("===== eventDateField: " + mappedKey.getField().getInternalName());
-                        continue;
+                    if (metricFieldData.isEventDateField()) { // TODO: this one has to work eventually . . .
+                        throw new Query.NoFieldException(query.getGroup(), mappedKey.getField().getInternalName());
                     }
                 }
                 mappedKeys.put(groupField, mappedKey);
@@ -1089,7 +1103,7 @@ class SqlQuery {
 
         Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), metricFieldName);
         if (mappedKey.getField() == null) {
-            throw new RuntimeException("Invalid RecordMetric field: " + metricFieldName);
+            throw new Query.NoFieldException(query.getGroup(), metricFieldName);
         }
         ObjectField metricField = mappedKey.getField();
 
@@ -1098,12 +1112,10 @@ class SqlQuery {
         assert fields.length == groupBySelectColumnAliases.size();
 
         boolean hasMinEventDate = false;
-        if (recordMetricWherePredicates != null) {
-            for (Predicate predicate : recordMetricWherePredicates) {
-                if (PredicateParser.GREATER_THAN_OPERATOR.equals(predicate.getOperator()) || 
-                        PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(predicate.getOperator())) {
-                    hasMinEventDate = true;
-                }
+        for (Predicate predicate : recordMetricWherePredicates) {
+            if (PredicateParser.GREATER_THAN_OPERATOR.equals(predicate.getOperator()) || 
+                    PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(predicate.getOperator())) {
+                hasMinEventDate = true;
             }
         }
 
@@ -1166,16 +1178,10 @@ class SqlQuery {
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
         // Apply deferred WHERE predicates (eventDates)
-        if (recordMetricParentWherePredicates != null && recordMetricWherePredicates != null) {
-            assert recordMetricParentWherePredicates.size() == recordMetricWherePredicates.size();
-            StringBuilder childBuilder = new StringBuilder();
-            for (int i = 0; i < recordMetricWherePredicates.size(); i++) {
-                childBuilder.append(" AND ");
-                addWherePredicate(childBuilder, recordMetricWherePredicates.get(i), recordMetricParentWherePredicates.get(i), false, false);
-            }
-            if (childBuilder.length() > 0) {
-                whereBuilder.append(childBuilder);
-            }
+        assert recordMetricParentWherePredicates.size() == recordMetricWherePredicates.size();
+        for (int i = 0; i < recordMetricWherePredicates.size(); i++) {
+            whereBuilder.append(" AND ");
+            addWherePredicate(whereBuilder, recordMetricWherePredicates.get(i), recordMetricParentWherePredicates.get(i), false, false);
         }
 
         groupByBuilder.append(" GROUP BY ");
@@ -1243,18 +1249,16 @@ class SqlQuery {
         }
 
         // Apply deferred HAVING predicates (sums)
-        if (recordMetricParentHavingPredicates != null && recordMetricHavingPredicates != null) {
-            assert recordMetricParentHavingPredicates.size() == recordMetricHavingPredicates.size();
-            StringBuilder childBuilder = new StringBuilder();
-            for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
-                addWherePredicate(childBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
-                childBuilder.append(" AND ");
-            }
-            if (childBuilder.length() > 0) {
-                childBuilder.setLength(childBuilder.length()-5); // " AND "
-                havingBuilder.append(" HAVING ");
-                havingBuilder.append(childBuilder);
-            }
+        assert recordMetricParentHavingPredicates.size() == recordMetricHavingPredicates.size();
+        StringBuilder havingChildBuilder = new StringBuilder();
+        for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
+            addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
+            havingChildBuilder.append(" AND ");
+        }
+        if (havingChildBuilder.length() > 0) {
+            havingChildBuilder.setLength(havingChildBuilder.length()-5); // " AND "
+            havingBuilder.append(" HAVING ");
+            havingBuilder.append(havingChildBuilder);
         }
 
         return selectBuilder + 
@@ -1292,6 +1296,10 @@ class SqlQuery {
     public String selectStatement() {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
+
+        if (hasDeferredRecordMetricPredicates()) {
+            throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
+        }
 
         statementBuilder.append("SELECT");
         if (needsDistinct && vendor.supportsDistinctBlob()) {
