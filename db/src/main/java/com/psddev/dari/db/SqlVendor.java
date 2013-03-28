@@ -195,7 +195,6 @@ public class SqlVendor {
     protected void appendNearestLocation(
             StringBuilder orderbyBuilder,
             StringBuilder selectBuilder,
-            StringBuilder whereBuilder,
             Location location, String field) {
 
         StringBuilder builder = new StringBuilder();
@@ -668,7 +667,6 @@ public class SqlVendor {
         protected void appendNearestLocation(
                 StringBuilder orderbyBuilder,
                 StringBuilder selectBuilder,
-                StringBuilder whereBuilder,
                 Location location, String field) {
 
             StringBuilder builder = new StringBuilder();
@@ -729,7 +727,6 @@ public class SqlVendor {
         protected void appendNearestLocation(
                 StringBuilder orderbyBuilder,
                 StringBuilder selectBuilder,
-                StringBuilder whereBuilder,
                 Location location, String field) {
             throw new UnsupportedIndexException(this, field);
         }

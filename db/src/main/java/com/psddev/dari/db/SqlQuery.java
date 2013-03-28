@@ -45,7 +45,7 @@ class SqlQuery {
     private String extraSourceColumns;
     private String lastRecordJoinTableAlias;
     private List<String> orderBySelectColumns = new ArrayList<String>();
-    private List<String> groupBySelectColumnAliases = new ArrayList<String>();
+    private Map<String, String> groupBySelectColumnAliases = new LinkedHashMap<String, String>();
     private final List<Join> joins = new ArrayList<Join>();
     private final Map<Query<?>, String> subQueries = new LinkedHashMap<Query<?>, String>();
     private final Map<Query<?>, SqlQuery> subSqlQueries = new HashMap<Query<?>, SqlQuery>();
@@ -59,6 +59,7 @@ class SqlQuery {
 
     private final List<Predicate> recordMetricHavingPredicates = new ArrayList<Predicate>();
     private final List<Predicate> recordMetricParentHavingPredicates = new ArrayList<Predicate>();
+    private final List<Sorter> recordMetricSorters = new ArrayList<Sorter>();
     private ObjectField recordMetricField;
 
     /**
@@ -266,48 +267,7 @@ class SqlQuery {
         StringBuilder orderByBuilder = new StringBuilder();
 
         for (Sorter sorter : query.getSorters()) {
-            String operator = sorter.getOperator();
-            boolean ascending = Sorter.ASCENDING_OPERATOR.equals(operator);
-            boolean descending = Sorter.DESCENDING_OPERATOR.equals(operator);
-            boolean closest = Sorter.CLOSEST_OPERATOR.equals(operator);
-            boolean farthest = Sorter.CLOSEST_OPERATOR.equals(operator);
-
-            if (ascending || descending || closest || farthest) {
-                String queryKey = (String) sorter.getOptions().get(0);
-                String joinValueField = getSortFieldJoin(queryKey).getValueField(queryKey, null);
-                Query<?> subQuery = mappedKeys.get(queryKey).getSubQueryWithSorter(sorter, 0);
-
-                if (subQuery != null) {
-                    SqlQuery subSqlQuery = getOrCreateSubSqlQuery(subQuery, true);
-                    subQueries.put(subQuery, joinValueField + " = ");
-                    orderByBuilder.append(subSqlQuery.orderByClause.substring(9));
-                    orderByBuilder.append(", ");
-                    continue;
-                }
-
-                if (ascending || descending) {
-                    orderByBuilder.append(joinValueField);
-                    orderBySelectColumns.add(joinValueField);
-
-                } else if (closest || farthest) {
-                    Location location = (Location) sorter.getOptions().get(1);
-
-                    StringBuilder selectBuilder = new StringBuilder();
-                    try {
-                        vendor.appendNearestLocation(orderByBuilder, selectBuilder, whereBuilder, location, joinValueField);
-                        orderBySelectColumns.add(selectBuilder.toString());
-                    } catch(UnsupportedIndexException uie) {
-                        throw new UnsupportedIndexException(vendor, queryKey);
-                    }
-                }
-
-                orderByBuilder.append(' ');
-                orderByBuilder.append(ascending || closest ? "ASC" : "DESC");
-                orderByBuilder.append(", ");
-                continue;
-            }
-
-            throw new UnsupportedSorterException(database, sorter);
+            addOrderByClause(orderByBuilder, sorter, true, false);
         }
 
         if (orderByBuilder.length() > 0) {
@@ -860,6 +820,67 @@ class SqlQuery {
         throw new UnsupportedPredicateException(this, predicate);
     }
 
+    private void addOrderByClause(StringBuilder orderByBuilder, Sorter sorter, boolean deferMetricPredicates, boolean useGroupBySelectAliases) {
+
+        String operator = sorter.getOperator();
+        boolean ascending = Sorter.ASCENDING_OPERATOR.equals(operator);
+        boolean descending = Sorter.DESCENDING_OPERATOR.equals(operator);
+        boolean closest = Sorter.CLOSEST_OPERATOR.equals(operator);
+        boolean farthest = Sorter.CLOSEST_OPERATOR.equals(operator);
+
+        if (ascending || descending || closest || farthest) {
+            String queryKey = (String) sorter.getOptions().get(0);
+
+            if (deferMetricPredicates && mappedKeys.get(queryKey).getField().as(RecordMetric.MetricFieldData.class).isMetricValue()) {
+                ObjectField sortField = mappedKeys.get(queryKey).getField();
+                if (recordMetricField == null) {
+                    recordMetricField = sortField;
+                } else if (! recordMetricField.equals(sortField)) {
+                    throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName() + " AND " + sortField.getInternalName());
+                }
+                recordMetricSorters.add(sorter);
+                return;
+            }
+
+            String joinValueField = getSortFieldJoin(queryKey).getValueField(queryKey, null);
+            if (useGroupBySelectAliases && groupBySelectColumnAliases.containsKey(joinValueField)) {
+                joinValueField = groupBySelectColumnAliases.get(joinValueField);
+            }
+            Query<?> subQuery = mappedKeys.get(queryKey).getSubQueryWithSorter(sorter, 0);
+
+            if (subQuery != null) {
+                SqlQuery subSqlQuery = getOrCreateSubSqlQuery(subQuery, true);
+                subQueries.put(subQuery, joinValueField + " = ");
+                orderByBuilder.append(subSqlQuery.orderByClause.substring(9));
+                orderByBuilder.append(", ");
+                return;
+            }
+
+            if (ascending || descending) {
+                orderByBuilder.append(joinValueField);
+                orderBySelectColumns.add(joinValueField);
+
+            } else if (closest || farthest) {
+                Location location = (Location) sorter.getOptions().get(1);
+
+                StringBuilder selectBuilder = new StringBuilder();
+                try {
+                    vendor.appendNearestLocation(orderByBuilder, selectBuilder, location, joinValueField);
+                    orderBySelectColumns.add(selectBuilder.toString());
+                } catch(UnsupportedIndexException uie) {
+                    throw new UnsupportedIndexException(vendor, queryKey);
+                }
+            }
+
+            orderByBuilder.append(' ');
+            orderByBuilder.append(ascending || closest ? "ASC" : "DESC");
+            orderByBuilder.append(", ");
+            return;
+        }
+
+        throw new UnsupportedSorterException(database, sorter);
+    }
+
     private boolean findSimilarComparison(ObjectField field, Predicate predicate) {
         if (field != null) {
             if (predicate instanceof CompoundPredicate) {
@@ -884,7 +905,7 @@ class SqlQuery {
     }
 
     private boolean hasDeferredRecordMetricPredicates() {
-        if (recordMetricWherePredicates.size() > 0 ||  recordMetricHavingPredicates.size() > 0) {
+        if (recordMetricWherePredicates.size() > 0 ||  recordMetricHavingPredicates.size() > 0 || recordMetricSorters.size() > 0) {
             return true;
         } else {
             return false;
@@ -983,7 +1004,7 @@ class SqlQuery {
         StringBuilder groupBy = new StringBuilder();
         initializeClauses();
 
-        if (recordMetricParentHavingPredicates != null && recordMetricHavingPredicates != null) {
+        if (recordMetricHavingPredicates.size() > 0) {
             // add "metricId" and "id" to groupJoins
             mappedKeys.put(Query.METRICID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.METRICID_KEY));
             groupJoins.put(Query.METRICID_KEY, getJoin(Query.METRICID_KEY));
@@ -1009,7 +1030,7 @@ class SqlQuery {
             if (! entry.getValue().queryKey.equals(Query.METRICID_KEY) && ! entry.getValue().queryKey.equals(Query.ID_KEY)) { // Special case for id and metricId
                 // These column names just need to be unique if we put this statement in a subquery
                 columnAlias = "value" + columnNum;
-                groupBySelectColumnAliases.add(columnAlias);
+                groupBySelectColumnAliases.put(entry.getValue().getValueField(entry.getKey(), null), columnAlias);
             }
             ++columnNum;
             if (columnAlias != null) {
@@ -1076,7 +1097,7 @@ class SqlQuery {
 
         statementBuilder.append(havingClause);
 
-        if (recordMetricParentHavingPredicates != null && recordMetricHavingPredicates != null) {
+        if (recordMetricHavingPredicates.size() > 0) {
             // If there are deferred HAVING predicates, we need to go ahead and execute the metric query
             return wrapGroupStatementRecordMetricSql(recordMetricField.getInternalName(), groupFields, statementBuilder.toString());
         } else {
@@ -1124,6 +1145,7 @@ class SqlQuery {
         StringBuilder whereBuilder = new StringBuilder();
         StringBuilder groupByBuilder = new StringBuilder();
         StringBuilder havingBuilder = new StringBuilder();
+        StringBuilder orderByBuilder = new StringBuilder();
 
         selectBuilder.append("SELECT ");
         selectBuilder.append(" COUNT(DISTINCT ");
@@ -1147,7 +1169,7 @@ class SqlQuery {
             selectBuilder.append(") minData");
         }
 
-        for (String field : groupBySelectColumnAliases) {
+        for (String field : groupBySelectColumnAliases.values()) {
             selectBuilder.append(", ");
             vendor.appendIdentifier(selectBuilder, field);
         }
@@ -1189,7 +1211,7 @@ class SqlQuery {
         vendor.appendIdentifier(groupByBuilder, RecordMetric.RECORDMETRIC_TABLE);
         groupByBuilder.append(".");
         vendor.appendIdentifier(groupByBuilder, RecordMetric.RECORDMETRIC_METRICID_FIELD);
-        for (String field : groupBySelectColumnAliases) {
+        for (String field : groupBySelectColumnAliases.values()) {
             groupByBuilder.append(", ");
             vendor.appendIdentifier(groupByBuilder, field);
         }
@@ -1199,13 +1221,15 @@ class SqlQuery {
             " " + fromBuilder +
             " " + whereBuilder +
             " " + groupByBuilder +
-            " " + havingBuilder;
+            " " + havingBuilder + 
+            " " + orderByBuilder;
 
         selectBuilder = new StringBuilder();
         fromBuilder = new StringBuilder();
         whereBuilder = new StringBuilder();
         groupByBuilder = new StringBuilder();
         havingBuilder = new StringBuilder();
+        orderByBuilder = new StringBuilder();
 
         selectBuilder.append("SELECT ");
 
@@ -1229,7 +1253,7 @@ class SqlQuery {
         selectBuilder.append(") ");
         vendor.appendIdentifier(selectBuilder, "_count");
 
-        for (String field : groupBySelectColumnAliases) {
+        for (String field : groupBySelectColumnAliases.values()) {
             selectBuilder.append(", ");
             vendor.appendIdentifier(selectBuilder, field);
         }
@@ -1241,8 +1265,8 @@ class SqlQuery {
         if (groupBySelectColumnAliases.size() > 0) {
             groupByBuilder.append(" GROUP BY ");
         }
-        for (String field : groupBySelectColumnAliases) {
-            if (groupByBuilder.length() > " GROUP BY ".length()) {
+        for (String field : groupBySelectColumnAliases.values()) {
+            if (groupByBuilder.length() > 10) {  // " GROUP BY ".length()
                 groupByBuilder.append(", ");
             }
             vendor.appendIdentifier(groupByBuilder, field);
@@ -1261,11 +1285,22 @@ class SqlQuery {
             havingBuilder.append(havingChildBuilder);
         }
 
+        // Apply all ORDER BY (deferred and original)
+        for (Sorter sorter : query.getSorters()) {
+            addOrderByClause(orderByBuilder, sorter, false, true);
+        }
+
+        if (orderByBuilder.length() > 0) {
+            orderByBuilder.setLength(orderByBuilder.length() - 2);
+            orderByBuilder.insert(0, "\nORDER BY ");
+        }
+
         return selectBuilder + 
             " " + fromBuilder +
             " " + whereBuilder +
             " " + groupByBuilder + 
-            " " + havingBuilder;
+            " " + havingBuilder + 
+            " " + orderByBuilder;
     }
 
     /**
