@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -37,6 +38,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.sql.DataSource;
 
+import net.spy.memcached.AddrUtil;
+import net.spy.memcached.BinaryConnectionFactory;
+import net.spy.memcached.CachedData;
+import net.spy.memcached.MemcachedClient;
+import net.spy.memcached.transcoders.Transcoder;
+
 import org.iq80.snappy.Snappy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +61,7 @@ import com.psddev.dari.util.SettingsException;
 import com.psddev.dari.util.Stats;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.UuidUtils;
 
 /** Database backed by a SQL engine. */
 public class SqlDatabase extends AbstractDatabase<Connection> {
@@ -75,6 +83,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
+    public static final String MEMCACHED_ADDRESS_SUB_SETTING = "memcachedAddress";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -122,6 +131,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
+    private volatile MemcachedClient memcachedClient;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -289,6 +299,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public void setCacheData(boolean cacheData) {
         this.cacheData = cacheData;
+    }
+
+    public MemcachedClient getMemcachedClient() {
+        return memcachedClient;
+    }
+
+    public void setMemcachedClient(MemcachedClient memcachedClient) {
+        this.memcachedClient = memcachedClient;
     }
 
     /**
@@ -522,6 +540,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         setDataSource(null);
         setReadDataSource(null);
+
+        MemcachedClient memcachedClient = getMemcachedClient();
+
+        if (memcachedClient != null) {
+            memcachedClient.shutdown();
+        }
     }
 
     /**
@@ -658,45 +682,52 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 data = dataCache.getIfPresent(key);
 
                 if (data == null) {
-                    SqlVendor vendor = getVendor();
-                    StringBuilder sqlQuery = new StringBuilder();
+                    MemcachedClient memcachedClient = getMemcachedClient();
 
-                    sqlQuery.append("SELECT r.");
-                    vendor.appendIdentifier(sqlQuery, "data");
-                    sqlQuery.append(", ru.");
-                    vendor.appendIdentifier(sqlQuery, "updateDate");
-                    sqlQuery.append(" FROM ");
-                    vendor.appendIdentifier(sqlQuery, "Record");
-                    sqlQuery.append(" AS r LEFT OUTER JOIN ");
-                    vendor.appendIdentifier(sqlQuery, "RecordUpdate");
-                    sqlQuery.append(" AS ru ON r.");
-                    vendor.appendIdentifier(sqlQuery, "id");
-                    sqlQuery.append(" = ru.");
-                    vendor.appendIdentifier(sqlQuery, "id");
-                    sqlQuery.append(" WHERE r.");
-                    vendor.appendIdentifier(sqlQuery, "id");
-                    sqlQuery.append(" = ");
-                    vendor.appendUuid(sqlQuery, id);
+                    if (memcachedClient != null) {
+                        data = memcachedClient.get("@@fdR." + StringUtils.hex(UuidUtils.toBytes(id)).toUpperCase(), BYTE_ARRAY_TRANSCODER);
 
-                    Connection connection = null;
-                    Statement statement = null;
-                    ResultSet result = null;
+                    } else {
+                        SqlVendor vendor = getVendor();
+                        StringBuilder sqlQuery = new StringBuilder();
 
-                    try {
-                        connection = openQueryConnection(query);
-                        statement = connection.createStatement();
-                        result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
+                        sqlQuery.append("SELECT r.");
+                        vendor.appendIdentifier(sqlQuery, "data");
+                        sqlQuery.append(", ru.");
+                        vendor.appendIdentifier(sqlQuery, "updateDate");
+                        sqlQuery.append(" FROM ");
+                        vendor.appendIdentifier(sqlQuery, "Record");
+                        sqlQuery.append(" AS r LEFT OUTER JOIN ");
+                        vendor.appendIdentifier(sqlQuery, "RecordUpdate");
+                        sqlQuery.append(" AS ru ON r.");
+                        vendor.appendIdentifier(sqlQuery, "id");
+                        sqlQuery.append(" = ru.");
+                        vendor.appendIdentifier(sqlQuery, "id");
+                        sqlQuery.append(" WHERE r.");
+                        vendor.appendIdentifier(sqlQuery, "id");
+                        sqlQuery.append(" = ");
+                        vendor.appendUuid(sqlQuery, id);
 
-                        if (result.next()) {
-                            data = result.getBytes(1);
-                            dataCache.put(id + "/" + result.getDouble(2), data);
+                        Connection connection = null;
+                        Statement statement = null;
+                        ResultSet result = null;
+
+                        try {
+                            connection = openQueryConnection(query);
+                            statement = connection.createStatement();
+                            result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
+
+                            if (result.next()) {
+                                data = result.getBytes(1);
+                                dataCache.put(id + "/" + result.getDouble(2), data);
+                            }
+
+                        } catch (SQLException error) {
+                            throw createQueryException(error, sqlQuery.toString(), query);
+
+                        } finally {
+                            closeResources(null, connection, statement, result);
                         }
-
-                    } catch (SQLException error) {
-                        throw createQueryException(error, sqlQuery.toString(), query);
-
-                    } finally {
-                        closeResources(null, connection, statement, result);
                     }
                 }
 
@@ -1219,6 +1250,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
+
+        String memcachedAddress = ObjectUtils.to(String.class, settings.get(MEMCACHED_ADDRESS_SUB_SETTING));
+
+        if (!ObjectUtils.isBlank(memcachedAddress)) {
+            try {
+                setMemcachedClient(new MemcachedClient(new BinaryConnectionFactory(), AddrUtil.getAddresses(memcachedAddress)));
+            } catch (IOException error) {
+                throw new RuntimeException(error);
+            }
+        }
     }
 
     private static final Map<String, String> DRIVER_CLASS_NAMES; static {
@@ -1354,8 +1395,83 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return 0;
     }
 
+    private List<String> findIdOnlyQueryKeys(Query<?> query) {
+        if (query.getSorters().isEmpty()) {
+            Predicate predicate = query.getPredicate();
+
+            if (predicate instanceof ComparisonPredicate) {
+                ComparisonPredicate comparison = (ComparisonPredicate) predicate;
+
+                if (Query.ID_KEY.equals(comparison.getKey()) &&
+                        PredicateParser.EQUALS_ANY_OPERATOR.equals(comparison.getOperator()) &&
+                        comparison.findValueQuery() == null) {
+                    List<String> keys = new ArrayList<String>();
+
+                    for (Object item : comparison.getValues()) {
+                        keys.add("@@fdR." + StringUtils.hex(UuidUtils.toBytes(ObjectUtils.to(UUID.class, item))).toUpperCase());
+                    }
+
+                    return keys;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static final Transcoder<byte[]> BYTE_ARRAY_TRANSCODER = new Transcoder<byte[]>() {
+
+        @Override
+        public boolean asyncDecode(CachedData data) {
+            return false;
+        }
+
+        @Override
+        public byte[] decode(CachedData data) {
+            return data.getData();
+        }
+
+        @Override
+        public CachedData encode(byte[] object) {
+            return new CachedData(0, object, Integer.MAX_VALUE);
+        }
+
+        @Override
+        public int getMaxSize() {
+            return Integer.MAX_VALUE;
+        }
+    };
+
     @Override
     public <T> List<T> readAll(Query<T> query) {
+        MemcachedClient memcachedClient = getMemcachedClient();
+
+        /*if (memcachedClient != null) {
+            List<String> keys = findIdOnlyQueryKeys(query);
+
+            if (keys != null) {
+                List<T> all = new ArrayList<T>();
+
+                for (byte[] data : memcachedClient.getBulk(keys, BYTE_ARRAY_TRANSCODER).values()) {
+                    Map<String, Object> simpleValues = unserializeData(data);
+                    T object = createSavedObject(simpleValues.get("_type"), simpleValues.get("_id"), query);
+                    State objectState = State.getInstance(object);
+
+                    objectState.putAll(simpleValues);
+                    Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
+                    if (returnOriginal == null) {
+                        returnOriginal = Boolean.FALSE;
+                    }
+                    if (returnOriginal) {
+                        objectState.getExtras().put(ORIGINAL_DATA_EXTRA, data);
+                    }
+
+                    all.add(object);
+                }
+
+                return all;
+            }
+        }*/
+
         return selectListWithOptions(buildSelectStatement(query), query);
     }
 

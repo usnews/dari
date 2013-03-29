@@ -57,6 +57,11 @@
             <optional>true</optional>
         </dependency>
 
+        <dependency>
+            <groupId>spy</groupId>
+            <artifactId>spymemcached</artifactId>
+        </dependency>
+
         <!-- JDBC connection pool -->
         <dependency>
             <groupId>com.jolbox</groupId>
