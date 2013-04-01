@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,8 +169,38 @@ public class HtmlGrid {
         private static final String COLUMNS_PROPERTY = "grid-definition-columns";
         private static final String ROWS_PROPERTY = "grid-definition-rows";
 
-        @SuppressWarnings("unchecked")
         public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
+            return findGrids(context, findGridPaths(context));
+        }
+
+        public static void addStyleSheet(HttpServletRequest request, String path) {
+            @SuppressWarnings("unchecked")
+            List<String> paths = (List<String>) request.getAttribute(GRID_PATHS_ATTRIBUTE);
+
+            if (paths == null) {
+                paths = new ArrayList<String>();
+                request.setAttribute(GRID_PATHS_ATTRIBUTE, paths);
+            }
+
+            paths.add(path);
+        }
+
+        public static Map<String, HtmlGrid> findAll(ServletContext context, HttpServletRequest request) throws IOException {
+            @SuppressWarnings("unchecked")
+            List<String> usedPaths = request != null ? (List<String>) request.getAttribute(GRID_PATHS_ATTRIBUTE) : null;
+            List<String> gridPaths = findGridPaths(context);
+
+            return findGrids(context, usedPaths == null || usedPaths.isEmpty() ? gridPaths : usedPaths);
+        }
+
+        /** @deprecated Use {@link #findAll} instead. */
+        @Deprecated
+        public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
+            return ObjectUtils.isBlank(cssClass) ? null : findAll(context).get("." + cssClass);
+        }
+
+        @SuppressWarnings("unchecked")
+        private static List<String> findGridPaths(ServletContext context) throws IOException {
             List<String> gridPaths = null;
 
             if (Settings.isProduction()) {
@@ -179,32 +210,15 @@ public class HtmlGrid {
             if (gridPaths == null) {
                 gridPaths = new ArrayList<String>();
 
-                findGrids(context, "/", gridPaths, ".less");
-                findGrids(context, "/", gridPaths, ".css");
+                findGridPathsNamed(context, "/", gridPaths, ".less");
+                findGridPathsNamed(context, "/", gridPaths, ".css");
                 context.setAttribute(GRID_PATHS_ATTRIBUTE, gridPaths);
             }
 
-            Map<String, HtmlGrid> combined = new LinkedHashMap<String, HtmlGrid>();
-
-            for (int i = gridPaths.size() - 1; i >= 0; -- i) {
-                String gridPath = gridPaths.get(i);
-                Map<String, HtmlGrid> grids = (Map<String, HtmlGrid>) context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + gridPath);
-
-                if (grids != null) {
-                    combined.putAll(grids);
-                }
-            }
-
-            return combined;
+            return gridPaths;
         }
 
-        /** @deprecated Use {@link #findAll} instead. */
-        @Deprecated
-        public static HtmlGrid find(ServletContext context, String cssClass) throws IOException {
-            return ObjectUtils.isBlank(cssClass) ? null : findAll(context).get("." + cssClass);
-        }
-
-        private static void findGrids(
+        private static void findGridPathsNamed(
                 ServletContext context,
                 String path,
                 List<String> gridPaths,
@@ -219,7 +233,7 @@ public class HtmlGrid {
 
             for (String child : children) {
                 if (child.endsWith("/")) {
-                    findGrids(context, child, gridPaths, suffix);
+                    findGridPathsNamed(context, child, gridPaths, suffix);
 
                 } else if (child.endsWith(suffix)) {
                     String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + child;
@@ -333,6 +347,22 @@ public class HtmlGrid {
                     }
                 }
             }
+        }
+
+        private static Map<String, HtmlGrid> findGrids(ServletContext context, List<String> gridPaths) {
+            Map<String, HtmlGrid> all = new LinkedHashMap<String, HtmlGrid>();
+
+            for (int i = gridPaths.size() - 1; i >= 0; -- i) {
+                String gridPath = gridPaths.get(i);
+                @SuppressWarnings("unchecked")
+                Map<String, HtmlGrid> grids = (Map<String, HtmlGrid>) context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + gridPath);
+
+                if (grids != null) {
+                    all.putAll(grids);
+                }
+            }
+
+            return all;
         }
     }
 }

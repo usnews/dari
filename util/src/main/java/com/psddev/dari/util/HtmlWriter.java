@@ -15,6 +15,7 @@ import java.util.ListIterator;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 
 /** Writer implementation that adds basic HTML formatting. */
 public class HtmlWriter extends Writer {
@@ -310,7 +311,7 @@ public class HtmlWriter extends Writer {
     }
 
     /** Writes all grid CSS found within the given {@code context}. */
-    public HtmlWriter writeGridCss(ServletContext context) throws IOException {
+    public HtmlWriter writeGridCss(ServletContext context, HttpServletRequest request) throws IOException {
         writeCss(".dari-grid-area",
                 "-moz-box-sizing", "content-box",
                 "-webkit-box-sizing", "content-box",
@@ -328,7 +329,7 @@ public class HtmlWriter extends Writer {
                 "overflow", "hidden",
                 "visibility", "hidden");
 
-        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
+        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context, request).entrySet()) {
             write("\n\n");
 
             String gridSelector = gridEntry.getKey();
@@ -380,10 +381,10 @@ public class HtmlWriter extends Writer {
     }
 
     /** Writes all grid JavaScript found within the given {@code context}. */
-    public void writeGridJavaScript(ServletContext context) throws IOException {
+    public HtmlWriter writeGridJavaScript(ServletContext context, HttpServletRequest request) throws IOException {
         Map<String, Map<String, HtmlGrid>> gridsByMedia = new LinkedHashMap<String, Map<String, HtmlGrid>>();
 
-        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context).entrySet()) {
+        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context, request).entrySet()) {
             String gridSelector = gridEntry.getKey();
             HtmlGrid grid = gridEntry.getValue();
             String media = null;
@@ -465,6 +466,8 @@ public class HtmlWriter extends Writer {
                 write("}");
             write("});");*/
         write("})(jQuery, window);");
+
+        return this;
     }
 
     /**
