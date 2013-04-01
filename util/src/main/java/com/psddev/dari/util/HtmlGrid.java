@@ -182,7 +182,7 @@ public class HtmlGrid {
                 request.setAttribute(GRID_PATHS_ATTRIBUTE, paths);
             }
 
-            paths.add(path);
+            paths.add(0, path);
         }
 
         public static Map<String, HtmlGrid> findAll(ServletContext context, HttpServletRequest request) throws IOException {
