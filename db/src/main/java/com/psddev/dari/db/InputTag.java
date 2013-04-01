@@ -76,7 +76,7 @@ public class InputTag extends TagSupport {
                     // grab it from parent form tag
                     FormTag formTag = getParentFormTag();
                     if (formTag != null) {
-                        FormProcessor2 processor = formTag.getProcessor();
+                        FormProcessor2 processor = formTag.getProcessorInstance();
                         if (processor instanceof FormWriter2) {
                             formWriter = (FormWriter2) processor;
                         }

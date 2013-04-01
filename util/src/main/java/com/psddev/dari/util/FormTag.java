@@ -118,7 +118,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     }
 
     /** Returns the processor for this form. */
-    public FormProcessor2 getProcessor() {
+    public FormProcessor2 getProcessorInstance() {
         return Static.getProcessorById(getFormId(), (HttpServletRequest) pageContext.getRequest());
     }
 
@@ -165,7 +165,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
         HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
 
         String formId = getFormId();
-        FormProcessor2 processor = getProcessor();
+        FormProcessor2 processor = getProcessorInstance();
 
         if (!ObjectUtils.isBlank(varProcessor)) {
             pageContext.setAttribute(varProcessor, processor);
