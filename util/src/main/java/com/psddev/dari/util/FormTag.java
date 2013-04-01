@@ -52,8 +52,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     /**
      * Sets the name of the page-scoped variable to store the processor
      * instance.
-     *
-     * @return May be {@code null}.
      */
     public void setVarProcessor(String varProcessor) {
         this.varProcessor = varProcessor;
@@ -62,8 +60,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     /**
      * Sets the name of the page-scoped variable to store the form processing
      * success flag.
-     *
-     * @return May be {@code null}.
      */
     public void setVarSuccess(String varSuccess) {
         this.varSuccess = varSuccess;
@@ -72,8 +68,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     /**
      * Sets the name of the page-scoped variable to store the form processing
      * error.
-     *
-     * @return May be {@code null}.
      */
     public void setVarError(String varError) {
         this.varError = varError;
