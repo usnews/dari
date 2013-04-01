@@ -1100,20 +1100,25 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Override
     public Connection openConnection() {
         DataSource dataSource = getDataSource();
+
         if (dataSource == null) {
             throw new SqlDatabaseException(this, "No SQL data source!");
         }
 
         try {
-            return dataSource.getConnection();
-        } catch (SQLException ex) {
-            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", ex);
+            Connection connection = dataSource.getConnection();
+            connection.setReadOnly(false);
+            return connection;
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
     }
 
     @Override
     protected Connection doOpenReadConnection() {
         DataSource readDataSource = getReadDataSource();
+
         if (readDataSource == null) {
             readDataSource = getDataSource();
         }
@@ -1123,9 +1128,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            return readDataSource.getConnection();
-        } catch (SQLException ex) {
-            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", ex);
+            Connection connection = readDataSource.getConnection();
+            connection.setReadOnly(true);
+            return connection;
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
     }
 
