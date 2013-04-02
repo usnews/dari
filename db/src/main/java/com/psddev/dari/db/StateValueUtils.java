@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.DateUtils;
-import com.psddev.dari.util.ObjectMap;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.StorageItem;
-
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -20,6 +14,12 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.DateUtils;
+import com.psddev.dari.util.ObjectMap;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
 
 /** State value utility methods. */
 abstract class StateValueUtils {
@@ -75,7 +75,7 @@ abstract class StateValueUtils {
     }
 
     /** Resolves all object references within the given {@code items}. */
-    public static Map<UUID, Object> resolveReferences(Database database, Object parent, Iterable<?> items) {
+    public static Map<UUID, Object> resolveReferences(Database database, Object parent, Iterable<?> items, String field) {
         State parentState = State.getInstance(parent);
 
         if (parentState != null && parentState.isResolveToReferenceOnly()) {
@@ -117,6 +117,7 @@ abstract class StateValueUtils {
             // Find IDs that have not been resolved yet.
             Map<UUID, Object> references = new HashMap<UUID, Object>();
             Set<UUID> unresolvedIds = new HashSet<UUID>();
+            Set<UUID> unresolvedTypeIds = new HashSet<UUID>();
             for (Object item : items) {
                 UUID id = toIdIfReference(item);
                 if (id != null) {
@@ -124,6 +125,7 @@ abstract class StateValueUtils {
                         references.put(id, circularReferences.get(id));
                     } else {
                         unresolvedIds.add(id);
+                        unresolvedTypeIds.add(ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get(TYPE_KEY)));
                     }
                 }
             }
@@ -135,6 +137,8 @@ abstract class StateValueUtils {
                         where("_id = ?", unresolvedIds).
                         using(database).
                         option(State.REFERENCE_RESOLVING_QUERY_OPTION, parent).
+                        option(State.REFERENCE_FIELD_QUERY_OPTION, field).
+                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds).
                         selectAll()) {
                     UUID id = State.getInstance(object).getId();
                     unresolvedIds.remove(id);
@@ -153,6 +157,10 @@ abstract class StateValueUtils {
                 CIRCULAR_REFERENCES.remove();
             }
         }
+    }
+
+    public static Map<UUID, Object> resolveReferences(Database database, Object parent, Iterable<?> items) {
+        return resolveReferences(database, parent, items, null);
     }
 
     /**
@@ -369,18 +377,24 @@ abstract class StateValueUtils {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> valueMap = (Map<String, Object>) value;
                     Object typeId = valueMap.get(TYPE_KEY);
+
                     if (typeId != null) {
                         State objectState = State.getInstance(object);
-                        ObjectType valueType = objectState.
-                                getDatabase().
-                                getEnvironment().
-                                getTypeById(ObjectUtils.to(UUID.class, typeId));
+                        DatabaseEnvironment environment = objectState.getDatabase().getEnvironment();
+                        ObjectType valueType = environment.getTypeById(ObjectUtils.to(UUID.class, typeId));
+
+                        if (valueType == null) {
+                            valueType = environment.getTypeByName(ObjectUtils.to(String.class, typeId));
+                        }
+
                         if (valueType != null) {
                             value = valueType.createObject(ObjectUtils.to(UUID.class, valueMap.get(ID_KEY)));
                             State valueState = State.getInstance(value);
+
                             valueState.setDatabase(database);
                             valueState.setResolveToReferenceOnly(objectState.isResolveToReferenceOnly());
                             valueState.putAll(valueMap);
+
                             return value;
                         }
                     }

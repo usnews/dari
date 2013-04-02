@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.AsyncQueue;
-import com.psddev.dari.util.DebugFilter;
-import com.psddev.dari.util.TaskExecutor;
-import com.psddev.dari.util.WebPageContext;
-import com.psddev.dari.util.StorageItem;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,6 +10,12 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.psddev.dari.util.AsyncQueue;
+import com.psddev.dari.util.DebugFilter;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.TaskExecutor;
+import com.psddev.dari.util.WebPageContext;
 
 /** Debug servlet for running bulk storage item operations. */
 @DebugFilter.Path("db-storage")
@@ -32,6 +32,7 @@ public class StorageDebugServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
+        @SuppressWarnings("all")
         final WebPageContext wp = new WebPageContext(this, request, response);
         Database selectedDatabase = Database.Static.getDefault();
         final List<ObjectType> types = new ArrayList<ObjectType>(selectedDatabase.getEnvironment().getTypes());
@@ -58,14 +59,14 @@ public class StorageDebugServlet extends HttpServlet {
 
             new AsyncDatabaseReader<Object>(
                     executor, queue, database, query).
-                    start();
+                    submit();
 
             queue.closeAutomatically();
 
             for (int i = 0; i < 5; ++ i) {
                 new AsyncStorageItemWriter<Object>(
                         executor, queue, database, WriteOperation.SAVE_UNSAFELY, 50, true, source, destination, saveObject).
-                        start();
+                        submit();
             }
 
             wp.redirect(null);
@@ -82,77 +83,77 @@ public class StorageDebugServlet extends HttpServlet {
         new DebugFilter.PageWriter(getServletContext(), request, response) {{
             startPage("Database", "Storage Item Bulk Operations");
 
-                start("h2");
-                    html("Copy");
-                end();
+                writeStart("h2");
+                    writeHtml("Copy");
+                writeEnd();
 
-                start("p");
-                    html("Use this to copy storage items from one location to another.");
-                end();
+                writeStart("p");
+                    writeHtml("Use this to copy storage items from one location to another.");
+                writeEnd();
 
-                start("form", "action", "", "class", "form-horizontal", "method", "post");
-                    tag("input", "name", "action", "type", "hidden", "value", "copy");
+                writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
+                    writeTag("input", "name", "action", "type", "hidden", "value", "copy");
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label").html("Type").end();
-                        start("div", "class", "controls");
-                            start("select", "name", "typeId");
-                                start("option", "value", "").html("All").end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label").writeHtml("Type").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeStart("select", "name", "typeId");
+                                writeStart("option", "value", "").writeHtml("All").writeEnd();
                                 for (ObjectType type : types) {
                                     if (!type.isEmbedded()) {
-                                        start("option", "value", type.getId());
-                                            html(type.getInternalName());
-                                        end();
+                                        writeStart("option", "value", type.getId());
+                                            writeHtml(type.getInternalName());
+                                        writeEnd();
                                     }
                                 }
-                            end();
-                        end();
-                    end();
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label", "id", wp.createId()).html("Source").end();
-                        start("div", "class", "controls");
-                            start("select", "class", "span2", "id", wp.getId(), "name", "source");
-                                start("option", "value", "").html("").end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Source").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeStart("select", "class", "span2", "id", wp.getId(), "name", "source");
+                                writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (String name : StorageItem.Static.getStorages()){
-                                    start("option", "value", name).html(name).end();
+                                    writeStart("option", "value", name).writeHtml(name).writeEnd();
                                 }
-                            end();
-                        end();
-                    end();
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label", "id", wp.createId()).html("Destination").end();
-                        start("div", "class", "controls");
-                            start("select", "class", "span2", "id", wp.getId(), "name", "destination");
-                                start("option", "value", "").html("").end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Destination").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeStart("select", "class", "span2", "id", wp.getId(), "name", "destination");
+                                writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (String name : StorageItem.Static.getStorages()){
-                                    start("option", "value", name).html(name).end();
+                                    writeStart("option", "value", name).writeHtml(name).writeEnd();
                                 }
-                            end();
-                            start("label", "class", "checkbox", "style", "margin-top: 5px;");
-                                tag("input", "name", "saveObject", "type", "checkbox");
-                                html("Save object? (slower - consider reusing the original storage name instead)");
-                            end();
-                        end();
-                    end();
+                            writeEnd();
+                            writeStart("label", "class", "checkbox", "style", "margin-top: 5px;");
+                                writeTag("input", "name", "saveObject", "type", "checkbox");
+                                writeHtml("Save object? (slower - consider reusing the original storage name instead)");
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "form-actions");
-                        tag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
-                    end();
-                end();
+                    writeStart("div", "class", "form-actions");
+                        writeTag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
+                    writeEnd();
+                writeEnd();
 
                 if (!copyExecutors.isEmpty()) {
-                    start("h3").html("Ongoing Tasks").end();
-                    start("ul");
+                    writeStart("h3").writeHtml("Ongoing Tasks").writeEnd();
+                    writeStart("ul");
                         for (TaskExecutor executor : copyExecutors) {
-                            start("li");
-                                start("a", "href", "task");
-                                    html(executor.getName());
-                                end();
-                            end();
+                            writeStart("li");
+                                writeStart("a", "href", "task");
+                                    writeHtml(executor.getName());
+                                writeEnd();
+                            writeEnd();
                         }
-                    end();
+                    writeEnd();
                 }
 
             endPage();

@@ -13,21 +13,20 @@ import java.util.UUID;
 import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import javax.servlet.jsp.PageContext;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.jsp.PageContext;
 
 import org.joda.time.DateTime;
 
 /** Utility methods for working with a web page. */
-public class WebPageContext {
+public class WebPageContext extends HtmlWriter {
 
     private final Object page;
     private final ServletContext servletContext;
     private final HttpServletRequest request;
     private final HttpServletResponse response;
-    private final Writer writer;
     private Converter converter;
 
     /**
@@ -42,7 +41,7 @@ public class WebPageContext {
         this.servletContext = pageContext.getServletContext();
         this.request = (HttpServletRequest) pageContext.getRequest();
         this.response = (HttpServletResponse) pageContext.getResponse();
-        this.writer = pageContext.getOut();
+        setDelegate(pageContext.getOut());
     }
 
     /**
@@ -50,8 +49,6 @@ public class WebPageContext {
      * {@code request}, {@code response}.
      *
      * @param servlet Can't be {@code null}.
-     * @param request Can't be {@code null}.
-     * @param response Can't be {@code null}.
      */
     public WebPageContext(
             Servlet servlet,
@@ -59,38 +56,26 @@ public class WebPageContext {
             HttpServletResponse response) {
 
         ErrorUtils.errorIfNull(servlet, "servlet");
-        ErrorUtils.errorIfNull(request, "request");
-        ErrorUtils.errorIfNull(response, "response");
 
         this.page = servlet;
         this.servletContext = servlet.getServletConfig().getServletContext();
         this.request = request;
         this.response = response;
-        this.writer = null;
     }
 
     /**
      * Creates an instance based on the given {@code servletContext},
      * {@code request}, and {@code response}.
-     *
-     * @param servletContext Can't be {@code null}.
-     * @param request Can't be {@code null}.
-     * @param response Can't be {@code null}.
      */
     public WebPageContext(
             ServletContext servletContext,
             HttpServletRequest request,
             HttpServletResponse response) {
 
-        ErrorUtils.errorIfNull(servletContext, "servletContext");
-        ErrorUtils.errorIfNull(request, "request");
-        ErrorUtils.errorIfNull(response, "response");
-
         this.page = null;
         this.servletContext = servletContext;
         this.request = request;
         this.response = response;
-        this.writer = null;
     }
 
     /**
@@ -120,13 +105,31 @@ public class WebPageContext {
         return response;
     }
 
+    @Override
+    public Writer getDelegate() {
+        Writer delegate = super.getDelegate();
+
+        if (delegate != null) {
+            return delegate;
+
+        } else {
+            try {
+                setDelegate(getResponse().getWriter());
+                return super.getDelegate();
+
+            } catch (IOException error) {
+                throw new IllegalStateException(error);
+            }
+        }
+    }
+
     /**
      * Returns the original output writer.
      *
      * @return Never {@code null}.
      */
-    public Writer getWriter() throws IOException {
-        return writer != null ? writer : response.getWriter();
+    public HtmlWriter getWriter() throws IOException {
+        return this;
     }
 
     /**

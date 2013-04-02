@@ -1,11 +1,11 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
+import java.sql.SQLException;
+
 import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.StringUtils;
-
-import java.io.IOException;
-import java.sql.SQLException;
 
 /**
  * Thrown when there's an error while executing any of the
@@ -82,34 +82,34 @@ public class SqlDatabaseException extends DatabaseException {
 
         @Override
         public void format(HtmlWriter writer) throws IOException {
-            writer.start("p").html("Query took too long to execute!").end();
+            writer.writeStart("p").writeHtml("Query took too long to execute!").writeEnd();
 
-            writer.start("p");
-                writer.html("Query: ");
-                writer.object(getQuery());
-            writer.end();
+            writer.writeStart("p");
+                writer.writeHtml("Query: ");
+                writer.writeObject(getQuery());
+            writer.writeEnd();
 
             String sql = getSqlQuery();
-            writer.start("p");
-                writer.html("SQL: ");
-                writer.html(sql);
+            writer.writeStart("p");
+                writer.writeHtml("SQL: ");
+                writer.writeHtml(sql);
 
-                writer.html(" (");
-                    writer.start("a",
+                writer.writeHtml(" (");
+                    writer.writeStart("a",
                             "target", "_blank",
                             "href", StringUtils.addQueryParameters(
                                     "/_debug/db-sql",
                                     "sql", "EXPLAIN " + sql));
-                        writer.html("View execution plan");
-                    writer.end();
-                writer.html(")");
-            writer.end();
+                        writer.writeHtml("View execution plan");
+                    writer.writeEnd();
+                writer.writeHtml(")");
+            writer.writeEnd();
 
-            writer.start("ul", "class", "dari-stack-trace");
+            writer.writeStart("ul", "class", "dari-stack-trace");
                 for (StackTraceElement element : getStackTrace()) {
-                    writer.start("li").object(element).end();
+                    writer.writeStart("li").writeObject(element).writeEnd();
                 }
-            writer.end();
+            writer.writeEnd();
         }
     }
 }

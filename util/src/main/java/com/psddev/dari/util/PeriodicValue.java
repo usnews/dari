@@ -35,7 +35,7 @@ public abstract class PeriodicValue<T> {
             }
         };
 
-        task.schedule(initialDelay, interval);
+        task.scheduleAtFixedRate(initialDelay, interval);
     }
 
     /**

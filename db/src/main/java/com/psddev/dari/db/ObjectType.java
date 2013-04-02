@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -16,6 +10,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,11 +23,19 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
+
 /** Represents how the {@link Record}s are structured. */
 @Record.LabelFields("name")
 public class ObjectType extends Record implements ObjectStruct {
 
-    private static final String MODIFICATION_NAME = "Modification";
+    private static final String COMMON_NAME_DATA = "Data";
+    private static final String COMMON_NAME_MODIFICATION = "Modification";
+
     private static final Logger
             LOGGER = LoggerFactory.getLogger(ObjectType.class);
 
@@ -65,6 +68,9 @@ public class ObjectType extends Record implements ObjectStruct {
     private Set<String> groups;
     private List<Map<String, Object>> fields;
     private List<Map<String, Object>> indexes;
+
+    private String sourceDatabaseClassName;
+    private String sourceDatabaseName;
 
     @DisplayName("Java Object Class")
     @Indexed(unique = true)
@@ -156,7 +162,15 @@ public class ObjectType extends Record implements ObjectStruct {
             ObjectField field = new ObjectField(type != null ? type : environment, null);
             field.getState().setDatabase(database);
             field.setInternalName(internalName);
-            field.setInternalType(environment, definition.getObjectClass(), javaField.getGenericType());
+
+            try {
+                field.setInternalType(environment, definition.getObjectClass(), javaField.getGenericType());
+
+            } catch (IllegalArgumentException error) {
+                LOGGER.warn(error.getMessage());
+                continue;
+            }
+
             field.setJavaFieldName(javaField.getName());
             field.setJavaDeclaringClassName(declaringClass);
 
@@ -170,6 +184,8 @@ public class ObjectType extends Record implements ObjectStruct {
                             internalName, defaultObject.getClass().getName()), ex);
                 }
             }
+
+            field.setDeprecated(javaField.isAnnotationPresent(Deprecated.class));
 
             for (Annotation annotation : javaField.getAnnotations()) {
                 ObjectField.AnnotationProcessorClass processorClass = annotation.annotationType().getAnnotation(ObjectField.AnnotationProcessorClass.class);
@@ -186,6 +202,7 @@ public class ObjectType extends Record implements ObjectStruct {
             String[] extraFields = null;
             boolean isUnique = false;
             boolean caseSensitive = false;
+            boolean visibility = false;
 
             FieldUnique uniqueAnnotation = javaField.getAnnotation(FieldUnique.class);
             if (uniqueAnnotation != null) {
@@ -204,6 +221,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 extraFields = indexedAnnotation.extraFields();
                 isUnique = isUnique || indexedAnnotation.unique() || indexedAnnotation.isUnique();
                 caseSensitive = indexedAnnotation.caseSensitive();
+                visibility = indexedAnnotation.visibility();
             }
 
             if (extraFields != null) {
@@ -224,8 +242,9 @@ public class ObjectType extends Record implements ObjectStruct {
                 newIndex.setType(field.getInternalItemType());
                 newIndex.setUnique(isUnique);
                 newIndex.setCaseSensitive(caseSensitive);
+                newIndex.setVisibility(visibility);
                 newIndex.setJavaDeclaringClassName(declaringClass);
-                newIndex.getOptions().putAll(field.getOptions());
+                newIndex.getOptions().putAll(new ObjectField(field.getParent(), field.toDefinition()).getOptions());
                 indexes.add(newIndex);
             }
         }
@@ -414,12 +433,73 @@ public class ObjectType extends Record implements ObjectStruct {
 
     /** Returns the field with the given {@code name}. */
     public ObjectField getField(String name) {
-        return fieldsCache.get().get(name);
+        if (name == null) {
+            return null;
+        }
+
+        int slashAt = name.indexOf('/');
+
+        if (slashAt < 0) {
+            return fieldsCache.get().get(name);
+        }
+
+        ObjectField field = fieldsCache.get().get(name.substring(0, slashAt));
+
+        if (field != null) {
+            for (ObjectType type : field.getTypes()) {
+                ObjectField f = type.getField(name.substring(slashAt + 1));
+
+                if (f != null) {
+                    return f;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** Returns all fields that are indexed. */
+    public List<ObjectField> getIndexedFields() {
+        Set<String> indexed = new HashSet<String>();
+
+        for (ObjectIndex index : getIndexes()) {
+            List<String> fields = index.getFields();
+
+            if (fields != null) {
+                indexed.addAll(fields);
+            }
+        }
+
+        List<ObjectField> fields = getFields();
+
+        for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
+            ObjectField field = i.next();
+
+            if (!indexed.contains(field.getInternalName())) {
+                i.remove();
+            }
+        }
+
+        return fields;
     }
 
     /** Returns a list of all the indexes. */
     public List<ObjectIndex> getIndexes() {
         return new ArrayList<ObjectIndex>(indexesCache.get().values());
+    }
+
+    public ObjectIndex getIndexByFields(String... names) {
+        if (names != null && names.length > 0) {
+            List<String> namesList = Arrays.asList(names);
+
+            for (ObjectIndex index : getIndexes()) {
+                if (namesList.equals(index.getFields())) {
+                    return index;
+                }
+            }
+        }
+
+        return null;
     }
 
     private final transient PullThroughValue<Map<String, ObjectIndex>> indexesCache = new PullThroughValue<Map<String, ObjectIndex>>() {
@@ -516,6 +596,50 @@ public class ObjectType extends Record implements ObjectStruct {
     /** Returns the class used to create objects of this type. */
     public Class<?> getObjectClass() {
         return ObjectUtils.getClassByName(getObjectClassName());
+    }
+
+    /** Returns the source database class name. */
+    public String getSourceDatabaseClassName() {
+        return sourceDatabaseClassName;
+    }
+
+    /** Sets the source database class name. */
+    public void setSourceDatabaseClassName(String sourceDatabaseClassName) {
+        this.sourceDatabaseClassName = sourceDatabaseClassName;
+    }
+
+    /** Returns the source database name. */
+    public String getSourceDatabaseName() {
+        return sourceDatabaseName;
+    }
+
+    /** Sets the source database name. */
+    public void setSourceDatabaseName(String sourceDatabaseName) {
+        this.sourceDatabaseName = sourceDatabaseName;
+    }
+
+    /**
+     * Returns the source database.
+     *
+     * @return May be {@code null}.
+     */
+    @SuppressWarnings("unchecked")
+    public Database getSourceDatabase() {
+        String name = getSourceDatabaseName();
+
+        if (!ObjectUtils.isBlank(name)) {
+            return Database.Static.getInstance(name);
+
+        } else {
+            Class<?> dbClass = ObjectUtils.getClassByName(getSourceDatabaseClassName());
+
+            if (dbClass != null &&
+                    Database.class.isAssignableFrom(dbClass)) {
+                return Database.Static.getFirst((Class<? extends Database>) dbClass);
+            }
+        }
+
+        return null;
     }
 
     /** Returns the set of modification class names. */
@@ -632,11 +756,19 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         String simpleName = objectClass.getSimpleName();
-        if (Modification.class.isAssignableFrom(objectClass) &&
-                simpleName.endsWith(MODIFICATION_NAME)) {
-            int newLength = simpleName.length() - MODIFICATION_NAME.length();
-            if (newLength > 0) {
-                simpleName = simpleName.substring(0, newLength);
+        if (Modification.class.isAssignableFrom(objectClass)) {
+            if (simpleName.equals(COMMON_NAME_DATA)) {
+                simpleName = objectClass.getName();
+                int dotAt = simpleName.lastIndexOf('.');
+                if (dotAt > -1) {
+                    simpleName = simpleName.substring(dotAt + 1);
+                }
+
+            } else if (simpleName.endsWith(COMMON_NAME_MODIFICATION)) {
+                int newLength = simpleName.length() - COMMON_NAME_MODIFICATION.length();
+                if (newLength > 0) {
+                    simpleName = simpleName.substring(0, newLength);
+                }
             }
         }
 

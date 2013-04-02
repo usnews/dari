@@ -1,9 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectToIterable;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StringUtils;
-
 import java.net.URI;
 import java.net.URL;
 import java.sql.BatchUpdateException;
@@ -19,6 +15,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.ObjectToIterable;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
 
 /** Internal representations of all SQL index tables. */
 public enum SqlIndex {
@@ -41,6 +41,22 @@ public enum SqlIndex {
             @Override
             public Object convertKey(SqlDatabase database, ObjectIndex index, String key) {
                 return database.getSymbolId(key);
+            }
+
+            @Override
+            public boolean isReadOnly(ObjectIndex index) {
+                List<String> indexFieldNames = index.getFields();
+                ObjectStruct parent = index.getParent();
+
+                for (String fieldName : indexFieldNames) {
+                    ObjectField field = parent.getField(fieldName);
+
+                    if (field != null) {
+                        return field.as(SqlDatabase.FieldData.class).isIndexTableReadOnly();
+                    }
+                }
+
+                return false;
             }
         }
     ),
@@ -113,20 +129,29 @@ public enum SqlIndex {
      */
     public List<Table> getWriteTables(SqlDatabase database, ObjectIndex index) {
         List<Table> writeTables = new ArrayList<Table>();
+
         for (Table table : tables) {
-            if (database.hasTable(table.getName(database, index))) {
+            if (database.hasTable(table.getName(database, index)) && !table.isReadOnly(index)) {
                 writeTables.add(table);
             }
         }
+
         if (writeTables.isEmpty()) {
-            writeTables.add(tables[tables.length - 1]);
+            Table lastTable = tables[tables.length - 1];
+
+            if (!lastTable.isReadOnly(index)) {
+                writeTables.add(lastTable);
+            }
         }
+
         return writeTables;
     }
 
     public interface Table {
 
         public int getVersion();
+
+        public boolean isReadOnly(ObjectIndex index);
 
         public String getName(SqlDatabase database, ObjectIndex index);
 
@@ -172,6 +197,11 @@ public enum SqlIndex {
         }
 
         @Override
+        public boolean isReadOnly(ObjectIndex index) {
+            return false;
+        }
+
+        @Override
         public String getIdField(SqlDatabase database, ObjectIndex index) {
             return idField;
         }
@@ -183,6 +213,25 @@ public enum SqlIndex {
 
         @Override
         public String getValueField(SqlDatabase database, ObjectIndex index, int fieldIndex) {
+            List<String> indexFieldNames = index.getFields();
+            ObjectStruct parent = index.getParent();
+
+            for (String fieldName : indexFieldNames) {
+                ObjectField field = parent.getField(fieldName);
+
+                if (field != null &&
+                        field.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
+                    String valueFieldName = indexFieldNames.get(fieldIndex);
+                    int dotAt = valueFieldName.lastIndexOf(".");
+
+                    if (dotAt > -1) {
+                        valueFieldName = valueFieldName.substring(dotAt + 1);
+                    }
+
+                    return valueFieldName;
+                }
+            }
+
             return fieldIndex > 0 ? valueField + (fieldIndex + 1) : valueField;
         }
 
@@ -204,8 +253,28 @@ public enum SqlIndex {
             } else if (value instanceof UUID) {
                 return value;
 
+            } else if (value instanceof String) {
+                String valueString = value.toString().trim();
+                if (!index.isCaseSensitive() && database.comparesIgnoreCase()) {
+                    valueString = valueString.toLowerCase(Locale.ENGLISH);
+                }
+                return stringToBytes(valueString, 500);
+
             } else {
                 return value.toString();
+            }
+        }
+
+        protected static byte[] stringToBytes(String value, int length) {
+            byte[] bytes = value.getBytes(StringUtils.UTF_8);
+
+            if (bytes.length <= length) {
+                return bytes;
+
+            } else {
+                byte[] shortened = new byte[length];
+                System.arraycopy(bytes, 0, shortened, 0, length);
+                return shortened;
             }
         }
 
@@ -328,19 +397,6 @@ public enum SqlIndex {
 
         public SymbolIdSingleValueTable(int version, String name) {
             super(version, name, "id", "symbolId", "value");
-        }
-
-        protected static byte[] stringToBytes(String value, int length) {
-            byte[] bytes = value.getBytes(StringUtils.UTF_8);
-
-            if (bytes.length <= length) {
-                return bytes;
-
-            } else {
-                byte[] shortened = new byte[length];
-                System.arraycopy(bytes, 0, shortened, 0, length);
-                return shortened;
-            }
         }
 
         @Override

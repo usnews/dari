@@ -1,12 +1,11 @@
 package com.psddev.dari.util;
 
-import org.apache.commons.lang.StringEscapeUtils;
-
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
@@ -14,12 +13,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.lang.StringEscapeUtils;
 
 /** String utility methods. */
 public class StringUtils {
@@ -145,9 +150,9 @@ public class StringUtils {
         int m = 0, l = string.length();
         for (int i = 0; i < l; i++) {
             char c = string.charAt(i);
-            if (" -_.".indexOf(c) > -1) {
+            if (" -_.$".indexOf(c) > -1) {
                 words.add(string.substring(m, i).toLowerCase());
-                while (++i < l && " -_.".indexOf(string.charAt(i)) > -1) {
+                while (++i < l && " -_.$".indexOf(string.charAt(i)) > -1) {
                 }
                 m = i;
             } else if (Character.isUpperCase(c) && i > 0 && Character.isLowerCase(string.charAt(i - 1))) {
@@ -233,6 +238,10 @@ public class StringUtils {
 
         StringBuilder nb = new StringBuilder();
         for (String word : words) {
+            if (word.length() == 0) {
+                continue;
+            }
+
             if (ABBREVIATIONS.contains(word)) {
                 nb.append(word.toUpperCase());
             } else {
@@ -445,6 +454,32 @@ public class StringUtils {
         return hash("SHA-512", string);
     }
 
+    /**
+     * Hashes the given {@code string} using the given HMAC {@code algorithm}
+     * and {@code key}.
+     */
+    public static byte[] hmac(String algorithm, String key, String string) {
+        try {
+            Mac mac = Mac.getInstance(algorithm);
+            mac.init(new SecretKeySpec(key.getBytes(StringUtils.UTF_8), algorithm));
+            return mac.doFinal(string.getBytes(StringUtils.UTF_8));
+
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalArgumentException(String.format("[%s] isn't a valid HMAC algorithm!", algorithm), error);
+
+        } catch (InvalidKeyException error) {
+            throw new IllegalArgumentException(String.format("[%s] isn't a valid key!", key), error);
+        }
+    }
+
+    /**
+     * Hashes the given {@code string} using the HMAC SHA-1 algorithm
+     * and the given {@code key}.
+     */
+    public static byte[] hmacSha1(String key, String string) {
+        return hmac("HmacSHA1", key, string);
+    }
+
     // --- URL/URI ---
 
     /**
@@ -456,7 +491,7 @@ public class StringUtils {
             return null;
         }
         try {
-            return URLEncoder.encode(string, "UTF-8");
+            return URLEncoder.encode(string, "UTF-8").replace("+", "%20");
         } catch (UnsupportedEncodingException ex) {
             throw new IllegalStateException(ex);
         }
@@ -617,6 +652,59 @@ public class StringUtils {
         }
 
         return values;
+    }
+
+    /** Returns a map of query parameters from the given {@code url}. */
+    public static Map<String, List<String>> getQueryParameterMap(String url) {
+        Map<String, List<String>> map = new LinkedHashMap<String, List<String>>();
+
+        if (url != null) {
+            int questionAt = url.indexOf('?');
+
+            if (questionAt > -1) {
+                url = url.substring(questionAt + 1);
+            }
+
+            int lastAndAt = 0;
+
+            for (int andAt;
+                    (andAt = url.indexOf('&', lastAndAt)) > -1;
+                    lastAndAt = andAt + 1) {
+                addParameter(map, url.substring(lastAndAt, andAt));
+            }
+
+            addParameter(map, url.substring(lastAndAt));
+        }
+
+        return map;
+    }
+
+    private static void addParameter(Map<String, List<String>> map, String pair) {
+        if (pair == null || pair.length() == 0) {
+            return;
+        }
+
+        int equalAt = pair.indexOf('=');
+        String name;
+        String value;
+
+        if (equalAt > -1) {
+            name = decodeUri(pair.substring(0, equalAt));
+            value = decodeUri(pair.substring(equalAt + 1));
+
+        } else {
+            name = decodeUri(pair);
+            value = null;
+        }
+
+        List<String> parameters = map.get(name);
+
+        if (parameters == null) {
+            parameters = new ArrayList<String>();
+            map.put(name, parameters);
+        }
+
+        parameters.add(value);
     }
 
     /** @deprecated Use {@link #addQueryParameters instead}. */
@@ -1006,5 +1094,91 @@ public class StringUtils {
             }
             return string;
         }
+    }
+
+    /**
+     * Removes the given {@code delimiter} if the given {@code string}
+     * starts with it.
+     *
+     * @param string If {@code null}, returns {@code null}.
+     * @param delimiter If {@code null}, returns the given {@code string}
+     * as is.
+     */
+    public static String removeStart(String string, String delimiter) {
+        if (string == null) {
+            return null;
+        } else if (delimiter == null) {
+            return string;
+        } else if (string.startsWith(delimiter)) {
+            string = string.substring(delimiter.length());
+        }
+        return string;
+    }
+
+    /**
+     * Removes the given {@code delimiter} if the given {@code string}
+     * ends with it.
+     *
+     * @param string If {@code null}, returns {@code null}.
+     * @param delimiter If {@code null}, returns the given {@code string}
+     * as is.
+     */
+    public static String removeEnd(String string, String delimiter) {
+        if (string == null) {
+            return null;
+        } else if (delimiter == null) {
+            return string;
+        } else if (string.endsWith(delimiter)) {
+            string = string.substring(0, string.length() - delimiter.length());
+        }
+        return string;
+    }
+
+    /**
+     * Removes the given {@code delimiter} if the given {@code string}
+     * starts or ends with it.
+     *
+     * @param string If {@code null}, returns {@code null}.
+     * @param delimiter If {@code null}, returns the given {@code string}
+     * as is.
+     */
+    public static String removeSurrounding(String string, String delimiter) {
+        if (string == null) {
+            return null;
+        } else if (delimiter == null) {
+            return string;
+        } else {
+            if (string.startsWith(delimiter)) {
+                string = string.substring(delimiter.length());
+            }
+            if (string.endsWith(delimiter)) {
+                string = string.substring(0, string.length() - delimiter.length());
+            }
+            return string;
+        }
+    }
+
+    /**
+     * @param path If {@code null}, returns {@code null}.
+     * @param servletPath If {@code null}, returns {@code null}.
+     */
+    public static String getPathInfo(String path, String servletPath) {
+        if (path != null && servletPath != null) {
+            path = ensureStart(path, "/");
+            servletPath = removeEnd(ensureStart(servletPath, "/"), "/");
+
+            if (path.startsWith(servletPath)) {
+                String pathInfo = path.substring(servletPath.length());
+
+                if (pathInfo.length() == 0) {
+                    return "/";
+
+                } else if (pathInfo.startsWith("/")) {
+                    return pathInfo;
+                }
+            }
+        }
+
+        return null;
     }
 }

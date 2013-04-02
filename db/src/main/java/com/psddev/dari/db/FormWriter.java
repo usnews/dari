@@ -1,8 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ErrorUtils;
-import com.psddev.dari.util.HtmlWriter;
-
 import java.io.IOException;
 import java.io.Writer;
 import java.util.HashMap;
@@ -10,6 +7,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
+
+import com.psddev.dari.util.ErrorUtils;
+import com.psddev.dari.util.HtmlWriter;
 
 /** Writer that specializes in processing HTML forms. */
 public class FormWriter extends HtmlWriter {

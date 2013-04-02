@@ -8,13 +8,14 @@ import java.util.List;
  * For when there are multiple illegal arguments.
  * @author Hyoo Lim
  */
+@SuppressWarnings("serial")
 public class ValidationException extends IllegalArgumentException {
     private final List<String> _messages;
 
     /** Creates an exception without any messages. */
     public ValidationException() {
         super();
-        _messages = new ArrayList();
+        _messages = new ArrayList<String>();
     }
 
     /** Creates an exception with the given list of messages. */
@@ -32,7 +33,7 @@ public class ValidationException extends IllegalArgumentException {
     /** Creates an exception with the given cause. */
     public ValidationException(Throwable cause) {
         super(cause);
-        _messages = new ArrayList();
+        _messages = new ArrayList<String>();
     }
 
     /** Gets a list of messages. */

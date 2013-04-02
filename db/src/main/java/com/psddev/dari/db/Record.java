@@ -1,15 +1,14 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlObject;
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+
+import com.psddev.dari.util.HtmlObject;
+import com.psddev.dari.util.HtmlWriter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
 
 /** Represents a generic record. */
 public class Record implements Cloneable, Comparable<Record>, HtmlObject, Recordable {
@@ -63,28 +62,28 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
 
     @Override
     public void format(HtmlWriter writer) throws IOException {
-        writer.start("pre");
+        writer.writeStart("pre");
 
             State state = getState();
             ObjectType type = state.getType();
             if (type != null) {
-                writer.html(type.getInternalName());
-                writer.html(": ");
+                writer.writeHtml(type.getInternalName());
+                writer.writeHtml(": ");
             }
 
-            writer.start("a",
+            writer.writeStart("a",
                     "target", "_blank",
                     "href", StringUtils.addQueryParameters(
                             "/_debug/query",
                             "where", "id = " + state.getId(),
                             "action", "Run"));
-                writer.html(getLabel());
-            writer.end();
-            writer.tag("br");
+                writer.writeHtml(getLabel());
+            writer.writeEnd();
+            writer.writeTag("br");
 
-            writer.html(ObjectUtils.toJson(state.getSimpleValues(), true));
+            writer.writeHtml(ObjectUtils.toJson(state.getSimpleValues(), true));
 
-        writer.end();
+        writer.writeEnd();
     }
 
     // --- Recordable support ---
@@ -106,6 +105,11 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         }
         this.state = state;
         this.state.linkObject(this);
+    }
+
+    @Override
+    public <T> T as(Class<T> modificationClass) {
+        return getState().as(modificationClass);
     }
 
     // --- Object support ---
@@ -210,31 +214,14 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         getState().saveEventually();
     }
 
-    /** @see State#as */
-    public <T> T as(Class<T> modificationClass) {
-        return getState().as(modificationClass);
+    public void saveUniquely() {
+        getState().saveUniquely();
     }
 
     // --- JSTL support ---
 
-    private transient Map<String, Object> modifications;
-
-    public Map<String, Object> getModifications() {
-        if (modifications == null) {
-            modifications = new PullThroughCache<String, Object>() {
-                @Override
-                protected Object produce(String modificationClassName) {
-                    Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
-                    if (modificationClass != null) {
-                        return as(modificationClass);
-                    } else {
-                        throw new IllegalArgumentException(String.format(
-                                "[%s] isn't a valid class name!", modificationClassName));
-                    }
-                }
-            };
-        }
-        return modifications;
+    public Map<String, Object> getAs() {
+        return getState().getAs();
     }
 
     // --- Deprecated ---
@@ -257,5 +244,11 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
     /** @deprecated No replacement. */
     @Deprecated
     protected void afterDelete(Database database) {
+    }
+
+    /** @deprecated Use {@link #getAs} instead. */
+    @Deprecated
+    public Map<String, Object> getModifications() {
+        return getAs();
     }
 }

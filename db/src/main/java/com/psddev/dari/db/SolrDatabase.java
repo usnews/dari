@@ -1,14 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.Stats;
-import com.psddev.dari.util.UuidUtils;
-
 import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -42,9 +33,19 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
-
+import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.MoreLikeThisParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.Profiler;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.SettingsException;
+import com.psddev.dari.util.Stats;
+import com.psddev.dari.util.UuidUtils;
 
 /**
  * Database backed by a
@@ -380,8 +381,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                         queryBuilder.append(") && ");
                     }
                     queryBuilder.append("typeId:(");
-                    for (ObjectType type : types) {
-                        queryBuilder.append(Static.escapeValue(type.getId()));
+                    for (UUID typeId : query.getConcreteTypeIds(this)) {
+                        queryBuilder.append(Static.escapeValue(typeId));
                         queryBuilder.append(" || ");
                     }
                     queryBuilder.setLength(queryBuilder.length() - 4);
@@ -874,6 +875,46 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
+    public SolrQuery buildSimilarQuery(Object object) {
+        State state = State.getInstance(object);
+        SolrQuery solrQuery = new SolrQuery();
+
+        solrQuery.setQueryType("/mlt");
+
+        solrQuery.set(MoreLikeThisParams.SIMILARITY_FIELDS, ALL_FIELD);
+        solrQuery.set(MoreLikeThisParams.MIN_WORD_LEN, 2);
+        solrQuery.set(MoreLikeThisParams.BOOST, true);
+
+        StringBuilder streamBody = new StringBuilder();
+
+        addToStreamBody(streamBody, state.getSimpleValues());
+
+        solrQuery.set(CommonParams.STREAM_BODY, streamBody.toString());
+        solrQuery.add(CommonParams.FQ, "-id:" + state.getId());
+
+        return solrQuery;
+    }
+
+    private void addToStreamBody(StringBuilder streamBody, Object value) {
+        if (value == null ||
+                value instanceof Boolean) {
+
+        } else if (value instanceof Iterable) {
+            for (Object item : (Iterable<?>) value) {
+                addToStreamBody(streamBody, item);
+            }
+
+        } else if (value instanceof Map) {
+            for (Object item : ((Map<?, ?>) value).values()) {
+                addToStreamBody(streamBody, item);
+            }
+
+        } else {
+            streamBody.append(value);
+            streamBody.append(" ");
+        }
+    }
+
     /**
      * Queries the underlying Solr server with the given {@code query}
      * and options from the given {@code query}.
@@ -938,7 +979,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 count,
                 objects,
                 response.getLimitingFacets(),
-                query.getClass(),
+                query != null ? query.getClass() : null,
                 Settings.isDebug() ? solrQuery : null);
     }
 
@@ -1248,7 +1289,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             documents.add(document);
             document.setField(ID_FIELD, state.getId());
-            document.setField(TYPE_ID_FIELD, state.getTypeId());
+            document.setField(TYPE_ID_FIELD, state.getVisibilityAwareTypeId());
 
             if (isSaveData()) {
                 document.setField(DATA_FIELD, ObjectUtils.toJson(stateValues));
@@ -1256,17 +1297,34 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             if (schema.get().version >= 10) {
                 Set<String> typeAheadFields = type.as(TypeModification.class).getTypeAheadFields();
+                Map<String, List<String>> typeAheadFieldsMap = type.as(TypeModification.class).getTypeAheadFieldsMap();
 
                 if (!typeAheadFields.isEmpty()) {
                     for (String typeAheadField : typeAheadFields) {
                         String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
 
                         // Hack for a client.
-                        if (value != null) {
+                        if (!ObjectUtils.isBlank(value)) {
                             value = value.replaceAll("\\{", "").replaceAll("\\}", "");
+                            document.setField(SUGGESTION_FIELD, value);
                         }
+                    }
+                }
 
-                        document.setField(SUGGESTION_FIELD, value);
+                if (!typeAheadFieldsMap.isEmpty()) {
+                    for (Map.Entry<String, List<String>> entry : typeAheadFieldsMap.entrySet()) {
+                        String typeAheadField = entry.getKey();
+                        List<String> targetFields = entry.getValue();
+                        String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
+
+                        if (!ObjectUtils.isBlank(targetFields)) {
+                            for (String targetField : targetFields) {
+                                if (!ObjectUtils.isBlank(value)) {
+                                    value = value.replaceAll("\\{", "").replaceAll("\\}", "");
+                                    document.setField("_e_" + targetField, value);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1521,13 +1579,27 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.TYPE)
     public @interface TypeAheadFields {
-        String[] value();
+        String[] value() default { };
+        TypeAheadFieldsMapping[] mappings() default { };
+    }
+
+    public @interface TypeAheadFieldsMapping {
+        String field();
+        String[] solrFields();
     }
 
     private static class TypeAheadFieldsProcessor implements ObjectType.AnnotationProcessor<TypeAheadFields> {
         @Override
         public void process(ObjectType type, TypeAheadFields annotation) {
+            Map <String, List<String>> typeAheadFieldsMap = new HashMap<String, List<String>>();
+
+            for (TypeAheadFieldsMapping mapping : annotation.mappings()) {
+                List<String> fields = Arrays.asList(mapping.solrFields());
+                typeAheadFieldsMap.put(mapping.field(), fields);
+            }
+
             Collections.addAll(type.as(TypeModification.class).getTypeAheadFields(), annotation.value());
+            type.as(TypeModification.class).setTypeAheadFieldsMap(typeAheadFieldsMap);
         }
     }
 
@@ -1535,6 +1607,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public static class TypeModification extends Modification<ObjectType> {
 
         private Set<String> typeAheadFields;
+        private Map<String, List<String>> typeAheadFieldsMap;
 
         public Set<String> getTypeAheadFields() {
             if (typeAheadFields == null) {
@@ -1545,6 +1618,17 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         public void setTypeAheadFields(Set<String> typeAheadFields) {
             this.typeAheadFields = typeAheadFields;
+        }
+
+        public Map<String, List<String>> getTypeAheadFieldsMap() {
+            if (null == typeAheadFieldsMap) {
+                typeAheadFieldsMap = new HashMap<String, List<String>>();
+            }
+            return typeAheadFieldsMap;
+        }
+
+        public void setTypeAheadFieldsMap(Map<String, List<String>> typeAheadFieldsMap) {
+            this.typeAheadFieldsMap = typeAheadFieldsMap;
         }
     }
 

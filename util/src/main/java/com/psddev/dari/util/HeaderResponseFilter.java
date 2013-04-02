@@ -28,6 +28,8 @@ public class HeaderResponseFilter extends AbstractFilter {
             response = (HttpServletResponse) ((HttpServletResponseWrapper) response).getResponse();
         }
 
+        response = new HeaderResponse(response);
+
         JspUtils.setHeaderResponse(request, response);
         chain.doFilter(request, response);
     }

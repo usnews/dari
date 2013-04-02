@@ -1,13 +1,13 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlObject;
-import com.psddev.dari.util.HtmlWriter;
-
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.psddev.dari.util.HtmlObject;
+import com.psddev.dari.util.HtmlWriter;
 
 public abstract class AbstractGrouping<T> implements Grouping<T>, HtmlObject {
 
@@ -77,18 +77,18 @@ public abstract class AbstractGrouping<T> implements Grouping<T>, HtmlObject {
 
     @Override
     public void format(HtmlWriter writer) throws IOException {
-        writer.html(getCount());
-        writer.html(' ');
+        writer.writeHtml(getCount());
+        writer.writeHtml(' ');
 
         Iterator<Object> keysIterator = getKeys().iterator();
         if (keysIterator.hasNext()) {
-            writer.html("[ ");
-            writer.object(keysIterator.next());
+            writer.writeHtml("[ ");
+            writer.writeObject(keysIterator.next());
             while (keysIterator.hasNext()) {
-                writer.html(", ");
-                writer.object(keysIterator.next());
+                writer.writeHtml(", ");
+                writer.writeObject(keysIterator.next());
             }
-            writer.html(" ]");
+            writer.writeHtml(" ]");
         }
     }
 

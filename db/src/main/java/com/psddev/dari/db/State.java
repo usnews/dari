@@ -1,12 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectToIterable;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StorageItem;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-import com.psddev.dari.util.UuidUtils;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -27,6 +20,14 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.ObjectToIterable;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.UuidUtils;
+
 /** Represents the state of an object stored in the database. */
 public class State implements Map<String, Object> {
 
@@ -40,12 +41,18 @@ public class State implements Map<String, Object> {
      */
     public static final String REFERENCE_RESOLVING_QUERY_OPTION = "dari.referenceResolving";
 
+    public static final String REFERENCE_FIELD_QUERY_OPTION = "dari.referenceField";
+
+    public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
 
     private static final int STATUS_FLAG_OFFSET = 16;
     private static final int STATUS_FLAG_MASK = -1 >>> STATUS_FLAG_OFFSET;
     private static final int IS_ALL_RESOLVED_FLAG = 1 << 0;
     private static final int IS_RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
+
+    private static final ThreadLocal<List<Listener>> LISTENERS_LOCAL = new ThreadLocal<List<Listener>>();
 
     private final Map<Class<?>, Object> linkedObjects = new LinkedHashMap<Class<?>, Object>();
     private Database database;
@@ -104,8 +111,21 @@ public class State implements Map<String, Object> {
     /** Returns the originating database. */
     public Database getDatabase() {
         if (database == null) {
-            setDatabase(Database.Static.getDefault());
+            Database defaultDatabase = Database.Static.getDefault();
+
+            setDatabase(defaultDatabase);
+
+            ObjectType type = getType();
+
+            if (type != null) {
+                Database source = type.getSourceDatabase();
+
+                if (source != null) {
+                    setDatabase(source);
+                }
+            }
         }
+
         return database;
     }
 
@@ -129,23 +149,87 @@ public class State implements Map<String, Object> {
 
     /** Returns the type ID. */
     public UUID getTypeId() {
-        if (typeId != null) {
-            return typeId;
-
-        } else {
+        if (typeId == null) {
             UUID newTypeId = UuidUtils.ZERO_UUID;
+
             if (!linkedObjects.isEmpty()) {
                 Database database = getDatabase();
+
                 if (database != null) {
                     ObjectType type = database.getEnvironment().getTypeByClass(linkedObjects.keySet().iterator().next());
+
                     if (type != null) {
                         newTypeId = type.getId();
                     }
                 }
             }
 
-            setTypeId(newTypeId);
-            return newTypeId;
+            typeId = newTypeId;
+        }
+
+        return typeId;
+    }
+
+    /** Returns the type ID modified by the visibility index values. */
+    public UUID getVisibilityAwareTypeId() {
+        ObjectType type = getType();
+
+        if (type != null) {
+            updateVisibilities(getDatabase().getEnvironment().getIndexes());
+            updateVisibilities(type.getIndexes());
+
+            @SuppressWarnings("unchecked")
+            List<String> visibilities = (List<String>) get("dari.visibilities");
+
+            if (visibilities != null && !visibilities.isEmpty()) {
+                String field = visibilities.get(visibilities.size() - 1);
+                Object value = toSimpleValue(get(field), false);
+
+                if (value != null) {
+                    byte[] typeId = UuidUtils.toBytes(getTypeId());
+                    byte[] md5 = StringUtils.md5(field + "/" + value.toString());
+
+                    for (int i = 0, length = typeId.length; i < length; ++ i) {
+                        typeId[i] ^= md5[i];
+                    }
+
+                    return UuidUtils.fromBytes(typeId);
+                }
+            }
+        }
+
+        return getTypeId();
+    }
+
+    private void updateVisibilities(List<ObjectIndex> indexes) {
+        @SuppressWarnings("unchecked")
+        List<String> visibilities = (List<String>) get("dari.visibilities");
+
+        for (ObjectIndex index : indexes) {
+            if (index.isVisibility()) {
+                String field = index.getField();
+                Object value = toSimpleValue(index.getValue(this), false);
+
+                if (value == null) {
+                    if (visibilities != null) {
+                        visibilities.remove(field);
+
+                        if (visibilities.isEmpty()) {
+                            remove("dari.visibilities");
+                        }
+                    }
+
+                } else {
+                    if (visibilities == null) {
+                        visibilities = new ArrayList<String>();
+                        put("dari.visibilities", visibilities);
+                    }
+
+                    if (!visibilities.contains(field)) {
+                        visibilities.add(field);
+                    }
+                }
+            }
         }
     }
 
@@ -376,7 +460,7 @@ public class State implements Map<String, Object> {
     }
 
     /** Returns the field value associated with the given {@code path}. */
-    public Object getValue(String path) {
+    public Object getByPath(String path) {
         if (path == null) {
             return null;
         }
@@ -481,7 +565,7 @@ public class State implements Map<String, Object> {
 
     /** Puts the given field value at given name. */
     @SuppressWarnings("unchecked")
-    public void putValue(String name, Object value) {
+    public void putByPath(String name, Object value) {
         Map<String, Object> parent = getValues();
         String[] parts = StringUtils.split(name, "/");
         int last = parts.length - 1;
@@ -736,7 +820,7 @@ public class State implements Map<String, Object> {
 
             } else {
                 ObjectType valueType = valueState.getType();
-                if (valueType.isEmbedded() && valueState.hasAnyErrors()) {
+                if (valueType != null && valueType.isEmbedded() && valueState.hasAnyErrors()) {
                     return true;
                 }
             }
@@ -904,6 +988,35 @@ public class State implements Map<String, Object> {
         return null;
     }
 
+    /**
+     * Returns the label that identifies the current visibility in effect.
+     *
+     * @return May be {@code null}.
+     * @see VisibilityLabel
+     */
+    public String getVisibilityLabel() {
+        @SuppressWarnings("unchecked")
+        List<String> visibilities = (List<String>) get("dari.visibilities");
+
+        if (visibilities != null && !visibilities.isEmpty()) {
+            String fieldName = visibilities.get(visibilities.size() - 1);
+            ObjectField field = getField(fieldName);
+
+            if (field != null) {
+                Class<?> fieldDeclaring = ObjectUtils.getClassByName(field.getJavaDeclaringClassName());
+
+                if (fieldDeclaring != null &&
+                        VisibilityLabel.class.isAssignableFrom(fieldDeclaring)) {
+                    return ((VisibilityLabel) as(fieldDeclaring)).createVisibilityLabel(field);
+                }
+            }
+
+            return ObjectUtils.to(String.class, get(fieldName));
+        }
+
+        return null;
+    }
+
     public void prefetch() {
         prefetch(getValues());
     }
@@ -953,12 +1066,24 @@ public class State implements Map<String, Object> {
         return objects;
     }
 
+    public void beforeFieldGet(String name) {
+        List<Listener> listeners = LISTENERS_LOCAL.get();
+
+        if (listeners != null && !listeners.isEmpty()) {
+            for (Listener listener : listeners) {
+                listener.beforeFieldGet(this, name);
+            }
+        }
+    }
+
     /**
-     * Resolves all references to other objects in this state. This method
-     * shouldn't be used directly, because it's called automatically on
-     * demand using {@link LazyLoadEnhancer}.
+     * Resolves the reference possibly stored in the given {@code field}.
+     * This method doesn't need to be used directly in typical cases, because
+     * it will be called automatically by {@link LazyLoadEnhancer}.
+     *
+     * @param field If {@code null}, resolves all references.
      */
-    public void resolveReferences() {
+    public void resolveReference(String field) {
         if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
             return;
         }
@@ -975,7 +1100,7 @@ public class State implements Map<String, Object> {
             }
 
             Object object = linkedObjects.values().iterator().next();
-            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values());
+            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
 
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
@@ -989,6 +1114,15 @@ public class State implements Map<String, Object> {
                 put(e.getKey(), e.getValue());
             }
         }
+    }
+
+    /**
+     * Resolves all references to other objects. This method doesn't need to
+     * be used directly in typical cases, because it will be called
+     * automatically by {@link LazyLoadEnhancer}.
+     */
+    public void resolveReferences() {
+        resolveReference(null);
     }
 
     /**
@@ -1031,7 +1165,7 @@ public class State implements Map<String, Object> {
 
             } else {
                 ObjectType valueType = valueState.getType();
-                if (valueType.isEmbedded()) {
+                if (valueType != null && valueType.isEmbedded()) {
                     valueState.validate();
                 }
             }
@@ -1353,6 +1487,28 @@ public class State implements Map<String, Object> {
         return sb.toString();
     }
 
+    // --- JSTL support ---
+
+    private transient Map<String, Object> modifications;
+
+    public Map<String, Object> getAs() {
+        if (modifications == null) {
+            modifications = new PullThroughCache<String, Object>() {
+                @Override
+                protected Object produce(String modificationClassName) {
+                    Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
+                    if (modificationClass != null) {
+                        return as(modificationClass);
+                    } else {
+                        throw new IllegalArgumentException(String.format(
+                                "[%s] isn't a valid class name!", modificationClassName));
+                    }
+                }
+            };
+        }
+        return modifications;
+    }
+
     // --- Database bridge ---
 
     /** @see Database#beginWrites() */
@@ -1417,6 +1573,61 @@ public class State implements Map<String, Object> {
         getDatabase().saveUnsafely(this);
     }
 
+    public void saveUniquely() {
+        ObjectType type = getType();
+
+        if (type == null) {
+            throw new IllegalStateException("No type!");
+        }
+
+        Query<?> query = Query.fromType(type);
+
+        query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
+
+        for (ObjectIndex index : type.getIndexes()) {
+            if (index.isUnique()) {
+                for (String field : index.getFields()) {
+                    Object value = get(field);
+                    query.and(field + " = ?", value != null ? value : Query.MISSING_VALUE);
+                }
+            }
+        }
+
+        if (query.getPredicate() == null) {
+            throw new IllegalStateException("No unique indexes!");
+        }
+
+        DatabaseException lastError = null;
+        boolean ignoreRead = Database.Static.isIgnoreReadConnection();
+
+        try {
+            Database.Static.setIgnoreReadConnection(true);
+
+            for (int i = 0; i < 10; ++ i) {
+                Object object = query.first();
+
+                if (object != null) {
+                    setValues(State.getInstance(object).getValues());
+                    return;
+
+                } else {
+                    try {
+                        saveImmediately();
+                        return;
+
+                    } catch (DatabaseException error) {
+                        lastError = error;
+                    }
+                }
+            }
+
+        } finally {
+            Database.Static.setIgnoreReadConnection(ignoreRead);
+        }
+
+        throw lastError;
+    }
+
     /**
      * {@linkplain Database#index Indexes} this state data in the
      * {@linkplain #getDatabase originating database}.
@@ -1445,6 +1656,41 @@ public class State implements Map<String, Object> {
             database.commitWrites();
         } finally {
             database.endWrites();
+        }
+    }
+
+    public static abstract class Listener {
+        public void beforeFieldGet(State state, String name) {
+        }
+    }
+
+    /** {@link State} utility methods. */
+    public static final class Static {
+
+        private Static() {
+        }
+
+        public static void addListener(Listener listener) {
+            List<Listener> listeners = LISTENERS_LOCAL.get();
+
+            if (listeners == null) {
+                listeners = new ArrayList<Listener>();
+                LISTENERS_LOCAL.set(listeners);
+            }
+
+            listeners.add(listener);
+        }
+
+        public static void removeListener(Listener listener) {
+            List<Listener> listeners = LISTENERS_LOCAL.get();
+
+            if (listeners != null) {
+                listeners.remove(listener);
+
+                if (listeners.isEmpty()) {
+                    LISTENERS_LOCAL.remove();
+                }
+            }
         }
     }
 
@@ -1529,4 +1775,15 @@ public class State implements Map<String, Object> {
         replaceAtomically(name, value);
     }
 
+    /** @deprecated Use {@link #getByPath} instead. */
+    @Deprecated
+    public Object getValue(String path) {
+        return getByPath(path);
+    }
+
+    /** @deprecated Use {@link #putByPath} instead. */
+    @Deprecated
+    public void putValue(String path, Object value) {
+        putByPath(path, value);
+    }
 }

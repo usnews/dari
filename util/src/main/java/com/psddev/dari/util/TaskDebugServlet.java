@@ -46,110 +46,110 @@ public class TaskDebugServlet extends HttpServlet {
             startPage("Task Status");
 
             for (TaskExecutor executor : TaskExecutor.Static.getAll()) {
-                start("div", "style", "position: relative;");
+                writeStart("div", "style", "position: relative;");
 
-                    start("h2").html(executor.getName()).end();
+                    writeStart("h2").writeHtml(executor.getName()).writeEnd();
 
-                    start("form", "method", "post", "style", "position: absolute; right: 0; top: 0;");
-                        tag("input",
+                    writeStart("form", "method", "post", "style", "position: absolute; right: 0; top: 0;");
+                        writeTag("input",
                                 "name", "executor",
                                 "type", "hidden",
                                 "value", executor.getName());
-                        tag("input",
+                        writeTag("input",
                                 "class", "btn btn-small btn-warning",
                                 "name", "action",
                                 "type", "submit",
                                 "value", "Pause All");
-                        html(' ');
-                        tag("input",
+                        writeHtml(' ');
+                        writeTag("input",
                                 "class", "btn btn-small btn-success",
                                 "name", "action",
                                 "type", "submit",
                                 "value", "Resume All");
-                        html(' ');
-                        tag("input",
+                        writeHtml(' ');
+                        writeTag("input",
                                 "class", "btn btn-small btn-danger",
                                 "name", "action",
                                 "type", "submit",
                                 "value", "Stop All");
-                    end();
+                    writeEnd();
 
                     List<Object> tasks = executor.getTasks();
                     if (tasks.isEmpty()) {
-                        start("p", "class", "alert alert-info");
-                            html("No tasks!");
-                        end();
+                        writeStart("p", "class", "alert alert-info");
+                            writeHtml("No tasks!");
+                        writeEnd();
 
                     } else {
                         Map<AsyncQueue<?>, QueueTasks> queues = new LinkedHashMap<AsyncQueue<?>, QueueTasks>();
 
-                        start("table", "class", "table table-condensed table-striped");
-                            start("thead");
-                                start("tr");
-                                    start("th").html("Name").end();
-                                    start("th", "colspan", 2).html("Progress").end();
-                                    start("th").html("Last Exception").end();
-                                    start("th").html("Run Count").end();
-                                end();
-                            end();
+                        writeStart("table", "class", "table table-condensed table-striped");
+                            writeStart("thead");
+                                writeStart("tr");
+                                    writeStart("th").writeHtml("Name").writeEnd();
+                                    writeStart("th", "colspan", 2).writeHtml("Progress").writeEnd();
+                                    writeStart("th").writeHtml("Last Exception").writeEnd();
+                                    writeStart("th").writeHtml("Run Count").writeEnd();
+                                writeEnd();
+                            writeEnd();
 
-                            start("tbody");
+                            writeStart("tbody");
                                 for (Object taskObject : tasks) {
                                     if (!(taskObject instanceof Task)) {
                                         continue;
                                     }
 
                                     Task task = (Task) taskObject;
-                                    start("tr");
-                                        start("td").html(task.getName()).end();
+                                    writeStart("tr");
+                                        writeStart("td").writeHtml(task.getName()).writeEnd();
 
-                                        start("td");
+                                        writeStart("td");
                                             if (task.isPauseRequested()) {
-                                                start("span", "class", "label label-warning");
-                                                    html("Paused");
-                                                end();
+                                                writeStart("span", "class", "label label-warning");
+                                                    writeHtml("Paused");
+                                                writeEnd();
 
                                             } else if (task.isRunning()) {
-                                                start("span", "class", "label label-success");
-                                                    html("Running");
-                                                end();
+                                                writeStart("span", "class", "label label-success");
+                                                    writeHtml("Running");
+                                                writeEnd();
 
                                             } else {
                                                 Future<?> future = task.getFuture();
                                                 if (future instanceof ScheduledFuture) {
-                                                    start("span", "class", "label label-warning");
-                                                        html("Scheduled");
-                                                    end();
+                                                    writeStart("span", "class", "label label-warning");
+                                                        writeHtml("Scheduled");
+                                                    writeEnd();
 
                                                 } else {
-                                                    start("span", "class", "label label-important");
-                                                        html("Stopped");
-                                                    end();
+                                                    writeStart("span", "class", "label label-important");
+                                                        writeHtml("Stopped");
+                                                    writeEnd();
                                                 }
                                             }
-                                        end();
+                                        writeEnd();
 
                                         double runDuration = task.getRunDuration() / 1e3;
                                         if (runDuration < 0) {
-                                            start("td");
-                                            end();
+                                            writeStart("td");
+                                            writeEnd();
 
                                         } else {
-                                            start("td");
+                                            writeStart("td");
                                                 String progress = task.getProgress();
                                                 if (!ObjectUtils.isBlank(progress)) {
-                                                    html(progress);
-                                                    html("; ");
+                                                    writeHtml(progress);
+                                                    writeHtml("; ");
                                                 }
 
-                                                start("strong").object(runDuration).end();
-                                                html(" s total");
+                                                writeStart("strong").writeObject(runDuration).writeEnd();
+                                                writeHtml(" s total");
 
                                                 long index = task.getProgressIndex();
                                                 if (index > 0) {
-                                                    html("; ");
-                                                    start("strong").object(index / runDuration).end();
-                                                    html(" items/s");
+                                                    writeHtml("; ");
+                                                    writeStart("strong").writeObject(index / runDuration).writeEnd();
+                                                    writeHtml(" items/s");
                                                 }
 
                                                 if (task instanceof AsyncProducer) {
@@ -157,9 +157,9 @@ public class TaskDebugServlet extends HttpServlet {
                                                     double count = producer.getProduceCount();
                                                     double produceDuration = producer.getProduceDuration() / 1e6;
 
-                                                    html("; ");
-                                                    start("strong").object(produceDuration / count).end();
-                                                    html(" ms/produce");
+                                                    writeHtml("; ");
+                                                    writeStart("strong").writeObject(produceDuration / count).writeEnd();
+                                                    writeHtml(" ms/produce");
 
                                                     AsyncQueue<?> queue = producer.getOutput();
                                                     getQueueTasks(queues, queue).producers.add(task);
@@ -169,9 +169,9 @@ public class TaskDebugServlet extends HttpServlet {
                                                     double count = consumer.getConsumeCount();
                                                     double consumeDuration = consumer.getConsumeDuration() / 1e6;
 
-                                                    html("; ");
-                                                    start("strong").object(consumeDuration / count).end();
-                                                    html(" ms/consume");
+                                                    writeHtml("; ");
+                                                    writeStart("strong").writeObject(consumeDuration / count).writeEnd();
+                                                    writeHtml(" ms/consume");
 
                                                     AsyncQueue<?> queue = consumer.getInput();
                                                     getQueueTasks(queues, queue).consumers.add(task);
@@ -181,39 +181,39 @@ public class TaskDebugServlet extends HttpServlet {
                                                         getQueueTasks(queues, queue).producers.add(task);
                                                     }
                                                 }
-                                            end();
+                                            writeEnd();
                                         }
 
-                                        start("td").htmlOrDefault(task.getLastException(), "N/A").end();
-                                        start("td").object(task.getRunCount()).end();
-                                    end();
+                                        writeStart("td").writeHtmlOrDefault(task.getLastException(), "N/A").writeEnd();
+                                        writeStart("td").writeObject(task.getRunCount()).writeEnd();
+                                    writeEnd();
                                 }
-                            end();
-                        end();
+                            writeEnd();
+                        writeEnd();
 
                         if (!queues.isEmpty()) {
-                            start("h3").html(executor.getName()).html(" Queues").end();
+                            writeStart("h3").writeHtml(executor.getName()).writeHtml(" Queues").writeEnd();
 
-                            start("table", "class", "table table-bordered table-condensed table-striped");
-                                start("thead");
-                                    start("tr");
-                                        start("th", "colspan", 4).html("Production").end();
-                                        start("th", "colspan", 3).html("Consumption").end();
-                                    end();
+                            writeStart("table", "class", "table table-bordered table-condensed table-striped");
+                                writeStart("thead");
+                                    writeStart("tr");
+                                        writeStart("th", "colspan", 4).writeHtml("Production").writeEnd();
+                                        writeStart("th", "colspan", 3).writeHtml("Consumption").writeEnd();
+                                    writeEnd();
 
-                                    start("tr");
-                                        start("th").html("Tasks").end();
-                                        start("th").html("Successes").end();
-                                        start("th").html("Failures").end();
-                                        start("th").html("Wait").end();
+                                    writeStart("tr");
+                                        writeStart("th").writeHtml("Tasks").writeEnd();
+                                        writeStart("th").writeHtml("Successes").writeEnd();
+                                        writeStart("th").writeHtml("Failures").writeEnd();
+                                        writeStart("th").writeHtml("Wait").writeEnd();
 
-                                        start("th").html("Tasks").end();
-                                        start("th").html("Successes").end();
-                                        start("th").html("Wait").end();
-                                    end();
-                                end();
+                                        writeStart("th").writeHtml("Tasks").writeEnd();
+                                        writeStart("th").writeHtml("Successes").writeEnd();
+                                        writeStart("th").writeHtml("Wait").writeEnd();
+                                    writeEnd();
+                                writeEnd();
 
-                                start("tbody");
+                                writeStart("tbody");
                                     for (Map.Entry<AsyncQueue<?>, QueueTasks> entry : queues.entrySet()) {
                                         AsyncQueue<?> queue = entry.getKey();
                                         QueueTasks queueTasks = entry.getValue();
@@ -221,20 +221,20 @@ public class TaskDebugServlet extends HttpServlet {
                                         long addFailureCount = queue.getAddFailureCount();
                                         long removeCount = queue.getRemoveCount();
 
-                                        start("tr");
-                                            start("td").object(queueTasks.producers).end();
-                                            start("td").object(addSuccessCount).end();
-                                            start("td").object(addFailureCount).end();
-                                            start("td").start("strong").object(((double) queue.getAddWait()) / ((double) (addSuccessCount + addFailureCount)) / 1e6).end().html(" ms/item").end();
+                                        writeStart("tr");
+                                            writeStart("td").writeObject(queueTasks.producers).writeEnd();
+                                            writeStart("td").writeObject(addSuccessCount).writeEnd();
+                                            writeStart("td").writeObject(addFailureCount).writeEnd();
+                                            writeStart("td").writeStart("strong").writeObject(((double) queue.getAddWait()) / ((double) (addSuccessCount + addFailureCount)) / 1e6).writeEnd().writeHtml(" ms/item").writeEnd();
 
-                                            start("td").object(queueTasks.consumers).end();
-                                            start("td").object(removeCount).end();
-                                            start("td").start("strong").object(((double) queue.getRemoveWait()) / ((double) removeCount) / 1e6).end().html(" ms/item").end();
-                                        end();
+                                            writeStart("td").writeObject(queueTasks.consumers).writeEnd();
+                                            writeStart("td").writeObject(removeCount).writeEnd();
+                                            writeStart("td").writeStart("strong").writeObject(((double) queue.getRemoveWait()) / ((double) removeCount) / 1e6).writeEnd().writeHtml(" ms/item").writeEnd();
+                                        writeEnd();
                                     }
-                                end();
-                            end();
-                        end();
+                                writeEnd();
+                            writeEnd();
+                        writeEnd();
                     }
                 }
             }

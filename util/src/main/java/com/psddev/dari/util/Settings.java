@@ -1,16 +1,17 @@
 package com.psddev.dari.util;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.TreeMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
+import java.util.UUID;
 
 import javax.naming.Binding;
 import javax.naming.Context;
@@ -35,11 +36,15 @@ public class Settings {
     /** Key used to indicate when running in a production environment. */
     public static final String PRODUCTION_SETTING = "PRODUCTION";
 
+    /** Key used to specify a shared secret. */
+    public static final String SECRET_SETTING = "SECRET";
+
     /** Default properties file that contains all settings. */
     public static final String SETTINGS_FILE = "/settings.properties";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
     private static final String JNDI_PREFIX = "java:comp/env";
+    private static final String RANDOM_SECRET = UUID.randomUUID().toString();
 
     private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
 
@@ -331,6 +336,21 @@ public class Settings {
     /** Returns {@code true} if running in a production environment. */
     public static boolean isProduction() {
         return get(boolean.class, PRODUCTION_SETTING);
+    }
+
+    /** Returns a shared secret. */
+    public static String getSecret() {
+        String secret = get(String.class, SECRET_SETTING);
+
+        if (ObjectUtils.isBlank(secret)) {
+            secret = get(String.class, "cookieSecret");
+        }
+
+        if (ObjectUtils.isBlank(secret)) {
+            secret = RANDOM_SECRET;
+        }
+
+        return secret;
     }
 
     /**

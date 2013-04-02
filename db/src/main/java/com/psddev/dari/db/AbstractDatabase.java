@@ -1,10 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.SparseSet;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,12 +11,17 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.SparseSet;
 
 /**
  * Skeletal database implementation. A subclass must implement:
@@ -76,7 +76,7 @@ public abstract class AbstractDatabase<C> implements Database {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractDatabase.class);
 
     private volatile String name;
-    private volatile DatabaseEnvironment environment;
+    private transient volatile DatabaseEnvironment environment;
     private volatile Set<String> groups;
     private volatile double readTimeout = DEFAULT_READ_TIMEOUT;
 
@@ -590,50 +590,101 @@ public abstract class AbstractDatabase<C> implements Database {
 
         protected abstract void doExecute(Record record);
 
+        @SuppressWarnings("unchecked")
         public final void execute(State state) {
             ObjectType type = state.getType();
+
             if (type == null) {
                 return;
             }
 
+            // Global modifications.
+            for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
+                Class<?> modClass = modType.getObjectClass();
+
+                if (modClass != null &&
+                        Modification.class.isAssignableFrom(modClass) &&
+                        Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class)) {
+                    executeForModClass(state, modClass);
+                }
+            }
+
+            // Type-specific modifications.
             for (String modClassName : type.getModificationClassNames()) {
                 Class<?> modClass = ObjectUtils.getClassByName(modClassName);
-                if (modClass == null) {
-                    continue;
+
+                if (modClass != null) {
+                    executeForModClass(state, modClass);
+                }
+            }
+
+            // Embedded objects.
+            for (ObjectField field : type.getFields()) {
+                executeForValue(state.get(field.getInternalName()), field.isEmbedded());
+            }
+        }
+
+        private void executeForModClass(State state, Class<?> modClass) {
+            Object modObject;
+
+            try {
+                modObject = state.as(modClass);
+
+                if (!(modObject instanceof Record)) {
+                    return;
                 }
 
-                Object modObject;
-                try {
-                    modObject = state.as(modClass);
-                    if (!(modObject instanceof Record)) {
-                        continue;
-                    }
-                } catch (Exception ex) {
-                    continue;
+            } catch (Exception ex) {
+                return;
+            }
+
+            Record modRecord = (Record) modObject;
+            State modState = modRecord.getState();
+            Map<String, Object> extras = modState.getExtras();
+            @SuppressWarnings("unchecked")
+            Set<Class<?>> triggers = (Set<Class<?>>) extras.get(extraName);
+
+            if (triggers == null) {
+                triggers = new HashSet<Class<?>>();
+                extras.put(extraName, triggers);
+            }
+
+            if (triggers.contains(modClass)) {
+                LOGGER.debug(
+                        "Already triggered {} from [{}] on [{}]",
+                        new Object[] { name, modClass.getName(), modState.getId() });
+
+            } else {
+                LOGGER.debug(
+                        "Triggering {} from [{}] on [{}]",
+                        new Object[] { name, modClass.getName(), modState.getId() });
+                triggers.add(modClass);
+                doExecute(modRecord);
+            }
+        }
+
+        private void executeForValue(Object value, boolean embedded) {
+            if (value instanceof Map) {
+                value = ((Map<?, ?>) value).values();
+            }
+
+            if (value instanceof Iterable) {
+                for (Object item : (Iterable<?>) value) {
+                    executeForValue(item, embedded);
                 }
 
-                Record modRecord = (Record) modObject;
-                State modState = modRecord.getState();
-                Map<String, Object> extras = modState.getExtras();
-                @SuppressWarnings("unchecked")
-                Set<Class<?>> triggers = (Set<Class<?>>) extras.get(extraName);
+            } else if (value instanceof Recordable) {
+                State valueState = ((Recordable) value).getState();
 
-                if (triggers == null) {
-                    triggers = new HashSet<Class<?>>();
-                    extras.put(extraName, triggers);
-                }
-
-                if (triggers.contains(modClass)) {
-                    LOGGER.debug(
-                            "Already triggered {} from [{}] on [{}]",
-                            new Object[] { name, modClass.getName(), modState.getId() });
+                if (embedded) {
+                    execute(valueState);
 
                 } else {
-                    LOGGER.debug(
-                            "Triggering {} from [{}] on [{}]",
-                            new Object[] { name, modClass.getName(), modState.getId() });
-                    triggers.add(modClass);
-                    doExecute(modRecord);
+                    ObjectType valueType = valueState.getType();
+
+                    if (valueType != null && valueType.isEmbedded()) {
+                        execute(valueState);
+                    }
                 }
             }
         }
@@ -758,7 +809,6 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         List<DistributedLock> locks = validate(validates, true);
-        C connection = openConnection();
 
         try {
             if (locks != null && !locks.isEmpty()) {
@@ -773,23 +823,33 @@ public abstract class AbstractDatabase<C> implements Database {
 
             for (int i = 0, limit = Settings.getOrDefault(int.class, "dari/databaseWriteRetryLimit", 10); i < limit; ++ i) {
                 try {
-                    try {
-                        beginTransaction(connection, isImmediate);
-                        doWrites(connection, isImmediate, saves, indexes, deletes);
-                        commitTransaction(connection, isImmediate);
-                        isCommitted = true;
-                        break;
+                    C connection = openConnection();
 
-                    } finally {
+                    try {
                         try {
-                            if (!isCommitted) {
-                                rollbackTransaction(connection, isImmediate);
-                            }
+                            beginTransaction(connection, isImmediate);
+                            doWrites(connection, isImmediate, saves, indexes, deletes);
+                            commitTransaction(connection, isImmediate);
+                            isCommitted = true;
+                            break;
 
                         } finally {
-                            endTransaction(connection, isImmediate);
+                            try {
+                                if (!isCommitted) {
+                                    rollbackTransaction(connection, isImmediate);
+                                }
+
+                            } finally {
+                                endTransaction(connection, isImmediate);
+                            }
                         }
+
+                    } finally {
+                        closeConnection(connection);
                     }
+
+                } catch (Retry error) {
+                    -- i;
 
                 } catch (Exception error) {
                     lastError = error;
@@ -825,8 +885,6 @@ public abstract class AbstractDatabase<C> implements Database {
             }
 
         } finally {
-            closeConnection(connection);
-
             if (locks != null && !locks.isEmpty()) {
                 for (DistributedLock lock : locks) {
                     try {
@@ -1052,6 +1110,26 @@ public abstract class AbstractDatabase<C> implements Database {
     protected void doDeletes(C connection, boolean isImmediate, List<State> states) throws Exception {
     }
 
+    @SuppressWarnings("serial")
+    private static class Retry extends Error {
+
+        @Override
+        public Throwable fillInStackTrace() {
+            return null;
+        }
+    }
+
+    private static final Retry RETRY_INSTANCE = new Retry();
+
+    /**
+     * Retries the current writes. This method should only be called within
+     * {@link #doWrites}, {@link #doSaves}, {@link #doIndexes}, or
+     * {@link #doDeletes}.
+     */
+    protected void retryWrites() {
+        throw RETRY_INSTANCE;
+    }
+
     // --- Implementation helpers ---
 
     /**
@@ -1107,12 +1185,32 @@ public abstract class AbstractDatabase<C> implements Database {
 
     @SuppressWarnings("unchecked")
     protected final <T> T swapObjectType(Query<T> query, T object) {
-        if (object instanceof ObjectType) {
-            ObjectType type = getEnvironment().getTypeById(((ObjectType) object).getId());
-            if (type != null && type != object) {
-                return (T) type.clone();
+        DatabaseEnvironment environment = getEnvironment();
+        State state = State.getInstance(object);
+        ObjectType type = state.getType();
+
+        if (type != null) {
+            Class<?> objectClass = type.getObjectClass();
+
+            if (objectClass != null && !objectClass.isInstance(object)) {
+                State oldState = state;
+                object = (T) environment.createObject(state.getTypeId(), state.getId());
+                state = State.getInstance(object);
+
+                state.setStatus(oldState.getStatus());
+                state.setValues(oldState);
+                state.getExtras().putAll(oldState.getExtras());
             }
         }
+
+        if (object instanceof ObjectType) {
+            ObjectType asType = environment.getTypeById(((ObjectType) object).getId());
+
+            if (asType != null && asType != object) {
+                return (T) asType.clone();
+            }
+        }
+
         return object;
     }
 

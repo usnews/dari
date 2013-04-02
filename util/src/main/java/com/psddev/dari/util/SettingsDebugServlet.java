@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
-
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -23,39 +22,39 @@ public class SettingsDebugServlet extends HttpServlet {
         new DebugFilter.PageWriter(getServletContext(), request, response) {{
             startPage("Settings");
 
-            start("table", "class", "table table-condensed table-striped");
-                start("thead");
-                    start("tr");
-                        start("th").html("Key").end();
-                        start("th").html("Value").end();
-                        start("th").html("Class").end();
-                    end();
-                end();
+            writeStart("table", "class", "table table-condensed table-striped");
+                writeStart("thead");
+                    writeStart("tr");
+                        writeStart("th").writeHtml("Key").writeEnd();
+                        writeStart("th").writeHtml("Value").writeEnd();
+                        writeStart("th").writeHtml("Class").writeEnd();
+                    writeEnd();
+                writeEnd();
 
-                start("tbody");
+                writeStart("tbody");
                     for (Map.Entry<String, Object> entry : flatten(Settings.asMap()).entrySet()) {
                         String key = entry.getKey();
                         String keyLowered = key.toLowerCase();
                         Object value = entry.getValue();
 
-                        start("tr");
-                            start("td").html(key).end();
+                        writeStart("tr");
+                            writeStart("td").writeHtml(key).writeEnd();
 
-                            start("td");
+                            writeStart("td");
                             if (keyLowered.contains("password") ||
                                     keyLowered.contains("secret")) {
-                                start("span", "class", "label label-warning").html("Hidden").end();
+                                writeStart("span", "class", "label label-warning").writeHtml("Hidden").writeEnd();
                             } else {
-                                html(value);
+                                writeHtml(value);
                             }
 
-                            start("td");
-                                html(value != null ? value.getClass().getName() : "N/A");
-                            end();
-                        end();
+                            writeStart("td");
+                                writeHtml(value != null ? value.getClass().getName() : "N/A");
+                            writeEnd();
+                        writeEnd();
                     }
-                end();
-            end();
+                writeEnd();
+            writeEnd();
 
             endPage();
         }};

@@ -1,7 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -9,7 +7,10 @@ import org.slf4j.Logger;
 /**
  * Automatically initializes all the {@link Recordable} classes found
  * in the current class loader.
+ *
+ * @deprecated No replacement.
  */
+@Deprecated
 public class TypeInitializer implements Initializer {
 
     @Override

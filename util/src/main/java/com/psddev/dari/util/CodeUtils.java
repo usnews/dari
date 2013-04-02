@@ -3,6 +3,8 @@ package com.psddev.dari.util;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.JarURLConnection;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -31,6 +34,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -42,6 +46,7 @@ import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.servlet.ServletContext;
 import javax.tools.DiagnosticCollector;
 import javax.tools.FileObject;
 import javax.tools.ForwardingJavaFileManager;
@@ -56,7 +61,6 @@ import org.objectweb.asm.ClassAdapter;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +80,9 @@ public class CodeUtils {
             throw new IllegalStateException(ex);
         }
     }
+
+    private static final String ATTRIBUTE_PREFIX = CodeUtils.class.getName() + ".";
+    private static final String WEBAPP_SOURCE_DIRECTORIES_ATTRIBUTE = ATTRIBUTE_PREFIX + "webappSourceDirectories";
 
     private static final Set<File> SOURCE_DIRECTORIES;
     private static final Set<File> RESOURCE_DIRECTORIES;
@@ -155,6 +162,145 @@ public class CodeUtils {
 
     public static Long getJarLastModified(File directory) {
         return JAR_LAST_MODIFIED_MAP.get(directory);
+    }
+
+    /**
+     * Returns an immuntable map of all web application source directories
+     * keyed by their context paths.
+     */
+    public static Map<String, File> getWebappSourceDirectories(ServletContext context) {
+        @SuppressWarnings("unchecked")
+        Map<String, File> sourceDirectories = (Map<String, File>) context.getAttribute(WEBAPP_SOURCE_DIRECTORIES_ATTRIBUTE);
+        if (sourceDirectories != null) {
+            return sourceDirectories;
+        }
+
+        Map<String, File> unsorted = new HashMap<String, File>();
+        try {
+            addWebappSourceDirectories(context, unsorted, "/");
+        } catch (IOException error) {
+            return Collections.emptyMap();
+        }
+
+        List<String> prefixes = new ArrayList<String>(unsorted.keySet());
+        Collections.sort(prefixes);
+        Collections.reverse(prefixes);
+
+        sourceDirectories = new LinkedHashMap<String, File>();
+        for (String prefix : prefixes) {
+            sourceDirectories.put(prefix, unsorted.get(prefix));
+        }
+
+        sourceDirectories = Collections.unmodifiableMap(sourceDirectories);
+        context.setAttribute(WEBAPP_SOURCE_DIRECTORIES_ATTRIBUTE, sourceDirectories);
+        return sourceDirectories;
+    }
+
+    private static void addWebappSourceDirectories(ServletContext context, Map<String, File> sourceDirectories, String path) throws IOException {
+        @SuppressWarnings("unchecked")
+        Set<String> children = (Set<String>) context.getResourcePaths(path);
+
+        if (children != null) {
+            for (String child : children) {
+                if (child.endsWith("/build.properties")) {
+                    int webInfAt = child.indexOf("/WEB-INF/");
+
+                    if (webInfAt > -1) {
+                        InputStream buildInput = context.getResourceAsStream(child);
+                        Properties buildProperties = new Properties();
+
+                        try {
+                            buildProperties.load(buildInput);
+                        } finally {
+                            buildInput.close();
+                        }
+
+                        File sourceDirectory = ObjectUtils.to(File.class, buildProperties.get(SourceFilter.WEBAPP_SOURCES_PROPERTY));
+
+                        if (sourceDirectory.exists()) {
+                            sourceDirectories.put(
+                                    StringUtils.ensureEnd(child.substring(0, webInfAt), "/"),
+                                    sourceDirectory);
+                        }
+                    }
+
+                } else if (child.endsWith("/")) {
+                    addWebappSourceDirectories(context, sourceDirectories, child);
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns the original source file associated with the given {@code path}
+     * in the given {@code context}.
+     */
+    public static File getWebappSource(ServletContext context, String path) {
+        for (Map.Entry<String, File> entry : getWebappSourceDirectories(context).entrySet()) {
+            String prefix = entry.getKey();
+
+            if (path.startsWith(prefix)) {
+                return new File(entry.getValue(), path.substring(prefix.length()));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns all original source paths that begin with the given {@code path}
+     * in the same format as {@link ServletContext#getResourcePaths}.
+     */
+    @SuppressWarnings("unchecked")
+    public static Set<String> getResourcePaths(ServletContext context, String path) {
+        File source = getWebappSource(context, path);
+
+        if (source != null && source.exists()) {
+            Set<String> paths = new LinkedHashSet<String>();
+            String[] children = source.list();
+
+            if (children != null) {
+                for (String child : children) {
+                    String childPath = path + child;
+
+                    if (new File(source, child).isDirectory()) {
+                        childPath += "/";
+                    }
+                    paths.add(childPath);
+                }
+            }
+
+            return paths;
+
+        } else {
+            return (Set<String>) context.getResourcePaths(path);
+        }
+    }
+
+    /**
+     * Returns the original source as a URL associated with the given
+     * {@code path} in the given {@code context}.
+     */
+    public static URL getResource(ServletContext context, String path) throws MalformedURLException {
+        File source = getWebappSource(context, path);
+        return source != null ? source.toURI().toURL() : context.getResource(path);
+    }
+
+    /**
+     * Returns the original source as an input stream associated with the
+     * given {@code path} in the given {@code context}.
+     */
+    public static InputStream getResourceAsStream(ServletContext context, String path) {
+        File source = getWebappSource(context, path);
+
+        if (source != null) {
+            try {
+                return new FileInputStream(source);
+            } catch (FileNotFoundException error) {
+            }
+        }
+
+        return context.getResourceAsStream(path);
     }
 
     /**

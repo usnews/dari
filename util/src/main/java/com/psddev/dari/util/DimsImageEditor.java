@@ -284,6 +284,21 @@ public class DimsImageEditor extends AbstractImageEditor {
                 }
             }
 
+            Command lastResizeCommand = dimsUrl.getLastResizeCommand();
+            if (lastResizeCommand instanceof AbstractResizeCommand) {
+                AbstractResizeCommand lastResize = (AbstractResizeCommand) lastResizeCommand;
+                boolean overridden = ImageResizeStorageItemListener.overridePathWithNearestSize(image,
+                        lastResize.getWidth(),
+                        lastResize.getHeight());
+
+                if (overridden) {
+                    try {
+                        dimsUrl.setImageUrl(new URL(image.getPublicUrl()));
+                    } catch(MalformedURLException mue) {
+                    }
+                }
+            }
+
             newImage = dimsUrl.toStorageItem();
         }
 
@@ -296,9 +311,19 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private class DimsUrl {
 
+        /** DIMS specific path to the original width of the image in the metadata */
+        private static final String ORIGINAL_WIDTH_METADATA_PATH = "dims/originalWidth";
+
+        /** DIMS specific Path to the original height of the image in the metadata */
+        private static final String ORIGINAL_HEIGHT_METADATA_PATH = "dims/originalHeight";
+
         private List<Command> commands;
         private StorageItem item;
         private URL imageUrl;
+
+        public void setImageUrl(URL imageUrl) {
+            this.imageUrl = imageUrl;
+        }
 
         public DimsUrl(StorageItem item) throws MalformedURLException {
             this.item = item;
@@ -430,15 +455,15 @@ public class DimsImageEditor extends AbstractImageEditor {
             return commands;
         }
 
-        /** Inserts all AbstractResizeCommands which can change the dimensions
-         *  of the image after the last AbstractResizeCommand found, and appends
+        /** Inserts all ResizingCommands which can change the dimensions
+         *  of the image after the last ResizingCommand found, and appends
          *  all other commands to the end of the list. */
         private void addCommand(Command command) {
             List<Command> commands = getCommands();
-            if (commands.size() > 0 && command instanceof AbstractResizeCommand) {
+            if (commands.size() > 0 && command instanceof ResizingCommand) {
                 int lastResizeIndex = 0;
                 for (Command cmd : commands) {
-                    if (cmd instanceof AbstractResizeCommand) {
+                    if (cmd instanceof ResizingCommand) {
                         lastResizeIndex++;
                     } else {
                         break;
@@ -454,7 +479,7 @@ public class DimsImageEditor extends AbstractImageEditor {
         private Command getLastResizeCommand() {
             for (ListIterator<Command> commandIter = getCommands().listIterator(getCommands().size()); commandIter.hasPrevious();) {
                 Command command = commandIter.previous();
-                if (command instanceof AbstractResizeCommand) {
+                if (command instanceof ResizingCommand) {
                     return command;
                 }
             }
@@ -504,29 +529,55 @@ public class DimsImageEditor extends AbstractImageEditor {
          *  stored in the item's metadata. */
         public StorageItem toStorageItem() {
 
+            Integer originalWidth = null;
+            Integer originalHeight = null;
             Dimension outputDimension = null;
-            if (item.getMetadata() != null) {
-                // grab the image dimensions
-                Integer width = ObjectUtils.to(Integer.class, item.getMetadata().get("width"));
-                Integer height = ObjectUtils.to(Integer.class, item.getMetadata().get("height"));
+
+            Map<String, Object> oldMetadata = item.getMetadata();
+            if (oldMetadata != null) {
+
+                // grab the original width and height of the image
+                originalWidth = ObjectUtils.to(Integer.class,
+                        CollectionUtils.getByPath(oldMetadata, ORIGINAL_WIDTH_METADATA_PATH));
+                if (originalWidth == null) {
+                    originalWidth = ObjectUtils.to(Integer.class, oldMetadata.get("width"));
+                }
+
+                originalHeight = ObjectUtils.to(Integer.class,
+                        CollectionUtils.getByPath(oldMetadata, ORIGINAL_HEIGHT_METADATA_PATH));
+                if (originalHeight == null) {
+                    originalHeight = ObjectUtils.to(Integer.class, oldMetadata.get("height"));
+                }
 
                 // calculate the dimensions of the new image
-                outputDimension = new Dimension(width, height);
+                outputDimension = new Dimension(originalWidth, originalHeight);
                 for (Command command : getCommands()) {
-                    outputDimension = command.getOutputDimension(outputDimension);
+                    if (command instanceof ResizingCommand) {
+                        outputDimension = ((ResizingCommand) command).getOutputDimension(outputDimension);
+                    }
                 }
             }
 
             UrlStorageItem item = StorageItem.Static.createUrl(toString());
 
-            // store the new width and height in the metadata map
             Map<String, Object> metadata = new HashMap<String, Object>();
+
+            // store the new width and height in the metadata map
             if (outputDimension != null && outputDimension.width != null) {
                 metadata.put("width", outputDimension.width);
             }
             if (outputDimension != null && outputDimension.height != null) {
                 metadata.put("height", outputDimension.height);
             }
+
+            // store the original width and height in the map for use with future image edits.
+            if (originalWidth != null) {
+                CollectionUtils.putByPath(metadata, ORIGINAL_WIDTH_METADATA_PATH, originalWidth);
+            }
+            if (originalHeight != null) {
+                CollectionUtils.putByPath(metadata, ORIGINAL_HEIGHT_METADATA_PATH, originalHeight);
+            }
+
             item.setMetadata(metadata);
 
             return item;
@@ -615,13 +666,19 @@ public class DimsImageEditor extends AbstractImageEditor {
         public String getName();
         /** Returns the command's arguments as a String */
         public String getValue();
+    }
+
+    /** Sub-interface of Command signifying that the command may alter the
+     *  dimensions of the image. */
+    private static interface ResizingCommand extends Command {
         /** Given a starting dimension, returns the resulting dimension after
          *  this command has been applied. */
         public Dimension getOutputDimension(Dimension originalDimension);
     }
 
-    /** Any operation that alters the dimensions of the image */
-    private static abstract class AbstractResizeCommand implements Command {
+    /** An abstract ResizingCommand that alters the dimensions of an image
+     *  based on a width and height parameter. */
+    private static abstract class AbstractResizeCommand implements ResizingCommand {
         protected Integer width;
         protected Integer height;
 
@@ -977,11 +1034,6 @@ public class DimsImageEditor extends AbstractImageEditor {
         public String getValue() {
             return quality != null ? String.valueOf(quality) : null;
         }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
-        }
     }
 
     private static class StripCommand implements Command {
@@ -1004,11 +1056,6 @@ public class DimsImageEditor extends AbstractImageEditor {
         public String getValue() {
             return doStripMetadata != null ? String.valueOf(doStripMetadata) : null;
         }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
-        }
     }
 
     private static class FormatCommand implements Command {
@@ -1030,11 +1077,6 @@ public class DimsImageEditor extends AbstractImageEditor {
         @Override
         public String getValue() {
             return format != null ? format.name() : null;
-        }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
         }
     }
 
@@ -1080,11 +1122,6 @@ public class DimsImageEditor extends AbstractImageEditor {
                 return brightness + "x" + contrast;
             }
         }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
-        }
     }
 
     private static class FlipFlopCommand implements Command {
@@ -1103,11 +1140,6 @@ public class DimsImageEditor extends AbstractImageEditor {
         @Override
         public String getValue() {
             return orientation;
-        }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
         }
     }
 
@@ -1132,11 +1164,6 @@ public class DimsImageEditor extends AbstractImageEditor {
         public String getValue() {
             return grayscale != null ? grayscale.toString() : null;
         }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
-        }
     }
 
     private static class InvertCommand implements Command {
@@ -1160,14 +1187,9 @@ public class DimsImageEditor extends AbstractImageEditor {
         public String getValue() {
             return invert != null ? invert.toString() : null;
         }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
-        }
     }
 
-    private static class RotateCommand implements Command {
+    private static class RotateCommand implements ResizingCommand {
 
         private Integer angle;
 
@@ -1191,7 +1213,16 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         @Override
         public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
+            if (angle != null && angle % 90 == 0) {
+                if (angle % 180 != 0) {
+                    return new Dimension(dimension.height, dimension.width);
+                } else {
+                    return dimension;
+                }
+            } else {
+                // TODO: Handle the cases where the angle is not a multiple of 90.
+                return null;
+            }
         }
     }
 
@@ -1215,11 +1246,6 @@ public class DimsImageEditor extends AbstractImageEditor {
         @Override
         public String getValue() {
             return threshold != null ? String.valueOf(threshold) : null;
-        }
-
-        @Override
-        public Dimension getOutputDimension(Dimension dimension) {
-            return dimension;
         }
     }
 }

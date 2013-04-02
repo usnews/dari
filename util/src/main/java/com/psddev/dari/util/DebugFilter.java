@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
  * <p>This filter loads:</p>
  *
  * <ul>
- * <li>{@link SettingsOverrideFilter}</li>
  * <li>{@link SourceFilter}</li>
  * <li>{@link LogCaptureFilter}</li>
  * <li>{@link ResourceFilter}</li>
@@ -145,8 +144,8 @@ public class DebugFilter extends AbstractFilter {
                     String id = page.createId();
                     String servletPath = JspUtils.getCurrentServletPath(page.getRequest());
 
-                    start("div", "id", id);
-                        start("pre", "class", "alert alert-error");
+                    writeStart("div", "id", id);
+                        writeStart("pre", "class", "alert alert-error");
                             String noFile = null;
                             if (ex instanceof ServletException) {
                                 String message = ex.getMessage();
@@ -159,40 +158,40 @@ public class DebugFilter extends AbstractFilter {
                             }
 
                             if (noFile != null) {
-                                start("strong").html(servletPath).end().html(" doesn't exist!");
+                                writeStart("strong").writeHtml(servletPath).writeEnd().writeHtml(" doesn't exist!");
 
                             } else {
-                                html("Can't render ");
-                                start("a",
+                                writeHtml("Can't render ");
+                                writeStart("a",
                                         "target", "_blank",
-                                        "href", Static.getServletPath(page.getRequest(), "code",
+                                        "href", DebugFilter.Static.getServletPath(page.getRequest(), "code",
                                                 "action", "edit",
                                                 "type", "JSP",
                                                 "servletPath", servletPath));
-                                    html(servletPath);
-                                end();
-                                html("!\n\n");
+                                    writeHtml(servletPath);
+                                writeEnd();
+                                writeHtml("!\n\n");
 
                                 List<String> paramNames = page.paramNamesList();
                                 if (!ObjectUtils.isBlank(paramNames)) {
-                                    html("Parameters:\n");
+                                    writeHtml("Parameters:\n");
                                     for (String name : paramNames) {
                                         for (String value : page.params(String.class, name)) {
-                                            html(name);
-                                            html('=');
-                                            html(value);
-                                            html('\n');
+                                            writeHtml(name);
+                                            writeHtml('=');
+                                            writeHtml(value);
+                                            writeHtml('\n');
                                         }
                                     }
-                                    html('\n');
+                                    writeHtml('\n');
                                 }
 
-                                object(ex);
+                                writeObject(ex);
                             }
-                        end();
-                    end();
+                        writeEnd();
+                    writeEnd();
 
-                    start("script", "type", "text/javascript");
+                    writeStart("script", "type", "text/javascript");
                         write("(function() {");
                             write("var f = document.createElement('iframe');");
                             write("f.frameBorder = '0';");
@@ -209,7 +208,7 @@ public class DebugFilter extends AbstractFilter {
                             write("');");
                             write("a.parentNode.insertBefore(f, a.nextSibling);");
                         write("})();");
-                    end();
+                    writeEnd();
                 }};
             }
         }
@@ -300,23 +299,23 @@ public class DebugFilter extends AbstractFilter {
 
         new PageWriter(getServletContext(), request, response) {{
             startPage();
-                start("div", "class", "row-fluid");
+                writeStart("div", "class", "row-fluid");
 
-                    start("div", "class", "span3");
-                        start("h2").html("Standard Tools").end();
-                        start("ul");
+                    writeStart("div", "class", "span3");
+                        writeStart("h2").writeHtml("Standard Tools").writeEnd();
+                        writeStart("ul");
                             for (Map.Entry<String, ServletWrapper> entry : debugServletWrappers.get().entrySet()) {
-                                start("li");
-                                    start("a", "href", entry.getKey());
-                                        html(entry.getKey());
-                                    end();
-                                end();
+                                writeStart("li");
+                                    writeStart("a", "href", entry.getKey());
+                                        writeHtml(entry.getKey());
+                                    writeEnd();
+                                writeEnd();
                             }
-                        end();
-                    end();
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "span3");
-                        start("h2").html("Custom Tools").end();
+                    writeStart("div", "class", "span3");
+                        writeStart("h2").writeHtml("Custom Tools").writeEnd();
 
                         @SuppressWarnings("unchecked")
                         Set<String> resources = (Set<String>) context.getResourcePaths(WEB_INF_DEBUG);
@@ -329,62 +328,62 @@ public class DebugFilter extends AbstractFilter {
                             }
 
                             if (!jsps.isEmpty()) {
-                                start("ul");
+                                writeStart("ul");
                                     for (String jsp : jsps) {
                                         jsp = jsp.substring(WEB_INF_DEBUG.length());
-                                        start("li");
-                                            start("a", "href", jsp);
-                                                html(jsp);
-                                            end();
-                                        end();
+                                        writeStart("li");
+                                            writeStart("a", "href", jsp);
+                                                writeHtml(jsp);
+                                            writeEnd();
+                                        writeEnd();
                                     }
-                                end();
+                                writeEnd();
                             }
                         }
-                    end();
+                    writeEnd();
 
-                    start("div", "class", "span6");
-                        start("h2").html("Pings").end();
+                    writeStart("div", "class", "span6");
+                        writeStart("h2").writeHtml("Pings").writeEnd();
 
                         Map<String, Throwable> errors = new LinkedHashMap<String, Throwable>();
-                        start("table", "class", "table table-condensed");
-                            start("thead");
-                                start("tr");
-                                    start("th").html("Class").end();
-                                    start("th").html("Status").end();
-                                end();
-                            end();
-                            start("tbody");
+                        writeStart("table", "class", "table table-condensed");
+                            writeStart("thead");
+                                writeStart("tr");
+                                    writeStart("th").writeHtml("Class").writeEnd();
+                                    writeStart("th").writeHtml("Status").writeEnd();
+                                writeEnd();
+                            writeEnd();
+                            writeStart("tbody");
                                 for (Map.Entry<Class<?>, Throwable> entry : Ping.Static.pingAll().entrySet()) {
                                     String name = entry.getKey().getName();
                                     Throwable error = entry.getValue();
 
-                                    start("tr");
-                                        start("td").html(name).end();
-                                        start("td");
+                                    writeStart("tr");
+                                        writeStart("td").writeHtml(name).writeEnd();
+                                        writeStart("td");
                                             if (error == null) {
-                                                start("span", "class", "label label-success").html("OK").end();
+                                                writeStart("span", "class", "label label-success").writeHtml("OK").writeEnd();
                                             } else {
-                                                start("span", "class", "label label-important").html("ERROR").end();
+                                                writeStart("span", "class", "label label-important").writeHtml("ERROR").writeEnd();
                                                 errors.put(name, error);
                                             }
-                                        end();
-                                    end();
+                                        writeEnd();
+                                    writeEnd();
                                 }
-                            end();
-                        end();
+                            writeEnd();
+                        writeEnd();
 
                         if (!errors.isEmpty()) {
-                            start("dl");
+                            writeStart("dl");
                                 for (Map.Entry<String, Throwable> entry : errors.entrySet()) {
-                                    start("dt").html("Error for ").html(entry.getKey()).end();
-                                    start("dd").object(entry.getValue()).end();
+                                    writeStart("dt").writeHtml("Error for ").writeHtml(entry.getKey()).writeEnd();
+                                    writeStart("dd").writeObject(entry.getValue()).writeEnd();
                                 }
-                            end();
+                            writeEnd();
                         }
-                    end();
+                    writeEnd();
 
-                end();
+                writeEnd();
             endPage();
         }};
     }
@@ -450,28 +449,28 @@ public class DebugFilter extends AbstractFilter {
         }
 
         public void startHtml() throws IOException {
-            tag("!DOCTYPE html");
-            start("html");
+            writeTag("!DOCTYPE html");
+            writeStart("html");
         }
 
         public void startHead(String title) throws IOException {
-            start("head");
-                start("title").html(title).end();
+            writeStart("head");
+                writeStart("title").writeHtml(title).writeEnd();
         }
 
         public void includeStylesheet(String url) throws IOException {
-            tag("link", "href", page.url(url), "rel", "stylesheet", "type", "text/css");
+            writeTag("link", "href", page.url(url), "rel", "stylesheet", "type", "text/css");
         }
 
         public void includeScript(String url) throws IOException {
-            start("script", "src", page.url(url), "type", "text/javascript").end();
+            writeStart("script", "src", page.url(url), "type", "text/javascript").writeEnd();
         }
 
         public void includeStandardStylesheetsAndScripts() throws IOException {
             includeStylesheet("/_resource/bootstrap/css/bootstrap.min.css");
             includeStylesheet("/_resource/codemirror/lib/codemirror.css");
 
-            start("style", "type", "text/css");
+            writeStart("style", "type", "text/css");
                 write("@font-face { font-family: 'AauxNextMedium'; src: url('/_resource/aauxnext-md-webfont.eot'); src: local('☺'), url('/_resource/aauxnext-md-webfont.woff') format('woff'), url('/_resource/aauxnext-md-webfont.ttf') format('truetype'), url('/_resource/aauxnext-md-webfont.svg#webfontfLsPAukW') }");
                 write("body { word-wrap: break-word; }");
                 write("select { word-wrap: normal; }");
@@ -489,7 +488,7 @@ public class DebugFilter extends AbstractFilter {
                 write(".CodeMirror .errorColumn { background-color: #B94A48; color: white; }");
                 write(".json { position: relative; }");
                 write(".json:after { background: #ccc; content: 'JSON'; font-size: 9px; line-height: 9px; padding: 4px; position: absolute; right: 0; top: 0; }");
-            end();
+            writeEnd();
 
             includeScript("/_resource/jquery/jquery-1.7.1.min.js");
             includeScript("/_resource/jquery/jquery.livequery.js");
@@ -499,50 +498,50 @@ public class DebugFilter extends AbstractFilter {
             includeScript("/_resource/codemirror/lib/codemirror.js");
             includeScript("/_resource/codemirror/mode/clike.js");
 
-            start("script", "type", "text/javascript");
+            writeStart("script", "type", "text/javascript");
                 write("$(function() {");
                     write("$('body').frame();");
                 write("});");
-            end();
+            writeEnd();
         }
 
         public void endHead() throws IOException {
-            end();
+            writeEnd();
             flush();
         }
 
         public void startBody(String... titles) throws IOException {
-            start("body");
-                start("div", "class", "navbar navbar-fixed-top");
-                    start("div", "class", "navbar-inner");
-                        start("div", "class", "container-fluid");
-                            start("span", "class", "brand");
-                                start("a", "href", Static.getServletPath(page.getRequest(), ""));
-                                    html("Dari");
-                                end();
+            writeStart("body");
+                writeStart("div", "class", "navbar navbar-fixed-top");
+                    writeStart("div", "class", "navbar-inner");
+                        writeStart("div", "class", "container-fluid");
+                            writeStart("span", "class", "brand");
+                                writeStart("a", "href", DebugFilter.Static.getServletPath(page.getRequest(), ""));
+                                    writeHtml("Dari");
+                                writeEnd();
                                 if (!ObjectUtils.isBlank(titles)) {
                                     for (int i = 0, length = titles.length; i < length; ++ i) {
                                         String title = titles[i];
-                                        html(title);
+                                        writeHtml(title);
                                         if (i + 1 < length) {
-                                            html(" \u2192 ");
+                                            writeHtml(" \u2192 ");
                                         }
                                     }
                                 }
-                            end();
-                        end();
-                    end();
-                end();
-                start("div", "class", "container-fluid", "style", "padding-top: 54px;");
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
+                writeEnd();
+                writeStart("div", "class", "container-fluid", "style", "padding-top: 54px;");
         }
 
         public void endBody() throws IOException {
-                end();
-            end();
+                writeEnd();
+            writeEnd();
         }
 
         public void endHtml() throws IOException {
-            end();
+            writeEnd();
         }
 
         /** Writes all necessary elements to start the page. */

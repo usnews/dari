@@ -1,7 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.AbstractFilter;
-
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
@@ -11,9 +9,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.AbstractFilter;
 
 /** Resets all components so that they're in a valid state. */
 public class ResetFilter extends AbstractFilter {

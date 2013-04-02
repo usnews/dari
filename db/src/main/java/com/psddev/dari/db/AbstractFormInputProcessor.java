@@ -1,13 +1,13 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.TypeReference;
-
 import java.io.IOException;
 import java.io.StringWriter;
 
 import javax.servlet.http.HttpServletRequest;
+
+import com.psddev.dari.util.HtmlWriter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.TypeReference;
 
 /**
  * Skeletal implementation of {@link FormInputProcessor}.

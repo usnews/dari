@@ -1,9 +1,9 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlWriter;
-
 import java.io.IOException;
 import java.io.StringWriter;
+
+import com.psddev.dari.util.HtmlWriter;
 
 /**
  * Skeletal implementation sof {@link FormLabelRenderer}.

@@ -1,10 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.AsyncQueue;
-import com.psddev.dari.util.DebugFilter;
-import com.psddev.dari.util.TaskExecutor;
-import com.psddev.dari.util.WebPageContext;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,6 +10,11 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.psddev.dari.util.AsyncQueue;
+import com.psddev.dari.util.DebugFilter;
+import com.psddev.dari.util.TaskExecutor;
+import com.psddev.dari.util.WebPageContext;
 
 /** Debug servlet for running bulk database operations. */
 @DebugFilter.Path("db-bulk")
@@ -32,6 +32,7 @@ public class BulkDebugServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
+        @SuppressWarnings("all")
         final WebPageContext wp = new WebPageContext(this, request, response);
         Database selectedDatabase = Database.Static.getDefault();
         final List<ObjectType> types = new ArrayList<ObjectType>(selectedDatabase.getEnvironment().getTypes());
@@ -61,14 +62,14 @@ public class BulkDebugServlet extends HttpServlet {
 
                 new AsyncDatabaseReader<Object>(
                         executor, queue, selectedDatabase, query).
-                        start();
+                        submit();
 
                 queue.closeAutomatically();
 
                 for (int i = 0; i < writersCount; ++ i) {
                     new AsyncDatabaseWriter<Object>(
                             executor, queue, selectedDatabase, WriteOperation.INDEX, commitSize, true).
-                            start();
+                            submit();
                 }
 
             } else if ("copy".equals(action)) {
@@ -87,14 +88,14 @@ public class BulkDebugServlet extends HttpServlet {
 
                 new AsyncDatabaseReader<Object>(
                         executor, queue, source, query).
-                        start();
+                        submit();
 
                 queue.closeAutomatically();
 
                 for (int i = 0; i < writersCount; ++ i) {
                     new AsyncDatabaseWriter<Object>(
                             executor, queue, destination, WriteOperation.SAVE_UNSAFELY, commitSize, true).
-                            start();
+                            submit();
                 }
             }
 
@@ -115,144 +116,144 @@ public class BulkDebugServlet extends HttpServlet {
         new DebugFilter.PageWriter(getServletContext(), request, response) {{
             startPage("Database", "Bulk Operations");
 
-                start("h2").html("Index").end();
+                writeStart("h2").writeHtml("Index").writeEnd();
 
-                start("p");
-                    html("Use this when you add ");
-                    start("code").html("@FieldIndexed").end();
-                    html(" to your model or if queries are returning unexpected results.");
-                end();
+                writeStart("p");
+                    writeHtml("Use this when you add ");
+                    writeStart("code").writeHtml("@FieldIndexed").writeEnd();
+                    writeHtml(" to your model or if queries are returning unexpected results.");
+                writeEnd();
 
-                start("form", "action", "", "class", "form-horizontal", "method", "post");
-                    tag("input", "name", "action", "type", "hidden", "value", "index");
+                writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
+                    writeTag("input", "name", "action", "type", "hidden", "value", "index");
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label").html("Type").end();
-                        start("div", "class", "controls");
-                            start("select", "name", "typeId");
-                                start("option", "value", "").html("All").end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label").writeHtml("Type").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeStart("select", "name", "typeId");
+                                writeStart("option", "value", "").writeHtml("All").writeEnd();
                                 for (ObjectType type : types) {
                                     if (!type.isEmbedded()) {
-                                        start("option", "value", type.getId());
-                                            html(type.getInternalName());
-                                        end();
+                                        writeStart("option", "value", type.getId());
+                                            writeHtml(type.getInternalName());
+                                        writeEnd();
                                     }
                                 }
-                            end();
-                        end();
-                    end();
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label", "id", wp.createId()).html("# Of Writers").end();
-                        start("div", "class", "controls");
-                            tag("input", "name", "writersCount", "type", "text", "value", 5);
-                        end();
-                    end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("# Of Writers").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeTag("input", "name", "writersCount", "type", "text", "value", 5);
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label", "id", wp.createId()).html("Commit Size").end();
-                        start("div", "class", "controls");
-                            tag("input", "name", "commitSize", "type", "text", "value", 50);
-                        end();
-                    end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Commit Size").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeTag("input", "name", "commitSize", "type", "text", "value", 50);
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "form-actions");
-                        tag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
-                    end();
-                end();
+                    writeStart("div", "class", "form-actions");
+                        writeTag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
+                    writeEnd();
+                writeEnd();
 
                 if (!indexExecutors.isEmpty()) {
-                    start("h3").html("Ongoing Tasks").end();
-                    start("ul");
+                    writeStart("h3").writeHtml("Ongoing Tasks").writeEnd();
+                    writeStart("ul");
                         for (TaskExecutor executor : indexExecutors) {
-                            start("li");
-                                start("a", "href", "task");
-                                    html(executor.getName());
-                                end();
-                            end();
+                            writeStart("li");
+                                writeStart("a", "href", "task");
+                                    writeHtml(executor.getName());
+                                writeEnd();
+                            writeEnd();
                         }
-                    end();
+                    writeEnd();
                 }
 
-                start("h2").html("Copy").end();
+                writeStart("h2").writeHtml("Copy").writeEnd();
 
-                start("p");
-                    html("Use this to copy objects from one database to another.");
-                end();
+                writeStart("p");
+                    writeHtml("Use this to copy objects from one database to another.");
+                writeEnd();
 
-                start("form", "action", "", "class", "form-horizontal", "method", "post");
-                    tag("input", "name", "action", "type", "hidden", "value", "copy");
+                writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
+                    writeTag("input", "name", "action", "type", "hidden", "value", "copy");
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label").html("Type").end();
-                        start("div", "class", "controls");
-                            start("select", "name", "typeId");
-                                start("option", "value", "").html("All").end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label").writeHtml("Type").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeStart("select", "name", "typeId");
+                                writeStart("option", "value", "").writeHtml("All").writeEnd();
                                 for (ObjectType type : types) {
                                     if (!type.isEmbedded()) {
-                                        start("option", "value", type.getId());
-                                            html(type.getInternalName());
-                                        end();
+                                        writeStart("option", "value", type.getId());
+                                            writeHtml(type.getInternalName());
+                                        writeEnd();
                                     }
                                 }
-                            end();
-                        end();
-                    end();
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
                     List<Database> databases = Database.Static.getAll();
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label", "id", wp.createId()).html("Source").end();
-                        start("div", "class", "controls");
-                            start("select", "class", "span2", "id", wp.getId(), "name", "source");
-                                start("option", "value", "").html("").end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Source").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeStart("select", "class", "span2", "id", wp.getId(), "name", "source");
+                                writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (Database database : databases) {
                                     if (!(database instanceof Iterable)) {
-                                        start("option", "value", database.getName());
-                                            html(database);
-                                        end();
+                                        writeStart("option", "value", database.getName());
+                                            writeHtml(database);
+                                        writeEnd();
                                     }
                                 }
-                            end();
-                        end();
-                    end();
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "control-group");
-                        start("label", "class", "control-label", "id", wp.createId()).html("Destination").end();
-                        start("div", "class", "controls");
-                            start("select", "class", "span2", "id", wp.getId(), "name", "destination");
-                                start("option", "value", "").html("").end();
+                    writeStart("div", "class", "control-group");
+                        writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Destination").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeStart("select", "class", "span2", "id", wp.getId(), "name", "destination");
+                                writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (Database database : databases) {
                                     if (!(database instanceof Iterable)) {
-                                        start("option", "value", database.getName());
-                                            html(database);
-                                        end();
+                                        writeStart("option", "value", database.getName());
+                                            writeHtml(database);
+                                        writeEnd();
                                     }
                                 }
-                            end();
-                            start("label", "class", "checkbox", "style", "margin-top: 5px;");
-                                tag("input", "name", "deleteDestination", "type", "checkbox", "value", "true");
-                                html("Delete before copy");
-                            end();
-                        end();
-                    end();
+                            writeEnd();
+                            writeStart("label", "class", "checkbox", "style", "margin-top: 5px;");
+                                writeTag("input", "name", "deleteDestination", "type", "checkbox", "value", "true");
+                                writeHtml("Delete before copy");
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
-                    start("div", "class", "form-actions");
-                        tag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
-                    end();
-                end();
+                    writeStart("div", "class", "form-actions");
+                        writeTag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
+                    writeEnd();
+                writeEnd();
 
                 if (!copyExecutors.isEmpty()) {
-                    start("h3").html("Ongoing Tasks").end();
-                    start("ul");
+                    writeStart("h3").writeHtml("Ongoing Tasks").writeEnd();
+                    writeStart("ul");
                         for (TaskExecutor executor : copyExecutors) {
-                            start("li");
-                                start("a", "href", "task");
-                                    html(executor.getName());
-                                end();
-                            end();
+                            writeStart("li");
+                                writeStart("a", "href", "task");
+                                    writeHtml(executor.getName());
+                                writeEnd();
+                            writeEnd();
                         }
-                    end();
+                    writeEnd();
                 }
 
             endPage();

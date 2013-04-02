@@ -1,9 +1,13 @@
 package com.psddev.dari.util;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /** Collection utility methods. */
 public class CollectionUtils {
@@ -21,6 +25,10 @@ public class CollectionUtils {
         }
 
         for (String key; path != null; ) {
+            if (object == null) {
+                return null;
+            }
+
             int slashAt = path.indexOf('/');
 
             if (slashAt > -1) {
@@ -54,7 +62,21 @@ public class CollectionUtils {
                 return null;
 
             } else {
-                return null;
+                Method getter = TypeDefinition.getInstance(object.getClass()).getAllGetters().get(key);
+
+                if (getter == null) {
+                    return null;
+
+                } else {
+                    try {
+                        return getter.invoke(object);
+
+                    } catch (IllegalAccessException error) {
+                        throw new IllegalStateException(error);
+                    } catch (InvocationTargetException error) {
+                        ErrorUtils.rethrow(error);
+                    }
+                }
             }
         }
 
@@ -135,5 +157,85 @@ public class CollectionUtils {
             list = (List<Object>) newList;
         }
         return (T) set(list, Integer.parseInt(names[len]), value);
+    }
+
+    /**
+     * Returns an iterable that can recursively iterate over all the items
+     * within the given {@code value}.
+     *
+     * @since 2.1
+     */
+    public static Iterable<Object> recursiveIterable(final Object value) {
+        return new Iterable<Object>() {
+            @Override
+            public Iterator<Object> iterator() {
+                return new RecursiveIterator(value);
+            }
+        };
+    }
+
+    private static class RecursiveIterator implements Iterator<Object> {
+
+        private final List<Iterator<Object>> parents = new ArrayList<Iterator<Object>>();
+        private boolean hasNext;
+        private Object next;
+
+        public RecursiveIterator(Object object) {
+            if (object != null) {
+                findNextIn(object);
+            }
+        }
+
+        private void findNextIn(Object object) {
+            Iterable<Object> iterable = ObjectToIterable.iterable(object);
+
+            if (iterable != null) {
+                parents.add(iterable.iterator());
+                findNext();
+
+            } else {
+                hasNext = true;
+                next = object;
+            }
+        }
+
+        private void findNext() {
+            while (!parents.isEmpty()) {
+                Iterator<Object> i = parents.get(parents.size() - 1);
+
+                if (i.hasNext()) {
+                    findNextIn(i.next());
+                    return;
+
+                } else {
+                    parents.remove(parents.size() - 1);
+                }
+            }
+
+            hasNext = false;
+            next = null;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return hasNext;
+        }
+
+        @Override
+        public Object next() {
+            if (hasNext()) {
+                Object current = next;
+                findNext();
+                return current;
+
+            } else {
+                throw new NoSuchElementException();
+            }
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
     }
 }

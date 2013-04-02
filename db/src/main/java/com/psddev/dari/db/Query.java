@@ -1,11 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.HtmlObject;
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.StringUtils;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.HtmlObject;
+import com.psddev.dari.util.HtmlWriter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.UuidUtils;
 
 /**
  * Query over objects in a {@linkplain Database database}.
@@ -125,6 +126,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private boolean isResolveToReferenceOnly;
     private Double timeout;
     private transient Map<String, Object> options;
+    private transient HashSet<String> extraSourceColumns = new HashSet<String>();
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
@@ -244,8 +246,32 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      */
     public Database getDatabase() {
         if (database == null) {
-            database = Database.Static.getDefault();
+            Database defaultDatabase = Database.Static.getDefault();
+            Database source = null;
+
+            // Change the query database if it's only querying over a single
+            // type that has a source database.
+            for (ObjectType groupType : defaultDatabase.getEnvironment().getTypesByGroup(getGroup())) {
+                for (ObjectType type : groupType.findConcreteTypes()) {
+                    Database typeSource = type.getSourceDatabase();
+
+                    if (typeSource == null) {
+                        source = null;
+                        break;
+
+                    } else if (source == null) {
+                        source = typeSource;
+
+                    } else if (!source.equals(typeSource)) {
+                        source = null;
+                        break;
+                    }
+                }
+            }
+
+            database = source != null ? source : defaultDatabase;
         }
+
         return database;
     }
 
@@ -554,6 +580,64 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             }
         }
         return types;
+    }
+
+    public Set<UUID> getConcreteTypeIds(Database database) {
+        DatabaseEnvironment environment = database.getEnvironment();
+        Set<ObjectType> types = getConcreteTypes(environment);
+        Set<UUID> typeIds = new HashSet<UUID>();
+
+        addVisibilityAwareTypeIds(database, environment, types, typeIds, getPredicate());
+
+        if (typeIds.isEmpty() || typeIds.remove(null)) {
+            for (ObjectType type : types) {
+                typeIds.add(type.getId());
+            }
+        }
+
+        return typeIds;
+    }
+
+    private void addVisibilityAwareTypeIds(
+            Database database,
+            DatabaseEnvironment environment,
+            Set<ObjectType> types,
+            Set<UUID> typeIds,
+            Predicate predicate) {
+
+        if (predicate == null) {
+
+        } else if (predicate instanceof CompoundPredicate) {
+            for (Predicate child : ((CompoundPredicate) predicate).getChildren()) {
+                addVisibilityAwareTypeIds(database, environment, types, typeIds, child);
+            }
+
+        } else if (predicate instanceof ComparisonPredicate) {
+            ComparisonPredicate comparison = (ComparisonPredicate) predicate;
+
+            for (ObjectIndex index : mapEmbeddedKey(environment, comparison.getKey()).getIndexes()) {
+                if (index.isVisibility()) {
+                    for (Object value : comparison.resolveValues(database)) {
+                        if (MISSING_VALUE.equals(value)) {
+                            typeIds.add(null);
+
+                        } else {
+                            byte[] md5 = StringUtils.md5(index.getField() + "/" + value);
+
+                            for (ObjectType type : types) {
+                                byte[] typeId = UuidUtils.toBytes(type.getId());
+
+                                for (int i = 0, length = typeId.length; i < length; ++ i) {
+                                    typeId[i] ^= md5[i];
+                                }
+
+                                typeIds.add(UuidUtils.fromBytes(typeId));
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private MappedKey mapKey(DatabaseEnvironment environment, String key, boolean checkDenormalized) {
@@ -1068,32 +1152,32 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             codeBuilder.append(")");
         }
 
-        writer.start("span", "class", "dari-query");
+        writer.writeStart("span", "class", "dari-query");
             String code = codeBuilder.toString();
-            writer.html(code);
+            writer.writeHtml(code);
 
             // Use a form instead of a link if the URL will be too long.
             if (code.length() > 2000) {
-                writer.start("form",
+                writer.writeStart("form",
                         "method", "post",
                         "action", "/_debug/code",
                         "target", "query");
-                    writer.tag("input", "type", "hidden", "name", "query", "value", code);
-                    writer.tag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
-                    writer.tag("input", "class", "btn", "type", "submit", "value", "Execute");
-                writer.end();
+                    writer.writeTag("input", "type", "hidden", "name", "query", "value", code);
+                    writer.writeTag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
+                    writer.writeTag("input", "class", "btn", "type", "submit", "value", "Execute");
+                writer.writeEnd();
 
             } else {
-                writer.html(" (");
-                    writer.start("a",
+                writer.writeHtml(" (");
+                    writer.writeStart("a",
                             "href", StringUtils.addQueryParameters("/_debug/code", "query", code, "objectClass", objectClass),
                             "target", "query");
-                        writer.html("Execute");
-                    writer.end();
-                writer.html(")");
+                        writer.writeHtml("Execute");
+                    writer.writeEnd();
+                writer.writeHtml(")");
             }
 
-        writer.end();
+        writer.writeEnd();
     }
 
     // --- Object support ---
@@ -1223,6 +1307,22 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return getDatabase().readAll(this);
     }
 
+    /**
+     * Returns an iterable of all objects matching this query in a
+     * {@linkplain #getDatabase database}.
+     */
+    public Iterable<E> iterable(int fetchSize) {
+        return getDatabase().readIterable(this, fetchSize);
+    }
+
+    /**
+     * Returns {@code true} if there are more items that match this query than
+     * the given {@code count}.
+     */
+    public boolean hasMoreThan(long count) {
+        return !getDatabase().readPartial(this.clone().referenceOnly(), count, 1).getItems().isEmpty();
+    }
+
     // --- Database.Static bridge ---
 
     /**
@@ -1241,14 +1341,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      */
     public static <T> T findUnique(Class<T> type, String key, String value) {
         return Database.Static.findUnique(Database.Static.getDefault(), type, key, value);
-    }
-
-    /**
-     * Returns an iterable of all objects matching this query in a
-     * {@linkplain #getDatabase database}.
-     */
-    public Iterable<E> iterable(int fetchSize) {
-        return getDatabase().readIterable(this, fetchSize);
     }
 
     /** Static utility methods. */
@@ -1325,6 +1417,10 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public Map<String, Object> getFacetedFields() {
         return this.facetedFields;
+    }
+
+    public HashSet<String> getExtraSourceColumns() {
+        return this.extraSourceColumns;
     }
 
     /** @deprecated Use {@link #delete} instead. */

@@ -1,26 +1,22 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrRequest;
-import org.apache.solr.client.solrj.SolrServer;
-
-import org.apache.solr.client.solrj.response.QueryResponse;
-
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrDocumentList;
-
-import com.psddev.dari.util.DebugFilter;
-
-import java.io.IOException;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+
+import com.psddev.dari.util.DebugFilter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
 
@@ -52,44 +48,44 @@ public class SolrDebugServlet extends HttpServlet {
                 String query = page.param(String.class, "query");
                 String sort = page.param(String.class, "sort");
 
-                start("h2").html("Query").end();
-                start("form", "action", page.url(null), "class", "form-inline", "method", "post");
+                writeStart("h2").writeHtml("Query").writeEnd();
+                writeStart("form", "action", page.url(null), "class", "form-inline", "method", "post");
 
-                    start("select", "class", "span6", "name", "db");
+                    writeStart("select", "class", "span6", "name", "db");
                         for (SolrDatabase db : Database.Static.getByClass(SolrDatabase.class)) {
                             String dbName = db.getName();
-                            start("option",
+                            writeStart("option",
                                     "selected", db.equals(database) ? "selected" : null,
                                     "value", dbName);
-                                html(dbName);
-                            end();
+                                writeHtml(dbName);
+                            writeEnd();
                         }
-                    end();
+                    writeEnd();
 
-                    start("textarea",
+                    writeStart("textarea",
                             "class", "span6",
                             "name", "query",
                             "placeholder", "Query",
                             "rows", 4,
                             "style", "margin: 4px 0; width: 100%;");
-                        html(query);
-                    end();
+                        writeHtml(query);
+                    writeEnd();
 
-                    start("h3").html("Sort").end();
-                    start("textarea",
+                    writeStart("h3").writeHtml("Sort").writeEnd();
+                    writeStart("textarea",
                             "class", "span6",
                             "name", "sort",
                             "placeholder", "Sort",
                             "rows", 2,
                             "style", "margin: 4px 0; width: 100%;");
-                        html(sort);
-                    end();
+                        writeHtml(sort);
+                    writeEnd();
 
-                    tag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
-                end();
+                    writeTag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
+                writeEnd();
 
                 if (!ObjectUtils.isBlank(query)) {
-                    start("h2").html("Result").end();
+                    writeStart("h2").writeHtml("Result").writeEnd();
                     SolrServer server = database.openConnection();
                     SolrQuery solrQuery = new SolrQuery(query);
                     if (!StringUtils.isBlank(sort)) {
@@ -105,46 +101,46 @@ public class SolrDebugServlet extends HttpServlet {
                         Map<String,String> explainMap = response.getExplainMap();
                         SolrDocumentList documents = response.getResults();
 
-                        start("p");
-                            html("Took ");
-                            start("strong").object((System.nanoTime() - startTime) / 1e6).end();
-                            html(" milliseconds to find ");
-                            start("strong").object(documents.getNumFound()).end();
-                            html(" documents.");
-                        end();
+                        writeStart("p");
+                            writeHtml("Took ");
+                            writeStart("strong").writeObject((System.nanoTime() - startTime) / 1e6).writeEnd();
+                            writeHtml(" milliseconds to find ");
+                            writeStart("strong").writeObject(documents.getNumFound()).writeEnd();
+                            writeHtml(" documents.");
+                        writeEnd();
 
-                        start("table", "class", "table table-condensed");
-                            start("thead");
-                                start("tr");
-                                    start("th").html("id").end();
-                                    start("th").html("typeId").end();
-                                    start("th").html("object").end();
-                                    start("th").html("score").end();
-                                end();
-                            end();
-                            start("tbody");
+                        writeStart("table", "class", "table table-condensed");
+                            writeStart("thead");
+                                writeStart("tr");
+                                    writeStart("th").writeHtml("id").writeEnd();
+                                    writeStart("th").writeHtml("typeId").writeEnd();
+                                    writeStart("th").writeHtml("object").writeEnd();
+                                    writeStart("th").writeHtml("score").writeEnd();
+                                writeEnd();
+                            writeEnd();
+                            writeStart("tbody");
                                 for (SolrDocument document : response.getResults()) {
-                                    start("tr");
+                                    writeStart("tr");
                                         for (Map.Entry<String, Object> entry : document.entrySet()) {
-                                            start("td");
-                                                object(entry.getValue());
-                                            end();
+                                            writeStart("td");
+                                                writeObject(entry.getValue());
+                                            writeEnd();
                                         }
-                                        start("td");
+                                        writeStart("td");
                                             Object id = document.get("id");
                                             if (explainMap.containsKey(id)) {
                                                 write(explainMap.get(id).replaceAll("\n", "<br>").replaceAll(" ", "&nbsp;"));
                                             }
-                                        end();
-                                    end();
+                                        writeEnd();
+                                    writeEnd();
                                 }
-                            end();
-                        end();
+                            writeEnd();
+                        writeEnd();
 
                     } catch (Exception ex) {
-                        start("div", "class", "alert alert-error");
-                            object(ex);
-                        end();
+                        writeStart("div", "class", "alert alert-error");
+                            writeObject(ex);
+                        writeEnd();
                     }
                 }
 

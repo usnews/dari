@@ -1,13 +1,13 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.AsyncConsumer;
-import com.psddev.dari.util.AsyncQueue;
-import com.psddev.dari.util.StorageItem;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+
+import com.psddev.dari.util.AsyncConsumer;
+import com.psddev.dari.util.AsyncQueue;
+import com.psddev.dari.util.StorageItem;
 
 /**
  * Background task that efficiently copies storage items from one

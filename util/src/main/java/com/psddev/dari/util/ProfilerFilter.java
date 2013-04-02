@@ -1,13 +1,5 @@
 package com.psddev.dari.util;
 
-import com.psddev.dari.util.AbstractFilter;
-import com.psddev.dari.util.HtmlObject;
-import com.psddev.dari.util.HtmlWriter;
-import com.psddev.dari.util.HtmlFormatter;
-import com.psddev.dari.util.JspUtils;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.StringUtils;
-
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collection;
@@ -134,105 +126,105 @@ public class ProfilerFilter extends AbstractFilter {
             ++ index;
         }
 
-        writer.start("div", "id", "_profile-result");
+        writer.writeStart("div", "id", "_profile-result");
 
-            writer.start("div", "class", "navbar navbar-fixed-top");
-                writer.start("div", "class", "navbar-inner");
-                    writer.start("div", "class", "container-fluid");
-                        writer.start("span", "class", "brand").html("Dari \u2192 Profile Result").end();
-                    writer.end();
-                writer.end();
-            writer.end();
+            writer.writeStart("div", "class", "navbar navbar-fixed-top");
+                writer.writeStart("div", "class", "navbar-inner");
+                    writer.writeStart("div", "class", "container-fluid");
+                        writer.writeStart("span", "class", "brand").writeHtml("Dari \u2192 Profile Result").writeEnd();
+                    writer.writeEnd();
+                writer.writeEnd();
+            writer.writeEnd();
 
-            writer.start("div", "class", "container-fluid", "style", "padding-top: 54px;");
+            writer.writeStart("div", "class", "container-fluid", "style", "padding-top: 54px;");
 
-                writer.start("div", "id", "_profile-overview");
-                    writer.start("div", "class", "row");
+                writer.writeStart("div", "id", "_profile-overview");
+                    writer.writeStart("div", "class", "row");
 
                         // Overview of event stats.
-                        writer.start("div", "class", "span6");
-                            writer.start("h2").html("Overview").end();
-                            writer.start("table", "class", "table table-condensed");
+                        writer.writeStart("div", "class", "span6");
+                            writer.writeStart("h2").writeHtml("Overview").writeEnd();
+                            writer.writeStart("table", "class", "table table-condensed");
 
-                                writer.start("thead");
-                                    writer.start("tr");
-                                        writer.start("th", "colspan", 2).html("Event").end();
-                                        writer.start("th").html("Count").end();
-                                        writer.start("th").html("Own Total").end();
-                                        writer.start("th").html("Own Average").end();
-                                    writer.end();
-                                writer.end();
+                                writer.writeStart("thead");
+                                    writer.writeStart("tr");
+                                        writer.writeStart("th", "colspan", 2).writeHtml("Event").writeEnd();
+                                        writer.writeStart("th").writeHtml("Count").writeEnd();
+                                        writer.writeStart("th").writeHtml("Own Total").writeEnd();
+                                        writer.writeStart("th").writeHtml("Own Average").writeEnd();
+                                    writer.writeEnd();
+                                writer.writeEnd();
 
-                                writer.start("tbody");
+                                writer.writeStart("tbody");
                                     for (Map.Entry<String, Profiler.EventStats> entry : profiler.getEventStats().entrySet()) {
                                         String name = entry.getKey();
                                         Profiler.EventStats stats = entry.getValue();
                                         int count = stats.getCount();
                                         double ownDuration = stats.getOwnDuration() / 1e6;
 
-                                        writer.start("tr");
-                                            writer.start("td");
-                                                writer.tag("input",
+                                        writer.writeStart("tr");
+                                            writer.writeStart("td");
+                                                writer.writeTag("input",
                                                         "type", "checkbox",
                                                         "checked", "checked",
                                                         "value", nameClasses.get(name));
-                                            writer.end();
-                                            writer.start("td");
-                                                writer.start("span",
+                                            writer.writeEnd();
+                                            writer.writeStart("td");
+                                                writer.writeStart("span",
                                                         "class", "label",
                                                         "style", "background: " + nameColors.get(name) + ";");
-                                                    writer.html(name);
-                                                writer.end();
-                                            writer.end();
-                                            writer.start("td").object(count).end();
-                                            writer.start("td").object(ownDuration).end();
-                                            writer.start("td").object(ownDuration / count).end();
-                                        writer.end();
+                                                    writer.writeHtml(name);
+                                                writer.writeEnd();
+                                            writer.writeEnd();
+                                            writer.writeStart("td").writeObject(count).writeEnd();
+                                            writer.writeStart("td").writeObject(ownDuration).writeEnd();
+                                            writer.writeStart("td").writeObject(ownDuration / count).writeEnd();
+                                        writer.writeEnd();
                                     }
-                                writer.end();
+                                writer.writeEnd();
 
-                            writer.end();
-                        writer.end();
-                    writer.end();
-                writer.end();
+                            writer.writeEnd();
+                        writer.writeEnd();
+                    writer.writeEnd();
+                writer.writeEnd();
 
                 // All events.
-                writer.start("div", "id", "_profile-eventTimeline");
-                    writer.start("h2").html("Event Timeline").end();
-                    writer.start("table", "class", "table table-condensed");
+                writer.writeStart("div", "id", "_profile-eventTimeline");
+                    writer.writeStart("h2").writeHtml("Event Timeline").writeEnd();
+                    writer.writeStart("table", "class", "table table-condensed");
 
-                        writer.start("thead");
-                            writer.start("tr");
-                                writer.start("th").html("#").end();
-                                writer.start("th").html("Start").end();
-                                writer.start("th").html("Total").end();
-                                writer.start("th").html("Own").end();
-                                writer.start("th", "class", "objects").html("Objects").end();
-                            writer.end();
-                        writer.end();
+                        writer.writeStart("thead");
+                            writer.writeStart("tr");
+                                writer.writeStart("th").writeHtml("#").writeEnd();
+                                writer.writeStart("th").writeHtml("Start").writeEnd();
+                                writer.writeStart("th").writeHtml("Total").writeEnd();
+                                writer.writeStart("th").writeHtml("Own").writeEnd();
+                                writer.writeStart("th", "class", "objects").writeHtml("Objects").writeEnd();
+                            writer.writeEnd();
+                        writer.writeEnd();
 
-                        writer.start("tbody");
+                        writer.writeStart("tbody");
                             for (Profiler.Event rootEvent : profiler.getRootEvents()) {
                                 writeEvent(writer, eventIndexes, start, nameColors, nameClasses, 0, rootEvent);
                             }
-                        writer.end();
+                        writer.writeEnd();
 
-                    writer.end();
-                writer.end();
+                    writer.writeEnd();
+                writer.writeEnd();
 
-            writer.end();
+            writer.writeEnd();
 
-        writer.end();
+        writer.writeEnd();
 
         // Script for formatting and adding interactivity
         // to the profile result.
-        writer.start("script", "type", "text/javascript");
+        writer.writeStart("script", "type", "text/javascript");
             writer.write("(function() {");
                 writer.write("var profileScript = document.createElement('script');");
                 writer.write("profileScript.src = '/_resource/dari/profiler.js';");
                 writer.write("document.body.appendChild(profileScript);");
             writer.write("})();");
-        writer.end();
+        writer.writeEnd();
     }
 
     private void writeEvent(
@@ -247,33 +239,33 @@ public class ProfilerFilter extends AbstractFilter {
 
         String name = event.getName();
 
-        writer.start("tr", "class", nameClasses.get(name));
+        writer.writeStart("tr", "class", nameClasses.get(name));
 
-            writer.start("td").html(eventIndexes.get(event)).end();
-            writer.start("td").object((event.getStart() - start) / 1e6).end();
-            writer.start("td").object(event.getTotalDuration() / 1e6).end();
-            writer.start("td").object(event.getOwnDuration() / 1e6).end();
+            writer.writeStart("td").writeHtml(eventIndexes.get(event)).writeEnd();
+            writer.writeStart("td").writeObject((event.getStart() - start) / 1e6).writeEnd();
+            writer.writeStart("td").writeObject(event.getTotalDuration() / 1e6).writeEnd();
+            writer.writeStart("td").writeObject(event.getOwnDuration() / 1e6).writeEnd();
 
-            writer.start("td", "class", "objects", "style", "padding-left: " + (depth * 30 + 5) + "px;");
+            writer.writeStart("td", "class", "objects", "style", "padding-left: " + (depth * 30 + 5) + "px;");
 
-                writer.start("span",
+                writer.writeStart("span",
                         "class", "label",
                         "style", "background: " + nameColors.get(name) + ";");
-                    writer.html(name);
-                writer.end();
+                    writer.writeHtml(name);
+                writer.writeEnd();
 
                 for (Object item : event.getObjects()) {
-                    writer.html(" \u2192 ");
-                    writer.object(item);
+                    writer.writeHtml(" \u2192 ");
+                    writer.writeObject(item);
                 }
 
-            writer.end();
+            writer.writeEnd();
 
             for (Profiler.Event child : event.getChildren()) {
                 writeEvent(writer, eventIndexes, start, nameColors, nameClasses, depth + 1, child);
             }
 
-        writer.end();
+        writer.writeEnd();
     }
 
     /** {@link ProfilerFilter} utility methods. */
@@ -362,15 +354,15 @@ public class ProfilerFilter extends AbstractFilter {
 
         @Override
         public void format(HtmlWriter writer) throws IOException {
-            writer.start("a",
+            writer.writeStart("a",
                     "target", "_blank",
                     "href", StringUtils.addQueryParameters(
                             "/_debug/code",
                             "action", "edit",
                             "type", "JSP",
                             "servletPath", path));
-                writer.html(path);
-            writer.end();
+                writer.writeHtml(path);
+            writer.writeEnd();
         }
     }
 
@@ -378,22 +370,22 @@ public class ProfilerFilter extends AbstractFilter {
     private static final HtmlFormatter<Collection> COLLECTION_FORMATTER = new HtmlFormatter<Collection>() {
         @Override
         public void format(HtmlWriter writer, Collection collection) throws IOException {
-            writer.html(collection.getClass().getSimpleName());
-            writer.html(": [");
+            writer.writeHtml(collection.getClass().getSimpleName());
+            writer.writeHtml(": [");
             for (Iterator<Object> i = collection.iterator(); i.hasNext(); ) {
-                writer.object(i.next());
+                writer.writeObject(i.next());
                 if (i.hasNext()) {
                     writer.write(", ");
                 }
             }
-            writer.html("]");
+            writer.writeHtml("]");
         }
     };
 
     private static final HtmlFormatter<StackTraceElement> STACK_TRACE_ELEMENT_FORMATTER = new HtmlFormatter<StackTraceElement>() {
         @Override
         public void format(HtmlWriter writer, StackTraceElement element) throws IOException {
-            writer.html("Called from ");
+            writer.writeHtml("Called from ");
             HtmlFormatter.STACK_TRACE_ELEMENT.format(writer, element);
         }
     };

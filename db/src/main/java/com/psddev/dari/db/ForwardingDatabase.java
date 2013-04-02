@@ -1,11 +1,11 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
 
 /**
  * Skeletal database implementation that forwards all calls
@@ -159,5 +159,17 @@ public abstract class ForwardingDatabase implements Database {
     @Override
     public void deleteByQuery(Query<?> query) {
         getDelegate().deleteByQuery(query);
+    }
+
+    // --- Object support ---
+
+    @Override
+    public String toString() {
+        StringBuilder s = new StringBuilder();
+        s.append(super.toString());
+        s.append("(delegate=");
+        s.append(getDelegate().toString());
+        s.append(")");
+        return s.toString();
     }
 }

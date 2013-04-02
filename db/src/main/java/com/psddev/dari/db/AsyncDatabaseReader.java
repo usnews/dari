@@ -1,9 +1,9 @@
 package com.psddev.dari.db;
 
+import java.util.Iterator;
+
 import com.psddev.dari.util.AsyncProducer;
 import com.psddev.dari.util.AsyncQueue;
-
-import java.util.Iterator;
 
 /** Background task that efficiently reads from a database into a queue. */
 public class AsyncDatabaseReader<E> extends AsyncProducer<E> {

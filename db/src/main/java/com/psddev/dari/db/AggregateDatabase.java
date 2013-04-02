@@ -1,16 +1,10 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.AggregateException;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.SparseSet;
-
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +14,12 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.AggregateException;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.SettingsException;
+import com.psddev.dari.util.SparseSet;
 
 /** Group of databases that acts as one. */
 public class AggregateDatabase implements Database, Iterable<Database> {

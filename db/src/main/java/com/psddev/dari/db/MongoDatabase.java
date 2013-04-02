@@ -1,15 +1,5 @@
 package com.psddev.dari.db;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBAddress;
-import com.mongodb.DBCollection;
-import com.mongodb.DBCursor;
-import com.mongodb.DBObject;
-import com.mongodb.Mongo;
-
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -19,6 +9,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBAddress;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
+import com.mongodb.Mongo;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
 
 /** Database backed by <a href="http://www.mongodb.org/">MongoDB</a>. */
 public class MongoDatabase extends AbstractDatabase<DBCollection> {
@@ -244,6 +243,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
                 unescapeKeys(item);
             }
         } else if (object instanceof Map) {
+            @SuppressWarnings("unchecked")
             Map<String, Object> map = (Map<String, Object>) object;
             Map<String, Object> newMap = new LinkedHashMap<String, Object>();
             for (Map.Entry<String, Object> e : map.entrySet()) {
@@ -258,6 +258,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> List<T> readAll(Query<T> query) {
         List<T> list = new ArrayList<T>();
         for (DBObject item : find(query)) {
@@ -272,6 +273,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T readFirst(Query<T> query) {
         for (DBObject item : find(query).limit(1)) {
             return (T) loadObject(item.toMap());
@@ -285,6 +287,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> PaginatedResult<T> readPartial(Query<T> query, long offset, int limit) {
         List<T> list = new ArrayList<T>();
         DBCursor cursor = find(query).skip((int) offset).limit(limit);
@@ -300,7 +303,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
         for (State state : states) {
             Map<String, Object> values = state.getSimpleValues();
             values.put(ID_KEY, state.getId().toString());
-            values.put(TYPE_ID_KEY, state.getTypeId().toString());
+            values.put(TYPE_ID_KEY, state.getVisibilityAwareTypeId().toString());
             escapeKeys(values);
             documents.add(new BasicDBObject(values));
         }
@@ -314,6 +317,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
                 escapeKeys(item);
             }
         } else if (object instanceof Map) {
+            @SuppressWarnings("unchecked")
             Map<String, Object> map = (Map<String, Object>) object;
             Map<String, Object> newMap = new LinkedHashMap<String, Object>();
             for (Map.Entry<String, Object> e : map.entrySet()) {

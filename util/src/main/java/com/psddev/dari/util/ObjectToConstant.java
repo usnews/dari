@@ -23,6 +23,7 @@ public class ObjectToConstant<T> implements ConversionFunction<Object, T> {
      * Returns an instance that will convert any object into the given
      * {@code constant}.
      */
+    @SuppressWarnings("unchecked")
     public static <T> ObjectToConstant<T> getInstance(T constant) {
         return (ObjectToConstant<T>) (constant == null ? NULL_INSTANCE : INSTANCES.get(constant));
     }

@@ -1,10 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.DebugFilter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.StringUtils;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,6 +16,11 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.psddev.dari.util.DebugFilter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.StringUtils;
+
 @DebugFilter.Path("query")
 @SuppressWarnings("serial")
 public class QueryDebugServlet extends HttpServlet {
@@ -31,7 +31,10 @@ public class QueryDebugServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
-        new Page(getServletContext(), request, response).render();
+        @SuppressWarnings("all")
+        Page page = new Page(getServletContext(), request, response);
+
+        page.render();
     }
 
     private static class Page extends DebugFilter.PageWriter {
@@ -64,7 +67,8 @@ public class QueryDebugServlet extends HttpServlet {
             }
         }
 
-        private final Database database;
+        private final String databaseName;
+        private Database database;
         private final ObjectType type;
         private final String where;
         private final String sortField;
@@ -80,7 +84,8 @@ public class QueryDebugServlet extends HttpServlet {
         public Page(ServletContext context, HttpServletRequest request, HttpServletResponse response) throws IOException {
             super(context, request, response);
 
-            database = Database.Static.getInstance(page.param(String.class, "db"));
+            databaseName = page.param(String.class, "db");
+            database = Database.Static.getInstance(databaseName);
             type = database.getEnvironment().getTypeById(page.param(UUID.class, "from"));
             where = page.paramOrDefault(String.class, "where", "").trim();
             sortField = page.param(String.class, "sortField");
@@ -123,6 +128,11 @@ public class QueryDebugServlet extends HttpServlet {
                 query.resolveToReferenceOnly();
             }
 
+            if (ObjectUtils.isBlank(databaseName)) {
+                query.setDatabase(null);
+                database = query.getDatabase();
+            }
+
             CachingDatabase caching = new CachingDatabase();
             caching.setDelegate(database);
             query.using(caching);
@@ -147,7 +157,7 @@ public class QueryDebugServlet extends HttpServlet {
                 }
 
             } catch (Exception ex) {
-                object(ex);
+                writeObject(ex);
 
             } finally {
                 Database.Static.setIgnoreReadConnection(false);
@@ -159,14 +169,14 @@ public class QueryDebugServlet extends HttpServlet {
                 if (query.getTimeout() == null) {
                     query.setTimeout(1.0);
                 }
-                object(query.count());
+                writeObject(query.count());
 
             } catch (Exception ex) {
-                html("Many (");
-                start("a", "href", page.url("", "timeout", 0));
-                    html("Force Count");
-                end();
-                html(")");
+                writeHtml("Many (");
+                writeStart("a", "href", page.url("", "timeout", 0));
+                    writeHtml("Force Count");
+                writeEnd();
+                writeHtml(")");
             }
         }
 
@@ -175,53 +185,54 @@ public class QueryDebugServlet extends HttpServlet {
             State state = State.getInstance(Query.from(Object.class).where("_id = ?", page.param(UUID.class, "id")).using(database).first());
 
             if (state == null) {
-                start("p", "class", "alert").html("No object!").end();
+                writeStart("p", "class", "alert").writeHtml("No object!").writeEnd();
 
             } else {
                 ObjectType type = state.getType();
 
-                start("div", "class", "edit", "style", "padding: 10px;");
-                    start("h2");
-                        html(type != null ? type.getLabel() : "Unknown Type");
-                        html(": ");
-                        html(state.getLabel());
-                    end();
+                writeStart("div", "class", "edit", "style", "padding: 10px;");
+                    writeStart("h2");
+                        writeHtml(type != null ? type.getLabel() : "Unknown Type");
+                        writeHtml(": ");
+                        writeHtml(state.getLabel());
+                    writeEnd();
 
                     SubAction subAction = page.paramOrDefault(SubAction.class, "subAction", SubAction.RAW);
 
-                    start("ul", "class", "nav nav-tabs");
+                    writeStart("ul", "class", "nav nav-tabs");
                         for (SubAction a : SubAction.values()) {
-                            start("li", "class", a.equals(subAction) ? "active" : null);
-                                start("a", "href", page.url("", "subAction", a));
-                                    html(a.displayName);
-                                end();
-                            end();
+                            writeStart("li", "class", a.equals(subAction) ? "active" : null);
+                                writeStart("a", "href", page.url("", "subAction", a));
+                                    writeHtml(a.displayName);
+                                writeEnd();
+                            writeEnd();
                         }
-                    end();
+                    writeEnd();
 
                     if (SubAction.EDIT_RAW.equals(subAction)) {
                         if (page.isFormPost()) {
                             try {
                                 state.setValues((Map<String, Object>) ObjectUtils.fromJson(page.param(String.class, "data")));
                                 state.save();
-                                start("p", "class", "alert alert-success").html("Saved successfully at " + new Date() + "!").end();
+                                writeStart("p", "class", "alert alert-success").writeHtml("Saved successfully at " + new Date() + "!").writeEnd();
                             } catch (Exception error) {
-                                start("div", "class", "alert alert-error").object(error).end();
+                                writeStart("div", "class", "alert alert-error").writeObject(error).writeEnd();
                             }
                         }
 
-                        start("form", "method", "post", "action", page.url(""));
-                            start("div", "class", "json");
-                                start("textarea", "name", "data", "style", "box-sizing: border-box; height: 40em; width: 100%;");
-                                    html(ObjectUtils.toJson(state.getSimpleValues(), true));
-                                end();
-                            end();
-                            start("div", "class", "form-actions");
-                                tag("input", "class", "btn btn-success", "type", "submit", "value", "Save");
-                            end();
-                        end();
+                        writeStart("form", "method", "post", "action", page.url(""));
+                            writeStart("div", "class", "json");
+                                writeStart("textarea", "name", "data", "style", "box-sizing: border-box; height: 40em; width: 100%;");
+                                    writeHtml(ObjectUtils.toJson(state.getSimpleValues(), true));
+                                writeEnd();
+                            writeEnd();
+                            writeStart("div", "class", "form-actions");
+                                writeTag("input", "class", "btn btn-success", "type", "submit", "value", "Save");
+                            writeEnd();
+                        writeEnd();
 
                     } else if (SubAction.EDIT_FIELDED.equals(subAction)) {
+                        @SuppressWarnings("all")
                         FormWriter form = new FormWriter(this);
                         form.putAllStandardInputProcessors();
 
@@ -229,21 +240,21 @@ public class QueryDebugServlet extends HttpServlet {
                             try {
                                 form.updateAll(state, page.getRequest());
                                 state.save();
-                                start("p", "class", "alert alert-success").html("Saved successfully at " + new Date() + "!").end();
+                                writeStart("p", "class", "alert alert-success").writeHtml("Saved successfully at " + new Date() + "!").writeEnd();
                             } catch (Exception error) {
-                                start("div", "class", "alert alert-error").object(error).end();
+                                writeStart("div", "class", "alert alert-error").writeObject(error).writeEnd();
                             }
                         }
 
-                        start("form", "method", "post", "action", page.url(""));
+                        writeStart("form", "method", "post", "action", page.url(""));
                             form.allInputs(state);
-                            start("div", "class", "form-actions");
-                                tag("input", "class", "btn btn-success", "type", "submit", "value", "Save");
-                            end();
-                        end();
+                            writeStart("div", "class", "form-actions");
+                                writeTag("input", "class", "btn btn-success", "type", "submit", "value", "Save");
+                            writeEnd();
+                        writeEnd();
 
                     } else {
-                        start("pre");
+                        writeStart("pre");
                             String json = ObjectUtils.toJson(state.getSimpleValues(), true);
                             Matcher dateFieldMatcher = DATE_FIELD_PATTERN.matcher(json);
                             StringBuilder newJson = new StringBuilder();
@@ -263,98 +274,104 @@ public class QueryDebugServlet extends HttpServlet {
 
                             Matcher idMatcher = ID_PATTERN.matcher(page.h(newJson.toString()));
                             write(idMatcher.replaceAll("<a href=\"/_debug/query?where=id+%3D+$1\" target=\"_blank\">$1</a>"));
-                        end();
-                    end();
+                        writeEnd();
+                    writeEnd();
                 }
             }
         }
 
         private void renderSelect() throws IOException {
-            start("div", "style", "padding: 10px;");
-                start("form", "action", page.url(null), "class", "form-inline", "method", "get");
+            writeStart("div", "style", "padding: 10px;");
+                writeStart("form", "action", page.url(null), "class", "form-inline", "method", "get");
 
-                    start("h2").html("Query").end();
-                    start("div", "class", "row");
-                        start("div", "class", "span6");
-                            start("select", "class", "span6", "name", "from");
-                                start("option", "value", "").html("ALL TYPES").end();
+                    writeStart("h2").writeHtml("Query").writeEnd();
+                    writeStart("div", "class", "row");
+                        writeStart("div", "class", "span6");
+                            writeStart("select", "class", "span6", "name", "from");
+                                writeStart("option", "value", "").writeHtml("ALL TYPES").writeEnd();
 
                                 List<ObjectType> types = new ArrayList<ObjectType>(database.getEnvironment().getTypes());
                                 Collections.sort(types, new ObjectFieldComparator("name", false));
 
                                 for (ObjectType t : types) {
                                     if (!t.isEmbedded()) {
-                                        start("option",
+                                        writeStart("option",
                                                 "selected", t.equals(type) ? "selected" : null,
                                                 "value", t.getId());
-                                            html(t.getLabel());
-                                            html(" (");
-                                            html(t.getInternalName());
-                                            html(")");
-                                        end();
+                                            writeHtml(t.getLabel());
+                                            writeHtml(" (");
+                                            writeHtml(t.getInternalName());
+                                            writeHtml(")");
+                                        writeEnd();
                                     }
                                 }
-                            end();
+                            writeEnd();
 
                             includeStylesheet("/_resource/chosen/chosen.css");
                             includeScript("/_resource/chosen/chosen.jquery.min.js");
-                            start("script", "type", "text/javascript");
+                            writeStart("script", "type", "text/javascript");
                                 write("(function() {");
                                     write("$('select[name=from]').chosen({ 'search_contains': true });");
                                 write("})();");
-                            end();
+                            writeEnd();
 
-                            start("textarea",
+                            writeStart("textarea",
                                     "class", "span6",
                                     "name", "where",
                                     "placeholder", "ID or Predicate (Leave Blank to Return All)",
                                     "rows", 4,
                                     "style", "margin-bottom: 4px; margin-top: 4px;");
-                                html(where);
-                            end();
+                                writeHtml(where);
+                            writeEnd();
 
-                            tag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
-                        end();
+                            writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
+                        writeEnd();
 
-                        start("div", "class", "span6");
-                            start("select", "name", "db", "style", "margin-bottom: 4px;");
+                        writeStart("div", "class", "span6");
+                            writeStart("select", "name", "db", "style", "margin-bottom: 4px;");
+                                writeStart("option",
+                                        "value", "",
+                                        "selected", ObjectUtils.isBlank(databaseName) ? "selected" : null);
+                                    writeHtml("Default");
+                                writeEnd();
+
                                 for (Database db : Database.Static.getAll()) {
                                     String dbName = db.getName();
-                                    start("option",
-                                            "selected", db.equals(database) ? "selected" : null,
-                                            "value", dbName);
-                                        html(dbName);
-                                    end();
+                                    writeStart("option",
+                                            "value", dbName,
+                                            "selected", dbName.equals(databaseName) ? "selected" : null);
+                                        writeHtml(dbName);
+                                    writeEnd();
                                 }
-                            end();
+                            writeEnd();
 
-                            tag("br");
-                            tag("input",
+                            writeTag("br");
+                            writeTag("input",
                                     "class", "input-small",
                                     "name", "sortField",
                                     "type", "text",
                                     "placeholder", "Sort",
                                     "value", sortField);
-                            html(' ');
-                            start("select", "class", "input-small", "name", "sortOrder");
+                            writeHtml(' ');
+                            writeStart("select", "class", "input-small", "name", "sortOrder");
                                 for (SortOrder so : SortOrder.values()) {
-                                    start("option",
+                                    writeStart("option",
                                             "selected", so.equals(sortOrder) ? "selected" : null,
                                             "value", so.name());
-                                        html(so.displayName);
-                                    end();
+                                        writeHtml(so.displayName);
+                                    writeEnd();
                                 }
-                            end();
-                            html(' ');
-                            tag("input",
+                            writeEnd();
+                            writeHtml(' ');
+                            writeTag("input",
                                     "class", "input-small",
                                     "name", "limit",
                                     "type", "text",
                                     "placeholder", "Limit",
                                     "value", limit);
 
-                            tag("br");
-                            tag("input",
+                            writeTag("br");
+                            writeTag("input",
                                     "class", "span6",
                                     "name", "additionalFields",
                                     "type", "text",
@@ -362,59 +379,59 @@ public class QueryDebugServlet extends HttpServlet {
                                     "style", "margin-top: 4px;",
                                     "value", additionalFieldsString);
 
-                            tag("br");
-                            start("label", "class", "checkbox");
-                                tag("input",
+                            writeTag("br");
+                            writeStart("label", "class", "checkbox");
+                                writeTag("input",
                                         "name", "ignoreReadConnection",
                                         "type", "checkbox",
                                         "style", "margin-top: 4px;",
                                         "value", "true",
                                         "checked", ignoreReadConnection ? "checked" : null);
-                                html(" Ignore read-specific connection settings");
-                            end();
-                        end();
-                    end();
-                end();
+                                writeHtml(" Ignore read-specific connection settings");
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
+                writeEnd();
 
                 try {
                     PaginatedResult<Object> result = query.select(offset, limit);
                     List<Object> items = result.getItems();
 
                     if (offset == 0 && items.isEmpty()) {
-                        start("p", "class", "alert").html("No matches!").end();
+                        writeStart("p", "class", "alert").writeHtml("No matches!").writeEnd();
 
                     } else {
-                        start("h2");
-                            html("Result ");
-                            object(result.getFirstItemIndex());
-                            html(" to ");
-                            object(result.getLastItemIndex());
-                            html(" of ");
-                            start("span", "class", "frame");
-                                start("a", "href", page.url("", "action", "count")).html("?").end();
-                            end();
-                        end();
+                        writeStart("h2");
+                            writeHtml("Result ");
+                            writeObject(result.getFirstItemIndex());
+                            writeHtml(" to ");
+                            writeObject(result.getLastItemIndex());
+                            writeHtml(" of ");
+                            writeStart("span", "class", "frame");
+                                writeStart("a", "href", page.url("", "action", "count")).writeHtml("?").writeEnd();
+                            writeEnd();
+                        writeEnd();
 
-                        start("div", "class", "btn-group");
-                            start("a",
+                        writeStart("div", "class", "btn-group");
+                            writeStart("a",
                                     "class", "btn" + (offset > 0 ? "" : " disabled"),
                                     "href", page.url("", "offset", 0));
-                                start("i", "class", "icon-fast-backward").end();
-                                html(" First");
-                            end();
-                            start("a",
+                                writeStart("i", "class", "icon-fast-backward").writeEnd();
+                                writeHtml(" First");
+                            writeEnd();
+                            writeStart("a",
                                     "class", "btn" + (result.hasPrevious() ? "" : " disabled"),
                                     "href", page.url("", "offset", result.getPreviousOffset()));
-                                start("i", "class", "icon-step-backward").end();
-                                html(" Previous");
-                            end();
-                            start("a",
+                                writeStart("i", "class", "icon-step-backward").writeEnd();
+                                writeHtml(" Previous");
+                            writeEnd();
+                            writeStart("a",
                                     "class", "btn" + (result.hasNext() ? "" : " disabled"),
                                     "href", page.url("", "offset", result.getNextOffset()));
-                                html("Next ");
-                                start("i", "class", "icon-step-forward").end();
-                            end();
-                        end();
+                                writeHtml("Next ");
+                                writeStart("i", "class", "icon-step-forward").writeEnd();
+                            writeEnd();
+                        writeEnd();
 
                         String[] additionalFields;
                         if (ObjectUtils.isBlank(additionalFieldsString)) {
@@ -423,28 +440,28 @@ public class QueryDebugServlet extends HttpServlet {
                             additionalFields = additionalFieldsString.trim().split("\\s*,\\s*");
                         }
 
-                        start("table", "class", "table table-condensed");
-                            start("thead");
-                                start("tr");
-                                    start("th").html("#").end();
-                                    start("th").html("ID").end();
-                                    start("th").html("Type").end();
-                                    start("th").html("Label").end();
+                        writeStart("table", "class", "table table-condensed");
+                            writeStart("thead");
+                                writeStart("tr");
+                                    writeStart("th").writeHtml("#").writeEnd();
+                                    writeStart("th").writeHtml("ID").writeEnd();
+                                    writeStart("th").writeHtml("Type").writeEnd();
+                                    writeStart("th").writeHtml("Label").writeEnd();
                                     for (String additionalField : additionalFields) {
-                                        start("th").html(additionalField).end();
+                                        writeStart("th").writeHtml(additionalField).writeEnd();
                                     }
-                                end();
-                            end();
-                            start("tbody");
+                                writeEnd();
+                            writeEnd();
+                            writeStart("tbody");
                                 long offsetCopy = offset;
                                 for (Object item : items) {
                                     State itemState = State.getInstance(item);
                                     ObjectType itemType = itemState.getType();
 
-                                    start("tr");
-                                        start("td").html(++ offsetCopy).end();
-                                        start("td");
-                                            start("span",
+                                    writeStart("tr");
+                                        writeStart("td").writeHtml(++ offsetCopy).writeEnd();
+                                        writeStart("td");
+                                            writeStart("span",
                                                     "class", "link",
                                                     "onclick",
                                                             "var $input = $(this).popup('source').prev();" +
@@ -452,35 +469,35 @@ public class QueryDebugServlet extends HttpServlet {
                                                             "$input.prev().text('" + StringUtils.escapeJavaScript(itemState.getLabel()) + "');" +
                                                             "$(this).popup('close');" +
                                                             "return false;");
-                                                html(itemState.getId());
-                                            end();
-                                        end();
-                                        start("td").html(itemType != null ? itemType.getLabel() : null).end();
-                                        start("td").html(itemState.getLabel()).end();
+                                                writeHtml(itemState.getId());
+                                            writeEnd();
+                                        writeEnd();
+                                        writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
+                                        writeStart("td").writeHtml(itemState.getLabel()).writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            start("td").html(itemState.getValue(additionalField)).end();
+                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
                                         }
-                                    end();
+                                    writeEnd();
                                 }
-                            end();
-                        end();
+                            writeEnd();
+                        writeEnd();
                     }
 
                 } catch (Exception ex) {
-                    start("div", "class", "alert alert-error");
-                        object(ex);
-                    end();
+                    writeStart("div", "class", "alert alert-error");
+                        writeObject(ex);
+                    writeEnd();
                 }
-            end();
+            writeEnd();
         }
 
         private void renderDefault() throws IOException {
             startPage("Database", "Query");
 
-                start("style", "type", "text/css");
+                writeStart("style", "type", "text/css");
                     write(".edit input[type=text], .edit textarea { width: 90%; }");
                     write(".edit textarea { min-height: 6em; }");
-                end();
+                writeEnd();
 
                 includeStylesheet("/_resource/jquery/jquery.objectId.css");
                 includeStylesheet("/_resource/jquery/jquery.repeatable.css");
@@ -488,97 +505,103 @@ public class QueryDebugServlet extends HttpServlet {
                 includeScript("/_resource/jquery/jquery.objectId.js");
                 includeScript("/_resource/jquery/jquery.repeatable.js");
 
-                start("script", "type", "text/javascript");
+                writeStart("script", "type", "text/javascript");
                     write("(function() {");
                         write("$('.repeatable').repeatable();");
                         write("$('.objectId').objectId();");
                     write("})();");
-                end();
+                writeEnd();
 
-                start("form", "action", page.url(null), "class", "form-inline", "method", "get");
+                writeStart("form", "action", page.url(null), "class", "form-inline", "method", "get");
 
-                    start("h2").html("Query").end();
-                    start("div", "class", "row");
-                        start("div", "class", "span6");
-                            start("select", "class", "span6", "name", "from");
-                                start("option", "value", "").html("ALL TYPES").end();
+                    writeStart("h2").writeHtml("Query").writeEnd();
+                    writeStart("div", "class", "row");
+                        writeStart("div", "class", "span6");
+                            writeStart("select", "class", "span6", "name", "from");
+                                writeStart("option", "value", "").writeHtml("ALL TYPES").writeEnd();
 
                                 List<ObjectType> types = new ArrayList<ObjectType>(database.getEnvironment().getTypes());
                                 Collections.sort(types, new ObjectFieldComparator("name", false));
 
                                 for (ObjectType t : types) {
                                     if (!t.isEmbedded()) {
-                                        start("option",
+                                        writeStart("option",
                                                 "selected", t.equals(type) ? "selected" : null,
                                                 "value", t.getId());
-                                            html(t.getLabel());
-                                            html(" (");
-                                            html(t.getInternalName());
-                                            html(")");
-                                        end();
+                                            writeHtml(t.getLabel());
+                                            writeHtml(" (");
+                                            writeHtml(t.getInternalName());
+                                            writeHtml(")");
+                                        writeEnd();
                                     }
                                 }
-                            end();
+                            writeEnd();
 
                             includeStylesheet("/_resource/chosen/chosen.css");
                             includeScript("/_resource/chosen/chosen.jquery.min.js");
-                            start("script", "type", "text/javascript");
+                            writeStart("script", "type", "text/javascript");
                                 write("(function() {");
                                     write("$('select[name=from]').chosen({ 'search_contains': true });");
                                 write("})();");
-                            end();
+                            writeEnd();
 
-                            start("textarea",
+                            writeStart("textarea",
                                     "class", "span6",
                                     "name", "where",
                                     "placeholder", "ID or Predicate (Leave Blank to Return All)",
                                     "rows", 4,
                                     "style", "margin-bottom: 4px; margin-top: 4px;");
-                                html(where);
-                            end();
+                                writeHtml(where);
+                            writeEnd();
 
-                            tag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
-                        end();
+                            writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
+                        writeEnd();
 
-                        start("div", "class", "span6");
-                            start("select", "name", "db", "style", "margin-bottom: 4px;");
+                        writeStart("div", "class", "span6");
+                            writeStart("select", "name", "db", "style", "margin-bottom: 4px;");
+                                writeStart("option",
+                                        "value", "",
+                                        "selected", ObjectUtils.isBlank(databaseName) ? "selected" : null);
+                                    writeHtml("Default");
+                                writeEnd();
+
                                 for (Database db : Database.Static.getAll()) {
                                     String dbName = db.getName();
-                                    start("option",
-                                            "selected", db.equals(database) ? "selected" : null,
-                                            "value", dbName);
-                                        html(dbName);
-                                    end();
+                                    writeStart("option",
+                                            "value", dbName,
+                                            "selected", dbName.equals(databaseName) ? "selected" : null);
+                                        writeHtml(dbName);
+                                    writeEnd();
                                 }
-                            end();
+                            writeEnd();
 
-                            tag("br");
-                            tag("input",
+                            writeTag("br");
+                            writeTag("input",
                                     "class", "input-small",
                                     "name", "sortField",
                                     "type", "text",
                                     "placeholder", "Sort",
                                     "value", sortField);
-                            html(' ');
-                            start("select", "class", "input-small", "name", "sortOrder");
+                            writeHtml(' ');
+                            writeStart("select", "class", "input-small", "name", "sortOrder");
                                 for (SortOrder so : SortOrder.values()) {
-                                    start("option",
+                                    writeStart("option",
                                             "selected", so.equals(sortOrder) ? "selected" : null,
                                             "value", so.name());
-                                        html(so.displayName);
-                                    end();
+                                        writeHtml(so.displayName);
+                                    writeEnd();
                                 }
-                            end();
-                            html(' ');
-                            tag("input",
+                            writeEnd();
+                            writeHtml(' ');
+                            writeTag("input",
                                     "class", "input-small",
                                     "name", "limit",
                                     "type", "text",
                                     "placeholder", "Limit",
                                     "value", limit);
 
-                            tag("br");
-                            tag("input",
+                            writeTag("br");
+                            writeTag("input",
                                     "class", "span6",
                                     "name", "additionalFields",
                                     "type", "text",
@@ -586,34 +609,34 @@ public class QueryDebugServlet extends HttpServlet {
                                     "style", "margin-top: 4px;",
                                     "value", additionalFieldsString);
 
-                            tag("br");
-                            start("label", "class", "checkbox");
-                                tag("input",
+                            writeTag("br");
+                            writeStart("label", "class", "checkbox");
+                                writeTag("input",
                                         "name", "ignoreReadConnection",
                                         "type", "checkbox",
                                         "style", "margin-top: 4px;",
                                         "value", "true",
                                         "checked", ignoreReadConnection ? "checked" : null);
-                                html(" Ignore read-specific connection settings");
-                            end();
-                        end();
-                    end();
+                                writeHtml(" Ignore read-specific connection settings");
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
 
-                    start("h2", "style", "margin-top: 18px;").html("Filter").end();
-                    start("div", "class", "row");
-                        start("div", "class", "span12");
-                            start("textarea",
+                    writeStart("h2", "style", "margin-top: 18px;").writeHtml("Filter").writeEnd();
+                    writeStart("div", "class", "row");
+                        writeStart("div", "class", "span12");
+                            writeStart("textarea",
                                     "class", "span12",
                                     "name", "filter",
                                     "placeholder", "Predicate (Leave Blank to Return All)",
                                     "rows", 2,
                                     "style", "margin-bottom: 4px;");
-                                html(filter);
-                            end();
-                            tag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Filter");
-                        end();
-                    end();
-                end();
+                                writeHtml(filter);
+                            writeEnd();
+                            writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Filter");
+                        writeEnd();
+                    writeEnd();
+                writeEnd();
 
                 try {
                     if (ObjectUtils.isBlank(filter)) {
@@ -621,40 +644,40 @@ public class QueryDebugServlet extends HttpServlet {
                         List<Object> items = result.getItems();
 
                         if (offset == 0 && items.isEmpty()) {
-                            start("p", "class", "alert").html("No matches!").end();
+                            writeStart("p", "class", "alert").writeHtml("No matches!").writeEnd();
 
                         } else {
-                            start("h2");
-                                html("Result ");
-                                object(result.getFirstItemIndex());
-                                html(" to ");
-                                object(result.getLastItemIndex());
-                                html(" of ");
-                                start("span", "class", "frame");
-                                    start("a", "href", page.url("", "action", "count")).html("?").end();
-                                end();
-                            end();
+                            writeStart("h2");
+                                writeHtml("Result ");
+                                writeObject(result.getFirstItemIndex());
+                                writeHtml(" to ");
+                                writeObject(result.getLastItemIndex());
+                                writeHtml(" of ");
+                                writeStart("span", "class", "frame");
+                                    writeStart("a", "href", page.url("", "action", "count")).writeHtml("?").writeEnd();
+                                writeEnd();
+                            writeEnd();
 
-                            start("div", "class", "btn-group");
-                                start("a",
+                            writeStart("div", "class", "btn-group");
+                                writeStart("a",
                                         "class", "btn" + (offset > 0 ? "" : " disabled"),
                                         "href", page.url("", "offset", 0));
-                                    start("i", "class", "icon-fast-backward").end();
-                                    html(" First");
-                                end();
-                                start("a",
+                                    writeStart("i", "class", "icon-fast-backward").writeEnd();
+                                    writeHtml(" First");
+                                writeEnd();
+                                writeStart("a",
                                         "class", "btn" + (result.hasPrevious() ? "" : " disabled"),
                                         "href", page.url("", "offset", result.getPreviousOffset()));
-                                    start("i", "class", "icon-step-backward").end();
-                                    html(" Previous");
-                                end();
-                                start("a",
+                                    writeStart("i", "class", "icon-step-backward").writeEnd();
+                                    writeHtml(" Previous");
+                                writeEnd();
+                                writeStart("a",
                                         "class", "btn" + (result.hasNext() ? "" : " disabled"),
                                         "href", page.url("", "offset", result.getNextOffset()));
-                                    html("Next ");
-                                    start("i", "class", "icon-step-forward").end();
-                                end();
-                            end();
+                                    writeHtml("Next ");
+                                    writeStart("i", "class", "icon-step-forward").writeEnd();
+                                writeEnd();
+                            writeEnd();
 
                             String[] additionalFields;
                             if (ObjectUtils.isBlank(additionalFieldsString)) {
@@ -663,53 +686,53 @@ public class QueryDebugServlet extends HttpServlet {
                                 additionalFields = additionalFieldsString.trim().split("\\s*,\\s*");
                             }
 
-                            start("table", "class", "table table-condensed");
-                                start("thead");
-                                    start("tr");
-                                        start("th").html("#").end();
-                                        start("th").html("ID").end();
-                                        start("th").html("Type").end();
-                                        start("th").html("Label").end();
+                            writeStart("table", "class", "table table-condensed");
+                                writeStart("thead");
+                                    writeStart("tr");
+                                        writeStart("th").writeHtml("#").writeEnd();
+                                        writeStart("th").writeHtml("ID").writeEnd();
+                                        writeStart("th").writeHtml("Type").writeEnd();
+                                        writeStart("th").writeHtml("Label").writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            start("th").html(additionalField).end();
+                                            writeStart("th").writeHtml(additionalField).writeEnd();
                                         }
-                                    end();
-                                end();
-                                start("tbody");
+                                    writeEnd();
+                                writeEnd();
+                                writeStart("tbody");
                                     long offsetCopy = offset;
                                     for (Object item : items) {
                                         State itemState = State.getInstance(item);
                                         ObjectType itemType = itemState.getType();
 
-                                        start("tr");
-                                            start("td").html(++ offsetCopy).end();
-                                            start("td").html(itemState.getId()).end();
-                                            start("td").html(itemType != null ? itemType.getLabel() : null).end();
-                                            start("td");
-                                                start("a",
+                                        writeStart("tr");
+                                            writeStart("td").writeHtml(++ offsetCopy).writeEnd();
+                                            writeStart("td").writeHtml(itemState.getId()).writeEnd();
+                                            writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
+                                            writeStart("td");
+                                                writeStart("a",
                                                         "target", "show",
                                                         "href", page.url("",
                                                                 "action", "form",
                                                                 "id", itemState.getId()));
-                                                    html(itemState.getLabel());
-                                                end();
-                                            end();
+                                                    writeHtml(itemState.getLabel());
+                                                writeEnd();
+                                            writeEnd();
                                             for (String additionalField : additionalFields) {
-                                                start("td").html(itemState.getValue(additionalField)).end();
+                                                writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
                                             }
-                                        end();
+                                        writeEnd();
                                     }
-                                end();
-                            end();
+                                writeEnd();
+                            writeEnd();
                         }
 
                     } else {
                         Predicate filterPredicate = PredicateParser.Static.parse(filter);
                         List<Object> items = new ArrayList<Object>();
 
-                        start("h2");
-                            html("Filtered Result");
-                        end();
+                        writeStart("h2");
+                            writeHtml("Filtered Result");
+                        writeEnd();
 
                         String[] additionalFields;
                         if (ObjectUtils.isBlank(additionalFieldsString)) {
@@ -718,30 +741,30 @@ public class QueryDebugServlet extends HttpServlet {
                             additionalFields = additionalFieldsString.trim().split("\\s*,\\s*");
                         }
 
-                        start("table", "class", "table table-condensed");
-                            start("thead");
-                                start("tr");
-                                    start("th").html("#").end();
-                                    start("th").html("ID").end();
-                                    start("th").html("Type").end();
-                                    start("th").html("Label").end();
+                        writeStart("table", "class", "table table-condensed");
+                            writeStart("thead");
+                                writeStart("tr");
+                                    writeStart("th").writeHtml("#").writeEnd();
+                                    writeStart("th").writeHtml("ID").writeEnd();
+                                    writeStart("th").writeHtml("Type").writeEnd();
+                                    writeStart("th").writeHtml("Label").writeEnd();
                                     for (String additionalField : additionalFields) {
-                                        start("th").html(additionalField).end();
+                                        writeStart("th").writeHtml(additionalField).writeEnd();
                                     }
-                                end();
-                            end();
-                            start("tbody");
+                                writeEnd();
+                            writeEnd();
+                            writeStart("tbody");
                                 long total = 0;
                                 long matched = 0;
 
                                 for (Object item : query.iterable(0)) {
                                     ++ total;
                                     if (total % 1000 == 0) {
-                                        start("tr");
-                                            start("td", "colspan", additionalFields.length + 4);
-                                                html("Read ").object(total).html(" items");
-                                            end();
-                                        end();
+                                        writeStart("tr");
+                                            writeStart("td", "colspan", additionalFields.length + 4);
+                                                writeHtml("Read ").writeObject(total).writeHtml(" items");
+                                            writeEnd();
+                                        writeEnd();
                                         flush();
                                     }
 
@@ -754,32 +777,32 @@ public class QueryDebugServlet extends HttpServlet {
                                     State itemState = State.getInstance(item);
                                     ObjectType itemType = itemState.getType();
 
-                                    start("tr");
-                                        start("td").html(matched).end();
-                                        start("td").html(itemState.getId()).end();
-                                        start("td").html(itemType != null ? itemType.getLabel() : null).end();
-                                        start("td");
-                                            start("a", "href", "?where=id+%3D+" + itemState.getId(), "target", "_blank");
-                                                html(itemState.getLabel());
-                                            end();
-                                        end();
+                                    writeStart("tr");
+                                        writeStart("td").writeHtml(matched).writeEnd();
+                                        writeStart("td").writeHtml(itemState.getId()).writeEnd();
+                                        writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
+                                        writeStart("td");
+                                            writeStart("a", "href", "?where=id+%3D+" + itemState.getId(), "target", "_blank");
+                                                writeHtml(itemState.getLabel());
+                                            writeEnd();
+                                        writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            start("td").html(itemState.getValue(additionalField)).end();
+                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
                                         }
-                                    end();
+                                    writeEnd();
 
                                     if (matched >= limit) {
                                         break;
                                     }
                                 }
-                            end();
-                        end();
+                            writeEnd();
+                        writeEnd();
                     }
 
                 } catch (Exception ex) {
-                    start("div", "class", "alert alert-error");
-                        object(ex);
-                    end();
+                    writeStart("div", "class", "alert alert-error");
+                        writeObject(ex);
+                    writeEnd();
                 }
 
             endPage();

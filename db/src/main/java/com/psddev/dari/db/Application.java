@@ -1,10 +1,10 @@
 package com.psddev.dari.db;
 
+import org.slf4j.Logger;
+
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsException;
-
-import org.slf4j.Logger;
 
 /** Represents an application. */
 @Record.Abstract

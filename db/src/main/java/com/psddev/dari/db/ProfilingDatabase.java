@@ -1,11 +1,11 @@
 package com.psddev.dari.db;
 
+import java.util.Date;
+import java.util.List;
+
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Profiler;
-
-import java.util.Date;
-import java.util.List;
 
 /** Times all database operations using {@link Profiler}. */
 public class ProfilingDatabase extends ForwardingDatabase {
@@ -70,7 +70,7 @@ public class ProfilingDatabase extends ForwardingDatabase {
 
         Object resolving = query.getOptions().get(State.REFERENCE_RESOLVING_QUERY_OPTION);
         if (resolving != null) {
-            Profiler.Static.startThreadEvent("Resolving Fields", resolving, caller);
+            Profiler.Static.startThreadEvent("Resolving Fields", resolving, query.getOptions().get(State.REFERENCE_FIELD_QUERY_OPTION), caller);
         } else {
             Profiler.Static.startThreadEvent(event, caller, query);
         }

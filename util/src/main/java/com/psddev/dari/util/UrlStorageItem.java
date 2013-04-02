@@ -1,7 +1,7 @@
 package com.psddev.dari.util;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 
 /** Storage item backed by a URL. */

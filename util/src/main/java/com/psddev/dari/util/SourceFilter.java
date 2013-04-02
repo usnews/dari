@@ -227,20 +227,21 @@ public class SourceFilter extends AbstractFilter {
                 isolatingResponse = null;
 
             } else {
+                @SuppressWarnings("all")
                 HtmlWriter html = new HtmlWriter(isolatingResponse.getResponse().getWriter());
                 html.putAllStandardDefaults();
 
                 try {
                     StringWriter writer = new StringWriter();
                     JspUtils.include(request, response, writer, request.getParameter("_draft"));
-                    html.start("pre");
-                        html.html(writer.toString().trim());
-                    html.end();
+                    html.writeStart("pre");
+                        html.writeHtml(writer.toString().trim());
+                    html.writeEnd();
 
                 } catch (Exception ex) {
-                    html.start("pre", "class", "alert alert-error");
-                        html.object(ex);
-                    html.end();
+                    html.writeStart("pre", "class", "alert alert-error");
+                        html.writeObject(ex);
+                    html.writeEnd();
 
                 } finally {
                     request.setAttribute(IS_ISOLATION_DONE_ATTRIBUTE, Boolean.TRUE);
@@ -288,7 +289,9 @@ public class SourceFilter extends AbstractFilter {
                     String requestPath = request.getParameter("requestPath");
                     response.sendRedirect(ObjectUtils.isBlank(requestPath) ? "/" : requestPath);
                 } else {
-                    new ReloaderInstaller(request, response).start();
+                    @SuppressWarnings("all")
+                    ReloaderInstaller installer = new ReloaderInstaller(request, response);
+                    installer.writeStart();
                 }
 
             } else {
@@ -387,40 +390,40 @@ public class SourceFilter extends AbstractFilter {
 
                     if (errors == null) {
                         if (hasBackgroundTasks) {
-                            html("The application wasn't reloaded automatically because there are background tasks running!");
+                            writeHtml("The application wasn't reloaded automatically because there are background tasks running!");
 
                         } else {
-                            html("The application must be reloaded before the changes to these classes become visible. ");
-                            start("a",
+                            writeHtml("The application must be reloaded before the changes to these classes become visible. ");
+                            writeStart("a",
                                     "href", JspUtils.getAbsolutePath(request, getInterceptPath(),
                                             "action", "install",
                                             "requestPath", JspUtils.getAbsolutePath(request, "")),
                                     "style", "color: white; text-decoration: underline;");
-                                html("Install the reloader");
-                            end();
-                            html(" to automate this process.");
-                            tag("br");
-                            tag("br");
+                                writeHtml("Install the reloader");
+                            writeEnd();
+                            writeHtml(" to automate this process.");
+                            writeTag("br");
+                            writeTag("br");
 
                             for (Map.Entry<String, Date> entry : changedClasses.entrySet()) {
-                                html(entry.getKey());
-                                html(" - ");
-                                object(entry.getValue());
-                                tag("br");
+                                writeHtml(entry.getKey());
+                                writeHtml(" - ");
+                                writeObject(entry.getValue());
+                                writeTag("br");
                             }
                         }
 
                     } else {
-                        html("Syntax errors!");
-                        start("ol");
+                        writeHtml("Syntax errors!");
+                        writeStart("ol");
                             for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
                                 if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
-                                    start("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
-                                        html(diagnostic.getMessage(null));
-                                    end();
+                                    writeStart("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
+                                        writeHtml(diagnostic.getMessage(null));
+                                    writeEnd();
                                 }
                             }
-                        end();
+                        writeEnd();
                     }
 
                 write("</div>");
@@ -754,7 +757,6 @@ public class SourceFilter extends AbstractFilter {
 
         } else if (outputFile.exists() &&
                 !outputFile.isDirectory()) {
-            outputFile.delete();
             LOGGER.info("[{}] disappeared!", sourceFile);
         }
     }
@@ -798,66 +800,66 @@ public class SourceFilter extends AbstractFilter {
             this.response = response;
         }
 
-        public void start() throws IOException {
+        public void writeStart() throws IOException {
             response.setContentType("text/html");
             response.setCharacterEncoding("UTF-8");
 
-            tag("!doctype html");
-            start("html");
-                start("head");
+            writeTag("!doctype html");
+            writeStart("html");
+                writeStart("head");
 
-                    start("title").html("Installing Reloader").end();
+                    writeStart("title").writeHtml("Installing Reloader").writeEnd();
 
-                    start("link",
+                    writeStart("link",
                             "href", JspUtils.getAbsolutePath(request, "/_resource/bootstrap/css/bootstrap.css"),
                             "rel", "stylesheet",
                             "type", "text/css");
-                    start("style", "type", "text/css");
+                    writeStart("style", "type", "text/css");
                         write(".hero-unit { background: transparent; left: 0; margin: -72px 0 0 60px; padding: 0; position: absolute; top: 50%; }");
                         write(".hero-unit h1 { line-height: 1.33; }");
-                    end();
+                    writeEnd();
 
-                end();
-                start("body");
+                writeEnd();
+                writeStart("body");
 
-                    start("div", "class", "hero-unit");
-                        start("h1");
-                            html("Installing Reloader");
-                        end();
+                    writeStart("div", "class", "hero-unit");
+                        writeStart("h1");
+                            writeHtml("Installing Reloader");
+                        writeEnd();
                         try {
-                            start("ul", "class", "muted");
+                            writeStart("ul", "class", "muted");
                             try {
                                 flush();
                                 install();
-                                start("script", "type", "text/javascript");
+                                writeStart("script", "type", "text/javascript");
                                     write("location.href = '" + StringUtils.escapeJavaScript(
                                             JspUtils.getAbsolutePath(request, "")) + "';");
-                                end();
+                                writeEnd();
                             } finally {
-                                end();
+                                writeEnd();
                             }
                         } catch (Exception ex) {
-                            object(ex);
+                            writeObject(ex);
                         }
-                    end();
+                    writeEnd();
 
-                end();
-            end();
+                writeEnd();
+            writeEnd();
         }
 
         private void addProgress(Object... messageParts) throws IOException {
-            start("li");
+            writeStart("li");
                 for (int i = 0, length = messageParts.length; i < length; ++ i) {
                     Object part = messageParts[i];
                     if (i % 2 == 0) {
-                        html(part);
+                        writeHtml(part);
                     } else {
-                        start("em");
-                            html(part);
-                        end();
+                        writeStart("em");
+                            writeHtml(part);
+                        writeEnd();
                     }
                 }
-            end();
+            writeEnd();
             flush();
         }
 

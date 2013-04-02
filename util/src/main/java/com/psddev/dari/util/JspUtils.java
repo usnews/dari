@@ -4,11 +4,11 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.Reader;
-import java.io.Writer;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -34,6 +34,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
+import javax.servlet.jsp.JspFactory;
 import javax.xml.bind.DatatypeConverter;
 
 import org.slf4j.Logger;
@@ -492,6 +493,28 @@ public class JspUtils {
      */
     public static boolean isIncluded(ServletRequest request) {
         return request.getAttribute("javax.servlet.include.context_path") != null;
+    }
+    
+    /**
+     * Returns {@code true} if the given {@code request} is secure. This method 
+     * checks:
+     *
+     * <ul>
+     * <li>{@link ServletRequest#isSecure}</li>
+     * <li>{@code X-Forwarded-Proto} header</li>
+     * <li>{@code HTTPS} environment variable</li>
+     * </ul>
+     */
+    public static boolean isSecure(HttpServletRequest request) {
+        return request.isSecure() ||
+                "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto")) ||
+                System.getenv("HTTPS") != null;
+    }
+
+    /** @deprecated Use {@link #isSecure} instead. */
+    @Deprecated
+    public static boolean isSecureRequest(HttpServletRequest request) {
+        return isSecure(request);
     }
 
     /**
@@ -1052,6 +1075,37 @@ public class JspUtils {
         response = (HttpServletResponse) getHeaderResponse(request, response);
         response.setStatus(status);
         response.setHeader("Location", response.encodeRedirectURL(getAbsolutePath(context, request, path == null ? null : path.toString(), parameters)));
+    }
+
+    /**
+     * Wraps the default JSP factory using an instance of the the given
+     * {@code wrapperClass}.
+     */
+    public static void wrapDefaultJspFactory(Class<? extends JspFactoryWrapper> wrapperClass) {
+        JspFactory factory = JspFactory.getDefaultFactory();
+
+        for (JspFactory f = factory; f instanceof JspFactoryWrapper; f = ((JspFactoryWrapper) f).getDelegate()) {
+            if (wrapperClass.isInstance(f)) {
+                return;
+            }
+        }
+
+        JspFactoryWrapper wrapper = TypeDefinition.getInstance(wrapperClass).newInstance();
+
+        wrapper.setDelegate(factory);
+        JspFactory.setDefaultFactory(wrapper);
+    }
+
+    /**
+     * Unwraps the default JSP factory and restore the original default if
+     * it's an instance of the given {@code wrapperClass}.
+     */
+    public static void unwrapDefaultJspFactory(Class<? extends JspFactoryWrapper> wrapperClass) {
+        JspFactory factory = JspFactory.getDefaultFactory();
+
+        if (factory instanceof JspFactoryWrapper) {
+            JspFactory.setDefaultFactory(((JspFactoryWrapper) factory).getDelegate());
+        }
     }
 
     // --- Deprecated ---

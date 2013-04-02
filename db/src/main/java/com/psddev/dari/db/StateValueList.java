@@ -20,6 +20,7 @@ class StateValueList extends AbstractList<Object> {
     private final List<Object> list;
     private boolean hasConvertedAll;
 
+    @SuppressWarnings("unchecked")
     public StateValueList(
             Database database,
             Object object,

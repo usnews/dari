@@ -1,19 +1,6 @@
 package com.psddev.dari.db;
 
-import com.jolbox.bonecp.BoneCPDataSource;
-
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.PeriodicValue;
-import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.Stats;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
 import java.io.ByteArrayInputStream;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -51,9 +38,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
 
 import org.iq80.snappy.Snappy;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.jolbox.bonecp.BoneCPDataSource;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PaginatedResult;
+import com.psddev.dari.util.PeriodicValue;
+import com.psddev.dari.util.Profiler;
+import com.psddev.dari.util.PullThroughValue;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.SettingsException;
+import com.psddev.dari.util.Stats;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
 
 /** Database backed by a SQL engine. */
 public class SqlDatabase extends AbstractDatabase<Connection> {
@@ -74,6 +74,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
+    public static final String CACHE_DATA_SUB_SETTING = "cacheData";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -86,6 +87,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String UPDATE_DATE_COLUMN = "updateDate";
     public static final String VALUE_COLUMN = "value";
 
+    public static final String CONNECTION_QUERY_OPTION = "sql.connection";
     public static final String EXTRA_COLUMNS_QUERY_OPTION = "sql.extraColumns";
     public static final String EXTRA_JOINS_QUERY_OPTION = "sql.extraJoins";
     public static final String EXTRA_WHERE_QUERY_OPTION = "sql.extraWhere";
@@ -119,6 +121,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile DataSource readDataSource;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
+    private volatile boolean cacheData;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -280,6 +283,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         this.compressData = compressData;
     }
 
+    public boolean isCacheData() {
+        return cacheData;
+    }
+
+    public void setCacheData(boolean cacheData) {
+        this.cacheData = cacheData;
+    }
+
     /**
      * Returns {@code true} if the {@link #RECORD_TABLE} in this database
      * has the {@link #IN_ROW_INDEX_COLUMN}.
@@ -427,7 +438,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     throw createQueryException(ex, selectSql, null);
 
                 } finally {
-                    closeResources(null, statement, result);
+                    closeResources(null, null, statement, result);
                 }
 
             } finally {
@@ -480,7 +491,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 throw createQueryException(ex, selectSql, null);
 
             } finally {
-                closeResources(connection, statement, result);
+                closeResources(null, connection, statement, result);
             }
         }
     };
@@ -554,7 +565,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /** Closes all the given SQL resources safely. */
-    private void closeResources(Connection connection, Statement statement, ResultSet result) {
+    private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
             try {
                 result.close();
@@ -570,7 +581,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         if (connection != null &&
-                connection != readConnection.get()) {
+                (query == null ||
+                !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
             try {
                 connection.close();
             } catch (SQLException ex) {
@@ -578,12 +590,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    private byte[] serializeData(Map<String, Object> dataMap) {
-        byte[] dataBytes = ObjectUtils.toJson(dataMap).getBytes(StringUtils.UTF_8);
+    private byte[] serializeState(State state) {
+        Map<String, Object> values = state.getSimpleValues();
+
+        for (Iterator<Map.Entry<String, Object>> i = values.entrySet().iterator(); i.hasNext(); ) {
+            Map.Entry<String, Object> entry = i.next();
+            ObjectField field = state.getField(entry.getKey());
+
+            if (field != null) {
+                if (field.as(FieldData.class).isIndexTableSourceFromAnywhere()) {
+                    i.remove();
+                }
+            }
+        }
+
+        byte[] dataBytes = ObjectUtils.toJson(values).getBytes(StringUtils.UTF_8);
 
         if (isCompressData()) {
             byte[] compressed = new byte[Snappy.maxCompressedLength(dataBytes.length)];
             int compressedLength = Snappy.compress(dataBytes, 0, dataBytes.length, compressed, 0);
+
             dataBytes = new byte[compressedLength + 1];
             dataBytes[0] = 's';
             System.arraycopy(compressed, 0, dataBytes, 1, compressedLength);
@@ -614,6 +640,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 "Unknown format! ([%s])", format));
     }
 
+    private final transient Cache<String, byte[]> dataCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+
     /**
      * Creates a previously saved object using the given {@code resultSet}.
      */
@@ -622,7 +650,60 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         State objectState = State.getInstance(object);
 
         if (!objectState.isReferenceOnly()) {
-            byte[] data = resultSet.getBytes(3);
+            byte[] data = null;
+
+            if (isCacheData()) {
+                UUID id = objectState.getId();
+                String key = id + "/" + resultSet.getDouble(3);
+                data = dataCache.getIfPresent(key);
+
+                if (data == null) {
+                    SqlVendor vendor = getVendor();
+                    StringBuilder sqlQuery = new StringBuilder();
+
+                    sqlQuery.append("SELECT r.");
+                    vendor.appendIdentifier(sqlQuery, "data");
+                    sqlQuery.append(", ru.");
+                    vendor.appendIdentifier(sqlQuery, "updateDate");
+                    sqlQuery.append(" FROM ");
+                    vendor.appendIdentifier(sqlQuery, "Record");
+                    sqlQuery.append(" AS r LEFT OUTER JOIN ");
+                    vendor.appendIdentifier(sqlQuery, "RecordUpdate");
+                    sqlQuery.append(" AS ru ON r.");
+                    vendor.appendIdentifier(sqlQuery, "id");
+                    sqlQuery.append(" = ru.");
+                    vendor.appendIdentifier(sqlQuery, "id");
+                    sqlQuery.append(" WHERE r.");
+                    vendor.appendIdentifier(sqlQuery, "id");
+                    sqlQuery.append(" = ");
+                    vendor.appendUuid(sqlQuery, id);
+
+                    Connection connection = null;
+                    Statement statement = null;
+                    ResultSet result = null;
+
+                    try {
+                        connection = openQueryConnection(query);
+                        statement = connection.createStatement();
+                        result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
+
+                        if (result.next()) {
+                            data = result.getBytes(1);
+                            dataCache.put(id + "/" + result.getDouble(2), data);
+                        }
+
+                    } catch (SQLException error) {
+                        throw createQueryException(error, sqlQuery.toString(), query);
+
+                    } finally {
+                        closeResources(null, connection, statement, result);
+                    }
+                }
+
+            } else {
+                data = resultSet.getBytes(3);
+            }
+
             if (data != null) {
                 objectState.putAll(unserializeData(data));
                 Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
@@ -637,10 +718,127 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         ResultSetMetaData meta = resultSet.getMetaData();
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
-            objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
+            String columnName = meta.getColumnLabel(i);
+            if (query.getExtraSourceColumns().contains(columnName)) {
+                objectState.put(columnName, resultSet.getObject(i));
+            } else {
+                objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
+            }
+        }
+
+        // Load some extra column from source index tables.
+        @SuppressWarnings("unchecked")
+        Set<UUID> unresolvedTypeIds = (Set<UUID>) query.getOptions().get(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION);
+        Set<ObjectType> queryTypes = query.getConcreteTypes(getEnvironment());
+        ObjectType type = objectState.getType();
+        HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
+
+        if (type != null &&
+                (unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
+                !queryTypes.contains(type)) {
+            for (ObjectField field : type.getFields()) {
+                SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+
+                if (fieldData.isIndexTableSource()) {
+                    loadExtraFields.add(field);
+                }
+            }
+        }
+
+        if (loadExtraFields != null) {
+            Connection connection = openQueryConnection(query);
+
+            try {
+                for (ObjectField field : loadExtraFields) {
+                    Statement extraStatement = null;
+                    ResultSet extraResult = null;
+
+                    try {
+                        extraStatement = connection.createStatement();
+                        extraResult = executeQueryBeforeTimeout(
+                                extraStatement,
+                                extraSourceSelectStatementById(field, objectState.getId()),
+                                getQueryReadTimeout(query));
+
+                        if (extraResult.next()) {
+                            meta = extraResult.getMetaData();
+
+                            for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
+                                objectState.put(meta.getColumnLabel(i), extraResult.getObject(i));
+                            }
+                        }
+
+                    } finally {
+                        closeResources(null, null, extraStatement, extraResult);
+                    }
+                }
+
+            } finally {
+                closeResources(query, connection, null, null);
+            }
         }
 
         return swapObjectType(query, object);
+    }
+
+    // Creates an SQL statement to return a single row from a FieldIndexTable
+    // used as a source table.
+    //
+    // TODO, maybe: move this to SqlQuery and use initializeClauses() and
+    // needsRecordTable=false instead of passing id to this method. Needs
+    // countperformance branch to do this.
+    private String extraSourceSelectStatementById(ObjectField field, UUID id) {
+        FieldData fieldData = field.as(FieldData.class);
+        ObjectType parentType = field.getParentType();
+        StringBuilder keyName = new StringBuilder(parentType.getInternalName());
+
+        keyName.append("/");
+        keyName.append(field.getInternalName());
+
+        Query<?> query = Query.fromType(parentType);
+        Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), keyName.toString());
+        ObjectIndex useIndex = null;
+
+        for (ObjectIndex index : key.getIndexes()) {
+            if (field.getInternalName().equals(index.getFields().get(0))) {
+                useIndex = index;
+                break;
+            }
+        }
+
+        SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
+        SqlIndex.Table indexTable = useSqlIndex.getReadTable(this, useIndex);
+        String sourceTableName = fieldData.getIndexTable();
+        int symbolId = getSymbolId(key.getIndexKey(useIndex));
+        StringBuilder sql = new StringBuilder();
+        int fieldIndex = 0;
+
+        sql.append("SELECT ");
+
+        for (String indexFieldName : useIndex.getFields()) {
+            String indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
+
+            ++ fieldIndex;
+
+            vendor.appendIdentifier(sql, indexColumnName);
+            sql.append(" AS ");
+            vendor.appendIdentifier(sql, indexFieldName);
+            sql.append(", ");
+        }
+
+        sql.setLength(sql.length() - 2);
+        sql.append(" FROM ");
+        vendor.appendIdentifier(sql, sourceTableName);
+        sql.append(" WHERE ");
+        vendor.appendIdentifier(sql, "id");
+        sql.append(" = ");
+        vendor.appendValue(sql, id);
+        sql.append(" AND ");
+        vendor.appendIdentifier(sql, "symbolId");
+        sql.append(" = ");
+        sql.append(symbolId);
+
+        return sql.toString();
     }
 
     /**
@@ -694,7 +892,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -731,7 +929,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -802,7 +1000,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         public void close() {
             hasNext = false;
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
 
         @Override
@@ -902,25 +1100,25 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Override
     public Connection openConnection() {
         DataSource dataSource = getDataSource();
+
         if (dataSource == null) {
             throw new SqlDatabaseException(this, "No SQL data source!");
         }
 
         try {
-            return dataSource.getConnection();
-        } catch (SQLException ex) {
-            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", ex);
+            Connection connection = dataSource.getConnection();
+            connection.setReadOnly(false);
+            return connection;
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
     }
 
     @Override
     protected Connection doOpenReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection != null) {
-            return connection;
-        }
-
         DataSource readDataSource = getReadDataSource();
+
         if (readDataSource == null) {
             readDataSource = getDataSource();
         }
@@ -930,15 +1128,24 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            return readDataSource.getConnection();
-        } catch (SQLException ex) {
-            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", ex);
+            Connection connection = readDataSource.getConnection();
+            connection.setReadOnly(true);
+            return connection;
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
     }
 
     // Opens a connection that should be used to execute the given query.
     private Connection openQueryConnection(Query<?> query) {
         if (query != null) {
+            Connection connection = (Connection) query.getOptions().get(CONNECTION_QUERY_OPTION);
+
+            if (connection != null) {
+                return connection;
+            }
+
             Boolean useRead = ObjectUtils.to(Boolean.class, query.getOptions().get(USE_READ_DATA_SOURCE_QUERY_OPTION));
             if (useRead == null) {
                 useRead = Boolean.TRUE;
@@ -952,8 +1159,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public void closeConnection(Connection connection) {
-        if (connection != null &&
-                connection != readConnection.get()) {
+        if (connection != null) {
             try {
                 connection.close();
             } catch (SQLException ex) {
@@ -969,28 +1175,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         return false;
-    }
-
-    private final ThreadLocal<Connection> readConnection = new ThreadLocal<Connection>();
-
-    public void beginThreadLocalReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection == null) {
-            connection = openReadConnection();
-            readConnection.set(connection);
-        }
-    }
-
-    public void endThreadLocalReadConnection() {
-        Connection connection = readConnection.get();
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException ex) {
-            } finally {
-                readConnection.remove();
-            }
-        }
     }
 
     @Override
@@ -1041,6 +1225,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         if (compressData != null) {
             setCompressData(compressData);
         }
+
+        setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
     }
 
     private static final Map<String, String> DRIVER_CLASS_NAMES; static {
@@ -1156,6 +1342,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 bone.setMinConnectionsPerPartition(connectionsPerPartition);
                 bone.setMaxConnectionsPerPartition(connectionsPerPartition);
                 bone.setPartitionCount(partitionCount);
+                bone.setConnectionTimeoutInMs(5000L);
                 return bone;
             }
         }
@@ -1205,7 +1392,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -1366,7 +1553,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -1464,7 +1651,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
-            closeResources(connection, statement, result);
+            closeResources(query, connection, statement, result);
         }
     }
 
@@ -1540,7 +1727,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             boolean isNew = state.isNew();
             boolean saveInRowIndex = hasInRowIndex && !Boolean.TRUE.equals(state.getExtra(SKIP_INDEX_STATE_EXTRA));
             UUID id = state.getId();
-            UUID typeId = state.getTypeId();
+            UUID typeId = state.getVisibilityAwareTypeId();
             byte[] dataBytes = null;
             String inRowIndex = inRowIndexes.get(state);
             byte[] inRowIndexBytes = inRowIndex != null ? inRowIndex.getBytes(StringUtils.UTF_8) : new byte[0];
@@ -1549,7 +1736,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 if (isNew) {
                     try {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state.getSimpleValues());
+                            dataBytes = serializeState(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1597,7 +1784,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     List<AtomicOperation> atomicOperations = state.getAtomicOperations();
                     if (atomicOperations.isEmpty()) {
                         if (dataBytes == null) {
-                            dataBytes = serializeData(state.getSimpleValues());
+                            dataBytes = serializeState(state);
                         }
 
                         List<Object> parameters = new ArrayList<Object>();
@@ -1636,18 +1823,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                                 from(Object.class).
                                 where("_id = ?", id).
                                 using(this).
-                                resolveToReferenceOnly().
+                                option(CONNECTION_QUERY_OPTION, connection).
                                 option(RETURN_ORIGINAL_DATA_QUERY_OPTION, Boolean.TRUE).
                                 option(USE_READ_DATA_SOURCE_QUERY_OPTION, Boolean.FALSE).
                                 first();
                         if (oldObject == null) {
-                            isNew = true;
-                            continue;
+                            retryWrites();
+                            break;
                         }
 
                         State oldState = State.getInstance(oldObject);
-                        UUID oldTypeId = oldState.getTypeId();
+                        UUID oldTypeId = oldState.getVisibilityAwareTypeId();
                         byte[] oldData = Static.getOriginalData(oldObject);
+
+                        state.setValues(oldState.getValues());
 
                         for (AtomicOperation operation : atomicOperations) {
                             String field = operation.getField();
@@ -1658,7 +1847,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             operation.execute(state);
                         }
 
-                        dataBytes = serializeData(state.getSimpleValues());
+                        dataBytes = serializeState(state);
 
                         List<Object> parameters = new ArrayList<Object>();
                         StringBuilder updateBuilder = new StringBuilder();
@@ -1695,7 +1884,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendBindValue(updateBuilder, oldData, parameters);
 
                         if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
-                            continue;
+                            retryWrites();
+                            break;
                         }
                     }
                 }
@@ -1848,6 +2038,76 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         Static.executeUpdateWithArray(connection, updateBuilder.toString());
     }
 
+    @FieldData.FieldInternalNamePrefix("sql.")
+    public static class FieldData extends Modification<ObjectField> {
+
+        private String indexTable;
+        private boolean indexTableReadOnly;
+        private boolean indexTableSameColumnNames;
+        private boolean indexTableSource;
+
+        public String getIndexTable() {
+            return indexTable;
+        }
+
+        public void setIndexTable(String indexTable) {
+            this.indexTable = indexTable;
+        }
+
+        public boolean isIndexTableReadOnly() {
+            return indexTableReadOnly;
+        }
+
+        public void setIndexTableReadOnly(boolean indexTableReadOnly) {
+            this.indexTableReadOnly = indexTableReadOnly;
+        }
+
+        public boolean isIndexTableSameColumnNames() {
+            return indexTableSameColumnNames;
+        }
+
+        public void setIndexTableSameColumnNames(boolean indexTableSameColumnNames) {
+            this.indexTableSameColumnNames = indexTableSameColumnNames;
+        }
+
+        public boolean isIndexTableSource() {
+            return indexTableSource;
+        }
+
+        public void setIndexTableSource(boolean indexTableSource) {
+            this.indexTableSource = indexTableSource;
+        }
+
+        public boolean isIndexTableSourceFromAnywhere() {
+            if (isIndexTableSource()) {
+                return true;
+            }
+
+            ObjectField field = getOriginalObject();
+            ObjectStruct parent = field.getParent();
+            String fieldName = field.getInternalName();
+
+            for (ObjectIndex index : parent.getIndexes()) {
+                List<String> indexFieldNames = index.getFields();
+
+                if (!indexFieldNames.isEmpty() &&
+                        indexFieldNames.contains(fieldName)) {
+                    String firstIndexFieldName = indexFieldNames.get(0);
+
+                    if (!fieldName.equals(firstIndexFieldName)) {
+                        ObjectField firstIndexField = parent.getField(firstIndexFieldName);
+
+                        if (firstIndexField != null) {
+                            return firstIndexField.as(FieldData.class).isIndexTableSource();
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
     /** Specifies the name of the table for storing target field values. */
     @Documented
     @ObjectField.AnnotationProcessorClass(FieldIndexTableProcessor.class)
@@ -1855,12 +2115,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Target(ElementType.FIELD)
     public @interface FieldIndexTable {
         String value();
+        boolean readOnly() default false;
+        boolean sameColumnNames() default false;
+        boolean source() default false;
     }
 
     private static class FieldIndexTableProcessor implements ObjectField.AnnotationProcessor<FieldIndexTable> {
         @Override
         public void process(ObjectType type, ObjectField field, FieldIndexTable annotation) {
-            field.getOptions().put(INDEX_TABLE_INDEX_OPTION, annotation.value());
+            FieldData data = field.as(FieldData.class);
+
+            data.setIndexTable(annotation.value());
+            data.setIndexTableSameColumnNames(annotation.sameColumnNames());
+            data.setIndexTableSource(annotation.source());
+            data.setIndexTableReadOnly(annotation.readOnly());
         }
     }
 
@@ -2146,5 +2414,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             return executeUpdateWithArray(connection, sqlQuery, parameters);
         }
+    }
+
+    // --- Deprecated ---
+
+    /** @deprecated No replacement. */
+    @Deprecated
+    public void beginThreadLocalReadConnection() {
+    }
+
+    /** @deprecated No replacement. */
+    @Deprecated
+    public void endThreadLocalReadConnection() {
     }
 }

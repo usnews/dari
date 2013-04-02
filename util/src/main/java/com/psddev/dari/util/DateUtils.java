@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
@@ -12,7 +11,8 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-/** Date utility methods. */
+/** @deprecated Use <a href="http://joda-time.sourceforge.net/">Joda Time</a> instead. */
+@Deprecated
 public class DateUtils {
 
     private static final long DAY_MS = 1000 * 60 * 60 * 24;

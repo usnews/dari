@@ -1,6 +1,7 @@
 package com.psddev.dari.util;
 
 /** Thrown when anything's wrong with a password. */
+@SuppressWarnings("serial")
 public class PasswordException extends Exception {
 
     public PasswordException() {
