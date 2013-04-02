@@ -14,7 +14,7 @@ public interface MailProvider extends SettingsBackedObject {
      *
      * @param emailMessage
      */
-    public void sendMail(MailMessage emailMessage);
+    public void send(MailMessage message);
 
     /**
      * {@link MailProvider} utility methods.

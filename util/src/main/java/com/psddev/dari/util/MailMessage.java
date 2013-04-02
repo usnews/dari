@@ -3,29 +3,24 @@ package com.psddev.dari.util;
 /** Simple email message class with builder pattern support **/
 public class MailMessage {
 
-    private String toAddress;
-    private String fromAddress;
-    private String replyToAddress;
+    private final String to;
+    private String from;
+    private String replyTo;
     private String subject;
-    private String plainBody;
-    private String htmlBody;
+    private String bodyPlain;
+    private String bodyHtml;
 
-    public MailMessage(String toAddress) {
-        this.toAddress = toAddress;
+    public MailMessage(String to) {
+        this.to = to;
     }
 
-    public static MailMessage to(String toAddress) {
-        MailMessage msg = new MailMessage(toAddress);
-        return msg;
-    }
-
-    public MailMessage from(String fromAddress) {
-        this.fromAddress = fromAddress;
+    public MailMessage from(String from) {
+        this.from = from;
         return this;
     }
 
-    public MailMessage replyTo(String replyToAddress) {
-        this.replyToAddress = replyToAddress;
+    public MailMessage replyTo(String replyTo) {
+        this.replyTo = replyTo;
         return this;
     }
 
@@ -34,38 +29,34 @@ public class MailMessage {
         return this;
     }
 
-    public MailMessage plain(String plainBody) {
-        this.plainBody = plainBody;
+    public MailMessage bodyPlain(String bodyPlain) {
+        this.bodyPlain = bodyPlain;
         return this;
     }
 
-    public MailMessage html(String htmlBody) {
-        this.htmlBody = htmlBody;
+    public MailMessage bodyHtml(String bodyHtml) {
+        this.bodyHtml = bodyHtml;
         return this;
     }
 
-    public String getToAddress() {
-        return toAddress;
+    public String getTo() {
+        return to;
     }
 
-    public void setToAddress(String toAddress) {
-        this.toAddress = toAddress;
+    public String getFrom() {
+        return from;
     }
 
-    public String getFromAddress() {
-        return fromAddress;
+    public void setFrom(String from) {
+        this.from = from;
     }
 
-    public void setFromAddress(String fromAddress) {
-        this.fromAddress = fromAddress;
+    public String getReplyTo() {
+        return replyTo;
     }
 
-    public String getReplyToAddress() {
-        return replyToAddress;
-    }
-
-    public void setReplyToAddress(String replyToAddress) {
-        this.replyToAddress = replyToAddress;
+    public void setReplyTo(String replyTo) {
+        this.replyTo = replyTo;
     }
 
     public String getSubject() {
@@ -76,20 +67,20 @@ public class MailMessage {
         this.subject = subject;
     }
 
-    public String getPlainBody() {
-        return plainBody;
+    public String getBodyPlain() {
+        return bodyPlain;
     }
 
-    public void setPlainBody(String plainBody) {
-        this.plainBody = plainBody;
+    public void setBodyPlain(String bodyPlain) {
+        this.bodyPlain = bodyPlain;
     }
 
-    public String getHtmlBody() {
-        return htmlBody;
+    public String getBodyHtml() {
+        return bodyHtml;
     }
 
-    public void setHtmlBody(String htmlBody) {
-        this.htmlBody = htmlBody;
+    public void setBodyHtml(String bodyHtml) {
+        this.bodyHtml = bodyHtml;
     }
 
     /**
@@ -98,6 +89,6 @@ public class MailMessage {
      * @return
      */
     public void send() {
-        MailProvider.Static.getDefault().sendMail(this);
+        MailProvider.Static.getDefault().send(this);
     }
 }

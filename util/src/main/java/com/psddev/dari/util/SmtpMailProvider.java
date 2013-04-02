@@ -25,10 +25,10 @@ public class SmtpMailProvider extends AbstractMailProvider {
     private String username;
     private String password;
 
-    private boolean useTLS;
+    private boolean useTls;
     private long tlsPort = 587;
 
-    private boolean useSSL;
+    private boolean useSsl;
     private long sslPort = 465;
 
     public SmtpMailProvider() {
@@ -58,12 +58,12 @@ public class SmtpMailProvider extends AbstractMailProvider {
         this.password = password;
     }
 
-    public boolean isUseTLS() {
-        return useTLS;
+    public boolean isUseTls() {
+        return useTls;
     }
 
-    public void setUseTLS(boolean useTLS) {
-        this.useTLS = useTLS;
+    public void setUseTls(boolean useTls) {
+        this.useTls = useTls;
     }
 
     public long getTlsPort() {
@@ -74,12 +74,12 @@ public class SmtpMailProvider extends AbstractMailProvider {
         this.tlsPort = tlsPort;
     }
 
-    public boolean isUseSSL() {
-        return useSSL;
+    public boolean isUseSsl() {
+        return useSsl;
     }
 
-    public void setUseSSL(boolean useSSL) {
-        this.useSSL = useSSL;
+    public void setUseSsl(boolean useSsl) {
+        this.useSsl = useSsl;
     }
 
     public long getSslPort() {
@@ -93,14 +93,14 @@ public class SmtpMailProvider extends AbstractMailProvider {
     // --- MailProvider support ---
 
     @Override
-    public void sendMail(MailMessage emailMessage) {
+    public void send(MailMessage message) {
         if (StringUtils.isEmpty(host)) {
             String errorText = "SMTP Host can't be null!";
             logger.error(errorText);
             throw new IllegalArgumentException(errorText);
         }
 
-        if (emailMessage == null) {
+        if (message == null) {
             String errorText = "EmailMessage can't be null!";
             logger.error(errorText);
             throw new IllegalArgumentException(errorText);
@@ -112,12 +112,12 @@ public class SmtpMailProvider extends AbstractMailProvider {
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.host", host);
 
-        if (useTLS) {
+        if (useTls) {
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.port", tlsPort);
 
         // Note - not really tested.
-        } else if (useSSL) {
+        } else if (useSsl) {
             props.put("mail.smtp.socketFactory.port", sslPort);
             props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
             props.put("mail.smtp.port", sslPort);
@@ -138,37 +138,37 @@ public class SmtpMailProvider extends AbstractMailProvider {
         }
 
         try {
-            Message message = new MimeMessage(session);
+            Message mimeMessage = new MimeMessage(session);
 
-            message.setFrom(new InternetAddress(emailMessage.getFromAddress()));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(emailMessage.getToAddress()));
-            message.setSubject(emailMessage.getSubject());
+            mimeMessage.setFrom(new InternetAddress(message.getFrom()));
+            mimeMessage.setRecipients(Message.RecipientType.TO, InternetAddress.parse(message.getTo()));
+            mimeMessage.setSubject(message.getSubject());
 
-            if (!StringUtils.isEmpty(emailMessage.getReplyToAddress())) {
-                message.setReplyTo(InternetAddress.parse(emailMessage.getReplyToAddress()));
+            if (!StringUtils.isEmpty(message.getReplyTo())) {
+                mimeMessage.setReplyTo(InternetAddress.parse(message.getReplyTo()));
             }
 
             // Body, plain vs. html
             MimeMultipart multiPartContent = new MimeMultipart();
 
-            if (!StringUtils.isEmpty(emailMessage.getPlainBody())) {
+            if (!StringUtils.isEmpty(message.getBodyPlain())) {
                 MimeBodyPart plain = new MimeBodyPart();
-                plain.setText(emailMessage.getPlainBody());
+                plain.setText(message.getBodyPlain());
                 multiPartContent.addBodyPart(plain);
             }
 
-            if (!StringUtils.isEmpty(emailMessage.getHtmlBody())) {
+            if (!StringUtils.isEmpty(message.getBodyHtml())) {
                 MimeBodyPart html = new MimeBodyPart();
-                html.setContent(emailMessage.getHtmlBody(), "text/html");
+                html.setContent(message.getBodyHtml(), "text/html");
                 multiPartContent.addBodyPart(html);
                 multiPartContent.setSubType("alternative");
             }
 
-            message.setContent(multiPartContent);
+            mimeMessage.setContent(multiPartContent);
 
-            Transport.send(message);
+            Transport.send(mimeMessage);
             logger.info("Sent email to [{}] with subject [{}].",
-                    emailMessage.getToAddress(), emailMessage.getSubject());
+                    message.getTo(), message.getSubject());
 
         } catch (MessagingException me) {
             logger.warn("Failed to send: [{}]", me.getMessage());
@@ -188,18 +188,18 @@ public class SmtpMailProvider extends AbstractMailProvider {
         this.setUsername(ObjectUtils.to(String.class, settings.get("username")));
         this.setPassword(ObjectUtils.to(String.class, settings.get("password")));
 
-        Object useTLS = settings.get("useTLS");
-        if (useTLS != null) {
-            this.setUseTLS(ObjectUtils.to(Boolean.class, useTLS));
+        Object useTls = settings.get("useTls");
+        if (useTls != null) {
+            this.setUseTls(ObjectUtils.to(Boolean.class, useTls));
             Object tlsPort = settings.get("tlsPort");
             if (tlsPort != null) {
                 this.setTlsPort(ObjectUtils.to(Long.class, tlsPort));
             }
         }
 
-        Object useSSL = settings.get("useSSL");
-        if (useSSL != null) {
-            this.setUseSSL(ObjectUtils.to(Boolean.class, useSSL));
+        Object useSsl = settings.get("useSsl");
+        if (useSsl != null) {
+            this.setUseSsl(ObjectUtils.to(Boolean.class, useSsl));
             Object sslPort = settings.get("sslPort");
             if (sslPort != null) {
                 this.setSslPort(ObjectUtils.to(Long.class, sslPort));
