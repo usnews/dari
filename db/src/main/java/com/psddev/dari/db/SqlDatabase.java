@@ -599,6 +599,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         setDataSource(null);
         setReadDataSource(null);
+
+        invalidateCacheTask.stop();
     }
 
     /**
