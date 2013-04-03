@@ -1006,8 +1006,8 @@ class SqlQuery {
 
         if (recordMetricHavingPredicates.size() > 0) {
             // add "metricId" and "id" to groupJoins
-            mappedKeys.put(Query.METRICID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.METRICID_KEY));
-            groupJoins.put(Query.METRICID_KEY, getJoin(Query.METRICID_KEY));
+            mappedKeys.put(Query.METRIC_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.METRIC_KEY));
+            groupJoins.put(Query.METRIC_KEY, getJoin(Query.METRIC_KEY));
 
             mappedKeys.put(Query.ID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.ID_KEY));
             groupJoins.put(Query.ID_KEY, getJoin(Query.ID_KEY));
@@ -1027,7 +1027,7 @@ class SqlQuery {
             statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
             statementBuilder.append(" ");
             String columnAlias = null;
-            if (! entry.getValue().queryKey.equals(Query.METRICID_KEY) && ! entry.getValue().queryKey.equals(Query.ID_KEY)) { // Special case for id and metricId
+            if (! entry.getValue().queryKey.equals(Query.METRIC_KEY) && ! entry.getValue().queryKey.equals(Query.ID_KEY)) { // Special case for id and metricId
                 // These column names just need to be unique if we put this statement in a subquery
                 columnAlias = "value" + columnNum;
                 groupBySelectColumnAliases.put(entry.getValue().getValueField(entry.getKey(), null), columnAlias);
@@ -1114,7 +1114,7 @@ class SqlQuery {
 
         // Just have to add metricId to the group by fields
         String[] innerGroupByFields = Arrays.copyOf(fields, fields.length+2);
-        innerGroupByFields[fields.length] = Query.METRICID_KEY;
+        innerGroupByFields[fields.length] = Query.METRIC_KEY;
         innerGroupByFields[fields.length+1] = Query.ID_KEY;
         return wrapGroupStatementRecordMetricSql(metricFieldName, fields, groupStatement(innerGroupByFields));
 
@@ -1575,7 +1575,7 @@ class SqlQuery {
                 joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
-            } else if (Query.METRICID_KEY.equals(queryKey) && lastRecordJoinTableAlias != null) {
+            } else if (Query.METRIC_KEY.equals(queryKey) && lastRecordJoinTableAlias != null) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 valueField = aliasedField(lastRecordJoinTableAlias, RecordMetric.RECORDMETRIC_METRICID_FIELD);
@@ -1590,7 +1590,7 @@ class SqlQuery {
                 joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = false;
 
-            } else if (Query.METRICID_KEY.equals(queryKey) && lastRecordJoinTableAlias == null) {
+            } else if (Query.METRIC_KEY.equals(queryKey) && lastRecordJoinTableAlias == null) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 valueField = aliasedField(alias, RecordMetric.RECORDMETRIC_METRICID_FIELD);
