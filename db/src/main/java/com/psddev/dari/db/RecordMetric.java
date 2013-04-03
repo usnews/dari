@@ -18,31 +18,34 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.UuidUtils;
 
 public class RecordMetric {
 
-    static final Logger LOGGER = LoggerFactory.getLogger(RecordMetric.class);
+    //private static final Logger LOGGER = LoggerFactory.getLogger(RecordMetric.class);
 
-    static final String RECORDMETRIC_TABLE = "RecordMetric";
-    static final String RECORDRECORDMETRIC_TABLE = "RecordMetricRecord";
-    static final String RECORDMETRIC_STRINGINDEX_TABLE = "RecordMetricString";
-    static final String RECORDMETRIC_NUMBERINDEX_TABLE = "RecordMetricNumber";
-    static final String RECORDMETRIC_UUIDINDEX_TABLE = "RecordMetricUuid";
-    static final String RECORDMETRIC_LOCATIONINDEX_TABLE = "RecordMetricLocation";
-    static final String RECORDMETRIC_METRICID_FIELD = "metricId";
-    static final String RECORDMETRIC_DATA_FIELD = "data";
-    static final int QUERY_TIMEOUT = 3;
-    static final int AMOUNT_DECIMAL_PLACES = 6;
-    static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
-    static final long DATE_DECIMAL_SHIFT = 60000L;
-    static final int DATE_BYTE_SIZE = 4;
-    static final int AMOUNT_BYTE_SIZE = 8;
-    static final int CUMULATIVEAMOUNT_POSITION = 1;
-    static final int AMOUNT_POSITION = 2;
+    public static final String RECORDMETRIC_TABLE = "RecordMetric";
+    public static final String RECORDRECORDMETRIC_TABLE = "RecordMetricRecord";
+    public static final String RECORDMETRIC_METRICID_FIELD = "metricId";
+    public static final String RECORDMETRIC_DATA_FIELD = "data";
+
+    public static final int AMOUNT_DECIMAL_PLACES = 6;
+    public static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
+    public static final long DATE_DECIMAL_SHIFT = 60000L;
+    public static final int CUMULATIVEAMOUNT_POSITION = 1;
+    public static final int AMOUNT_POSITION = 2;
+
+    private static final String RECORDMETRIC_STRINGINDEX_TABLE = "RecordMetricString";
+    private static final String RECORDMETRIC_NUMBERINDEX_TABLE = "RecordMetricNumber";
+    private static final String RECORDMETRIC_UUIDINDEX_TABLE = "RecordMetricUuid";
+    private static final String RECORDMETRIC_LOCATIONINDEX_TABLE = "RecordMetricLocation";
+
+    private static final int QUERY_TIMEOUT = 3;
+    private static final int DATE_BYTE_SIZE = 4;
+    private static final int AMOUNT_BYTE_SIZE = 8;
 
     private final DimensionSet dimensions;
     private final String dimensionsSymbol;
@@ -239,7 +242,7 @@ public class RecordMetric {
         private Static() {
         }
 
-        static Set<String> getIndexTables(DimensionSet... dimensionSets) {
+        public static Set<String> getIndexTables(DimensionSet... dimensionSets) {
             LinkedHashSet<String> tables = new LinkedHashSet<String>();
             for (DimensionSet dimensions : dimensionSets) {
                 if (dimensions != null) {
@@ -251,7 +254,7 @@ public class RecordMetric {
             return tables;
         }
 
-        static String getIndexTable(ObjectField field) {
+        public static String getIndexTable(ObjectField field) {
             String fieldType = field.getInternalItemType();
             if (fieldType.equals(ObjectField.UUID_TYPE)) {
                 return RecordMetric.RECORDMETRIC_UUIDINDEX_TABLE;
@@ -265,7 +268,7 @@ public class RecordMetric {
             }
         }
 
-        static DimensionSet getDimensionsByIndexTable(String table, DimensionSet dimensions) {
+        private static DimensionSet getDimensionsByIndexTable(String table, DimensionSet dimensions) {
             //HashMap<String, Object> dims = new HashMap<String, Object>();
             DimensionSet dims = new DimensionSet();
             for (Dimension dimension : dimensions) {
@@ -276,7 +279,7 @@ public class RecordMetric {
             return dims;
         }
 
-        static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long createDate, long eventDate) {
+        private static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long createDate, long eventDate) {
             ArrayList<String> sqls = new ArrayList<String>();
             // insert RecordMetric
             List<Object> parameters = new ArrayList<Object>();
@@ -303,7 +306,7 @@ public class RecordMetric {
 
         // methods that generate SQL
 
-        static String getDataByMetricIdSql(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate, boolean selectMinData) {
+        private static String getDataByMetricIdSql(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate, boolean selectMinData) {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 
@@ -367,7 +370,7 @@ public class RecordMetric {
             str.append(", 16, 10)");
         }
 
-        static String getRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
+        private static String getRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, RECORDMETRIC_TABLE);
@@ -394,7 +397,7 @@ public class RecordMetric {
             return insertBuilder.toString();
         }
 
-        static String getRecordRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId) {
+        private static String getRecordRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, RECORDRECORDMETRIC_TABLE);
@@ -418,7 +421,7 @@ public class RecordMetric {
             return insertBuilder.toString();
         }
 
-        static byte[] toBytes(long eventDate, double cumulativeAmount, double amount) {
+        private static byte[] toBytes(long eventDate, double cumulativeAmount, double amount) {
 
             Long cumulativeAmountLong = (long) (cumulativeAmount * AMOUNT_DECIMAL_SHIFT);
             Long amountLong = (long) (amount * AMOUNT_DECIMAL_SHIFT);
@@ -450,7 +453,7 @@ public class RecordMetric {
             return bytes;
         }
 
-        static long timestampFromBytes(byte[] bytes) {
+        private static long timestampFromBytes(byte[] bytes) {
             long timestamp = 0;
 
             for (int i = 0; i < DATE_BYTE_SIZE; ++i) {
@@ -460,7 +463,7 @@ public class RecordMetric {
             return timestamp * DATE_DECIMAL_SHIFT;
         }
 
-        static double amountFromBytes(byte[] bytes, int position) {
+        private static double amountFromBytes(byte[] bytes, int position) {
             long amountLong = 0;
 
             int offset = DATE_BYTE_SIZE + ((position-1)*AMOUNT_BYTE_SIZE);
@@ -472,7 +475,7 @@ public class RecordMetric {
             return (double) amountLong / AMOUNT_DECIMAL_SHIFT;
         }
 
-        static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, String dimensionsSymbol, Dimension dimension, Object value, String table) {
+        private static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, String dimensionsSymbol, Dimension dimension, Object value, String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, table);
@@ -497,7 +500,7 @@ public class RecordMetric {
             return insertBuilder.toString();
         }
 
-        static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID metricId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment, boolean updateFuture) {
+        private static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID metricId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment, boolean updateFuture) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
             vendor.appendIdentifier(updateBuilder, RECORDMETRIC_TABLE);
@@ -628,7 +631,7 @@ public class RecordMetric {
             str.append(", "+(AMOUNT_BYTE_SIZE*2)+", '0')");
         }
 
-        static String getDeleteDimensionSql(SqlDatabase db, UUID recordId, UUID typeId, String table) {
+        private static String getDeleteDimensionSql(SqlDatabase db, UUID recordId, UUID typeId, String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
@@ -652,7 +655,7 @@ public class RecordMetric {
             return sqlBuilder.toString();
         }
 
-        static String getDeleteRecordMetricSql(SqlDatabase db, UUID recordId) {
+        private static String getDeleteRecordMetricSql(SqlDatabase db, UUID recordId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
@@ -677,7 +680,7 @@ public class RecordMetric {
             return sqlBuilder.toString();
         }
 
-        static String getDeleteRecordMetricRecordSql(SqlDatabase db, UUID recordId, UUID typeId) {
+        private static String getDeleteRecordMetricRecordSql(SqlDatabase db, UUID recordId, UUID typeId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
@@ -693,7 +696,7 @@ public class RecordMetric {
             return sqlBuilder.toString();
         }
 
-        static String getSelectMetricByRecordIdSql(SqlDatabase db, String actionSymbol, UUID recordId, UUID typeId, Long startTimestamp, Long endTimestamp) {
+        private static String getSelectMetricByRecordIdSql(SqlDatabase db, String actionSymbol, UUID recordId, UUID typeId, Long startTimestamp, Long endTimestamp) {
             SqlVendor vendor = db.getVendor();
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
@@ -804,7 +807,7 @@ public class RecordMetric {
                 " " + groupByBuilder.toString();
         }
 
-        static String getMetricIdsByDimensionsSelectSql(SqlDatabase db, MetricQuery query, boolean preciseMatch) {
+        private static String getMetricIdsByDimensionsSelectSql(SqlDatabase db, MetricQuery query, boolean preciseMatch) {
             SqlVendor vendor = db.getVendor();
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
@@ -938,7 +941,7 @@ public class RecordMetric {
                 " " + orderByBuilder.toString();
         }
 
-        static String getSelectMetricSql(SqlDatabase db, MetricQuery query) {
+        private static String getSelectMetricSql(SqlDatabase db, MetricQuery query) {
             SqlVendor vendor = db.getVendor();
             boolean selectMinData = false;
 
@@ -972,7 +975,7 @@ public class RecordMetric {
             return selectBuilder.toString() + fromBuilder.toString();
         }
 
-        static String getSelectMetricIdDataSql(SqlDatabase db, MetricQuery query, boolean selectMinData) {
+        private static String getSelectMetricIdDataSql(SqlDatabase db, MetricQuery query, boolean selectMinData) {
             StringBuilder selectBuilder = new StringBuilder();
             StringBuilder fromBuilder = new StringBuilder();
             StringBuilder whereBuilder = new StringBuilder();
@@ -1045,14 +1048,14 @@ public class RecordMetric {
             return selectBuilder.toString() + fromBuilder.toString() + whereBuilder.toString();
         }
 
-        static String getSelectMetricIdSql(SqlDatabase db, MetricQuery query) {
+        private static String getSelectMetricIdSql(SqlDatabase db, MetricQuery query) {
             return getMetricIdsByDimensionsSelectSql(db, query, true);
         }
 
         // methods that actually touch the database
 
         // RECORDMETRIC INSERT/UPDATE/DELETE
-        static void doInserts(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
+        private static void doInserts(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<List<Object>> parametersList = new ArrayList<List<Object>>();
@@ -1066,7 +1069,7 @@ public class RecordMetric {
             }
         }
 
-        static void doIncrementUpdateOrInsert(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double incrementAmount, long updateDate, long eventDate) throws SQLException {
+        private static void doIncrementUpdateOrInsert(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double incrementAmount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<Object> parameters = new ArrayList<Object>();
@@ -1094,7 +1097,7 @@ public class RecordMetric {
             }
         }
 
-        static void doSetUpdateOrInsert(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, long updateDate, long eventDate) throws SQLException {
+        private static void doSetUpdateOrInsert(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             if (eventDate != 0L) {
                 throw new RuntimeException("RecordMetric.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
@@ -1139,7 +1142,7 @@ public class RecordMetric {
         }
 
         // RECORDMETRIC SELECT
-        static Double getMetricByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
+        public static Double getMetricByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
             String sql = null;
             sql = getSelectMetricSql(db, query);
             Connection connection = db.openReadConnection();
@@ -1158,7 +1161,7 @@ public class RecordMetric {
             }
         }
 
-        static Double getMetricByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static Double getMetricByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             if (minEventDate == null) {
                 byte[] data = getDataByMetricId(db, metricId, actionSymbol, minEventDate, maxEventDate);
                 if (data == null) return null;
@@ -1173,7 +1176,7 @@ public class RecordMetric {
             }
         }
 
-        static Double getMetricByRecordId(SqlDatabase db, UUID recordId, UUID typeId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        public static Double getMetricByRecordId(SqlDatabase db, UUID recordId, UUID typeId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             String sql = null;
             sql = getSelectMetricByRecordIdSql(db, actionSymbol, recordId, typeId, minEventDate, maxEventDate);
             Connection connection = db.openReadConnection();
@@ -1192,13 +1195,13 @@ public class RecordMetric {
             }
         }
 
-        static Long getMaxEventDateByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static Long getMaxEventDateByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             byte[] data = getDataByMetricId(db, metricId, actionSymbol, minEventDate, maxEventDate);
             if (data == null) return null;
             return timestampFromBytes(data);
         }
 
-        static byte[] getDataByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static byte[] getDataByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             String sql = Static.getDataByMetricIdSql(db, metricId, actionSymbol, minEventDate, maxEventDate, false);
             byte[] data = null;
             Connection connection = db.openReadConnection();
@@ -1214,7 +1217,7 @@ public class RecordMetric {
             return data;
         }
 
-        static List<byte[]> getMinMaxDataByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static List<byte[]> getMinMaxDataByMetricId(SqlDatabase db, UUID metricId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
             List<byte[]> datas = new ArrayList<byte[]>();
             String sql = Static.getDataByMetricIdSql(db, metricId, actionSymbol, minEventDate, maxEventDate, true);
             Connection connection = db.openReadConnection();
@@ -1231,7 +1234,7 @@ public class RecordMetric {
             return datas;
         }
 
-        static UUID getMetricIdByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
+        private static UUID getMetricIdByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
             UUID metricId = null;
             // find the metricId, it might be null
             String sql = Static.getSelectMetricIdSql(db, query);
