@@ -37,10 +37,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.sql.DataSource;
 
-import zmq.*;
 import org.iq80.snappy.Snappy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import zmq.Ctx;
+import zmq.Msg;
+import zmq.SocketBase;
+import zmq.ZError;
+import zmq.ZMQ;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -132,36 +137,37 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         @Override
         protected void doTask() throws Exception {
             String jdbcUrl = openReadConnection().getMetaData().getURL();
-
             int schemeEndOffset = jdbcUrl.indexOf("://");
             int portEndOffset = jdbcUrl.indexOf(":", schemeEndOffset + 3);
-
             String hostname = jdbcUrl.substring(schemeEndOffset + 3, portEndOffset);
             String zmqUrl = "tcp://" + hostname + ":5556";
-
             Ctx context = ZMQ.zmq_init(1);
-            SocketBase socket = ZMQ.zmq_socket (context, ZMQ.ZMQ_SUB);
-            boolean rc = ZMQ.zmq_connect (socket, zmqUrl);
+            SocketBase socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
+            boolean rc = ZMQ.zmq_connect(socket, zmqUrl);
+
             if (!rc) {
                 LOGGER.warn("Cache invalidation task failed to start.");
                 return;
             }
 
-            ZMQ.zmq_setsockopt (socket, ZMQ.ZMQ_SUBSCRIBE, "");
-                
-            while(shouldContinue()) {
+            ZMQ.zmq_setsockopt(socket, ZMQ.ZMQ_SUBSCRIBE, "");
+
+            while (shouldContinue()) {
                 cacheInvalidates = true;
-                Msg message = ZMQ.zmq_recv(socket, 0); 
+                Msg message = ZMQ.zmq_recv(socket, 0);
+
                 if (message == null && ZError.is(ZError.ETERM)) {
                     cacheInvalidates = false;
-                    socket = ZMQ.zmq_socket (context, ZMQ.ZMQ_SUB);
-                    rc = ZMQ.zmq_connect (socket, zmqUrl);
+                    socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
+                    rc = ZMQ.zmq_connect(socket, zmqUrl);
+
                     if (!rc) {
                         LOGGER.warn("Cache invalidation task failed to start.");
                         return;
                     }
 
                     Thread.sleep(100);
+
                 } else if (message != null) {
                     UUID id = UuidUtils.fromBytes(message.data());
                     dataCache.invalidate(id);
@@ -169,7 +175,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 }
             }
         }
-    
     };
 
     /**
