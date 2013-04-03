@@ -131,66 +131,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile boolean compressData;
     private volatile boolean cacheData;
     private volatile boolean cacheInvalidates = false;
-
-    private final transient Task invalidateCacheTask = new Task() {
-
-        @Override
-        protected void doTask() throws Exception {
-            String jdbcUrl = openReadConnection().getMetaData().getURL();
-            int schemeEndOffset = jdbcUrl.indexOf("://");
-
-            if (schemeEndOffset < 0) {
-                return;
-            }
-
-            schemeEndOffset += 3;
-            int portEndOffset = jdbcUrl.indexOf(":", schemeEndOffset);
-
-            if (portEndOffset < 0) {
-                portEndOffset = jdbcUrl.indexOf('/', schemeEndOffset);
-
-                if (portEndOffset < 0) {
-                    portEndOffset = jdbcUrl.length();
-                }
-            }
-
-            String hostname = jdbcUrl.substring(schemeEndOffset, portEndOffset);
-            String zmqUrl = "tcp://" + hostname + ":5556";
-            Ctx context = ZMQ.zmq_init(1);
-            SocketBase socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
-            boolean rc = ZMQ.zmq_connect(socket, zmqUrl);
-
-            if (!rc) {
-                LOGGER.warn("Cache invalidation task failed to start.");
-                return;
-            }
-
-            ZMQ.zmq_setsockopt(socket, ZMQ.ZMQ_SUBSCRIBE, "");
-
-            while (shouldContinue()) {
-                cacheInvalidates = true;
-                Msg message = ZMQ.zmq_recv(socket, 0);
-
-                if (message == null && ZError.is(ZError.ETERM)) {
-                    cacheInvalidates = false;
-                    socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
-                    rc = ZMQ.zmq_connect(socket, zmqUrl);
-
-                    if (!rc) {
-                        LOGGER.warn("Cache invalidation task failed to start.");
-                        return;
-                    }
-
-                    Thread.sleep(100);
-
-                } else if (message != null) {
-                    UUID id = UuidUtils.fromBytes(message.data());
-                    dataCache.invalidate(id);
-                    addProgressIndex(1);
-                }
-            }
-        }
-    };
+    private transient Task invalidateCacheTask;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -600,7 +541,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         setDataSource(null);
         setReadDataSource(null);
 
-        invalidateCacheTask.stop();
+        if (invalidateCacheTask != null) {
+            invalidateCacheTask.stop();
+            invalidateCacheTask = null;
+        }
     }
 
     /**
@@ -1306,6 +1250,67 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
+
+        invalidateCacheTask = new Task() {
+
+            @Override
+            protected void doTask() throws Exception {
+                String jdbcUrl = openReadConnection().getMetaData().getURL();
+                int schemeEndOffset = jdbcUrl.indexOf("://");
+
+                if (schemeEndOffset < 0) {
+                    return;
+                }
+
+                schemeEndOffset += 3;
+                int portEndOffset = jdbcUrl.indexOf(":", schemeEndOffset);
+
+                if (portEndOffset < 0) {
+                    portEndOffset = jdbcUrl.indexOf('/', schemeEndOffset);
+
+                    if (portEndOffset < 0) {
+                        portEndOffset = jdbcUrl.length();
+                    }
+                }
+
+                String hostname = jdbcUrl.substring(schemeEndOffset, portEndOffset);
+                String zmqUrl = "tcp://" + hostname + ":5556";
+                Ctx context = ZMQ.zmq_init(1);
+                SocketBase socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
+                boolean rc = ZMQ.zmq_connect(socket, zmqUrl);
+
+                if (!rc) {
+                    LOGGER.warn("Cache invalidation task failed to start.");
+                    return;
+                }
+
+                LOGGER.info("Listening to ZMQ server at: " + zmqUrl);
+                ZMQ.zmq_setsockopt(socket, ZMQ.ZMQ_SUBSCRIBE, "");
+
+                while (shouldContinue()) {
+                    cacheInvalidates = true;
+                    Msg message = ZMQ.zmq_recv(socket, 0);
+
+                    if (message == null && ZError.is(ZError.ETERM)) {
+                        cacheInvalidates = false;
+                        socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
+                        rc = ZMQ.zmq_connect(socket, zmqUrl);
+
+                        if (!rc) {
+                            LOGGER.warn("Cache invalidation task failed to start.");
+                            return;
+                        }
+
+                        Thread.sleep(100);
+
+                    } else if (message != null) {
+                        UUID id = UuidUtils.fromBytes(message.data());
+                        dataCache.invalidate(id);
+                        addProgressIndex(1);
+                    }
+                }
+            }
+        };
 
         invalidateCacheTask.submit();
     }
