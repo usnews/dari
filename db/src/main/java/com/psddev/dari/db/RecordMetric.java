@@ -1341,7 +1341,7 @@ public class RecordMetric {
 
     }
 
-    public static class MetricAction extends Modification<Recordable> {
+    public static class MetricAction extends Modification<Object> {
 
         //private static final Logger LOGGER = LoggerFactory.getLogger(MetricAction.class);
 
