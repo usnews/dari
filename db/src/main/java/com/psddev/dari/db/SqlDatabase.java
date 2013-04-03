@@ -301,7 +301,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         this.cacheData = cacheData;
     }
 
-    public boolean cacheInvalidates() {
+    public boolean isCacheInvalidates() {
         return cacheInvalidates;
     }
 
@@ -1462,8 +1462,75 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     @Override
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public <T> List<T> readAll(Query<T> query) {
+        if (isCacheInvalidates()) {
+            Set<UUID> ids = findIdOnlyQueryIds(query);
+
+            if (ids != null) {
+                List<T> items = new ArrayList<T>();
+
+                for (Iterator<UUID> i = ids.iterator(); i.hasNext(); ) {
+                    UUID id = i.next();
+                    UpdateDateData dataCacheEntry = dataCache.getIfPresent(id);
+
+                    if (dataCacheEntry != null) {
+                        byte[] data = dataCacheEntry.data;
+                        Map<String, Object> dataMap = unserializeData(data);
+                        T object = createSavedObject(dataMap.get("_type"), dataMap.get("_id"), query);
+                        State objectState = State.getInstance(object);
+
+                        objectState.putAll(dataMap);
+
+                        Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
+
+                        if (returnOriginal == null) {
+                            returnOriginal = Boolean.FALSE;
+                        }
+
+                        if (returnOriginal) {
+                            objectState.getExtras().put(ORIGINAL_DATA_EXTRA, data);
+                        }
+
+                        items.add(swapObjectType(query, object));
+                        i.remove();
+                    }
+                }
+
+                if (!ids.isEmpty()) {
+                    query = (Query) Query.from(Object.class).where("_id = ?", ids);
+                    items.addAll(selectListWithOptions(buildSelectStatement(query), query));
+                }
+
+                return items;
+            }
+        }
+
         return selectListWithOptions(buildSelectStatement(query), query);
+    }
+
+    private Set<UUID> findIdOnlyQueryIds(Query<?> query) {
+        if (query.getSorters().isEmpty()) {
+            Predicate predicate = query.getPredicate();
+
+            if (predicate instanceof ComparisonPredicate) {
+                ComparisonPredicate comparison = (ComparisonPredicate) predicate;
+
+                if (Query.ID_KEY.equals(comparison.getKey()) &&
+                        PredicateParser.EQUALS_ANY_OPERATOR.equals(comparison.getOperator()) &&
+                        comparison.findValueQuery() == null) {
+                    Set<UUID> ids = new HashSet<UUID>();
+
+                    for (Object item : comparison.getValues()) {
+                        ids.add(ObjectUtils.to(UUID.class, item));
+                    }
+
+                    return ids;
+                }
+            }
+        }
+
+        return null;
     }
 
     @Override
