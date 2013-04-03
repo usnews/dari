@@ -571,6 +571,42 @@ public class State implements Map<String, Object> {
         return value;
     }
 
+    /**
+     * Evaluates the given {@code pathExpression}.
+     *
+     * @param pathExpression If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public String evaluatePathExpression(String pathExpression) {
+        if (pathExpression == null) {
+            return null;
+        }
+
+        StringBuilder evaluated = new StringBuilder();
+        int current = 0;
+
+        for (int start = 0, end; (start = pathExpression.indexOf("${", current)) > -1; current = end + 1) {
+            int startPath = start + 2;
+            end = pathExpression.indexOf("}", startPath);
+
+            if (end < 0) {
+                break;
+            }
+
+            evaluated.append(pathExpression.substring(current, start));
+
+            Object value = getByPath(pathExpression.substring(startPath, end));
+
+            if (value != null) {
+                evaluated.append(value);
+            }
+        }
+
+        evaluated.append(pathExpression.substring(current));
+
+        return evaluated.toString();
+    }
+
     public Map<String, Object> getRawValues() {
         return rawValues;
     }
