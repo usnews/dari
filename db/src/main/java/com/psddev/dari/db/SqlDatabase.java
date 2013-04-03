@@ -145,6 +145,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             schemeEndOffset += 3;
             int portEndOffset = jdbcUrl.indexOf(":", schemeEndOffset);
+
+            if (portEndOffset < 0) {
+                portEndOffset = jdbcUrl.indexOf('/', schemeEndOffset);
+
+                if (portEndOffset < 0) {
+                    portEndOffset = jdbcUrl.length();
+                }
+            }
+
             String hostname = jdbcUrl.substring(schemeEndOffset, portEndOffset);
             String zmqUrl = "tcp://" + hostname + ":5556";
             Ctx context = ZMQ.zmq_init(1);
