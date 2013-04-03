@@ -11,15 +11,12 @@ import javax.servlet.http.HttpServletRequest;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.HtmlWriter;
 
-/**
- * @deprecated Use {@link FormWriter2} instead.
- */
-@Deprecated
+/** Writer that specializes in processing HTML form inputs. */
 public class FormWriter extends HtmlWriter {
 
     private FormLabelRenderer labelRenderer;
-    private FormInputProcessor defaultInputProcessor;
-    private Map<String, FormInputProcessor> inputProcessors;
+    private FormInputProcessor2 defaultInputProcessor2;
+    private Map<String, FormInputProcessor2> inputProcessors2;
 
     /** Creates an instance that writes to the given {@code writer}. */
     public FormWriter(Writer writer) {
@@ -46,20 +43,20 @@ public class FormWriter extends HtmlWriter {
 
     /**
      * Returns the default form input processor. If {@code null}, it's set to
-     * the {@linkplain FormInputProcessor.Default default} before returning.
+     * the {@linkplain FormInputProcessor2.Default default} before returning.
      *
      * @return Can't be {@code null}.
      */
-    public FormInputProcessor getDefaultInputProcessor() {
-        if (defaultInputProcessor == null) {
-            setDefaultInputProcessor(new FormInputProcessor.Default());
+    public FormInputProcessor2 getDefaultInputProcessor2() {
+        if (defaultInputProcessor2 == null) {
+            setDefaultInputProcessor2(new FormInputProcessor2.Default());
         }
-        return defaultInputProcessor;
+        return defaultInputProcessor2;
     }
 
     /** Sets the default form input processor. */
-    public void setDefaultInputProcessor(FormInputProcessor defaultInputProcessor) {
-        this.defaultInputProcessor = defaultInputProcessor;
+    public void setDefaultInputProcessor2(FormInputProcessor2 defaultInputProcessor2) {
+        this.defaultInputProcessor2 = defaultInputProcessor2;
     }
 
     /**
@@ -67,30 +64,30 @@ public class FormWriter extends HtmlWriter {
      *
      * @return Can't be {@code null}.
      */
-    public Map<String, FormInputProcessor> getInputProcessors() {
-        if (inputProcessors == null) {
-            setInputProcessors(new HashMap<String, FormInputProcessor>());
+    public Map<String, FormInputProcessor2> getInputProcessors2() {
+        if (inputProcessors2 == null) {
+            setInputProcessors2(new HashMap<String, FormInputProcessor2>());
         }
-        return inputProcessors;
+        return inputProcessors2;
     }
 
     /** Sets the map of all input processors. */
-    public void setInputProcessors(Map<String, FormInputProcessor> inputProcessors) {
-        this.inputProcessors = inputProcessors;
+    public void setInputProcessors2(Map<String, FormInputProcessor2> inputProcessors2) {
+        this.inputProcessors2 = inputProcessors2;
     }
 
     /** Puts all standard input processors. */
-    public void putAllStandardInputProcessors() {
-        Map<String, FormInputProcessor> inputProcessors = getInputProcessors();
-        inputProcessors.put(ObjectField.BOOLEAN_TYPE, new FormInputProcessor.ForBoolean());
-        inputProcessors.put(ObjectField.DATE_TYPE, new FormInputProcessor.ForDate());
-        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForListRecord());
-        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForListText());
-        inputProcessors.put(ObjectField.NUMBER_TYPE, new FormInputProcessor.ForText());
-        inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor.ForRecord());
-        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForSetRecord());
-        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForSetText());
-        inputProcessors.put(ObjectField.TEXT_TYPE, new FormInputProcessor.ForText());
+    public void putAllStandardInputProcessors2() {
+        Map<String, FormInputProcessor2> inputProcessors = getInputProcessors2();
+        inputProcessors.put(ObjectField.BOOLEAN_TYPE, new FormInputProcessor2.ForBoolean());
+        inputProcessors.put(ObjectField.DATE_TYPE, new FormInputProcessor2.ForDate());
+        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor2.ForListRecord(this));
+        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor2.ForListText());
+        inputProcessors.put(ObjectField.NUMBER_TYPE, new FormInputProcessor2.ForText());
+        inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor2.ForRecord());
+        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor2.ForSetRecord(this));
+        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor2.ForSetText());
+        inputProcessors.put(ObjectField.TEXT_TYPE, new FormInputProcessor2.ForText());
     }
 
     // Finds the type associated with the given state, throwing
@@ -125,6 +122,233 @@ public class FormWriter extends HtmlWriter {
 
     // Finds the processor associated with the given field, returning
     // null if there isn't one.
+    protected FormInputProcessor2 findInputProcessor2(ObjectField field) {
+        String type = field.getInternalType();
+
+        if (type != null) {
+            Map<String, FormInputProcessor2> processors = getInputProcessors2();
+
+            while (true) {
+                FormInputProcessor2 processor = processors.get(type);
+                if (processor != null) {
+                    return processor;
+                }
+
+                int slashAt = type.lastIndexOf('/');
+                if (slashAt < 0) {
+                    break;
+                } else {
+                    type = type.substring(0, slashAt);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Writes the given {@code field} in the given {@code state}. This
+     * method is the underlying implementation for both {@link #inputs}
+     * and {@link #allInputs}.
+     */
+    protected void writeField2(State state, ObjectField field, FormInputProcessor2 processor) throws IOException {
+        String fieldName = field.getInternalName();
+        String inputId = "i" + UUID.randomUUID().toString().replace("-", "");
+        String inputName = state.getId() + "/" + fieldName;
+
+        if (processor == null) {
+            processor = getDefaultInputProcessor2();
+        }
+
+        write(getLabelRenderer().display(inputId, inputName, field));
+        write(processor.display(inputId, inputName, field, state));
+    }
+
+    /**
+     * Writes the inputs for the given {@code fieldNames} in the given
+     * {@code state}.
+     */
+    public HtmlWriter inputs(State state, String... fieldNames) throws IOException {
+        if (fieldNames != null) {
+            ObjectType type = findType(state);
+            for (String fieldName : fieldNames) {
+                ObjectField field = findField(type, fieldName);
+
+                FormInputProcessor2 processor2 = findInputProcessor2(field);
+                if (processor2 != null) {
+                    writeField2(state, field, processor2);
+
+                } else {
+                    // legacy support
+                    @SuppressWarnings("deprecation")
+                    FormInputProcessor processor1 = findInputProcessor(field);
+                    if (processor1 != null) {
+                        writeField(state, field, processor1);
+
+                    } else {
+                        writeField2(state, field, processor2);
+                    }
+                }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Writes all inputs in the given {@code state}.
+     */
+    public HtmlWriter allInputs(State state) throws IOException {
+        ObjectType type = findType(state);
+        for (ObjectField field : type.getFields()) {
+
+            FormInputProcessor2 processor2 = findInputProcessor2(field);
+            if (processor2 != null) {
+                writeField2(state, field, processor2);
+
+            } else {
+                // legacy support
+                @SuppressWarnings("deprecation")
+                FormInputProcessor processor1 = findInputProcessor(field);
+                if (processor1 != null) {
+                    writeField(state, field, processor1);
+
+                } else {
+                    writeField2(state, field, processor2);
+                }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Updates the given {@code field} in the given {@code state}
+     * using the given {@code request}. This method is the underlying
+     * implementation for both {@link #update} and {@link #updateAll}.
+     */
+    protected void updateField2(State state, HttpServletRequest request, ObjectField field, FormInputProcessor2 processor) {
+        String fieldName = field.getInternalName();
+        String inputName = state.getId() + "/" + fieldName;
+
+        if (processor == null) {
+            processor = getDefaultInputProcessor2();
+        }
+
+        state.put(fieldName, processor.update(inputName, field, request));
+    }
+
+    /**
+     * Updates the given {@code fieldNames} in the given {@code state}
+     * using the given {@code request}.
+     */
+    public void update(State state, HttpServletRequest request, String... fieldNames) {
+        ErrorUtils.errorIfNull(request, "request");
+
+        if (fieldNames != null) {
+            ObjectType type = findType(state);
+            for (String fieldName : fieldNames) {
+                ObjectField field = findField(type, fieldName);
+
+                FormInputProcessor2 processor2 = findInputProcessor2(field);
+                if (processor2 != null) {
+                    updateField2(state, request, field, processor2);
+
+                } else {
+                    // legacy support
+                    @SuppressWarnings("deprecation")
+                    FormInputProcessor processor1 = findInputProcessor(field);
+                    if (processor1 != null) {
+                        updateField(state, request, field, processor1);
+
+                    } else {
+                        updateField2(state, request, field, processor2);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates all fields in the given {@code state} using the given
+     * {@code request}.
+     */
+    public void updateAll(State state, HttpServletRequest request) {
+        ErrorUtils.errorIfNull(request, "request");
+
+        ObjectType type = findType(state);
+        for (ObjectField field : type.getFields()) {
+
+            FormInputProcessor2 processor2 = findInputProcessor2(field);
+            if (processor2 != null) {
+                updateField2(state, request, field, processor2);
+
+            } else {
+                // legacy support
+                @SuppressWarnings("deprecation")
+                FormInputProcessor processor1 = findInputProcessor(field);
+                if (processor1 != null) {
+                    updateField(state, request, field, processor1);
+
+                } else {
+                    updateField2(state, request, field, processor2);
+                }
+            }
+        }
+    }
+
+    // --- deprecations ---
+
+    @Deprecated
+    private FormInputProcessor defaultInputProcessor;
+    @Deprecated
+    private Map<String, FormInputProcessor> inputProcessors;
+
+    /** @deprecated Use {@link #getDefaultInputProcessor2()} instead. */
+    @Deprecated
+    public FormInputProcessor getDefaultInputProcessor() {
+        if (defaultInputProcessor == null) {
+            setDefaultInputProcessor(new FormInputProcessor.Default());
+        }
+        return defaultInputProcessor;
+    }
+
+    /** @deprecated Use {@link #setDefaultInputProcessor2(FormInputProcessor2)} instead. */
+    @Deprecated
+    public void setDefaultInputProcessor(FormInputProcessor defaultInputProcessor) {
+        this.defaultInputProcessor = defaultInputProcessor;
+    }
+
+    /** @deprecated Use {@link #getInputProcessors2()} instead. */
+    @Deprecated
+    public Map<String, FormInputProcessor> getInputProcessors() {
+        if (inputProcessors == null) {
+            setInputProcessors(new HashMap<String, FormInputProcessor>());
+        }
+        return inputProcessors;
+    }
+
+    /** @deprecated Use {@link #setInputProcessors2(Map)} instead. */
+    @Deprecated
+    public void setInputProcessors(Map<String, FormInputProcessor> inputProcessors) {
+        this.inputProcessors = inputProcessors;
+    }
+
+    /** @deprecated Use {@link #putAllStandardInputProcessors2()} instead. */
+    @Deprecated
+    public void putAllStandardInputProcessors() {
+        Map<String, FormInputProcessor> inputProcessors = getInputProcessors();
+        inputProcessors.put(ObjectField.BOOLEAN_TYPE, new FormInputProcessor.ForBoolean());
+        inputProcessors.put(ObjectField.DATE_TYPE, new FormInputProcessor.ForDate());
+        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForListRecord());
+        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForListText());
+        inputProcessors.put(ObjectField.NUMBER_TYPE, new FormInputProcessor.ForText());
+        inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor.ForRecord());
+        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForSetRecord());
+        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForSetText());
+        inputProcessors.put(ObjectField.TEXT_TYPE, new FormInputProcessor.ForText());
+    }
+
+    /** @deprecated Use {@link #findInputProcessor2(ObjectField)} instead. */
+    @Deprecated
     protected FormInputProcessor findInputProcessor(ObjectField field) {
         String type = field.getInternalType();
 
@@ -149,11 +373,8 @@ public class FormWriter extends HtmlWriter {
         return null;
     }
 
-    /**
-     * Writes the given {@code field} in the given {@code state}. This
-     * method is the underlying implementation for both {@link #inputs}
-     * and {@link #allInputs}.
-     */
+    /** @deprecated Use {@link #writeField2(State, ObjectField, FormInputProcessor2)} instead. */
+    @Deprecated
     protected void writeField(State state, ObjectField field, FormInputProcessor processor) throws IOException {
         String fieldName = field.getInternalName();
         String inputId = "i" + UUID.randomUUID().toString().replace("-", "");
@@ -167,35 +388,8 @@ public class FormWriter extends HtmlWriter {
         write(processor.display(inputId, inputName, field, state.get(fieldName)));
     }
 
-    /**
-     * Writes the inputs for the given {@code fieldNames} in the given
-     * {@code state}.
-     */
-    public HtmlWriter inputs(State state, String... fieldNames) throws IOException {
-        if (fieldNames != null) {
-            ObjectType type = findType(state);
-            for (String fieldName : fieldNames) {
-                ObjectField field = findField(type, fieldName);
-                writeField(state, field, findInputProcessor(field));
-            }
-        }
-        return this;
-    }
-
-    /** Writes all inputs in the given {@code state}. */
-    public HtmlWriter allInputs(State state) throws IOException {
-        ObjectType type = findType(state);
-        for (ObjectField field : type.getFields()) {
-            writeField(state, field, findInputProcessor(field));
-        }
-        return this;
-    }
-
-    /**
-     * Updates the given {@code field} in the given {@code state}
-     * using the given {@code request}. This method is the underlying
-     * implementation for both {@link #update} and {@link #updateAll}.
-     */
+    /** @deprecated Use {@link #updateField2(State, HttpServletRequest, ObjectField, FormInputProcessor2)} instead. */
+    @Deprecated
     protected void updateField(State state, HttpServletRequest request, ObjectField field, FormInputProcessor processor) {
         String fieldName = field.getInternalName();
         String inputName = state.getId() + "/" + fieldName;
@@ -205,34 +399,5 @@ public class FormWriter extends HtmlWriter {
         }
 
         state.put(fieldName, processor.update(inputName, field, request));
-    }
-
-    /**
-     * Updates the given {@code fieldNames} in the given {@code state}
-     * using the given {@code request}.
-     */
-    public void update(State state, HttpServletRequest request, String... fieldNames) {
-        ErrorUtils.errorIfNull(request, "request");
-
-        if (fieldNames != null) {
-            ObjectType type = findType(state);
-            for (String fieldName : fieldNames) {
-                ObjectField field = findField(type, fieldName);
-                updateField(state, request, field, findInputProcessor(field));
-            }
-        }
-    }
-
-    /**
-     * Updates all fields in the given {@code state} using the given
-     * {@code request}.
-     */
-    public void updateAll(State state, HttpServletRequest request) {
-        ErrorUtils.errorIfNull(request, "request");
-
-        ObjectType type = findType(state);
-        for (ObjectField field : type.getFields()) {
-            updateField(state, request, field, findInputProcessor(field));
-        }
     }
 }

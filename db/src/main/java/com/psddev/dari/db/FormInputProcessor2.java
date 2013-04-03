@@ -16,7 +16,7 @@ import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeReference;
 
 /**
- * Processes individual inputs written with {@link FormWriter2}.
+ * Processes individual inputs written with {@link FormWriter}.
  */
 public interface FormInputProcessor2 {
 
@@ -27,10 +27,10 @@ public interface FormInputProcessor2 {
     public Object update(String inputName, ObjectField field, HttpServletRequest request);
 
     /**
-     * Default {@link FormInputProcessor} that uses JSON to handle unknown
+     * Default {@link FormInputProcessor2} that uses JSON to handle unknown
      * content.
      */
-    public static class Default extends AbstractFormInputProcessor2 {
+    public static class Default extends AbstractFormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, State state, Object value, HtmlWriter writer) throws IOException {
@@ -47,8 +47,8 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#BOOLEAN_TYPE}. */
-    public static class ForBoolean extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#BOOLEAN_TYPE}. */
+    public static class ForBoolean extends AbstractFormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, State state, Object value, HtmlWriter writer) throws IOException {
@@ -66,8 +66,8 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#DATE_TYPE}. */
-    public static class ForDate extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#DATE_TYPE}. */
+    public static class ForDate extends AbstractFormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, State state, Object value, HtmlWriter writer) throws IOException {
@@ -85,12 +85,12 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#LIST_TYPE}. */
-    public static class ForListRecord extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#LIST_TYPE}. */
+    public static class ForListRecord extends AbstractFormInputProcessor {
 
         private FormInputProcessor2.ForRecord forRecord;
 
-        public ForListRecord(FormWriter2 delegateWriter) {
+        public ForListRecord(FormWriter delegateWriter) {
             this.forRecord = new FormInputProcessor2.ForRecord(delegateWriter);
         }
 
@@ -146,8 +146,8 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#LIST_TYPE}. */
-    public static class ForListText extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#LIST_TYPE}. */
+    public static class ForListText extends AbstractFormInputProcessor {
 
         private static final FormInputProcessor2.ForText FOR_TEXT = new FormInputProcessor2.ForText();
         private static final TypeReference<List<String>> LIST_STRING_TYPE = new TypeReference<List<String>>() { };
@@ -177,19 +177,19 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#RECORD_TYPE}. */
-    public static class ForRecord extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#RECORD_TYPE}. */
+    public static class ForRecord extends AbstractFormInputProcessor {
 
-        private FormWriter2 delegateWriter;
+        private FormWriter delegateWriter;
 
         public ForRecord() {
         }
 
-        public ForRecord(FormWriter2 delegateWriter) {
+        public ForRecord(FormWriter delegateWriter) {
             this.delegateWriter = delegateWriter;
         }
 
-        public FormWriter2 getDelegateWriter() {
+        public FormWriter getDelegateWriter() {
             return delegateWriter;
         }
 
@@ -206,7 +206,7 @@ public interface FormInputProcessor2 {
                 }
 
                 if (type != null) {
-                    FormWriter2 formWriter = getDelegateWriter();
+                    FormWriter formWriter = getDelegateWriter();
                     Writer existingDelegate = formWriter.getDelegate();
 
                     try {
@@ -269,7 +269,7 @@ public interface FormInputProcessor2 {
 
                 if (type != null) {
 
-                    FormWriter2 formWriter = getDelegateWriter();
+                    FormWriter formWriter = getDelegateWriter();
 
                     UUID objectId;
                     if (inputName.indexOf('/') < 0) {
@@ -298,12 +298,12 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#SET_TYPE}. */
-    public static class ForSetRecord extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#SET_TYPE}. */
+    public static class ForSetRecord extends AbstractFormInputProcessor {
 
         private FormInputProcessor2.ForRecord forRecord;
 
-        public ForSetRecord(FormWriter2 delegateWriter) {
+        public ForSetRecord(FormWriter delegateWriter) {
             this.forRecord = new FormInputProcessor2.ForRecord(delegateWriter);
         }
 
@@ -332,8 +332,8 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#SET_TYPE}. */
-    public static class ForSetText extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#SET_TYPE}. */
+    public static class ForSetText extends AbstractFormInputProcessor {
 
         private static final FormInputProcessor2.ForText FOR_TEXT = new FormInputProcessor2.ForText();
         private static final TypeReference<Set<String>> SET_STRING_TYPE = new TypeReference<Set<String>>() { };
@@ -363,8 +363,8 @@ public interface FormInputProcessor2 {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#TEXT_TYPE}. */
-    public static class ForText extends AbstractFormInputProcessor2 {
+    /** {@link FormInputProcessor2} for {@link ObjectField#TEXT_TYPE}. */
+    public static class ForText extends AbstractFormInputProcessor {
 
         protected String createPlaceholder(ObjectField field) {
             return field.isRequired() ? "(Required)" : null;

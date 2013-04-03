@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Skeletal form processor implementation. A subclass must implement:
@@ -21,14 +23,16 @@ import javax.servlet.http.HttpServletRequest;
  * <li>{@link #doProcess}</li>
  * </ul>
  */
-public abstract class AbstractFormProcessor implements FormProcessor {
+@SuppressWarnings("deprecation")
+public abstract class AbstractFormProcessor implements FormProcessor, FormProcessor2 {
 
     private HttpServletRequest request;
+    private HttpServletResponse response;
 
     /**
      * Returns the request.
      *
-     * @return Never {@code null} within execution of {@link #processRequest}.
+     * @return Never {@code null} within execution of {@link #process}.
      */
     public HttpServletRequest getRequest() {
         return request;
@@ -45,6 +49,24 @@ public abstract class AbstractFormProcessor implements FormProcessor {
         this.request = request;
     }
 
+    /**
+     * Returns the response.
+     *
+     * @return Sometimes {@code null} within execution of {@link #process}.
+     */
+    public HttpServletResponse getResponse() {
+        return response;
+    }
+
+    /**
+     * Sets the response.
+     *
+     * @param response Can be {@code null}.
+     */
+    public void setResponse(HttpServletResponse response) {
+        this.response = response;
+    }
+
     /** Called to process the form. */
     protected abstract void doProcess();
 
@@ -52,7 +74,16 @@ public abstract class AbstractFormProcessor implements FormProcessor {
 
     @Override
     public final void processRequest(HttpServletRequest request) {
+        try {
+            process(request, null);
+        } catch (IOException e) {
+        }
+    }
+
+    @Override
+    public final Object process(HttpServletRequest request, HttpServletResponse response) throws IOException {
         setRequest(request);
+        setResponse(response);
 
         Class<?> thisClass = getClass();
         Set<String> names = new HashSet<String>();
@@ -101,5 +132,7 @@ public abstract class AbstractFormProcessor implements FormProcessor {
         }
 
         doProcess();
+
+        return this;
     }
 }

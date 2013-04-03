@@ -28,7 +28,7 @@ public class InputTag extends TagSupport {
     private static final String ATTRIBUTE_PREFIX = InputTag.class.getName() + ".";
     private static final String WRITER_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "writer/";
 
-    private Class<? extends FormWriter2> writerClass;
+    private Class<? extends FormWriter> writerClass;
     private State state;
     private String name;
 
@@ -39,10 +39,10 @@ public class InputTag extends TagSupport {
         Class<?> wc = ObjectUtils.getClassByName(writerClassName);
 
         ErrorUtils.errorIf(wc == null, writerClassName, "isn't a valid class name!");
-        ErrorUtils.errorIf(!FormWriter2.class.isAssignableFrom(wc),
-                wc.getName(), "doesn't extend [" + FormWriter2.class.getName() + "]!");
+        ErrorUtils.errorIf(!FormWriter.class.isAssignableFrom(wc),
+                wc.getName(), "doesn't extend [" + FormWriter.class.getName() + "]!");
 
-        this.writerClass = (Class<? extends FormWriter2>) wc;
+        this.writerClass = (Class<? extends FormWriter>) wc;
     }
 
     public void setObject(Object object) {
@@ -64,7 +64,7 @@ public class InputTag extends TagSupport {
         try {
             if (name != null) {
 
-                FormWriter2 formWriter = null;
+                FormWriter formWriter = null;
                 State state = null;
 
                 // if the writer is set directly
@@ -77,8 +77,8 @@ public class InputTag extends TagSupport {
                     FormTag formTag = getParentFormTag();
                     if (formTag != null) {
                         FormProcessor2 processor = formTag.getProcessorInstance();
-                        if (processor instanceof FormWriter2) {
-                            formWriter = (FormWriter2) processor;
+                        if (processor instanceof FormWriter) {
+                            formWriter = (FormWriter) processor;
                         }
                     }
                 }
@@ -157,7 +157,7 @@ public class InputTag extends TagSupport {
          * @param object
          * @param request
          */
-        public static void updateObject(FormWriter2 writer, Object object, HttpServletRequest request) {
+        public static void updateObject(FormWriter writer, Object object, HttpServletRequest request) {
 
             String[] fieldNames = request.getParameterValues(FIELDS_PARAMETER);
             State state = State.getInstance(object);
@@ -167,12 +167,12 @@ public class InputTag extends TagSupport {
             }
         }
 
-        private static FormWriter2 getWriter(Class<? extends FormWriter2> writerClass, HttpServletRequest request) {
+        private static FormWriter getWriter(Class<? extends FormWriter> writerClass, HttpServletRequest request) {
             if (writerClass == null) {
                 return null;
             }
 
-            FormWriter2 writer = (FormWriter2) request.getAttribute(WRITER_ATTRIBUTE_PREFIX + writerClass.getName());
+            FormWriter writer = (FormWriter) request.getAttribute(WRITER_ATTRIBUTE_PREFIX + writerClass.getName());
 
             if (writer == null) {
                 writer = TypeDefinition.getInstance(writerClass).newInstance();

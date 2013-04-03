@@ -25,10 +25,8 @@ public interface FormInputProcessor {
     /** Returns an updated value after processing an input. */
     public Object update(String inputName, ObjectField field, HttpServletRequest request);
 
-    /**
-     * Default {@link FormInputProcessor} that uses JSON to handle unknown
-     * content.
-     */
+    /** @deprecated Use {@link FormInputProcessor2.Default} instead. */
+    @Deprecated
     public static class Default extends AbstractFormInputProcessor {
 
         @Override
@@ -46,7 +44,8 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#BOOLEAN_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.ForBoolean} instead. */
+    @Deprecated
     public static class ForBoolean extends AbstractFormInputProcessor {
 
         @Override
@@ -65,7 +64,8 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#DATE_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.Date} instead. */
+    @Deprecated
     public static class ForDate extends AbstractFormInputProcessor {
 
         @Override
@@ -84,10 +84,11 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#LIST_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.ForListRecord} instead. */
+    @Deprecated
     public static class ForListRecord extends AbstractFormInputProcessor {
 
-        private static final ForRecord FOR_RECORD = new ForRecord();
+        private static final FormInputProcessor.ForRecord FOR_RECORD = new FormInputProcessor.ForRecord();
         private static final TypeReference<List<UUID>> LIST_UUID_TYPE = new TypeReference<List<UUID>>() { };
 
         @Override
@@ -115,10 +116,11 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#LIST_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.ForListText} instead. */
+    @Deprecated
     public static class ForListText extends AbstractFormInputProcessor {
 
-        private static final ForText FOR_TEXT = new ForText();
+        private static final FormInputProcessor.ForText FOR_TEXT = new FormInputProcessor.ForText();
         private static final TypeReference<List<String>> LIST_STRING_TYPE = new TypeReference<List<String>>() { };
 
         @Override
@@ -146,7 +148,8 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#RECORD_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.ForRecord} instead. */
+    @Deprecated
     public static class ForRecord extends AbstractFormInputProcessor {
 
         @Override
@@ -180,10 +183,11 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#SET_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.ForSetRecord} instead. */
+    @Deprecated
     public static class ForSetRecord extends AbstractFormInputProcessor {
 
-        private static final ForRecord FOR_RECORD = new ForRecord();
+        private static final FormInputProcessor.ForRecord FOR_RECORD = new FormInputProcessor.ForRecord();
         private static final TypeReference<Set<UUID>> SET_UUID_TYPE = new TypeReference<Set<UUID>>() { };
 
         @Override
@@ -211,10 +215,11 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#SET_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.ForSetText} instead. */
+    @Deprecated
     public static class ForSetText extends AbstractFormInputProcessor {
 
-        private static final ForText FOR_TEXT = new ForText();
+        private static final FormInputProcessor.ForText FOR_TEXT = new FormInputProcessor.ForText();
         private static final TypeReference<Set<String>> SET_STRING_TYPE = new TypeReference<Set<String>>() { };
 
         @Override
@@ -242,7 +247,8 @@ public interface FormInputProcessor {
         }
     }
 
-    /** {@link FormInputProcessor} for {@link ObjectField#TEXT_TYPE}. */
+    /** @deprecated Use {@link FormInputProcessor2.Text} instead. */
+    @Deprecated
     public static class ForText extends AbstractFormInputProcessor {
 
         protected String createPlaceholder(ObjectField field) {
