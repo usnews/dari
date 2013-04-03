@@ -7,7 +7,10 @@ import org.slf4j.Logger;
 /**
  * Automatically initializes all the {@link Recordable} classes found
  * in the current class loader.
+ *
+ * @deprecated No replacement.
  */
+@Deprecated
 public class TypeInitializer implements Initializer {
 
     @Override

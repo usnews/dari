@@ -51,13 +51,13 @@ public class JspBufferFilter extends AbstractFilter {
             return BUFFER_OVERRIDE.pop();
         }
 
-        /** @deprecated Use {@link #pushBufferOverride} instead. */
+        /** @deprecated Use {@link #overrideBuffer} instead. */
         @Deprecated
         public static void setBufferOverride(int buffer) {
             BUFFER_OVERRIDE.set(buffer);
         }
 
-        /** @deprecated Use {@link #popBufferOverride} instead. */
+        /** @deprecated Use {@link #restoreBuffer} instead. */
         @Deprecated
         public static void removeBufferOverride() {
             BUFFER_OVERRIDE.remove();
