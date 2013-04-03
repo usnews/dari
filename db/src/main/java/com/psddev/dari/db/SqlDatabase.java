@@ -1830,11 +1830,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     insertBuilder.append(",");
                     vendor.appendIdentifier(insertBuilder, UPDATE_DATE_COLUMN);
                     insertBuilder.append(") VALUES (");
-                    vendor.appendBindValue(insertBuilder, id, parameters);
+                    vendor.appendValue(insertBuilder, id);
                     insertBuilder.append(",");
                     vendor.appendBindValue(insertBuilder, typeId, parameters);
                     insertBuilder.append(",");
-                    vendor.appendBindValue(insertBuilder, now, parameters);
+                    vendor.appendValue(insertBuilder, now);
                     insertBuilder.append(")");
 
                     try {
@@ -1862,11 +1862,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     updateBuilder.append(",");
                     vendor.appendIdentifier(updateBuilder, UPDATE_DATE_COLUMN);
                     updateBuilder.append("=");
-                    vendor.appendBindValue(updateBuilder, now, parameters);
+                    vendor.appendValue(updateBuilder, now);
                     updateBuilder.append(" WHERE ");
                     vendor.appendIdentifier(updateBuilder, ID_COLUMN);
                     updateBuilder.append("=");
-                    vendor.appendBindValue(updateBuilder, id, parameters);
+                    vendor.appendValue(updateBuilder, id);
 
                     if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
                         isNew = true;
