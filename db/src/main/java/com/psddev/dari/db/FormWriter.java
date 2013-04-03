@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -170,24 +171,16 @@ public class FormWriter extends HtmlWriter {
      */
     public HtmlWriter inputs(State state, String... fieldNames) throws IOException {
         if (fieldNames != null) {
+            boolean isUsingDeprecatedWrite = isUsingDeprecatedWriteField();
+
             ObjectType type = findType(state);
             for (String fieldName : fieldNames) {
                 ObjectField field = findField(type, fieldName);
 
-                FormInputProcessor2 processor2 = findInputProcessor2(field);
-                if (processor2 != null) {
-                    writeField2(state, field, processor2);
-
+                if (isUsingDeprecatedWrite) {
+                    writeField(state, field, findInputProcessor(field));
                 } else {
-                    // legacy support
-                    @SuppressWarnings("deprecation")
-                    FormInputProcessor processor1 = findInputProcessor(field);
-                    if (processor1 != null) {
-                        writeField(state, field, processor1);
-
-                    } else {
-                        writeField2(state, field, processor2);
-                    }
+                    writeField2(state, field, findInputProcessor2(field));
                 }
             }
         }
@@ -198,26 +191,34 @@ public class FormWriter extends HtmlWriter {
      * Writes all inputs in the given {@code state}.
      */
     public HtmlWriter allInputs(State state) throws IOException {
+        boolean isUsingDeprecatedWrite = isUsingDeprecatedWriteField();
+
         ObjectType type = findType(state);
         for (ObjectField field : type.getFields()) {
 
-            FormInputProcessor2 processor2 = findInputProcessor2(field);
-            if (processor2 != null) {
-                writeField2(state, field, processor2);
-
+            if (isUsingDeprecatedWrite) {
+                writeField(state, field, findInputProcessor(field));
             } else {
-                // legacy support
-                @SuppressWarnings("deprecation")
-                FormInputProcessor processor1 = findInputProcessor(field);
-                if (processor1 != null) {
-                    writeField(state, field, processor1);
-
-                } else {
-                    writeField2(state, field, processor2);
-                }
+                writeField2(state, field, findInputProcessor2(field));
             }
         }
         return this;
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean isUsingDeprecatedWriteField() {
+        try {
+            Method writeFieldMethod = getClass().getDeclaredMethod(
+                    "writeField",
+                    State.class, ObjectField.class, FormInputProcessor.class);
+
+            if (!FormWriter.class.equals(writeFieldMethod.getDeclaringClass())) {
+                return true;
+            }
+        } catch (SecurityException e) {
+        } catch (NoSuchMethodException e) {
+        }
+        return false;
     }
 
     /**
@@ -244,24 +245,17 @@ public class FormWriter extends HtmlWriter {
         ErrorUtils.errorIfNull(request, "request");
 
         if (fieldNames != null) {
+            boolean isUsingDeprecatedUpdate = isUsingDeprecatedUpdateField();
+
             ObjectType type = findType(state);
             for (String fieldName : fieldNames) {
                 ObjectField field = findField(type, fieldName);
 
-                FormInputProcessor2 processor2 = findInputProcessor2(field);
-                if (processor2 != null) {
-                    updateField2(state, request, field, processor2);
+                if (isUsingDeprecatedUpdate) {
+                    updateField(state, request, field, findInputProcessor(field));
 
                 } else {
-                    // legacy support
-                    @SuppressWarnings("deprecation")
-                    FormInputProcessor processor1 = findInputProcessor(field);
-                    if (processor1 != null) {
-                        updateField(state, request, field, processor1);
-
-                    } else {
-                        updateField2(state, request, field, processor2);
-                    }
+                    updateField2(state, request, field, findInputProcessor2(field));
                 }
             }
         }
@@ -274,25 +268,34 @@ public class FormWriter extends HtmlWriter {
     public void updateAll(State state, HttpServletRequest request) {
         ErrorUtils.errorIfNull(request, "request");
 
+        boolean isUsingDeprecatedUpdate = isUsingDeprecatedUpdateField();
+
         ObjectType type = findType(state);
         for (ObjectField field : type.getFields()) {
 
-            FormInputProcessor2 processor2 = findInputProcessor2(field);
-            if (processor2 != null) {
-                updateField2(state, request, field, processor2);
+            if (isUsingDeprecatedUpdate) {
+                updateField(state, request, field, findInputProcessor(field));
 
             } else {
-                // legacy support
-                @SuppressWarnings("deprecation")
-                FormInputProcessor processor1 = findInputProcessor(field);
-                if (processor1 != null) {
-                    updateField(state, request, field, processor1);
-
-                } else {
-                    updateField2(state, request, field, processor2);
-                }
+                updateField2(state, request, field, findInputProcessor2(field));
             }
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean isUsingDeprecatedUpdateField() {
+        try {
+            Method updateFieldMethod = getClass().getDeclaredMethod(
+                    "updateField",
+                    State.class, HttpServletRequest.class, ObjectField.class, FormInputProcessor.class);
+
+            if (!FormWriter.class.equals(updateFieldMethod.getDeclaringClass())) {
+                return true;
+            }
+        } catch (SecurityException e) {
+        } catch (NoSuchMethodException e) {
+        }
+        return false;
     }
 
     // --- deprecations ---
