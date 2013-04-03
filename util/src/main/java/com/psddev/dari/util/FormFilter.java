@@ -6,7 +6,6 @@ import java.io.StringWriter;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
-import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
@@ -39,14 +38,6 @@ public class FormFilter extends AbstractFilter {
         if (processor != null) {
             request.setAttribute(SUBMITTED_FORM_PROCESSOR_ATTRIBUTE, processor);
             try {
-                RedirectCapturingResponse redirectCapturing = null;
-
-                ServletResponse headerResponse = JspUtils.getHeaderResponse(request, response);
-                if (headerResponse instanceof HttpServletResponse) {
-                    redirectCapturing = new RedirectCapturingResponse((HttpServletResponse) headerResponse);
-                    JspUtils.setHeaderResponse(request, redirectCapturing);
-                }
-
                 BufferedResponse buffered = new BufferedResponse(response);
                 request.setAttribute(BUFFERED_RESPONSE_ATTRIBUTE, buffered);
 
@@ -55,7 +46,7 @@ public class FormFilter extends AbstractFilter {
                 request.setAttribute(IS_FORM_SUCCESSFUL_ATTRIBUTE, Boolean.TRUE);
                 request.setAttribute(FORM_RESULT_ATTRIBUTE, result);
 
-                if (redirectCapturing != null && redirectCapturing.isRedirecting()) {
+                if (JspUtils.isFinished(request, JspUtils.getHeaderResponse(request, response))) {
                     return;
                 }
 
@@ -93,42 +84,6 @@ public class FormFilter extends AbstractFilter {
 
         public String getResponseString() {
             return stringWriter.toString();
-        }
-    }
-
-    /** Response that can detect when a redirect is being sent. */
-    private static class RedirectCapturingResponse extends HttpServletResponseWrapper {
-
-        private boolean isRedirectStatusSet = false;
-
-        public RedirectCapturingResponse(HttpServletResponse response) {
-            super(response);
-        }
-
-        public boolean isRedirecting() {
-            return containsHeader("Location") && isRedirectStatusSet;
-        }
-
-        @Override
-        public void setStatus(int sc) {
-            if (sc == HttpServletResponse.SC_MOVED_PERMANENTLY ||
-                    sc == HttpServletResponse.SC_MOVED_TEMPORARILY) {
-                isRedirectStatusSet = true;
-            } else {
-                isRedirectStatusSet = false;
-            }
-            super.setStatus(sc);
-        }
-
-        @Override
-        public void setStatus(int sc, String sm) {
-            if (sc == HttpServletResponse.SC_MOVED_PERMANENTLY ||
-                    sc == HttpServletResponse.SC_MOVED_TEMPORARILY) {
-                isRedirectStatusSet = true;
-            } else {
-                isRedirectStatusSet = false;
-            }
-            super.setStatus(sc, sm);
         }
     }
 
