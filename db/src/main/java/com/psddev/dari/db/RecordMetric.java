@@ -5,7 +5,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -53,7 +52,7 @@ public class RecordMetric {
     private final MetricQuery query;
     private final Record record;
 
-    private Record.MetricEventDatePrecision eventDatePrecision = Record.MetricEventDatePrecision.NONE;
+    private MetricEventDateProcessor eventDateProcessor;
     private UUID metricId;
 
     private Long updateDate;
@@ -72,16 +71,19 @@ public class RecordMetric {
         this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol, dimensions);
     }
 
-    public void setEventDatePrecision(Record.MetricEventDatePrecision precision) {
-        this.eventDatePrecision = precision;
+    public void setEventDateProcessor(MetricEventDateProcessor processor) {
+        this.eventDateProcessor = processor;
     }
 
     public Record getRecord() {
         return record;
     }
 
-    public Record.MetricEventDatePrecision getEventDatePrecision() {
-        return this.eventDatePrecision;
+    public MetricEventDateProcessor getEventDateProcessor() {
+        if (this.eventDateProcessor == null) {
+            this.eventDateProcessor = new MetricEventDateProcessor.None();
+        }
+        return this.eventDateProcessor;
     }
 
     public SqlDatabase getDatabase() {
@@ -103,45 +105,9 @@ public class RecordMetric {
         return this.updateDate;
     }
 
-    // This method will strip the minutes and seconds off of a timestamp
+    // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
     public void setEventDate(long timestampMillis) {
-        Calendar c = Calendar.getInstance();
-        c.clear();
-        c.setTimeInMillis(timestampMillis);
-        c.set(Calendar.MILLISECOND, 0);
-        c.set(Calendar.SECOND, 0);
-        c.set(Calendar.MINUTE, 0);
-        switch (getEventDatePrecision()) {
-            case HOUR: // leave hour/day/month/year
-                break;
-            case DAY: // leave day/month/year, set hour to 0
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                break;
-            case WEEK_SUNDAY: // leave month/year, set day to sunday of this week
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                while (c.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY)
-                  c.add(Calendar.DATE, -1);
-                break;
-            case WEEK: // same as WEEK_MONDAY
-            case WEEK_MONDAY: // leave month/year, set day to monday of this week
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                while (c.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY)
-                  c.add(Calendar.DATE, -1);
-                break;
-            case MONTH: // leave month/year, set day to 1st day of this month
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                c.set(Calendar.DAY_OF_MONTH, 1);
-                break;
-            case YEAR: // leave year, set month to 1st month of this year
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                c.set(Calendar.DAY_OF_MONTH, 1);
-                c.set(Calendar.MONTH, Calendar.JANUARY);
-                break;
-            case NONE: // not tracking dates at all - set to 0
-                c.setTimeInMillis(0);
-                break;
-        }
-        this.eventDate = (c.getTimeInMillis());
+        this.eventDate = this.getEventDateProcessor().process(timestampMillis);
     }
 
     public long getEventDate() {
@@ -189,8 +155,8 @@ public class RecordMetric {
 
     public void setMetric(Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
-        if (getEventDatePrecision() != Record.MetricEventDatePrecision.NONE) {
-            throw new RuntimeException("RecordMetric.setMetric() can only be used if EventDatePrecision is NONE");
+        if (! getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
+            throw new RuntimeException("RecordMetric.setMetric() can only be used if EventDateProcessor is None");
         }
         // find the metricId, it might be null
         UUID metricId = getMetricId();
@@ -1169,6 +1135,7 @@ public class RecordMetric {
             } else {
                 List<byte[]> datas = getMinMaxDataByMetricId(db, metricId, actionSymbol, minEventDate, maxEventDate);
                 if (datas.size() == 0) return null;
+                if (datas.get(0) == null) return null;
                 double maxCumulativeAmount = amountFromBytes(datas.get(0), CUMULATIVEAMOUNT_POSITION);
                 double minCumulativeAmount = amountFromBytes(datas.get(1), CUMULATIVEAMOUNT_POSITION);
                 double minAmount = amountFromBytes(datas.get(1), AMOUNT_POSITION);
@@ -1260,11 +1227,13 @@ public class RecordMetric {
     @Record.FieldInternalNamePrefix("metrics.")
     public static class MetricFieldData extends Modification<ObjectField> {
 
+        private transient MetricEventDateProcessor eventDateProcessor;
+
         private boolean dimension;
         private boolean metricValue;
         private boolean eventDateField;
         private boolean includeSelfDimension;
-        private Record.MetricEventDatePrecision eventDatePrecision;
+        private String eventDateProcessorClassName;
         private Set<String> dimensions = new HashSet<String>();
         private String eventDateFieldName;
         private String recordIdJoinTableName;
@@ -1302,12 +1271,29 @@ public class RecordMetric {
             this.includeSelfDimension = includeSelfDimension;
         }
 
-        public Record.MetricEventDatePrecision getEventDatePrecision() {
-            return eventDatePrecision;
+        @SuppressWarnings("unchecked")
+        public MetricEventDateProcessor getEventDateProcessor() {
+            if (eventDateProcessor == null) {
+                if (eventDateProcessorClassName == null) {
+                    return null;
+                } else {
+                    try {
+                        Class<MetricEventDateProcessor> cls = (Class<MetricEventDateProcessor>) Class.forName(eventDateProcessorClassName);
+                        eventDateProcessor = cls.newInstance();
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    } catch (InstantiationException e) {
+                        throw new RuntimeException(e);
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            return eventDateProcessor;
         }
 
-        public void setEventDatePrecision(Record.MetricEventDatePrecision eventDatePrecision) {
-            this.eventDatePrecision = eventDatePrecision;
+        public void setEventDateProcessorClass(Class<? extends MetricEventDateProcessor> eventDateProcessorClass) {
+            this.eventDateProcessorClassName = eventDateProcessorClass.getName();
         }
 
         public Set<String> getDimensions() {
@@ -1484,8 +1470,8 @@ public class RecordMetric {
         public double getMetricOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
             try {
                 RecordMetric cr = getRecordMetric(metricFieldInternalName);
-                if (cr.getEventDatePrecision().equals(Record.MetricEventDatePrecision.NONE)) {
-                    throw new RuntimeException("Date range does not apply for EventDatePrecision.NONE");
+                if (cr.getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
+                    throw new RuntimeException("Date range does not apply - no MetricEventDateProcessor");
                 }
                 cr.setQueryDateRange(startTimestamp, endTimestamp);
                 return getRecordMetric(metricFieldInternalName).getMetric();
@@ -1508,9 +1494,9 @@ public class RecordMetric {
                 ObjectField metricField = getMetricField(metricFieldInternalName);
                 RecordMetric recordMetric = new RecordMetric(this, metricField.getUniqueName(), this.getDimensions(metricFieldInternalName));
                 if (eventDateField != null) {
-                    recordMetric.setEventDatePrecision(eventDateField.as(MetricFieldData.class).getEventDatePrecision());
+                    recordMetric.setEventDateProcessor(eventDateField.as(MetricFieldData.class).getEventDateProcessor());
                 } else {
-                    recordMetric.setEventDatePrecision(Record.MetricEventDatePrecision.NONE);
+                    recordMetric.setEventDateProcessor(null);
                 }
                 if (metricField.as(MetricFieldData.class).isIncludeSelfDimension()) {
                     recordMetric.setIncludeSelfDimension(true);

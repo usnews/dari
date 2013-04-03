@@ -36,17 +36,6 @@ public interface Recordable {
      */
     public <T> T as(Class<T> modificationClass);
 
-    public static enum MetricEventDatePrecision {
-        HOUR,
-        DAY,
-        WEEK, // Same as WEEK_MONDAY
-        WEEK_SUNDAY,
-        WEEK_MONDAY,
-        MONTH,
-        YEAR,
-        NONE
-    }
-
     // --- Annotations ---
 
     /**
@@ -314,10 +303,10 @@ public interface Recordable {
      * This field's value will not be loaded or saved into the state. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(MetricEventDateProcessor.class)
+    @ObjectField.AnnotationProcessorClass(MetricEventDateAnnotationProcessor.class)
     @Target(ElementType.FIELD)
     public @interface MetricEventDate {
-        MetricEventDatePrecision value() default MetricEventDatePrecision.HOUR;
+        Class<? extends MetricEventDateProcessor> value() default MetricEventDateProcessor.Hourly.class;
     }
 
     // --- Deprecated ---
@@ -782,7 +771,7 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
     }
 }
 
-class MetricEventDateProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
+class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
 
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
@@ -797,7 +786,7 @@ class MetricEventDateProcessor implements ObjectField.AnnotationProcessor<Record
 
         RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
         metricFieldData.setDimension(false);
-        metricFieldData.setEventDatePrecision(annotation.value());
+        metricFieldData.setEventDateProcessorClass(annotation.value());
         metricFieldData.setEventDateField(true);
     }
 }
