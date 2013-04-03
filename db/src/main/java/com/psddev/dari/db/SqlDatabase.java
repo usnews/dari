@@ -663,7 +663,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 "Unknown format! ([%s])", format));
     }
 
-    private final transient Cache<String, byte[]> dataCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    private final transient Cache<UUID, UpdateDateData> dataCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+
+    private static class UpdateDateData {
+
+        public final double updateDate;
+        public final byte[] data;
+
+        public UpdateDateData(double updateDate, byte[] data) {
+            this.updateDate = updateDate;
+            this.data = data;
+        }
+    }
 
     /**
      * Creates a previously saved object using the given {@code resultSet}.
@@ -677,10 +688,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             if (isCacheData()) {
                 UUID id = objectState.getId();
-                String key = id + "/" + resultSet.getDouble(3);
-                data = dataCache.getIfPresent(key);
+                UpdateDateData dataCacheEntry = dataCache.getIfPresent(id);
 
-                if (data == null) {
+                if (dataCacheEntry != null && dataCacheEntry.updateDate == resultSet.getDouble(3)) {
+                    data = dataCacheEntry.data;
+
+                } else {
                     SqlVendor vendor = getVendor();
                     StringBuilder sqlQuery = new StringBuilder();
 
@@ -712,7 +725,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         if (result.next()) {
                             data = result.getBytes(1);
-                            dataCache.put(id + "/" + result.getDouble(2), data);
+                            dataCache.put(id, new UpdateDateData(result.getDouble(2), data));
                         }
 
                     } catch (SQLException error) {
