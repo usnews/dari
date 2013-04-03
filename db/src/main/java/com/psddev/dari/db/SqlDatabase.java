@@ -138,8 +138,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         protected void doTask() throws Exception {
             String jdbcUrl = openReadConnection().getMetaData().getURL();
             int schemeEndOffset = jdbcUrl.indexOf("://");
-            int portEndOffset = jdbcUrl.indexOf(":", schemeEndOffset + 3);
-            String hostname = jdbcUrl.substring(schemeEndOffset + 3, portEndOffset);
+
+            if (schemeEndOffset < 0) {
+                return;
+            }
+
+            schemeEndOffset += 3;
+            int portEndOffset = jdbcUrl.indexOf(":", schemeEndOffset);
+            String hostname = jdbcUrl.substring(schemeEndOffset, portEndOffset);
             String zmqUrl = "tcp://" + hostname + ":5556";
             Ctx context = ZMQ.zmq_init(1);
             SocketBase socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
