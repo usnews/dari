@@ -75,22 +75,22 @@ public class RecordMetric {
         this.eventDateProcessor = processor;
     }
 
-    public Record getRecord() {
+    private Record getRecord() {
         return record;
     }
 
     public MetricEventDateProcessor getEventDateProcessor() {
-        if (this.eventDateProcessor == null) {
-            this.eventDateProcessor = new MetricEventDateProcessor.None();
+        if (eventDateProcessor == null) {
+            eventDateProcessor = new MetricEventDateProcessor.None();
         }
-        return this.eventDateProcessor;
+        return eventDateProcessor;
     }
 
-    public SqlDatabase getDatabase() {
+    private SqlDatabase getDatabase() {
         return db;
     }
 
-    public MetricQuery getQuery() {
+    private MetricQuery getQuery() {
         return query;
     }
 
@@ -99,22 +99,22 @@ public class RecordMetric {
     }
 
     public long getUpdateDate() {
-        if (this.updateDate == null) {
-            this.updateDate = System.currentTimeMillis();
+        if (updateDate == null) {
+            updateDate = System.currentTimeMillis();
         }
-        return this.updateDate;
+        return updateDate;
     }
 
     // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
     public void setEventDate(long timestampMillis) {
-        this.eventDate = this.getEventDateProcessor().process(timestampMillis);
+        this.eventDate = getEventDateProcessor().process(timestampMillis);
     }
 
     public long getEventDate() {
-        if (this.eventDate == null) {
+        if (eventDate == null) {
             setEventDate((System.currentTimeMillis()));
         }
-        return this.eventDate;
+        return eventDate;
     }
 
     public void setIncludeSelfDimension(boolean includeSelfDimension) {
@@ -138,7 +138,7 @@ public class RecordMetric {
         if (getRecordIdForInsert() == null) {
             throw new RuntimeException("Can't look up metric by recordId when using includeSelfDimension=false");
         }
-        return Static.getMetricByRecordId(getDatabase(), getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return Static.getMetricByRecordId(getDatabase(), getRecordIdForInsert(), getRecord().getState().getTypeId(), getQuery().getActionSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
     public void incrementMetric(Double amount) throws SQLException {
@@ -146,9 +146,9 @@ public class RecordMetric {
         if (amount == 0) return; // This actually causes some problems if it's not here
         UUID metricId = getMetricId();
         if (dimensionsSaved) {
-            Static.doIncrementUpdateOrInsert(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), amount, getUpdateDate(), getEventDate());
+            Static.doIncrementUpdateOrInsert(getDatabase(), metricId, getRecordIdForInsert(), getRecord().getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), amount, getUpdateDate(), getEventDate());
         } else {
-            Static.doInserts(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), dimensions, amount, getUpdateDate(), getEventDate());
+            Static.doInserts(getDatabase(), metricId, getRecordIdForInsert(), getRecord().getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(), dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
     }
@@ -161,25 +161,25 @@ public class RecordMetric {
         // find the metricId, it might be null
         UUID metricId = getMetricId();
         if (dimensionsSaved) {
-            Static.doSetUpdateOrInsert(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(),
+            Static.doSetUpdateOrInsert(getDatabase(), metricId, getRecordIdForInsert(), getRecord().getState().getTypeId(), getQuery().getActionSymbol(),
                     getDimensionsSymbol(), amount, getUpdateDate(),
                     getEventDate());
         } else {
-            Static.doInserts(getDatabase(), metricId, this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
+            Static.doInserts(getDatabase(), metricId, getRecordIdForInsert(), getRecord().getState().getTypeId(), getQuery().getActionSymbol(), getDimensionsSymbol(),
                     dimensions, amount, getUpdateDate(), getEventDate());
             dimensionsSaved = true;
         }
     }
 
     public void deleteMetrics() throws SQLException {
-        Static.doMetricDelete(getDatabase(), this.getRecordIdForInsert(), this.record.getState().getTypeId(), getQuery().getDimensions());
+        Static.doMetricDelete(getDatabase(), getRecordIdForInsert(), getRecord().getState().getTypeId(), getQuery().getDimensions());
     }
 
     private UUID getRecordIdForInsert() {
-        return this.getQuery().getRecordIdForInsert();
+        return getQuery().getRecordIdForInsert();
     }
 
-    public UUID getMetricId() throws SQLException {
+    private UUID getMetricId() throws SQLException {
         if (metricId == null) {
             metricId = Static.getMetricIdByDimensions(getDatabase(), getQuery());
             if (metricId == null) {
@@ -194,11 +194,11 @@ public class RecordMetric {
         return metricId;
     }
 
-    public String getDimensionsSymbol() {
-        if (this.dimensionsSymbol != null) {
+    private String getDimensionsSymbol() {
+        if (dimensionsSymbol != null) {
             return dimensionsSymbol;
         } else {
-            return this.dimensions.getSymbol();
+            return dimensions.getSymbol();
         }
     }
 
@@ -1341,7 +1341,7 @@ public class RecordMetric {
         private transient Set<Integer> dimensionHashCodes;
 
         private ObjectField findMetricField(String internalName) {
-            ObjectType recordType = ObjectType.getInstance(this.getOriginalObject().getClass());
+            ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
             if (internalName == null) {
                 for (ObjectField objectField : recordType.getFields()) {
                     if (objectField.as(MetricFieldData.class).isMetricValue()) {
@@ -1366,7 +1366,7 @@ public class RecordMetric {
 
         private ObjectField getEventDateField(String metricFieldInternalName) {
             if (! eventDateFields.containsKey(metricFieldInternalName)) {
-                ObjectType recordType = ObjectType.getInstance(this.getOriginalObject().getClass());
+                ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
                 ObjectField metricField = getMetricField(metricFieldInternalName);
                 String eventDateFieldName = metricField.as(MetricFieldData.class).getEventDateFieldName();
                 if (eventDateFieldName != null) {
@@ -1402,9 +1402,9 @@ public class RecordMetric {
 
         private boolean dimensionValuesHaveChanged(String metricFieldInternalName) {
             Set<Integer> newDimensionHashCodes = new HashSet<Integer>();
-            for (ObjectField field : this.getDimensions(metricFieldInternalName)) {
-                if (this.getState().getByPath(field.getInternalName()) != null) {
-                    newDimensionHashCodes.add(this.getState().getByPath(field.getInternalName()).hashCode());
+            for (ObjectField field : getDimensions(metricFieldInternalName)) {
+                if (getState().getByPath(field.getInternalName()) != null) {
+                    newDimensionHashCodes.add(getState().getByPath(field.getInternalName()).hashCode());
                 }
             }
             if (dimensionHashCodes == null || ! newDimensionHashCodes.equals(dimensionHashCodes)) {
@@ -1492,7 +1492,7 @@ public class RecordMetric {
             ObjectField eventDateField = getEventDateField(metricFieldInternalName);
             if (! recordMetrics.containsKey(metricFieldInternalName)) {
                 ObjectField metricField = getMetricField(metricFieldInternalName);
-                RecordMetric recordMetric = new RecordMetric(this, metricField.getUniqueName(), this.getDimensions(metricFieldInternalName));
+                RecordMetric recordMetric = new RecordMetric(this, metricField.getUniqueName(), getDimensions(metricFieldInternalName));
                 if (eventDateField != null) {
                     recordMetric.setEventDateProcessor(eventDateField.as(MetricFieldData.class).getEventDateProcessor());
                 } else {
@@ -1530,7 +1530,7 @@ class MetricQuery {
     private Long endTimestamp;
     private DimensionSet groupByDimensions;
     private String[] orderByDimensions;
-    public boolean includeSelfDimension;
+    private boolean includeSelfDimension;
 
     public MetricQuery(String symbol, String actionSymbol, DimensionSet dimensions) {
         this.symbol = symbol;
@@ -1549,7 +1549,7 @@ class MetricQuery {
 
     public UUID getRecordIdForInsert() {
         if (isIncludeSelfDimension()) {
-            return this.record.getId();
+            return record.getId();
         } else {
             return null;
         }
@@ -1639,23 +1639,23 @@ class Dimension implements Comparable<Dimension> {
     }
 
     public void addValue(UUID value) {
-        this.values.add(value);
+        values.add(value);
     }
 
     public void addValue(String value) {
-        this.values.add(value);
+        values.add(value);
     }
 
     public void addValue(Number value) {
-        this.values.add(value);
+        values.add(value);
     }
 
     public void addValue(Object value) {
-        this.values.add(value.toString());
+        values.add(value.toString());
     }
 
     public String getIndexTable () {
-        return RecordMetric.Static.getIndexTable(this.getObjectField());
+        return RecordMetric.Static.getIndexTable(getObjectField());
     }
 
     public String toString() {
@@ -1670,7 +1670,7 @@ class Dimension implements Comparable<Dimension> {
 
     @Override
     public int compareTo(Dimension arg0) {
-        return this.getSymbol().compareTo(arg0.getSymbol());
+        return getSymbol().compareTo(arg0.getSymbol());
     }
 
 }
@@ -1724,7 +1724,7 @@ class DimensionSet extends LinkedHashSet<Dimension> {
     public String getSymbol() {
         StringBuilder symbolBuilder = new StringBuilder();
         // if there is ever a prefix, put it here.
-        //StringBuilder symbolBuilder = new StringBuilder(this.objectClass.getName());
+        //StringBuilder symbolBuilder = new StringBuilder(objectClass.getName());
         //symbolBuilder.append("/");
 
         boolean usedThisPrefix = false;
