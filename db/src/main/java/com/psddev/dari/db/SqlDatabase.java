@@ -1956,6 +1956,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         List<Object> parameters = new ArrayList<Object>();
                         StringBuilder updateBuilder = new StringBuilder();
 
+                        updateBuilder.append("/* DARI CF ");
+                        updateBuilder.append(StringUtils.hex(UuidUtils.toBytes(id)));
+                        updateBuilder.append(" ").append(now).append(" */ ");
                         updateBuilder.append("UPDATE ");
                         vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
                         updateBuilder.append(" SET ");
@@ -2018,6 +2021,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         List<Object> parameters = new ArrayList<Object>();
                         StringBuilder updateBuilder = new StringBuilder();
 
+                        updateBuilder.append("/* DARI CF ");
+                        updateBuilder.append(StringUtils.hex(UuidUtils.toBytes(id)));
+                        updateBuilder.append(" ").append(now).append(" */ ");
                         updateBuilder.append("UPDATE ");
                         vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
                         updateBuilder.append(" SET ");
