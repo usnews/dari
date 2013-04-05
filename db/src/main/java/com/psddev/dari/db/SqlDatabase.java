@@ -41,6 +41,8 @@ import org.iq80.snappy.Snappy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.jolbox.bonecp.BoneCPDataSource;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -72,6 +74,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
+    public static final String CACHE_DATA_SUB_SETTING = "cacheData";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -118,6 +121,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile DataSource readDataSource;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
+    private volatile boolean cacheData;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -277,6 +281,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** Sets whether the data should be compressed. */
     public void setCompressData(boolean compressData) {
         this.compressData = compressData;
+    }
+
+    public boolean isCacheData() {
+        return cacheData;
+    }
+
+    public void setCacheData(boolean cacheData) {
+        this.cacheData = cacheData;
     }
 
     /**
@@ -632,6 +644,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 "Unknown format! ([%s])", format));
     }
 
+    private final transient Cache<String, byte[]> dataCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+
     /**
      * Creates a previously saved object using the given {@code resultSet}.
      */
@@ -640,7 +654,60 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         State objectState = State.getInstance(object);
 
         if (!objectState.isReferenceOnly()) {
-            byte[] data = resultSet.getBytes(3);
+            byte[] data = null;
+
+            if (isCacheData()) {
+                UUID id = objectState.getId();
+                String key = id + "/" + resultSet.getDouble(3);
+                data = dataCache.getIfPresent(key);
+
+                if (data == null) {
+                    SqlVendor vendor = getVendor();
+                    StringBuilder sqlQuery = new StringBuilder();
+
+                    sqlQuery.append("SELECT r.");
+                    vendor.appendIdentifier(sqlQuery, "data");
+                    sqlQuery.append(", ru.");
+                    vendor.appendIdentifier(sqlQuery, "updateDate");
+                    sqlQuery.append(" FROM ");
+                    vendor.appendIdentifier(sqlQuery, "Record");
+                    sqlQuery.append(" AS r LEFT OUTER JOIN ");
+                    vendor.appendIdentifier(sqlQuery, "RecordUpdate");
+                    sqlQuery.append(" AS ru ON r.");
+                    vendor.appendIdentifier(sqlQuery, "id");
+                    sqlQuery.append(" = ru.");
+                    vendor.appendIdentifier(sqlQuery, "id");
+                    sqlQuery.append(" WHERE r.");
+                    vendor.appendIdentifier(sqlQuery, "id");
+                    sqlQuery.append(" = ");
+                    vendor.appendUuid(sqlQuery, id);
+
+                    Connection connection = null;
+                    Statement statement = null;
+                    ResultSet result = null;
+
+                    try {
+                        connection = openQueryConnection(query);
+                        statement = connection.createStatement();
+                        result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
+
+                        if (result.next()) {
+                            data = result.getBytes(1);
+                            dataCache.put(id + "/" + result.getDouble(2), data);
+                        }
+
+                    } catch (SQLException error) {
+                        throw createQueryException(error, sqlQuery.toString(), query);
+
+                    } finally {
+                        closeResources(null, connection, statement, result);
+                    }
+                }
+
+            } else {
+                data = resultSet.getBytes(3);
+            }
+
             if (data != null) {
                 objectState.putAll(unserializeData(data));
                 Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
@@ -1040,20 +1107,25 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Override
     public Connection openConnection() {
         DataSource dataSource = getDataSource();
+
         if (dataSource == null) {
             throw new SqlDatabaseException(this, "No SQL data source!");
         }
 
         try {
-            return dataSource.getConnection();
-        } catch (SQLException ex) {
-            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", ex);
+            Connection connection = dataSource.getConnection();
+            connection.setReadOnly(false);
+            return connection;
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
     }
 
     @Override
     protected Connection doOpenReadConnection() {
         DataSource readDataSource = getReadDataSource();
+
         if (readDataSource == null) {
             readDataSource = getDataSource();
         }
@@ -1063,9 +1135,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            return readDataSource.getConnection();
-        } catch (SQLException ex) {
-            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", ex);
+            Connection connection = readDataSource.getConnection();
+            connection.setReadOnly(true);
+            return connection;
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
     }
 
@@ -1157,6 +1232,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         if (compressData != null) {
             setCompressData(compressData);
         }
+
+        setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
     }
 
     private static final Map<String, String> DRIVER_CLASS_NAMES; static {

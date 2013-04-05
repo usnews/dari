@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.net.URI;
@@ -20,6 +21,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PullThroughCache;
@@ -459,7 +461,12 @@ public class State implements Map<String, Object> {
         }
     }
 
-    /** Returns the field value associated with the given {@code path}. */
+    /**
+     * Returns the value associated with the given {@code path}.
+     *
+     * @param path If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
     public Object getByPath(String path) {
         if (path == null) {
             return null;
@@ -467,11 +474,13 @@ public class State implements Map<String, Object> {
 
         Object value = this;
 
-        for (String key; path != null; ) {
+        KEY: for (String key; path != null; ) {
             int slashAt = path.indexOf('/');
+
             if (slashAt > -1) {
                 key = path.substring(0, slashAt);
                 path = path.substring(slashAt + 1);
+
             } else {
                 key = path;
                 path = null;
@@ -481,8 +490,47 @@ public class State implements Map<String, Object> {
                 value = ((Recordable) value).getState();
             }
 
+            if (key.endsWith("()")) {
+                if (value instanceof State) {
+                    key = key.substring(0, key.length() - 2);
+
+                    Class<?> keyClass = null;
+                    int dotAt = key.lastIndexOf('.');
+
+                    if (dotAt > -1) {
+                        keyClass = ObjectUtils.getClassByName(key.substring(0, dotAt));
+                        key = key.substring(dotAt + 1);
+                    }
+
+                    if (keyClass == null) {
+                        value = ((State) value).getOriginalObject();
+                        keyClass = value.getClass();
+
+                    } else {
+                        value = ((State) value).as(keyClass);
+                    }
+
+                    for (Class<?> c = keyClass; c != null; c = c.getSuperclass()) {
+                        try {
+                            Method keyMethod = c.getDeclaredMethod(key);
+                            keyMethod.setAccessible(false);
+                            value = keyMethod.invoke(value);
+                            continue KEY;
+
+                        } catch (NoSuchMethodException error) {
+
+                        } catch (Exception error) {
+                            ErrorUtils.rethrow(error);
+                        }
+                    }
+                }
+
+                return null;
+            }
+
             if (value instanceof State) {
                 State valueState = (State) value;
+
                 if (ID_KEY.equals(key)) {
                     value = valueState.getId();
                 } else if (TYPE_KEY.equals(key)) {
@@ -498,6 +546,7 @@ public class State implements Map<String, Object> {
 
             } else if (value instanceof List) {
                 Integer index = ObjectUtils.to(Integer.class, key);
+
                 if (index != null) {
                     List<?> list = (List<?>) value;
                     int listSize = list.size();
@@ -505,6 +554,7 @@ public class State implements Map<String, Object> {
                     if (index < 0) {
                         index += listSize;
                     }
+
                     if (index >= 0 && index < listSize) {
                         value = list.get(index);
                         continue;

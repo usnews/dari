@@ -5,7 +5,12 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 
-/** Automatically initializes all applications. */
+/**
+ * Automatically initializes all applications.
+ *
+ * @deprecated No replacement.
+ */
+@Deprecated
 public class ApplicationInitializer implements Initializer {
 
     @Override

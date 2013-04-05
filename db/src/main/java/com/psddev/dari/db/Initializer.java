@@ -4,7 +4,12 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 
-/** Automatically initializes a {@linkplain Database database}. */
+/**
+ * Automatically initializes a {@linkplain Database database}.
+ *
+ * @deprecated No replacement.
+ */
+@Deprecated
 public interface Initializer {
 
     /**
