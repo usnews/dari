@@ -1,5 +1,7 @@
 package com.psddev.dari.db;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.io.ByteArrayInputStream;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -45,6 +47,7 @@ import zmq.Ctx;
 import zmq.Msg;
 import zmq.SocketBase;
 import zmq.ZError;
+import zmq.PollItem;
 import zmq.ZMQ;
 
 import com.google.common.cache.Cache;
@@ -1268,7 +1271,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             @Override
             protected void doTask() throws Exception {
-                String jdbcUrl = openReadConnection().getMetaData().getURL();
+                String jdbcUrl = openConnection().getMetaData().getURL();
                 int schemeEndOffset = jdbcUrl.indexOf("://");
 
                 if (schemeEndOffset < 0) {
@@ -1300,26 +1303,75 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 LOGGER.info("Listening to ZMQ server at: " + zmqUrl);
                 ZMQ.zmq_setsockopt(socket, ZMQ.ZMQ_SUBSCRIBE, "");
 
-                while (shouldContinue()) {
-                    cacheInvalidates = true;
-                    Msg message = ZMQ.zmq_recv(socket, 0);
+                PollItem item = new PollItem(socket, ZMQ.ZMQ_POLLIN);
 
-                    if (message == null && ZError.is(ZError.ETERM)) {
+                long expire = System.currentTimeMillis(); 
+
+                while (shouldContinue()) {
+                    PollItem[] items = new PollItem[1];
+                    items[0] = item;
+                    int events = 0;
+                    
+                    try {
+                        events = ZMQ.zmq_poll(items, 100);
+                    } catch(Exception ex) {
                         cacheInvalidates = false;
+                    }
+                    
+                    Msg message = null;
+                    if (events > 0) {
+                        message = ZMQ.zmq_recv(socket, 0);
+                    }
+
+                    long lag = System.currentTimeMillis() - expire; 
+
+                    if (message == null && ZError.is(ZError.ETERM) || (message == null && lag > 1000)) {
+                        LOGGER.warn("Disabling caching for 5 seconds because we haven't received a cache flush or ping in over 1 second.");
+                        
+                        cacheInvalidates = false;
+                        Thread.sleep(5000);
+
+                        ZMQ.zmq_close(socket);
                         socket = ZMQ.zmq_socket(context, ZMQ.ZMQ_SUB);
                         rc = ZMQ.zmq_connect(socket, zmqUrl);
-
+                        ZMQ.zmq_setsockopt(socket, ZMQ.ZMQ_SUBSCRIBE, "");
                         if (!rc) {
                             LOGGER.warn("Cache invalidation task failed to start.");
                             return;
                         }
 
-                        Thread.sleep(100);
-
+                        item = new PollItem(socket, ZMQ.ZMQ_POLLIN);
+                        expire = System.currentTimeMillis();
                     } else if (message != null) {
-                        UUID id = UuidUtils.fromBytes(message.data());
-                        dataCache.invalidate(id);
-                        addProgressIndex(1);
+                        if (!cacheInvalidates) {
+                            LOGGER.warn("Caching re-enabled.");
+                        }
+
+                        cacheInvalidates = true;
+
+                        byte[] data = message.data();
+    
+                        if (data[0] == 'C') {
+                            // Cache flush message.
+                            byte[] idBytes = new byte[16];
+                            System.arraycopy(data, 1, idBytes, 0, 16);
+
+                            byte[] timestampBytes = new byte[8];
+                            System.arraycopy(data, 17, timestampBytes, 0, 8);
+                            double timestamp = ByteBuffer.wrap(timestampBytes).order(ByteOrder.LITTLE_ENDIAN).getDouble();
+
+                            UUID id = UuidUtils.fromBytes(idBytes);
+                            dataCache.invalidate(id);
+
+                            addProgressIndex(1);
+
+                            System.out.println("Invalidating " + id.toString() + " " + timestamp);
+                            expire = System.currentTimeMillis();
+                        } else if (data[0] == 'P') {
+                            // Ping.
+                            expire = System.currentTimeMillis();
+                        }
+
                     }
                 }
             }
