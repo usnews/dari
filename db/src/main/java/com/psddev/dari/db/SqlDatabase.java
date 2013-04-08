@@ -744,7 +744,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                Metric.MetricFieldData metricFieldData = field.as(Metric.MetricFieldData.class);
+                Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
 
                 if (fieldData.isIndexTableSource() && !metricFieldData.isDimension() && !metricFieldData.isEventDateField() && fieldData.getIndexTable() != null) {
                     loadExtraFields.add(field);
@@ -1700,7 +1700,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public double getSum(String field) {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
-            if (sumField.as(Metric.MetricFieldData.class).isMetricValue()) {
+            if (sumField.as(Metric.FieldData.class).isMetricValue()) {
                 if (! metricSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedMetricStatement(query, field, fields);

@@ -729,7 +729,7 @@ class MetricDimensionProcessor implements ObjectField.AnnotationProcessor<Record
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricDimension annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        Metric.MetricFieldData metricFieldData = field.as(Metric.MetricFieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
         metricFieldData.setDimension(true);
         metricFieldData.setRecordIdJoinTableName(Metric.RECORDMETRIC_TABLE);
         metricFieldData.setRecordIdJoinColumnName(Metric.METRIC_METRICID_FIELD);
@@ -754,7 +754,7 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
-        Metric.MetricFieldData metricFieldData = field.as(Metric.MetricFieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
         metricFieldData.setMetricValue(true);
         Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
 
@@ -784,7 +784,7 @@ class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProces
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
-        Metric.MetricFieldData metricFieldData = field.as(Metric.MetricFieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
         metricFieldData.setDimension(false);
         metricFieldData.setEventDateProcessorClass(annotation.value());
         metricFieldData.setEventDateField(true);

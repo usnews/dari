@@ -157,7 +157,7 @@ class SqlQuery {
             for (ObjectType type : queryTypes) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    Metric.MetricFieldData metricFieldData = field.as(Metric.MetricFieldData.class);
+                    Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
                     if (fieldData.isIndexTableSource() && 
                             fieldData.getIndexTable() != null &&
                             ! metricFieldData.isDimension() && 
@@ -566,7 +566,7 @@ class SqlQuery {
             boolean isFieldCollection = mappedKey.isInternalCollectionType();
 
             if (mappedKey.getField() != null) {
-                Metric.MetricFieldData metricFieldData = mappedKey.getField().as(Metric.MetricFieldData.class);
+                Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
                 if (metricFieldData.isDimension()) {
                     usesLeftJoin = true;
                     needsDistinct = true;
@@ -831,7 +831,7 @@ class SqlQuery {
         if (ascending || descending || closest || farthest) {
             String queryKey = (String) sorter.getOptions().get(0);
 
-            if (deferMetricPredicates && mappedKeys.get(queryKey).getField().as(Metric.MetricFieldData.class).isMetricValue()) {
+            if (deferMetricPredicates && mappedKeys.get(queryKey).getField().as(Metric.FieldData.class).isMetricValue()) {
                 ObjectField sortField = mappedKeys.get(queryKey).getField();
                 if (recordMetricField == null) {
                     recordMetricField = sortField;
@@ -975,7 +975,7 @@ class SqlQuery {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
                 if (mappedKey.getField() != null) {
-                    Metric.MetricFieldData metricFieldData = mappedKey.getField().as(Metric.MetricFieldData.class);
+                    Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
                     if (metricFieldData.isMetricValue()) {
                         throw new RuntimeException("Unable to group by @MetricValue: " + groupField);
                     }
@@ -1651,7 +1651,7 @@ class SqlQuery {
                 joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(Metric.MetricFieldData.class).isDimension()) {
+            } else if (joinField != null && joinField.as(Metric.FieldData.class).isDimension()) {
                 needsIndexTable = true;
                 likeValuePrefix = null;
                 addIndexKey(queryKey);
@@ -1668,12 +1668,12 @@ class SqlQuery {
 
                 recordJoinTableAlias = aliasPrefix + alias + "rjt";
                 StringBuilder extraTableBuilder = new StringBuilder();
-                vendor.appendIdentifier(extraTableBuilder, joinField.as(Metric.MetricFieldData.class).getRecordIdJoinTableName());
+                vendor.appendIdentifier(extraTableBuilder, joinField.as(Metric.FieldData.class).getRecordIdJoinTableName());
                 extraTableBuilder.append(" ");
                 extraTableBuilder.append(recordJoinTableAlias);
                 recordJoinTable = extraTableBuilder.toString();
 
-                idField = aliasedField(alias, joinField.as(Metric.MetricFieldData.class).getRecordIdJoinColumnName());
+                idField = aliasedField(alias, joinField.as(Metric.FieldData.class).getRecordIdJoinColumnName());
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
                 recordJoinIdField = aliasedField(alias + "rjt", sqlIndexTable.getIdField(database, index));
                 if (lastRecordJoinTableAlias != null) {
@@ -1684,7 +1684,7 @@ class SqlQuery {
                 lastRecordJoinTableAlias = recordJoinTableAlias;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(Metric.MetricFieldData.class).isEventDateField()) {
+            } else if (joinField != null && joinField.as(Metric.FieldData.class).isEventDateField()) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 //addIndexKey(queryKey);
@@ -1707,7 +1707,7 @@ class SqlQuery {
                 recordJoinTable = null;
                 needsIsNotNull = false;
 
-            } else if (joinField != null && joinField.as(Metric.MetricFieldData.class).isMetricValue()) {
+            } else if (joinField != null && joinField.as(Metric.FieldData.class).isMetricValue()) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 //addIndexKey(queryKey);
@@ -1812,7 +1812,7 @@ class SqlQuery {
                 }
             }
 
-            if (field != null && field.as(Metric.MetricFieldData.class).isEventDateField()) {
+            if (field != null && field.as(Metric.FieldData.class).isEventDateField()) {
                 // EventDates in Metric are smaller than long
                 Character padChar = 'F';
                 if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) || 

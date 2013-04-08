@@ -22,7 +22,7 @@ import java.util.UUID;
 
 import com.psddev.dari.util.UuidUtils;
 
-public class Metric {
+class Metric {
 
     //private static final Logger LOGGER = LoggerFactory.getLogger(Metric.class);
 
@@ -46,7 +46,7 @@ public class Metric {
     private static final int DATE_BYTE_SIZE = 4;
     private static final int AMOUNT_BYTE_SIZE = 8;
 
-    private final DimensionSet dimensions;
+    private final MetricDimensionSet dimensions;
     private final String dimensionsSymbol;
     private final SqlDatabase db;
     private final MetricQuery query;
@@ -60,7 +60,7 @@ public class Metric {
     private Boolean dimensionsSaved;
 
     public Metric(SqlDatabase database, Record record, String actionSymbol, Set<ObjectField> dimensions) {
-        this.dimensions = DimensionSet.createDimensionSet(dimensions, record);
+        this.dimensions = MetricDimensionSet.createDimensionSet(dimensions, record);
         this.dimensionsSymbol = this.getDimensionsSymbol(); // requires this.dimensions
         this.db = database;
         this.query = new MetricQuery(dimensionsSymbol, actionSymbol, record, this.dimensions);
@@ -86,7 +86,7 @@ public class Metric {
         return eventDateProcessor;
     }
 
-    private SqlDatabase getDatabase() {
+    public SqlDatabase getDatabase() {
         return db;
     }
 
@@ -208,11 +208,11 @@ public class Metric {
         private Static() {
         }
 
-        public static Set<String> getIndexTables(DimensionSet... dimensionSets) {
+        public static Set<String> getIndexTables(MetricDimensionSet... dimensionSets) {
             LinkedHashSet<String> tables = new LinkedHashSet<String>();
-            for (DimensionSet dimensions : dimensionSets) {
+            for (MetricDimensionSet dimensions : dimensionSets) {
                 if (dimensions != null) {
-                    for (Dimension dimension : dimensions) {
+                    for (MetricDimension dimension : dimensions) {
                         tables.add(dimension.getIndexTable());
                     }
                 }
@@ -234,10 +234,10 @@ public class Metric {
             }
         }
 
-        private static DimensionSet getDimensionsByIndexTable(String table, DimensionSet dimensions) {
+        private static MetricDimensionSet getDimensionsByIndexTable(String table, MetricDimensionSet dimensions) {
             //HashMap<String, Object> dims = new HashMap<String, Object>();
-            DimensionSet dims = new DimensionSet();
-            for (Dimension dimension : dimensions) {
+            MetricDimensionSet dims = new MetricDimensionSet();
+            for (MetricDimension dimension : dimensions) {
                 if (table.equals(dimension.getIndexTable())) {
                     dims.add(dimension);
                 }
@@ -245,7 +245,7 @@ public class Metric {
             return dims;
         }
 
-        private static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long createDate, long eventDate) {
+        private static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, MetricDimensionSet dimensions, double amount, long createDate, long eventDate) {
             ArrayList<String> sqls = new ArrayList<String>();
             // insert Metric
             List<Object> parameters = new ArrayList<Object>();
@@ -258,7 +258,7 @@ public class Metric {
                 parametersList.add(parameters);
             }
             // insert indexes
-            for (Dimension dimension : dimensions) {
+            for (MetricDimension dimension : dimensions) {
                 Set<Object> values = dimension.getValues();
                 String table = dimension.getIndexTable();
                 for (Object value : values) {
@@ -441,7 +441,7 @@ public class Metric {
             return (double) amountLong / AMOUNT_DECIMAL_SHIFT;
         }
 
-        private static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, String dimensionsSymbol, Dimension dimension, Object value, String table) {
+        private static String getDimensionInsertRowSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, String dimensionsSymbol, MetricDimension dimension, Object value, String table) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, table);
@@ -861,7 +861,7 @@ public class Metric {
                 int numFilters = 0;
                 // append to where statement
                 whereBuilder.append(" \nAND (");
-                for (Dimension dimension : Static.getDimensionsByIndexTable(
+                for (MetricDimension dimension : Static.getDimensionsByIndexTable(
                         table, query.getDimensions())) {
                     Set<Object> values = dimension.getValues();
                     whereBuilder.append("(");
@@ -1021,7 +1021,7 @@ public class Metric {
         // methods that actually touch the database
 
         // METRIC INSERT/UPDATE/DELETE
-        private static void doInserts(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
+        private static void doInserts(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, MetricDimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<List<Object>> parametersList = new ArrayList<List<Object>>();
@@ -1082,13 +1082,13 @@ public class Metric {
             }
         }
 
-        static void doMetricDelete(SqlDatabase db, UUID recordId, UUID typeId, DimensionSet dimensions) throws SQLException {
+        static void doMetricDelete(SqlDatabase db, UUID recordId, UUID typeId, MetricDimensionSet dimensions) throws SQLException {
             if (recordId == null) return; // TODO need to handle this.
             Connection connection = db.openConnection();
             List<Object> parameters = new ArrayList<Object>();
             try {
                 Set<String> tables = new HashSet<String>();
-                for (Dimension dimension : dimensions) {
+                for (MetricDimension dimension : dimensions) {
                     tables.add(dimension.getIndexTable());
                 }
                 // This needs to be executed BEFORE DeleteMetricSql
@@ -1225,7 +1225,7 @@ public class Metric {
     // MODIFICATIONS 
 
     @Record.FieldInternalNamePrefix("metrics.")
-    public static class MetricFieldData extends Modification<ObjectField> {
+    public static class FieldData extends Modification<ObjectField> {
 
         private transient MetricEventDateProcessor eventDateProcessor;
 
@@ -1329,458 +1329,4 @@ public class Metric {
         }
 
     }
-
-    public static class MetricAction extends Modification<Object> {
-
-        //private static final Logger LOGGER = LoggerFactory.getLogger(MetricAction.class);
-
-        private transient final Map<String, Metric> recordMetrics = new HashMap<String, Metric>();
-        private transient final Map<String, ObjectField> eventDateFields = new HashMap<String, ObjectField>();
-        private transient final Map<String, ObjectField> metricFields = new HashMap<String, ObjectField>();
-        private transient Date oldEventDateValue;
-        private transient Set<Integer> dimensionHashCodes;
-
-        private ObjectField findMetricField(String internalName) {
-            ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
-            if (internalName == null) {
-                for (ObjectField objectField : recordType.getFields()) {
-                    if (objectField.as(MetricFieldData.class).isMetricValue()) {
-                        return objectField;
-                    }
-                }
-            } else {
-                ObjectField objectField = recordType.getField(internalName);
-                if (objectField != null && objectField.as(MetricFieldData.class).isMetricValue()) {
-                    return objectField;
-                }
-            }
-            throw new RuntimeException("At least one numeric field must be marked as @MetricValue");
-        }
-
-        private ObjectField getMetricField(String internalName) {
-            if (!metricFields.containsKey(internalName)) {
-                metricFields.put(internalName, findMetricField(internalName));
-            }
-            return metricFields.get(internalName);
-        }
-
-        private ObjectField getEventDateField(String metricFieldInternalName) {
-            if (! eventDateFields.containsKey(metricFieldInternalName)) {
-                ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
-                ObjectField metricField = getMetricField(metricFieldInternalName);
-                String eventDateFieldName = metricField.as(MetricFieldData.class).getEventDateFieldName();
-                if (eventDateFieldName != null) {
-                    ObjectField eventDateField = recordType.getField(eventDateFieldName);
-                    if (eventDateField == null) {
-                        throw new RuntimeException("Invalid eventDate field : " + eventDateFieldName);
-                    }
-                    if (eventDateField.as(MetricFieldData.class).isEventDateField()) {
-                        eventDateFields.put(metricFieldInternalName, eventDateField);
-                    } else {
-                        throw new RuntimeException("The field " + eventDateFieldName + " is not annotated as @EventDate.");
-                    }
-                } else {
-                    eventDateFields.put(metricFieldInternalName, null);
-                }
-            }
-            return eventDateFields.get(metricFieldInternalName);
-        }
-
-        private Set<ObjectField> getDimensions(String metricFieldInternalName) {
-            // Checking each field for @Dimension annotation
-            Set<ObjectField> dimensions = new HashSet<ObjectField>();
-            ObjectField metricField = getMetricField(metricFieldInternalName);
-            ObjectType objectType = ObjectType.getInstance(getState().getType().getObjectClass());
-            for (String dimensionFieldName : metricField.as(MetricFieldData.class).getDimensions()) {
-                if (objectType.getField(dimensionFieldName) == null) {
-                    throw new RuntimeException("Invalid dimension field : " + dimensionFieldName);
-                }
-                dimensions.add(objectType.getField(dimensionFieldName));
-            }
-            return dimensions;
-        }
-
-        private boolean dimensionValuesHaveChanged(String metricFieldInternalName) {
-            Set<Integer> newDimensionHashCodes = new HashSet<Integer>();
-            for (ObjectField field : getDimensions(metricFieldInternalName)) {
-                if (getState().getByPath(field.getInternalName()) != null) {
-                    newDimensionHashCodes.add(getState().getByPath(field.getInternalName()).hashCode());
-                }
-            }
-            if (dimensionHashCodes == null || ! newDimensionHashCodes.equals(dimensionHashCodes)) {
-                dimensionHashCodes = newDimensionHashCodes;
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        public void incrementMetric(String metricFieldInternalName, double c) {
-            try {
-                getMetric(metricFieldInternalName).incrementMetric(c);
-            } catch (SQLException e) {
-                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.incrementMetric() : " + e.getLocalizedMessage());
-            }
-        }
-
-        public void setMetric(String metricFieldInternalName, double c) {
-            try {
-                getMetric(metricFieldInternalName).setMetric(c);
-            } catch (SQLException e) {
-                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.setMetric() : " + e.getLocalizedMessage());
-            }
-        }
-
-        public void deleteMetrics() {
-            try {
-                getMetric(null).deleteMetrics();
-            } catch (SQLException e) {
-                throw new DatabaseException(getMetric(null).getDatabase(), "Error in Metric.deleteMetrics() : " + e.getLocalizedMessage());
-            }
-        }
-
-        public double getMetricValue(String metricFieldInternalName) {
-            try {
-                Metric cr = getMetric(metricFieldInternalName);
-                cr.setQueryDateRange(null, null);
-                return getMetric(metricFieldInternalName).getMetric();
-            } catch (SQLException e) {
-                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
-            }
-        }
-
-        public double getMetricByRecordId(String metricFieldInternalName) {
-            try {
-                Metric cr = getMetric(metricFieldInternalName);
-                cr.setQueryDateRange(null, null);
-                return getMetric(metricFieldInternalName).getMetricByRecordId();
-            } catch (SQLException e) {
-                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetricByRecordId() : " + e.getLocalizedMessage());
-            }
-        }
-
-        public double getMetricSinceDate(String metricFieldInternalName, Long startTimestamp) {
-            return getMetricOverDateRange(metricFieldInternalName, startTimestamp, null);
-        }
-
-        public double getMetricAsOfDate(String metricFieldInternalName, Long endTimestamp) {
-            return getMetricOverDateRange(metricFieldInternalName, null, endTimestamp);
-        }
-
-        public double getMetricOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
-            try {
-                Metric cr = getMetric(metricFieldInternalName);
-                if (cr.getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
-                    throw new RuntimeException("Date range does not apply - no MetricEventDateProcessor");
-                }
-                cr.setQueryDateRange(startTimestamp, endTimestamp);
-                return getMetric(metricFieldInternalName).getMetric();
-            } catch (SQLException e) {
-                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
-            }
-        }
-
-        public Metric getMetric(String metricFieldInternalName) {
-            // if metricFieldInternalName is null, it will return the *first* @MetricValue in the type
-
-            if (dimensionValuesHaveChanged(metricFieldInternalName)) {
-                if (recordMetrics.containsKey(metricFieldInternalName)) {
-                    recordMetrics.remove(metricFieldInternalName);
-                }
-            }
-
-            ObjectField eventDateField = getEventDateField(metricFieldInternalName);
-            if (! recordMetrics.containsKey(metricFieldInternalName)) {
-                ObjectField metricField = getMetricField(metricFieldInternalName);
-                Metric recordMetric = new Metric(this, metricField.getUniqueName(), getDimensions(metricFieldInternalName));
-                if (eventDateField != null) {
-                    recordMetric.setEventDateProcessor(eventDateField.as(MetricFieldData.class).getEventDateProcessor());
-                } else {
-                    recordMetric.setEventDateProcessor(null);
-                }
-                if (metricField.as(MetricFieldData.class).isIncludeSelfDimension()) {
-                    recordMetric.setIncludeSelfDimension(true);
-                }
-                recordMetrics.put(metricFieldInternalName, recordMetric);
-            }
-
-            if (eventDateField != null) {
-                Object eventDateValue = getState().getByPath(eventDateField.getInternalName());
-                if (eventDateValue != null && eventDateValue instanceof Date) {
-                    if (! ((Date) eventDateValue).equals(oldEventDateValue)) {
-                        recordMetrics.get(metricFieldInternalName).setEventDate(((Date) eventDateValue).getTime());
-                        oldEventDateValue = (Date)((Date) eventDateValue).clone();
-                    }
-                }
-            }
-
-            return recordMetrics.get(metricFieldInternalName);
-        }
-
-    }
-
 }
-
-class MetricQuery {
-    private final String symbol;
-    private final String actionSymbol;
-    private final DimensionSet dimensions;
-    private final Record record;
-    private Long startTimestamp;
-    private Long endTimestamp;
-    private DimensionSet groupByDimensions;
-    private String[] orderByDimensions;
-    private boolean includeSelfDimension;
-
-    public MetricQuery(String symbol, String actionSymbol, DimensionSet dimensions) {
-        this.symbol = symbol;
-        this.actionSymbol = actionSymbol;
-        this.dimensions = dimensions;
-        this.record = null;
-    }
-
-    public MetricQuery(String symbol, String actionSymbol, Record record,
-            DimensionSet dimensions) {
-        this.symbol = symbol;
-        this.actionSymbol = actionSymbol;
-        this.dimensions = dimensions;
-        this.record = record;
-    }
-
-    public UUID getRecordIdForInsert() {
-        if (isIncludeSelfDimension()) {
-            return record.getId();
-        } else {
-            return null;
-        }
-    }
-
-    public boolean isIncludeSelfDimension() {
-        return includeSelfDimension;
-    }
-
-    public void setIncludeSelfDimension(boolean includeSelfDimension) {
-        this.includeSelfDimension = includeSelfDimension;
-    }
-
-    public void setOrderByDimensions(String[] orderByDimensions) {
-        this.orderByDimensions = orderByDimensions;
-    }
-
-    public void setGroupByDimensions(DimensionSet groupByDimensions) {
-        this.groupByDimensions = groupByDimensions;
-    }
-
-    public String getSymbol() {
-        return symbol;
-    }
-
-    public String getActionSymbol() {
-        return actionSymbol;
-    }
-
-    public DimensionSet getDimensions() {
-        return dimensions;
-    }
-
-    public Record getRecord() {
-        return record;
-    }
-
-    public Long getStartTimestamp() {
-        return startTimestamp;
-    }
-
-    public Long getEndTimestamp() {
-        return endTimestamp;
-    }
-
-    public void setDateRange(Long startTimestamp, Long endTimestamp) {
-        this.startTimestamp = startTimestamp;
-        this.endTimestamp = endTimestamp;
-    }
-
-    public DimensionSet getGroupByDimensions() {
-        return groupByDimensions;
-    }
-
-    public String[] getOrderByDimensions() {
-        return orderByDimensions;
-    }
-
-    public String toString() {
-        return "action: " + getActionSymbol() + " recordId: " + getRecordIdForInsert() + " date range: " + startTimestamp + " - " + endTimestamp + " dimensions: " + dimensions;
-    }
-}
-
-class Dimension implements Comparable<Dimension> {
-
-    private final ObjectField objectField;
-    private Set<Object> values = new HashSet<Object>();
-
-    public Dimension(ObjectField objectField) {
-        this.objectField = objectField;
-    }
-
-    public String getSymbol() {
-        return getKey();
-    }
-
-    public String getKey() {
-        return objectField.getUniqueName();
-    }
-
-    public ObjectField getObjectField() {
-        return objectField;
-    }
-
-    public Set<Object> getValues() {
-        return values;
-    }
-
-    public void addValue(UUID value) {
-        values.add(value);
-    }
-
-    public void addValue(String value) {
-        values.add(value);
-    }
-
-    public void addValue(Number value) {
-        values.add(value);
-    }
-
-    public void addValue(Object value) {
-        values.add(value.toString());
-    }
-
-    public String getIndexTable () {
-        return Metric.Static.getIndexTable(getObjectField());
-    }
-
-    public String toString() {
-        StringBuilder str = new StringBuilder(getSymbol());
-        if (values.size() > 1) {
-            str.append("[");
-            str.append(values.size());
-            str.append("]");
-        }
-        return str.toString();
-    }
-
-    @Override
-    public int compareTo(Dimension arg0) {
-        return getSymbol().compareTo(arg0.getSymbol());
-    }
-
-}
-
-class DimensionSet extends LinkedHashSet<Dimension> {
-    private static final long serialVersionUID = 1L;
-
-    public DimensionSet(Set<Dimension> dimensions) {
-        super(dimensions);
-    }
-
-    public DimensionSet() {
-        super();
-    }
-
-    public Set<String> keySet() {
-        LinkedHashSet<String> keys = new LinkedHashSet<String>();
-        for (Dimension d : this) {
-            keys.add(d.getKey());
-        }
-        return keys;
-    }
-
-    public static DimensionSet createDimensionSet(Set<ObjectField> dimensions, Record record) {
-        LinkedHashSet<Dimension> dimensionSet = new LinkedHashSet<Dimension>();
-        for (ObjectField field : dimensions) {
-            LinkedHashSet<Object> values = new LinkedHashSet<Object>();
-            Object value = record.getState().get(field.getInternalName());
-            if (value == null) continue;
-            if (value instanceof Set) {
-                if (((Set<?>)value).size() == 0) continue;
-                values.addAll((Set<?>)value);
-            } else {
-                values.add(value);
-            }
-            Dimension dim = new Dimension(field);
-            for (Object val : values) {
-                if (val instanceof UUID) {
-                    dim.addValue((UUID) val);
-                } else if (value instanceof Number) {
-                    dim.addValue((Number) val);
-                } else {
-                    dim.addValue(val.toString());
-                }
-            }
-            dimensionSet.add(dim);
-        }
-        return new DimensionSet(dimensionSet);
-    }
-
-    public String getSymbol() {
-        StringBuilder symbolBuilder = new StringBuilder();
-        // if there is ever a prefix, put it here.
-        //StringBuilder symbolBuilder = new StringBuilder(objectClass.getName());
-        //symbolBuilder.append("/");
-
-        boolean usedThisPrefix = false;
-        String thisPrefix = "";
-        for (Dimension d : getSortedDimensions()) {
-            String dimSymbol = d.getSymbol();
-            String prefix = dimSymbol.split("/")[0];
-            if (! prefix.equals(thisPrefix)) {
-                usedThisPrefix = false;
-                thisPrefix = prefix;
-            }
-            if (!usedThisPrefix) {
-                symbolBuilder.append(thisPrefix);
-                symbolBuilder.append("/");
-                usedThisPrefix = true;
-            }
-            if (dimSymbol.indexOf('/') > -1) {
-                dimSymbol = dimSymbol.split("/")[1];
-            }
-
-            symbolBuilder.append(dimSymbol);
-            if (d.getValues().size() > 1) {
-                symbolBuilder.append("[");
-                symbolBuilder.append(d.getValues().size());
-                symbolBuilder.append("]");
-            }
-            symbolBuilder.append(',');
-        }
-        if (symbolBuilder.length() > 0) {
-            symbolBuilder.setLength(symbolBuilder.length()-1);
-        }
-        symbolBuilder.append("#metric");
-        return symbolBuilder.toString();
-    }
-
-    public String toString() {
-        StringBuilder str = new StringBuilder(getSymbol());
-        str.append(": ");
-        for (Dimension dimension : this) {
-            str.append(dimension.toString());
-            str.append("=");
-            str.append(dimension.getValues().toString());
-            str.append(",");
-        }
-        str.setLength(str.length()-1);
-        return str.toString();
-    }
-
-    private List<Dimension> getSortedDimensions() {
-        ArrayList<Dimension> dims = new ArrayList<Dimension>(size());
-        for (Dimension d : this) {
-            dims.add(d);
-        }
-        Collections.sort(dims);
-        return dims;
-    }
-
-}
-
