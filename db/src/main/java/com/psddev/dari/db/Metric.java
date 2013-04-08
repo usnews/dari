@@ -81,7 +81,7 @@ class Metric {
 
     public MetricEventDateProcessor getEventDateProcessor() {
         if (eventDateProcessor == null) {
-            eventDateProcessor = new MetricEventDateProcessor.None();
+            eventDateProcessor = new MetricEventDateProcessor.Hourly();
         }
         return eventDateProcessor;
     }
