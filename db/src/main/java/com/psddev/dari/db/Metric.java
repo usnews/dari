@@ -1046,7 +1046,10 @@ class Metric {
 
                 if (data == null || timestampFromBytes(data) < eventDate) {
                     // No data for this eventDate; insert.
-                    double previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
+                    double previousCumulativeAmount = 0.0d;
+                    if (data != null) {
+                        previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
+                    }
                     parameters = new ArrayList<Object>();
                     sql = getMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
                 } else if (timestampFromBytes(data) == eventDate) {
@@ -1204,6 +1207,13 @@ class Metric {
         private static UUID getMetricIdByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
             UUID metricId = null;
             // find the metricId, it might be null
+            if (query.getDimensions().size() == 0) {
+                if (query.getRecordIdForInsert() == null) {
+                    throw new RuntimeException("Must have at least one dimension or Record ID");
+                } else {
+                    return null;
+                }
+            }
             String sql = Static.getSelectMetricIdSql(db, query);
             Connection connection = db.openReadConnection();
             try {
