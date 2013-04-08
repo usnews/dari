@@ -10,7 +10,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.DynamicAttributes;
 import javax.servlet.jsp.tagext.TagSupport;
 
@@ -199,7 +198,15 @@ public class FormTag extends TagSupport implements DynamicAttributes {
                 } else {
                     // process it
                     try {
-                        result = processor.process(request, new PageContextAwareResponse(pageContext));
+                        result = processor.process(request, new HttpServletResponseWrapper((HttpServletResponse) pageContext.getResponse()) {
+                            private PrintWriter writer; {
+                                writer = new PrintWriter(pageContext.getOut());
+                            }
+                            @Override
+                            public PrintWriter getWriter() {
+                                return writer;
+                            }
+                        });
                         success = true;
 
                     } catch (IOException e) {
@@ -256,21 +263,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     @Override
     public void setDynamicAttribute(String uri, String localName, Object value) {
         attributes.put(localName, value != null ? value.toString() : null);
-    }
-
-    private static class PageContextAwareResponse extends HttpServletResponseWrapper {
-
-        private PrintWriter writer;
-
-        public PageContextAwareResponse(PageContext pageContext) {
-            super((HttpServletResponse) pageContext.getResponse());
-            this.writer = new PrintWriter(pageContext.getOut());
-        }
-
-        @Override
-        public PrintWriter getWriter() {
-            return writer;
-        }
     }
 
     public static final class Static {
