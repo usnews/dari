@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -795,6 +796,36 @@ public class State implements Map<String, Object> {
      */
     public void replaceAtomically(String name, Object value) {
         queueAtomicOperation(new AtomicOperation.Replace(name, getValue(name), value));
+    }
+
+    public void incrementMetric(String name, double value) {
+        as(MetricAction.class).incrementMetric(name, value);
+    }
+
+    public double getMetric(String name) {
+        return as(MetricAction.class).getMetric(name);
+    }
+
+    /**
+     * @param start In milliseconds.
+     * @param end In milliseconds.
+     */
+    public double getMetricBetween(String name, Long start, Long end) {
+        return as(MetricAction.class).getMetricOverDateRange(name, start, end);
+    }
+
+    public double getMetricBetween(String name, Date start, Date end) {
+        return as(MetricAction.class).getMetricOverDateRange(
+                name,
+                start != null ? start.getTime() : null,
+                end != null ? end.getTime() : null);
+    }
+
+    public double getMetricBetween(String name, DateTime start, DateTime end) {
+        return as(MetricAction.class).getMetricOverDateRange(
+                name,
+                start != null ? start.getMillis() : null,
+                end != null ? end.getMillis() : null);
     }
 
     /**
