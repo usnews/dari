@@ -9,6 +9,17 @@ import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeReference;
 
+/**
+ * Skeletal implementation of {@link FormInputProcessor2}.
+ *
+ * <p>A subclass must implement:
+ *
+ * <ul>
+ * <li>{@link #doDisplay}</li>
+ * <li>{@link FormInputProcessor2#update update}</li>
+ * </ul>
+ *
+ */
 @SuppressWarnings("deprecation")
 public abstract class AbstractFormInputProcessor implements FormInputProcessor, FormInputProcessor2 {
 
