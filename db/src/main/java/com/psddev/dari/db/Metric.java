@@ -784,20 +784,56 @@ class Metric {
             int i = 0;
             int count = 1;
             String alias;
-            selectBuilder.append("SELECT ");
-            vendor.appendIdentifier(selectBuilder, "cr0");
-            selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, METRIC_METRICID_FIELD);
+            String firstTableAlias = null;
+
+            if (query.getRecordIdForInsert() != null) {
+                firstTableAlias = RECORDMETRIC_TABLE;
+
+                fromBuilder.append(" FROM ");
+                vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
+
+                whereBuilder.append(" WHERE ");
+                vendor.appendIdentifier(whereBuilder, RECORDMETRIC_TABLE);
+                whereBuilder.append(".");
+                vendor.appendIdentifier(whereBuilder, "id");
+                whereBuilder.append(" = ");
+                vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
+
+                whereBuilder.append(" AND ");
+                vendor.appendIdentifier(whereBuilder, RECORDMETRIC_TABLE);
+                whereBuilder.append(".");
+                vendor.appendIdentifier(whereBuilder, "typeId");
+                whereBuilder.append(" = ");
+                vendor.appendValue(whereBuilder, query.getRecord().getState().getTypeId());
+            }
 
             for (String table : Static.getIndexTables(query.getDimensions(),
                     query.getGroupByDimensions())) {
                 alias = "cr" + i;
                 if (i == 0) {
-                    fromBuilder.append(" \nFROM ");
-                    vendor.appendIdentifier(fromBuilder, table);
-                    fromBuilder.append(" ");
-                    vendor.appendIdentifier(fromBuilder, alias);
-                    whereBuilder.append(" \nWHERE ");
+                    if (firstTableAlias == null) {
+                        fromBuilder.append(" \nFROM ");
+                        vendor.appendIdentifier(fromBuilder, table);
+                        fromBuilder.append(" ");
+                        vendor.appendIdentifier(fromBuilder, alias);
+                        whereBuilder.append(" \nWHERE ");
+                    } else {
+                        fromBuilder.append(" \nJOIN ");
+                        vendor.appendIdentifier(fromBuilder, table);
+                        fromBuilder.append(" ");
+                        vendor.appendIdentifier(fromBuilder, alias);
+                        fromBuilder.append(" ON (");
+                        vendor.appendIdentifier(fromBuilder, firstTableAlias);
+                        fromBuilder.append(".");
+                        vendor.appendIdentifier(fromBuilder, "metricId");
+                        fromBuilder.append(" = ");
+                        vendor.appendIdentifier(fromBuilder, alias);
+                        fromBuilder.append(".");
+                        vendor.appendIdentifier(fromBuilder, "metricId");
+                        fromBuilder.append(") ");
+                        whereBuilder.append(" \nAND ");
+                    }
+                    firstTableAlias = alias;
                     if (preciseMatch) {
                         vendor.appendIdentifier(whereBuilder, alias);
                         whereBuilder.append(".");
@@ -806,33 +842,6 @@ class Metric {
                         whereBuilder.append(db.getSymbolId(query.getSymbol()));
                     } else {
                         whereBuilder.append("1 = 1");
-                    }
-                    if (query.getRecordIdForInsert() != null) {
-                        fromBuilder.append(" JOIN ");
-                        vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
-                        fromBuilder.append(" ON (");
-                        vendor.appendIdentifier(fromBuilder, alias);
-                        fromBuilder.append(".");
-                        vendor.appendIdentifier(fromBuilder, "metricId");
-                        fromBuilder.append(" = ");
-                        vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
-                        fromBuilder.append(".");
-                        vendor.appendIdentifier(fromBuilder, "metricId");
-                        fromBuilder.append(") ");
-
-                        whereBuilder.append(" AND ");
-                        vendor.appendIdentifier(whereBuilder, RECORDMETRIC_TABLE);
-                        whereBuilder.append(".");
-                        vendor.appendIdentifier(whereBuilder, "id");
-                        whereBuilder.append(" = ");
-                        vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
-
-                        whereBuilder.append(" AND ");
-                        vendor.appendIdentifier(whereBuilder, RECORDMETRIC_TABLE);
-                        whereBuilder.append(".");
-                        vendor.appendIdentifier(whereBuilder, "typeId");
-                        whereBuilder.append(" = ");
-                        vendor.appendValue(whereBuilder, query.getRecord().getState().getTypeId());
                     }
                 } else {
                     fromBuilder.append(" \nJOIN ");
@@ -889,16 +898,24 @@ class Metric {
                 count = count * numFilters;
                 ++i;
             }
-            groupByBuilder.append("\nGROUP BY ");
-            vendor.appendIdentifier(groupByBuilder, "cr0");
-            groupByBuilder.append(".");
-            vendor.appendIdentifier(groupByBuilder, METRIC_METRICID_FIELD);
-            //orderByBuilder.append("\nORDER BY ");
-            //vendor.appendIdentifier(orderByBuilder, "cr0");
-            //orderByBuilder.append(".");
-            //vendor.appendIdentifier(orderByBuilder, METRIC_METRICID_FIELD);
-            groupByBuilder.append(" HAVING COUNT(*) = ");
-            groupByBuilder.append(count);
+
+            if (count > 1) {
+                groupByBuilder.append("\nGROUP BY ");
+                vendor.appendIdentifier(groupByBuilder, firstTableAlias);
+                groupByBuilder.append(".");
+                vendor.appendIdentifier(groupByBuilder, METRIC_METRICID_FIELD);
+                //orderByBuilder.append("\nORDER BY ");
+                //vendor.appendIdentifier(orderByBuilder, "cr0");
+                //orderByBuilder.append(".");
+                //vendor.appendIdentifier(orderByBuilder, METRIC_METRICID_FIELD);
+                groupByBuilder.append(" HAVING COUNT(*) = ");
+                groupByBuilder.append(count);
+            }
+
+            selectBuilder.append("SELECT ");
+            vendor.appendIdentifier(selectBuilder, firstTableAlias);
+            selectBuilder.append(".");
+            vendor.appendIdentifier(selectBuilder, METRIC_METRICID_FIELD);
 
             return selectBuilder.toString() +
                 " " + fromBuilder.toString() +
@@ -1147,8 +1164,7 @@ class Metric {
         }
 
         public static Double getMetricByRecordId(SqlDatabase db, UUID recordId, UUID typeId, String actionSymbol, Long minEventDate, Long maxEventDate) throws SQLException {
-            String sql = null;
-            sql = getSelectMetricByRecordIdSql(db, actionSymbol, recordId, typeId, minEventDate, maxEventDate);
+            String sql = getSelectMetricByRecordIdSql(db, actionSymbol, recordId, typeId, minEventDate, maxEventDate);
             Connection connection = db.openReadConnection();
             Double metric = 0.0;
             try {
@@ -1210,8 +1226,6 @@ class Metric {
             if (query.getDimensions().size() == 0) {
                 if (query.getRecordIdForInsert() == null) {
                     throw new RuntimeException("Must have at least one dimension or Record ID");
-                } else {
-                    return null;
                 }
             }
             String sql = Static.getSelectMetricIdSql(db, query);
