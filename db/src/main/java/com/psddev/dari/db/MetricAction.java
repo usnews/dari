@@ -94,45 +94,45 @@ public class MetricAction extends Modification<Object> {
 
     public void incrementMetric(String metricFieldInternalName, double c) {
         try {
-            getMetric(metricFieldInternalName).incrementMetric(c);
+            getMetricObject(metricFieldInternalName).incrementMetric(c);
         } catch (SQLException e) {
-            throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.incrementMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.incrementMetric() : " + e.getLocalizedMessage());
         }
     }
 
     public void setMetric(String metricFieldInternalName, double c) {
         try {
-            getMetric(metricFieldInternalName).setMetric(c);
+            getMetricObject(metricFieldInternalName).setMetric(c);
         } catch (SQLException e) {
-            throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.setMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.setMetric() : " + e.getLocalizedMessage());
         }
     }
 
     public void deleteMetrics() {
         try {
-            getMetric(null).deleteMetrics();
+            getMetricObject(null).deleteMetrics();
         } catch (SQLException e) {
-            throw new DatabaseException(getMetric(null).getDatabase(), "Error in Metric.deleteMetrics() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricObject(null).getDatabase(), "Error in Metric.deleteMetrics() : " + e.getLocalizedMessage());
         }
     }
 
-    public double getMetricValue(String metricFieldInternalName) {
+    public double getMetric(String metricFieldInternalName) {
         try {
-            Metric cr = getMetric(metricFieldInternalName);
+            Metric cr = getMetricObject(metricFieldInternalName);
             cr.setQueryDateRange(null, null);
-            return getMetric(metricFieldInternalName).getMetric();
+            return getMetricObject(metricFieldInternalName).getMetric();
         } catch (SQLException e) {
-            throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
         }
     }
 
     public double getMetricByRecordId(String metricFieldInternalName) {
         try {
-            Metric cr = getMetric(metricFieldInternalName);
+            Metric cr = getMetricObject(metricFieldInternalName);
             cr.setQueryDateRange(null, null);
-            return getMetric(metricFieldInternalName).getMetricByRecordId();
+            return getMetricObject(metricFieldInternalName).getMetricByRecordId();
         } catch (SQLException e) {
-            throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetricByRecordId() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.getMetricByRecordId() : " + e.getLocalizedMessage());
         }
     }
 
@@ -146,18 +146,18 @@ public class MetricAction extends Modification<Object> {
 
     public double getMetricOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
         try {
-            Metric cr = getMetric(metricFieldInternalName);
+            Metric cr = getMetricObject(metricFieldInternalName);
             if (cr.getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
                 throw new RuntimeException("Date range does not apply - no MetricEventDateProcessor");
             }
             cr.setQueryDateRange(startTimestamp, endTimestamp);
-            return getMetric(metricFieldInternalName).getMetric();
+            return getMetricObject(metricFieldInternalName).getMetric();
         } catch (SQLException e) {
-            throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
         }
     }
 
-    public Metric getMetric(String metricFieldInternalName) {
+    private Metric getMetricObject(String metricFieldInternalName) {
         // if metricFieldInternalName is null, it will return the *first* @MetricValue in the type
 
         if (dimensionValuesHaveChanged(metricFieldInternalName)) {
@@ -193,5 +193,4 @@ public class MetricAction extends Modification<Object> {
 
         return recordMetrics.get(metricFieldInternalName);
     }
-
 }
