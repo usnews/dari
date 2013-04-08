@@ -22,14 +22,14 @@ import java.util.UUID;
 
 import com.psddev.dari.util.UuidUtils;
 
-public class RecordMetric {
+public class Metric {
 
-    //private static final Logger LOGGER = LoggerFactory.getLogger(RecordMetric.class);
+    //private static final Logger LOGGER = LoggerFactory.getLogger(Metric.class);
 
-    public static final String RECORDMETRIC_TABLE = "RecordMetric";
-    public static final String RECORDRECORDMETRIC_TABLE = "RecordMetricRecord";
-    public static final String RECORDMETRIC_METRICID_FIELD = "metricId";
-    public static final String RECORDMETRIC_DATA_FIELD = "data";
+    public static final String METRIC_TABLE = "Metric";
+    public static final String RECORDMETRIC_TABLE = "MetricRecord";
+    public static final String METRIC_METRICID_FIELD = "metricId";
+    public static final String METRIC_DATA_FIELD = "data";
 
     public static final int AMOUNT_DECIMAL_PLACES = 6;
     public static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
@@ -37,10 +37,10 @@ public class RecordMetric {
     public static final int CUMULATIVEAMOUNT_POSITION = 1;
     public static final int AMOUNT_POSITION = 2;
 
-    private static final String RECORDMETRIC_STRINGINDEX_TABLE = "RecordMetricString";
-    private static final String RECORDMETRIC_NUMBERINDEX_TABLE = "RecordMetricNumber";
-    private static final String RECORDMETRIC_UUIDINDEX_TABLE = "RecordMetricUuid";
-    private static final String RECORDMETRIC_LOCATIONINDEX_TABLE = "RecordMetricLocation";
+    private static final String METRIC_STRINGINDEX_TABLE = "MetricString";
+    private static final String METRIC_NUMBERINDEX_TABLE = "MetricNumber";
+    private static final String METRIC_UUIDINDEX_TABLE = "MetricUuid";
+    private static final String METRIC_LOCATIONINDEX_TABLE = "MetricLocation";
 
     private static final int QUERY_TIMEOUT = 3;
     private static final int DATE_BYTE_SIZE = 4;
@@ -59,7 +59,7 @@ public class RecordMetric {
     private Long eventDate;
     private Boolean dimensionsSaved;
 
-    public RecordMetric(SqlDatabase database, Record record, String actionSymbol, Set<ObjectField> dimensions) {
+    public Metric(SqlDatabase database, Record record, String actionSymbol, Set<ObjectField> dimensions) {
         this.dimensions = DimensionSet.createDimensionSet(dimensions, record);
         this.dimensionsSymbol = this.getDimensionsSymbol(); // requires this.dimensions
         this.db = database;
@@ -67,7 +67,7 @@ public class RecordMetric {
         this.record = record;
     }
 
-    public RecordMetric(Record record, String actionSymbol, Set<ObjectField> dimensions) {
+    public Metric(Record record, String actionSymbol, Set<ObjectField> dimensions) {
         this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol, dimensions);
     }
 
@@ -156,7 +156,7 @@ public class RecordMetric {
     public void setMetric(Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
         if (! getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
-            throw new RuntimeException("RecordMetric.setMetric() can only be used if EventDateProcessor is None");
+            throw new RuntimeException("Metric.setMetric() can only be used if EventDateProcessor is None");
         }
         // find the metricId, it might be null
         UUID metricId = getMetricId();
@@ -202,7 +202,7 @@ public class RecordMetric {
         }
     }
 
-    /** {@link RecordMetric} utility methods. */
+    /** {@link Metric} utility methods. */
     public static final class Static {
 
         private Static() {
@@ -223,14 +223,14 @@ public class RecordMetric {
         public static String getIndexTable(ObjectField field) {
             String fieldType = field.getInternalItemType();
             if (fieldType.equals(ObjectField.UUID_TYPE)) {
-                return RecordMetric.RECORDMETRIC_UUIDINDEX_TABLE;
+                return Metric.METRIC_UUIDINDEX_TABLE;
             } else if (fieldType.equals(ObjectField.LOCATION_TYPE)) {
-                return RecordMetric.RECORDMETRIC_LOCATIONINDEX_TABLE;
+                return Metric.METRIC_LOCATIONINDEX_TABLE;
             } else if (fieldType.equals(ObjectField.NUMBER_TYPE) ||
                     fieldType.equals(ObjectField.DATE_TYPE)) {
-                return RecordMetric.RECORDMETRIC_NUMBERINDEX_TABLE;
+                return Metric.METRIC_NUMBERINDEX_TABLE;
             } else {
-                return RecordMetric.RECORDMETRIC_STRINGINDEX_TABLE;
+                return Metric.METRIC_STRINGINDEX_TABLE;
             }
         }
 
@@ -247,14 +247,14 @@ public class RecordMetric {
 
         private static List<String> getInsertSqls(SqlDatabase db, List<List<Object>> parametersList, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long createDate, long eventDate) {
             ArrayList<String> sqls = new ArrayList<String>();
-            // insert RecordMetric
+            // insert Metric
             List<Object> parameters = new ArrayList<Object>();
-            sqls.add(getRecordMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, createDate, eventDate));
+            sqls.add(getMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, createDate, eventDate));
             parametersList.add(parameters);
 
             if (recordId != null) {
                 parameters = new ArrayList<Object>();
-                sqls.add(getRecordRecordMetricInsertSql(db, parameters, metricId, recordId, typeId));
+                sqls.add(getRecordMetricInsertSql(db, parameters, metricId, recordId, typeId));
                 parametersList.add(parameters);
             }
             // insert indexes
@@ -279,21 +279,21 @@ public class RecordMetric {
             sqlBuilder.append("SELECT ");
 
             sqlBuilder.append("MAX(");
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
+            vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
             sqlBuilder.append(") ");
             vendor.appendIdentifier(sqlBuilder, "maxData");
 
             if (selectMinData) {
                 sqlBuilder.append(", MIN(");
-                vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
+                vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(") ");
                 vendor.appendIdentifier(sqlBuilder, "minData");
             }
 
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_TABLE);
+            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
             sqlBuilder.append(" WHERE ");
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, METRIC_METRICID_FIELD);
             sqlBuilder.append(" = ");
             vendor.appendValue(sqlBuilder, metricId);
 
@@ -304,14 +304,14 @@ public class RecordMetric {
 
             if (maxEventDate != null) {
                 sqlBuilder.append(" AND ");
-                vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
+                vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(" <= ");
                 appendBinEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
             }
 
             if (minEventDate != null) {
                 sqlBuilder.append(" AND ");
-                vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_DATA_FIELD);
+                vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(" >= ");
                 appendBinEncodeTimestampSql(sqlBuilder, null, vendor, minEventDate, '0');
             }
@@ -336,18 +336,18 @@ public class RecordMetric {
             str.append(", 16, 10)");
         }
 
-        private static String getRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
+        private static String getMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
-            vendor.appendIdentifier(insertBuilder, RECORDMETRIC_TABLE);
+            vendor.appendIdentifier(insertBuilder, METRIC_TABLE);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
-            cols.put(RECORDMETRIC_METRICID_FIELD, metricId);
+            cols.put(METRIC_METRICID_FIELD, metricId);
             cols.put("actionSymbolId", db.getSymbolId(actionSymbol));
             cols.put("dimensionsSymbolId", db.getSymbolId(dimensionsSymbol));
             cols.put("createDate", createDate);
             cols.put("updateDate", createDate);
-            cols.put(RECORDMETRIC_DATA_FIELD, toBytes(eventDate, cumulativeAmount, amount));
+            cols.put(METRIC_DATA_FIELD, toBytes(eventDate, cumulativeAmount, amount));
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendIdentifier(insertBuilder, entry.getKey());
                 insertBuilder.append(", ");
@@ -363,10 +363,10 @@ public class RecordMetric {
             return insertBuilder.toString();
         }
 
-        private static String getRecordRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId) {
+        private static String getRecordMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID metricId, UUID recordId, UUID typeId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
-            vendor.appendIdentifier(insertBuilder, RECORDRECORDMETRIC_TABLE);
+            vendor.appendIdentifier(insertBuilder, RECORDMETRIC_TABLE);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
             cols.put("id", recordId);
@@ -447,7 +447,7 @@ public class RecordMetric {
             vendor.appendIdentifier(insertBuilder, table);
             insertBuilder.append(" (");
             LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
-            cols.put(RECORDMETRIC_METRICID_FIELD, metricId);
+            cols.put(METRIC_METRICID_FIELD, metricId);
             cols.put("dimensionsSymbolId", db.getSymbolId(dimensionsSymbol));
             cols.put("symbolId", db.getSymbolId(dimension.getSymbol()));
             cols.put("value", value);
@@ -469,34 +469,34 @@ public class RecordMetric {
         private static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID metricId, String actionSymbol, double amount, long updateDate, long eventDate, boolean increment, boolean updateFuture) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
-            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_TABLE);
+            vendor.appendIdentifier(updateBuilder, METRIC_TABLE);
             updateBuilder.append(" SET ");
 
-            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_DATA_FIELD);
+            vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
             updateBuilder.append(" = ");
             updateBuilder.append(" UNHEX(");
                 updateBuilder.append("CONCAT(");
                     // timestamp
-                    appendHexEncodeExistingTimestampSql(updateBuilder, vendor, RECORDMETRIC_DATA_FIELD);
+                    appendHexEncodeExistingTimestampSql(updateBuilder, vendor, METRIC_DATA_FIELD);
                     updateBuilder.append(',');
                     // cumulativeAmount and amount
                     if (increment) {
-                        appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
+                        appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
                         updateBuilder.append(',');
                         if (updateFuture) {
                             updateBuilder.append("IF (");
-                                vendor.appendIdentifier(updateBuilder, RECORDMETRIC_DATA_FIELD);
+                                vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
                                 updateBuilder.append(" LIKE ");
                                     updateBuilder.append(" CONCAT(");
                                         appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
                                     updateBuilder.append(", '%')");
                                     updateBuilder.append(","); // if it's the exact date, then update the amount
-                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, AMOUNT_POSITION, amount);
+                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, AMOUNT_POSITION, amount);
                                     updateBuilder.append(","); // if it's a date in the future, leave the date alone
-                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, AMOUNT_POSITION, 0);
+                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, AMOUNT_POSITION, 0);
                             updateBuilder.append(")");
                         } else {
-                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, RECORDMETRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
+                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
                         }
                     } else {
                         appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
@@ -511,7 +511,7 @@ public class RecordMetric {
             updateBuilder.append(" = ");
             vendor.appendBindValue(updateBuilder, updateDate, parameters);
             updateBuilder.append(" WHERE ");
-            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(updateBuilder, METRIC_METRICID_FIELD);
             updateBuilder.append(" = ");
             vendor.appendBindValue(updateBuilder, metricId, parameters);
             updateBuilder.append(" AND ");
@@ -520,7 +520,7 @@ public class RecordMetric {
             vendor.appendBindValue(updateBuilder, db.getSymbolId(actionSymbol), parameters);
             updateBuilder.append(" AND ");
 
-            vendor.appendIdentifier(updateBuilder, RECORDMETRIC_DATA_FIELD);
+            vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
             if (updateFuture) {
                 // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
                 updateBuilder.append(" >= ");
@@ -603,12 +603,12 @@ public class RecordMetric {
             sqlBuilder.append("DELETE FROM ");
             vendor.appendIdentifier(sqlBuilder, table);
             sqlBuilder.append(" WHERE ");
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, METRIC_METRICID_FIELD);
             sqlBuilder.append(" IN (");
             sqlBuilder.append(" SELECT ");
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, METRIC_METRICID_FIELD);
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDRECORDMETRIC_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "typeId");
             sqlBuilder.append(" = ");
@@ -621,17 +621,17 @@ public class RecordMetric {
             return sqlBuilder.toString();
         }
 
-        private static String getDeleteRecordMetricSql(SqlDatabase db, UUID recordId) {
+        private static String getDeleteMetricSql(SqlDatabase db, UUID recordId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_TABLE);
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
+            vendor.appendIdentifier(sqlBuilder, METRIC_METRICID_FIELD);
             sqlBuilder.append(" IN (");
             sqlBuilder.append(" SELECT ");
-            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(sqlBuilder, METRIC_METRICID_FIELD);
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDRECORDMETRIC_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
             sqlBuilder.append(" = ");
@@ -646,11 +646,11 @@ public class RecordMetric {
             return sqlBuilder.toString();
         }
 
-        private static String getDeleteRecordMetricRecordSql(SqlDatabase db, UUID recordId, UUID typeId) {
+        private static String getDeleteMetricRecordSql(SqlDatabase db, UUID recordId, UUID typeId) {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
-            vendor.appendIdentifier(sqlBuilder, RECORDRECORDMETRIC_TABLE);
+            vendor.appendIdentifier(sqlBuilder, RECORDMETRIC_TABLE);
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, "id");
             sqlBuilder.append(" = ");
@@ -688,12 +688,12 @@ public class RecordMetric {
             }
 
             fromBuilder.append(" FROM ");
-            vendor.appendIdentifier(fromBuilder, RECORDRECORDMETRIC_TABLE);
+            vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
             fromBuilder.append(" ");
             vendor.appendIdentifier(fromBuilder, "rcr");
 
             fromBuilder.append(" JOIN ");
-            vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
+            vendor.appendIdentifier(fromBuilder, METRIC_TABLE);
             fromBuilder.append(" ");
             vendor.appendIdentifier(fromBuilder, "cr");
             fromBuilder.append(" ON (");
@@ -787,7 +787,7 @@ public class RecordMetric {
             selectBuilder.append("SELECT ");
             vendor.appendIdentifier(selectBuilder, "cr0");
             selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(selectBuilder, METRIC_METRICID_FIELD);
 
             for (String table : Static.getIndexTables(query.getDimensions(),
                     query.getGroupByDimensions())) {
@@ -809,26 +809,26 @@ public class RecordMetric {
                     }
                     if (query.getRecordIdForInsert() != null) {
                         fromBuilder.append(" JOIN ");
-                        vendor.appendIdentifier(fromBuilder, RECORDRECORDMETRIC_TABLE);
+                        vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
                         fromBuilder.append(" ON (");
                         vendor.appendIdentifier(fromBuilder, alias);
                         fromBuilder.append(".");
                         vendor.appendIdentifier(fromBuilder, "metricId");
                         fromBuilder.append(" = ");
-                        vendor.appendIdentifier(fromBuilder, RECORDRECORDMETRIC_TABLE);
+                        vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
                         fromBuilder.append(".");
                         vendor.appendIdentifier(fromBuilder, "metricId");
                         fromBuilder.append(") ");
 
                         whereBuilder.append(" AND ");
-                        vendor.appendIdentifier(whereBuilder, RECORDRECORDMETRIC_TABLE);
+                        vendor.appendIdentifier(whereBuilder, RECORDMETRIC_TABLE);
                         whereBuilder.append(".");
                         vendor.appendIdentifier(whereBuilder, "id");
                         whereBuilder.append(" = ");
                         vendor.appendValue(whereBuilder, query.getRecordIdForInsert());
 
                         whereBuilder.append(" AND ");
-                        vendor.appendIdentifier(whereBuilder, RECORDRECORDMETRIC_TABLE);
+                        vendor.appendIdentifier(whereBuilder, RECORDMETRIC_TABLE);
                         whereBuilder.append(".");
                         vendor.appendIdentifier(whereBuilder, "typeId");
                         whereBuilder.append(" = ");
@@ -850,11 +850,11 @@ public class RecordMetric {
                     fromBuilder.append(" AND ");
                     vendor.appendIdentifier(fromBuilder, "cr0");
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, RECORDMETRIC_METRICID_FIELD);
+                    vendor.appendIdentifier(fromBuilder, METRIC_METRICID_FIELD);
                     fromBuilder.append(" = ");
                     vendor.appendIdentifier(fromBuilder, alias);
                     fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, RECORDMETRIC_METRICID_FIELD);
+                    vendor.appendIdentifier(fromBuilder, METRIC_METRICID_FIELD);
                     fromBuilder.append(")");
                 }
 
@@ -892,11 +892,11 @@ public class RecordMetric {
             groupByBuilder.append("\nGROUP BY ");
             vendor.appendIdentifier(groupByBuilder, "cr0");
             groupByBuilder.append(".");
-            vendor.appendIdentifier(groupByBuilder, RECORDMETRIC_METRICID_FIELD);
+            vendor.appendIdentifier(groupByBuilder, METRIC_METRICID_FIELD);
             //orderByBuilder.append("\nORDER BY ");
             //vendor.appendIdentifier(orderByBuilder, "cr0");
             //orderByBuilder.append(".");
-            //vendor.appendIdentifier(orderByBuilder, RECORDMETRIC_METRICID_FIELD);
+            //vendor.appendIdentifier(orderByBuilder, METRIC_METRICID_FIELD);
             groupByBuilder.append(" HAVING COUNT(*) = ");
             groupByBuilder.append(count);
 
@@ -952,7 +952,7 @@ public class RecordMetric {
             selectBuilder.append("MAX(");
             vendor.appendIdentifier(selectBuilder, "cr");
             selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, RECORDMETRIC_DATA_FIELD);
+            vendor.appendIdentifier(selectBuilder, METRIC_DATA_FIELD);
             selectBuilder.append(") ");
             vendor.appendIdentifier(selectBuilder, "maxData");
 
@@ -961,13 +961,13 @@ public class RecordMetric {
                 selectBuilder.append("MIN(");
                 vendor.appendIdentifier(selectBuilder, "cr");
                 selectBuilder.append(".");
-                vendor.appendIdentifier(selectBuilder, RECORDMETRIC_DATA_FIELD);
+                vendor.appendIdentifier(selectBuilder, METRIC_DATA_FIELD);
                 selectBuilder.append(") ");
                 vendor.appendIdentifier(selectBuilder, "minData");
             }
 
             fromBuilder.append(" \nFROM ");
-            vendor.appendIdentifier(fromBuilder, RECORDMETRIC_TABLE);
+            vendor.appendIdentifier(fromBuilder, METRIC_TABLE);
             fromBuilder.append(" ");
             vendor.appendIdentifier(fromBuilder, "cr");
             whereBuilder.append(" \nWHERE ");
@@ -982,7 +982,7 @@ public class RecordMetric {
             StringBuilder dateDataBuilder = new StringBuilder();
             vendor.appendIdentifier(dateDataBuilder, "cr");
             dateDataBuilder.append(".");
-            vendor.appendIdentifier(dateDataBuilder, RECORDMETRIC_DATA_FIELD);
+            vendor.appendIdentifier(dateDataBuilder, METRIC_DATA_FIELD);
 
             if (query.getStartTimestamp() != null) {
                 whereBuilder.append(" AND ");
@@ -1020,7 +1020,7 @@ public class RecordMetric {
 
         // methods that actually touch the database
 
-        // RECORDMETRIC INSERT/UPDATE/DELETE
+        // METRIC INSERT/UPDATE/DELETE
         private static void doInserts(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, DimensionSet dimensions, double amount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
@@ -1048,7 +1048,7 @@ public class RecordMetric {
                     // No data for this eventDate; insert.
                     double previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                     parameters = new ArrayList<Object>();
-                    sql = getRecordMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
+                    sql = getMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
                 } else if (timestampFromBytes(data) == eventDate) {
                     // There is data for this eventDate; update it.
                     sql = getUpdateSql(db, parameters, metricId, actionSymbol, incrementAmount, updateDate, eventDate, true, false);
@@ -1066,7 +1066,7 @@ public class RecordMetric {
         private static void doSetUpdateOrInsert(SqlDatabase db, UUID metricId, UUID recordId, UUID typeId, String actionSymbol, String dimensionsSymbol, double amount, long updateDate, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             if (eventDate != 0L) {
-                throw new RuntimeException("RecordMetric.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
+                throw new RuntimeException("Metric.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
             }
             try {
                 List<Object> parameters = new ArrayList<Object>();
@@ -1074,7 +1074,7 @@ public class RecordMetric {
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 if (rowsAffected == 0) {
                     parameters = new ArrayList<Object>();
-                    sql = getRecordMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, updateDate, eventDate);
+                    sql = getMetricInsertSql(db, parameters, metricId, recordId, typeId, actionSymbol, dimensionsSymbol, amount, amount, updateDate, eventDate);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
@@ -1091,15 +1091,15 @@ public class RecordMetric {
                 for (Dimension dimension : dimensions) {
                     tables.add(dimension.getIndexTable());
                 }
-                // This needs to be executed BEFORE DeleteRecordMetricSql
+                // This needs to be executed BEFORE DeleteMetricSql
                 for (String table : tables) {
                     String sql = getDeleteDimensionSql(db, recordId, typeId, table);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
-                String sql = getDeleteRecordMetricSql(db, recordId);
+                String sql = getDeleteMetricSql(db, recordId);
                 SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 if (recordId != null) {
-                    sql = getDeleteRecordMetricRecordSql(db, typeId, recordId);
+                    sql = getDeleteMetricRecordSql(db, typeId, recordId);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
@@ -1107,7 +1107,7 @@ public class RecordMetric {
             }
         }
 
-        // RECORDMETRIC SELECT
+        // METRIC SELECT
         public static Double getMetricByDimensions(SqlDatabase db, MetricQuery query) throws SQLException {
             String sql = null;
             sql = getSelectMetricSql(db, query);
@@ -1334,7 +1334,7 @@ public class RecordMetric {
 
         //private static final Logger LOGGER = LoggerFactory.getLogger(MetricAction.class);
 
-        private transient final Map<String, RecordMetric> recordMetrics = new HashMap<String, RecordMetric>();
+        private transient final Map<String, Metric> recordMetrics = new HashMap<String, Metric>();
         private transient final Map<String, ObjectField> eventDateFields = new HashMap<String, ObjectField>();
         private transient final Map<String, ObjectField> metricFields = new HashMap<String, ObjectField>();
         private transient Date oldEventDateValue;
@@ -1417,45 +1417,45 @@ public class RecordMetric {
 
         public void incrementMetric(String metricFieldInternalName, double c) {
             try {
-                getRecordMetric(metricFieldInternalName).incrementMetric(c);
+                getMetric(metricFieldInternalName).incrementMetric(c);
             } catch (SQLException e) {
-                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.incrementMetric() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.incrementMetric() : " + e.getLocalizedMessage());
             }
         }
 
         public void setMetric(String metricFieldInternalName, double c) {
             try {
-                getRecordMetric(metricFieldInternalName).setMetric(c);
+                getMetric(metricFieldInternalName).setMetric(c);
             } catch (SQLException e) {
-                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.setMetric() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.setMetric() : " + e.getLocalizedMessage());
             }
         }
 
         public void deleteMetrics() {
             try {
-                getRecordMetric(null).deleteMetrics();
+                getMetric(null).deleteMetrics();
             } catch (SQLException e) {
-                throw new DatabaseException(getRecordMetric(null).getDatabase(), "Error in RecordMetric.deleteMetrics() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getMetric(null).getDatabase(), "Error in Metric.deleteMetrics() : " + e.getLocalizedMessage());
             }
         }
 
-        public double getMetric(String metricFieldInternalName) {
+        public double getMetricValue(String metricFieldInternalName) {
             try {
-                RecordMetric cr = getRecordMetric(metricFieldInternalName);
+                Metric cr = getMetric(metricFieldInternalName);
                 cr.setQueryDateRange(null, null);
-                return getRecordMetric(metricFieldInternalName).getMetric();
+                return getMetric(metricFieldInternalName).getMetric();
             } catch (SQLException e) {
-                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.getMetric() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
             }
         }
 
         public double getMetricByRecordId(String metricFieldInternalName) {
             try {
-                RecordMetric cr = getRecordMetric(metricFieldInternalName);
+                Metric cr = getMetric(metricFieldInternalName);
                 cr.setQueryDateRange(null, null);
-                return getRecordMetric(metricFieldInternalName).getMetricByRecordId();
+                return getMetric(metricFieldInternalName).getMetricByRecordId();
             } catch (SQLException e) {
-                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.getMetricByRecordId() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetricByRecordId() : " + e.getLocalizedMessage());
             }
         }
 
@@ -1469,18 +1469,18 @@ public class RecordMetric {
 
         public double getMetricOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
             try {
-                RecordMetric cr = getRecordMetric(metricFieldInternalName);
+                Metric cr = getMetric(metricFieldInternalName);
                 if (cr.getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
                     throw new RuntimeException("Date range does not apply - no MetricEventDateProcessor");
                 }
                 cr.setQueryDateRange(startTimestamp, endTimestamp);
-                return getRecordMetric(metricFieldInternalName).getMetric();
+                return getMetric(metricFieldInternalName).getMetric();
             } catch (SQLException e) {
-                throw new DatabaseException(getRecordMetric(metricFieldInternalName).getDatabase(), "Error in RecordMetric.getMetric() : " + e.getLocalizedMessage());
+                throw new DatabaseException(getMetric(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
             }
         }
 
-        public RecordMetric getRecordMetric(String metricFieldInternalName) {
+        public Metric getMetric(String metricFieldInternalName) {
             // if metricFieldInternalName is null, it will return the *first* @MetricValue in the type
 
             if (dimensionValuesHaveChanged(metricFieldInternalName)) {
@@ -1492,7 +1492,7 @@ public class RecordMetric {
             ObjectField eventDateField = getEventDateField(metricFieldInternalName);
             if (! recordMetrics.containsKey(metricFieldInternalName)) {
                 ObjectField metricField = getMetricField(metricFieldInternalName);
-                RecordMetric recordMetric = new RecordMetric(this, metricField.getUniqueName(), getDimensions(metricFieldInternalName));
+                Metric recordMetric = new Metric(this, metricField.getUniqueName(), getDimensions(metricFieldInternalName));
                 if (eventDateField != null) {
                     recordMetric.setEventDateProcessor(eventDateField.as(MetricFieldData.class).getEventDateProcessor());
                 } else {
@@ -1655,7 +1655,7 @@ class Dimension implements Comparable<Dimension> {
     }
 
     public String getIndexTable () {
-        return RecordMetric.Static.getIndexTable(getObjectField());
+        return Metric.Static.getIndexTable(getObjectField());
     }
 
     public String toString() {

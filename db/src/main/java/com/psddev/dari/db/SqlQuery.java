@@ -157,7 +157,7 @@ class SqlQuery {
             for (ObjectType type : queryTypes) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
+                    Metric.MetricFieldData metricFieldData = field.as(Metric.MetricFieldData.class);
                     if (fieldData.isIndexTableSource() && 
                             fieldData.getIndexTable() != null &&
                             ! metricFieldData.isDimension() && 
@@ -566,7 +566,7 @@ class SqlQuery {
             boolean isFieldCollection = mappedKey.isInternalCollectionType();
 
             if (mappedKey.getField() != null) {
-                RecordMetric.MetricFieldData metricFieldData = mappedKey.getField().as(RecordMetric.MetricFieldData.class);
+                Metric.MetricFieldData metricFieldData = mappedKey.getField().as(Metric.MetricFieldData.class);
                 if (metricFieldData.isDimension()) {
                     usesLeftJoin = true;
                     needsDistinct = true;
@@ -831,7 +831,7 @@ class SqlQuery {
         if (ascending || descending || closest || farthest) {
             String queryKey = (String) sorter.getOptions().get(0);
 
-            if (deferMetricPredicates && mappedKeys.get(queryKey).getField().as(RecordMetric.MetricFieldData.class).isMetricValue()) {
+            if (deferMetricPredicates && mappedKeys.get(queryKey).getField().as(Metric.MetricFieldData.class).isMetricValue()) {
                 ObjectField sortField = mappedKeys.get(queryKey).getField();
                 if (recordMetricField == null) {
                     recordMetricField = sortField;
@@ -904,7 +904,7 @@ class SqlQuery {
         return false;
     }
 
-    private boolean hasDeferredRecordMetricPredicates() {
+    private boolean hasDeferredMetricPredicates() {
         if (recordMetricWherePredicates.size() > 0 ||  recordMetricHavingPredicates.size() > 0 || recordMetricSorters.size() > 0) {
             return true;
         } else {
@@ -920,7 +920,7 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (hasDeferredRecordMetricPredicates()) {
+        if (hasDeferredMetricPredicates()) {
             throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
         }
 
@@ -948,7 +948,7 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (hasDeferredRecordMetricPredicates()) {
+        if (hasDeferredMetricPredicates()) {
             throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
         }
 
@@ -975,7 +975,7 @@ class SqlQuery {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
                 if (mappedKey.getField() != null) {
-                    RecordMetric.MetricFieldData metricFieldData = mappedKey.getField().as(RecordMetric.MetricFieldData.class);
+                    Metric.MetricFieldData metricFieldData = mappedKey.getField().as(Metric.MetricFieldData.class);
                     if (metricFieldData.isMetricValue()) {
                         throw new RuntimeException("Unable to group by @MetricValue: " + groupField);
                     }
@@ -1099,7 +1099,7 @@ class SqlQuery {
 
         if (recordMetricHavingPredicates.size() > 0) {
             // If there are deferred HAVING predicates, we need to go ahead and execute the metric query
-            return wrapGroupStatementRecordMetricSql(recordMetricField.getInternalName(), groupFields, statementBuilder.toString());
+            return wrapGroupStatementMetricSql(recordMetricField.getInternalName(), groupFields, statementBuilder.toString());
         } else {
             return statementBuilder.toString();
         }
@@ -1107,20 +1107,20 @@ class SqlQuery {
 
     /**
      * Returns an SQL statement that can be used to get the sum 
-     * of the specified RecordMetric {@code metricFieldName} grouped by the values 
+     * of the specified Metric {@code metricFieldName} grouped by the values 
      * of the given {@code groupFields}.
      */
-    public String groupedRecordMetricSql(String metricFieldName, String[] fields) {
+    public String groupedMetricSql(String metricFieldName, String[] fields) {
 
         // Just have to add metricId to the group by fields
         String[] innerGroupByFields = Arrays.copyOf(fields, fields.length+2);
         innerGroupByFields[fields.length] = Query.METRIC_KEY;
         innerGroupByFields[fields.length+1] = Query.ID_KEY;
-        return wrapGroupStatementRecordMetricSql(metricFieldName, fields, groupStatement(innerGroupByFields));
+        return wrapGroupStatementMetricSql(metricFieldName, fields, groupStatement(innerGroupByFields));
 
     }
 
-    private String wrapGroupStatementRecordMetricSql(String metricFieldName, String[] fields, String innerSql) {
+    private String wrapGroupStatementMetricSql(String metricFieldName, String[] fields, String innerSql) {
 
         Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), metricFieldName);
         if (mappedKey.getField() == null) {
@@ -1156,16 +1156,16 @@ class SqlQuery {
         vendor.appendIdentifier(selectBuilder, "_count");
         selectBuilder.append(", ");
         selectBuilder.append(" MAX(");
-        vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_TABLE);
+        vendor.appendIdentifier(selectBuilder, Metric.METRIC_TABLE);
         selectBuilder.append(".");
-        vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_DATA_FIELD);
+        vendor.appendIdentifier(selectBuilder, Metric.METRIC_DATA_FIELD);
         selectBuilder.append(") maxData");
 
         if (hasMinEventDate) {
             selectBuilder.append(", MIN(");
-            vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_TABLE);
+            vendor.appendIdentifier(selectBuilder, Metric.METRIC_TABLE);
             selectBuilder.append(".");
-            vendor.appendIdentifier(selectBuilder, RecordMetric.RECORDMETRIC_DATA_FIELD);
+            vendor.appendIdentifier(selectBuilder, Metric.METRIC_DATA_FIELD);
             selectBuilder.append(") minData");
         }
 
@@ -1180,20 +1180,20 @@ class SqlQuery {
         fromBuilder.append(innerSql);
         fromBuilder.append(" ) x ");
         fromBuilder.append(" JOIN ");
-        vendor.appendIdentifier(fromBuilder, RecordMetric.RECORDMETRIC_TABLE);
+        vendor.appendIdentifier(fromBuilder, Metric.METRIC_TABLE);
         fromBuilder.append(" ON (");
         vendor.appendIdentifier(fromBuilder, "x");
         fromBuilder.append(".");
         vendor.appendIdentifier(fromBuilder, "metricId");
         fromBuilder.append(" = ");
-        vendor.appendIdentifier(fromBuilder, RecordMetric.RECORDMETRIC_TABLE);
+        vendor.appendIdentifier(fromBuilder, Metric.METRIC_TABLE);
         fromBuilder.append(".");
         vendor.appendIdentifier(fromBuilder, "metricId");
 
         fromBuilder.append(") ");
 
         whereBuilder.append(" WHERE ");
-        vendor.appendIdentifier(whereBuilder, RecordMetric.RECORDMETRIC_TABLE);
+        vendor.appendIdentifier(whereBuilder, Metric.METRIC_TABLE);
         whereBuilder.append(".");
         vendor.appendIdentifier(whereBuilder, "actionSymbolId");
         whereBuilder.append(" = ");
@@ -1208,9 +1208,9 @@ class SqlQuery {
 
         groupByBuilder.append(" GROUP BY ");
 
-        vendor.appendIdentifier(groupByBuilder, RecordMetric.RECORDMETRIC_TABLE);
+        vendor.appendIdentifier(groupByBuilder, Metric.METRIC_TABLE);
         groupByBuilder.append(".");
-        vendor.appendIdentifier(groupByBuilder, RecordMetric.RECORDMETRIC_METRICID_FIELD);
+        vendor.appendIdentifier(groupByBuilder, Metric.METRIC_METRICID_FIELD);
         for (String field : groupBySelectColumnAliases.values()) {
             groupByBuilder.append(", ");
             vendor.appendIdentifier(groupByBuilder, field);
@@ -1234,17 +1234,17 @@ class SqlQuery {
         selectBuilder.append("SELECT ");
 
         selectBuilder.append("ROUND(SUM(");
-        RecordMetric.Static.appendSelectAmountSql(selectBuilder, vendor, "maxData", RecordMetric.CUMULATIVEAMOUNT_POSITION);
+        Metric.Static.appendSelectAmountSql(selectBuilder, vendor, "maxData", Metric.CUMULATIVEAMOUNT_POSITION);
         if (hasMinEventDate) {
             selectBuilder.append(" - ");
-            RecordMetric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", RecordMetric.CUMULATIVEAMOUNT_POSITION);
+            Metric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", Metric.CUMULATIVEAMOUNT_POSITION);
             selectBuilder.append(" + ");
-            RecordMetric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", RecordMetric.AMOUNT_POSITION);
+            Metric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", Metric.AMOUNT_POSITION);
         }
         selectBuilder.append(") / ");
-        vendor.appendValue(selectBuilder, RecordMetric.AMOUNT_DECIMAL_SHIFT);
+        vendor.appendValue(selectBuilder, Metric.AMOUNT_DECIMAL_SHIFT);
         selectBuilder.append(",");
-        vendor.appendValue(selectBuilder, RecordMetric.AMOUNT_DECIMAL_PLACES);
+        vendor.appendValue(selectBuilder, Metric.AMOUNT_DECIMAL_PLACES);
         selectBuilder.append(") ");
         vendor.appendIdentifier(selectBuilder, metricField.getInternalName());
 
@@ -1332,7 +1332,7 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (hasDeferredRecordMetricPredicates()) {
+        if (hasDeferredMetricPredicates()) {
             throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
         }
 
@@ -1597,7 +1597,7 @@ class SqlQuery {
             } else if (Query.METRIC_KEY.equals(queryKey) && lastRecordJoinTableAlias != null) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                valueField = aliasedField(lastRecordJoinTableAlias, RecordMetric.RECORDMETRIC_METRICID_FIELD);
+                valueField = aliasedField(lastRecordJoinTableAlias, Metric.METRIC_METRICID_FIELD);
                 sqlIndexTable = null;
                 table = null;
                 tableName = null;
@@ -1612,17 +1612,17 @@ class SqlQuery {
             } else if (Query.METRIC_KEY.equals(queryKey) && lastRecordJoinTableAlias == null) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                valueField = aliasedField(alias, RecordMetric.RECORDMETRIC_METRICID_FIELD);
+                valueField = aliasedField(alias, Metric.METRIC_METRICID_FIELD);
                 sqlIndexTable = null;
 
                 tableName = null;
                 table = null;
 
-                idField = RecordMetric.RECORDMETRIC_METRICID_FIELD;
+                idField = Metric.METRIC_METRICID_FIELD;
                 keyField = null;
 
                 StringBuilder recordJoinTableBuilder = new StringBuilder();
-                vendor.appendIdentifier(recordJoinTableBuilder, RecordMetric.RECORDRECORDMETRIC_TABLE);
+                vendor.appendIdentifier(recordJoinTableBuilder, Metric.RECORDMETRIC_TABLE);
                 recordJoinTableBuilder.append(" ");
                 vendor.appendIdentifier(recordJoinTableBuilder, alias);
                 recordJoinTable = recordJoinTableBuilder.toString();
@@ -1651,7 +1651,7 @@ class SqlQuery {
                 joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(RecordMetric.MetricFieldData.class).isDimension()) {
+            } else if (joinField != null && joinField.as(Metric.MetricFieldData.class).isDimension()) {
                 needsIndexTable = true;
                 likeValuePrefix = null;
                 addIndexKey(queryKey);
@@ -1668,12 +1668,12 @@ class SqlQuery {
 
                 recordJoinTableAlias = aliasPrefix + alias + "rjt";
                 StringBuilder extraTableBuilder = new StringBuilder();
-                vendor.appendIdentifier(extraTableBuilder, joinField.as(RecordMetric.MetricFieldData.class).getRecordIdJoinTableName());
+                vendor.appendIdentifier(extraTableBuilder, joinField.as(Metric.MetricFieldData.class).getRecordIdJoinTableName());
                 extraTableBuilder.append(" ");
                 extraTableBuilder.append(recordJoinTableAlias);
                 recordJoinTable = extraTableBuilder.toString();
 
-                idField = aliasedField(alias, joinField.as(RecordMetric.MetricFieldData.class).getRecordIdJoinColumnName());
+                idField = aliasedField(alias, joinField.as(Metric.MetricFieldData.class).getRecordIdJoinColumnName());
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
                 recordJoinIdField = aliasedField(alias + "rjt", sqlIndexTable.getIdField(database, index));
                 if (lastRecordJoinTableAlias != null) {
@@ -1684,7 +1684,7 @@ class SqlQuery {
                 lastRecordJoinTableAlias = recordJoinTableAlias;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(RecordMetric.MetricFieldData.class).isEventDateField()) {
+            } else if (joinField != null && joinField.as(Metric.MetricFieldData.class).isEventDateField()) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 //addIndexKey(queryKey);
@@ -1694,7 +1694,7 @@ class SqlQuery {
                 tableName = sqlIndexTable.getName(database, index);
                 vendor.appendIdentifier(tableBuilder, tableName);
                 table = tableBuilder.toString();
-                alias = RecordMetric.RECORDMETRIC_TABLE;
+                alias = Metric.METRIC_TABLE;
 
                 valueField = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
 
@@ -1707,7 +1707,7 @@ class SqlQuery {
                 recordJoinTable = null;
                 needsIsNotNull = false;
 
-            } else if (joinField != null && joinField.as(RecordMetric.MetricFieldData.class).isMetricValue()) {
+            } else if (joinField != null && joinField.as(Metric.MetricFieldData.class).isMetricValue()) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 //addIndexKey(queryKey);
@@ -1717,7 +1717,7 @@ class SqlQuery {
                 tableName = sqlIndexTable.getName(database, index);
                 vendor.appendIdentifier(tableBuilder, tableName);
                 table = tableBuilder.toString();
-                alias = RecordMetric.RECORDMETRIC_TABLE;
+                alias = Metric.METRIC_TABLE;
 
                 //valueField = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
                 StringBuilder fieldBuilder = new StringBuilder();
@@ -1812,14 +1812,14 @@ class SqlQuery {
                 }
             }
 
-            if (field != null && field.as(RecordMetric.MetricFieldData.class).isEventDateField()) {
-                // EventDates in RecordMetric are smaller than long
+            if (field != null && field.as(Metric.MetricFieldData.class).isEventDateField()) {
+                // EventDates in Metric are smaller than long
                 Character padChar = 'F';
                 if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) || 
                         PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
                     padChar = '0';
                 }
-                RecordMetric.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
+                Metric.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
             } else {
                 vendor.appendValue(builder, value);
             }

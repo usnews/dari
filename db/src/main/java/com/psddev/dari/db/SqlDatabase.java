@@ -548,8 +548,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return new SqlQuery(this, query).groupStatement(groupFields);
     }
 
-    public String buildGroupedRecordMetricStatement(Query<?> query, String metricFieldName, String... groupFields) {
-        return new SqlQuery(this, query).groupedRecordMetricSql(metricFieldName, groupFields);
+    public String buildGroupedMetricStatement(Query<?> query, String metricFieldName, String... groupFields) {
+        return new SqlQuery(this, query).groupedMetricSql(metricFieldName, groupFields);
     }
 
     /**
@@ -744,7 +744,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                RecordMetric.MetricFieldData metricFieldData = field.as(RecordMetric.MetricFieldData.class);
+                Metric.MetricFieldData metricFieldData = field.as(Metric.MetricFieldData.class);
 
                 if (fieldData.isIndexTableSource() && !metricFieldData.isDimension() && !metricFieldData.isEventDateField() && fieldData.getIndexTable() != null) {
                     loadExtraFields.add(field);
@@ -1700,10 +1700,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public double getSum(String field) {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
-            if (sumField.as(RecordMetric.MetricFieldData.class).isMetricValue()) {
+            if (sumField.as(Metric.MetricFieldData.class).isMetricValue()) {
                 if (! metricSums.containsKey(field)) {
 
-                    String sqlQuery = buildGroupedRecordMetricStatement(query, field, fields);
+                    String sqlQuery = buildGroupedMetricStatement(query, field, fields);
                     Connection connection = null;
                     Statement statement = null;
                     ResultSet result = null;
