@@ -178,18 +178,21 @@ public interface Recordable {
      * dimension tables. This field's value will not be loaded or saved into
      * the state.
      */
+    /*
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
     @ObjectField.AnnotationProcessorClass(MetricDimensionProcessor.class)
     @Target(ElementType.FIELD)
     public @interface MetricDimension {
     }
+    */
 
     /**
      * Specifies that the target field virtually represents the metric event
      * date and can be queried against. This field's value will not be loaded
      * or saved into the state.
      */
+    /*
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
     @ObjectField.AnnotationProcessorClass(MetricEventDateAnnotationProcessor.class)
@@ -197,6 +200,7 @@ public interface Recordable {
     public @interface MetricEventDate {
         Class<? extends MetricEventDateProcessor> value() default MetricEventDateProcessor.Hourly.class;
     }
+    */
 
     /** Specifies the field the metric is recorded in. */
     @Documented
@@ -204,8 +208,8 @@ public interface Recordable {
     @ObjectField.AnnotationProcessorClass(MetricValueProcessor.class)
     @Target(ElementType.FIELD)
     public @interface MetricValue {
-        String[] dimensions() default {};
-        String eventDate() default "";
+        //String[] dimensions() default {};
+        //String eventDate() default "";
         //boolean includeSelfDimension() default true; /* This isn't supported in SqlQuery yet, so don't use it. */
     }
 
@@ -630,6 +634,7 @@ class MaximumProcessor implements ObjectField.AnnotationProcessor<Annotation> {
     }
 }
 
+/*
 class MetricDimensionProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricDimension> {
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricDimension annotation) {
@@ -668,13 +673,14 @@ class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProces
         metricFieldData.setEventDateField(true);
     }
 }
+*/
 
 class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricValue> {
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
         Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
-        Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
+        // Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
 
         fieldData.setIndexTable(null);
         fieldData.setIndexTableColumnName("data");
@@ -687,6 +693,7 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         //if (annotation.includeSelfDimension()) {
             metricFieldData.setIncludeSelfDimension(true);
         //}
+        /*
         metricFieldData.setDimensions(dimensions);
 
         if (annotation.eventDate().equals("")) {
@@ -694,6 +701,7 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         } else {
             metricFieldData.setEventDateFieldName(annotation.eventDate());
         }
+        */
     }
 }
 

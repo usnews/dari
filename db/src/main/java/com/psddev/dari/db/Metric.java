@@ -1321,6 +1321,9 @@ class Metric {
         }
 
         public Set<String> getDimensions() {
+            if (dimensions == null) {
+                dimensions = new LinkedHashSet<String>();
+            }
             return dimensions;
         }
 
