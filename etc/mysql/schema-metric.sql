@@ -28,11 +28,11 @@ FROM RecordMetric c
 JOIN Symbol ds ON (c.dimensionsSymbolId = ds.symbolId)
 JOIN Symbol ls ON (c.actionSymbolId = ls.symbolId);
 
-/* 
+/*
 
 Simple query to get to the current metric for a given record + actionSymbol (this eliminates RecordMetricSummary) :
 
-SELECT id, typeId, SUM(cumulativeAmount) as amount 
+SELECT id, typeId, SUM(cumulativeAmount) as amount
 FROM (
     SELECT rcr.id id, rcr.typeId typeId
     , (CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000) eventDate

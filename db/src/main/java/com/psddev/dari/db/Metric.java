@@ -1222,7 +1222,7 @@ class Metric {
 
     }
 
-    // MODIFICATIONS 
+    // MODIFICATIONS
 
     @Record.FieldInternalNamePrefix("metrics.")
     public static class FieldData extends Modification<ObjectField> {

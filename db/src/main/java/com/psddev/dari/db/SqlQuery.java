@@ -158,13 +158,13 @@ class SqlQuery {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                     Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
-                    if (fieldData.isIndexTableSource() && 
+                    if (fieldData.isIndexTableSource() &&
                             fieldData.getIndexTable() != null &&
-                            ! metricFieldData.isDimension() && 
-                            ! metricFieldData.isEventDateField() && 
+                            ! metricFieldData.isDimension() &&
+                            ! metricFieldData.isEventDateField() &&
                             ! metricFieldData.isMetricValue()) {
-                        // TODO/performance: if this is a count(), don't join to this table. 
-                        // if this is a groupBy() and they don't want to group by 
+                        // TODO/performance: if this is a count(), don't join to this table.
+                        // if this is a groupBy() and they don't want to group by
                         // a field in this table, don't join to this table.
                         sourceTables.add(field);
                     }
@@ -434,7 +434,7 @@ class SqlQuery {
                 String indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
 
                 ++ fieldIndex;
-                query.getExtraSourceColumns().put(indexFieldName, indexFieldName); 
+                query.getExtraSourceColumns().put(indexFieldName, indexFieldName);
 
                 extraColumnsBuilder.append(sourceTableAlias);
                 extraColumnsBuilder.append(".");
@@ -1106,8 +1106,8 @@ class SqlQuery {
     }
 
     /**
-     * Returns an SQL statement that can be used to get the sum 
-     * of the specified Metric {@code metricFieldName} grouped by the values 
+     * Returns an SQL statement that can be used to get the sum
+     * of the specified Metric {@code metricFieldName} grouped by the values
      * of the given {@code groupFields}.
      */
     public String groupedMetricSql(String metricFieldName, String[] fields) {
@@ -1134,7 +1134,7 @@ class SqlQuery {
 
         boolean hasMinEventDate = false;
         for (Predicate predicate : recordMetricWherePredicates) {
-            if (PredicateParser.GREATER_THAN_OPERATOR.equals(predicate.getOperator()) || 
+            if (PredicateParser.GREATER_THAN_OPERATOR.equals(predicate.getOperator()) ||
                     PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(predicate.getOperator())) {
                 hasMinEventDate = true;
             }
@@ -1217,11 +1217,11 @@ class SqlQuery {
         }
 
         // Now, wrap that again
-        innerSql = selectBuilder + 
+        innerSql = selectBuilder +
             " " + fromBuilder +
             " " + whereBuilder +
             " " + groupByBuilder +
-            " " + havingBuilder + 
+            " " + havingBuilder +
             " " + orderByBuilder;
 
         selectBuilder = new StringBuilder();
@@ -1295,11 +1295,11 @@ class SqlQuery {
             orderByBuilder.insert(0, "\nORDER BY ");
         }
 
-        return selectBuilder + 
+        return selectBuilder +
             " " + fromBuilder +
             " " + whereBuilder +
-            " " + groupByBuilder + 
-            " " + havingBuilder + 
+            " " + groupByBuilder +
+            " " + havingBuilder +
             " " + orderByBuilder;
     }
 
@@ -1815,7 +1815,7 @@ class SqlQuery {
             if (field != null && field.as(Metric.FieldData.class).isEventDateField()) {
                 // EventDates in Metric are smaller than long
                 Character padChar = 'F';
-                if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) || 
+                if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) ||
                         PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
                     padChar = '0';
                 }

@@ -229,7 +229,7 @@ public enum SqlIndex {
                     }
 
                     return valueFieldName;
-                } else if (field != null && 
+                } else if (field != null &&
                         field.as(SqlDatabase.FieldData.class).getIndexTableColumnName() != null) {
                     return field.as(SqlDatabase.FieldData.class).getIndexTableColumnName();
                 }

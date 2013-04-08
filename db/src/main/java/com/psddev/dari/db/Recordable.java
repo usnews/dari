@@ -16,7 +16,6 @@ import java.util.Set;
 
 public interface Recordable {
 
-
     /**
      * Returns the state {@linkplain State#linkObject linked} to this
      * instance.
@@ -175,6 +174,42 @@ public interface Recordable {
     }
 
     /**
+     * Specifies whether the target field value is indexed in the metric
+     * dimension tables. This field's value will not be loaded or saved into
+     * the state.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(MetricDimensionProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface MetricDimension {
+    }
+
+    /**
+     * Specifies that the target field virtually represents the metric event
+     * date and can be queried against. This field's value will not be loaded
+     * or saved into the state.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(MetricEventDateAnnotationProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface MetricEventDate {
+        Class<? extends MetricEventDateProcessor> value() default MetricEventDateProcessor.Hourly.class;
+    }
+
+    /** Specifies the field the metric is recorded in. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(MetricValueProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface MetricValue {
+        String[] dimensions() default {};
+        String eventDate() default "";
+        //boolean includeSelfDimension() default true; /* This isn't supported in SqlQuery yet, so don't use it. */
+    }
+
+    /**
      * Specifies either the minimum numeric value or string length of the
      * target field.
      */
@@ -279,38 +314,8 @@ public interface Recordable {
         String value();
     }
 
-    /** Specifies whether the target field value is indexed in the Metric dimension tables. 
-     * This field's value will not be loaded or saved into the state. */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(MetricDimensionProcessor.class)
-    @Target(ElementType.FIELD)
-    public @interface MetricDimension {
-    }
-
-    /** Specifies the field the metric is recorded in */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(MetricValueProcessor.class)
-    @Target(ElementType.FIELD)
-    public @interface MetricValue {
-        String[] dimensions() default {};
-        String eventDate() default "";
-        //boolean includeSelfDimension() default true; /* This isn't supported in SqlQuery yet, so don't use it. */
-    }
-
-    /** Specifies that the target field virtually represents the EventDate field and optionally an SQL date format, and can be queried against. 
-     * This field's value will not be loaded or saved into the state. */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(MetricEventDateAnnotationProcessor.class)
-    @Target(ElementType.FIELD)
-    public @interface MetricEventDate {
-        Class<? extends MetricEventDateProcessor> value() default MetricEventDateProcessor.Hourly.class;
-    }
-
     // --- Deprecated ---
-    //
+
     /** @deprecated Use {@link Denormalized} instead. */
     @Deprecated
     @Documented
@@ -625,6 +630,73 @@ class MaximumProcessor implements ObjectField.AnnotationProcessor<Annotation> {
     }
 }
 
+class MetricDimensionProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricDimension> {
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.MetricDimension annotation) {
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
+
+        metricFieldData.setDimension(true);
+        metricFieldData.setRecordIdJoinTableName(Metric.RECORDMETRIC_TABLE);
+        metricFieldData.setRecordIdJoinColumnName(Metric.METRIC_METRICID_FIELD);
+
+        fieldData.setIndexTable(Metric.Static.getIndexTable(field));
+        fieldData.setIndexTableSameColumnNames(false);
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+    }
+}
+
+class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricValue> {
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
+        Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
+
+        fieldData.setIndexTable(null);
+        fieldData.setIndexTableColumnName("data");
+        fieldData.setIndexTableSameColumnNames(false);
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+        metricFieldData.setMetricValue(true);
+        // includeSelfDimension=false is not supported by SqlQuery yet.
+        //if (annotation.includeSelfDimension()) {
+            metricFieldData.setIncludeSelfDimension(true);
+        //}
+        metricFieldData.setDimensions(dimensions);
+
+        if (annotation.eventDate().equals("")) {
+            metricFieldData.setEventDateFieldName(null);
+        } else {
+            metricFieldData.setEventDateFieldName(annotation.eventDate());
+        }
+    }
+}
+
+class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
+        if (! ObjectField.DATE_TYPE.equals(field.getInternalItemType())) {
+            throw new RuntimeException("@MetricEventDate fields must be Date type");
+        }
+
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
+
+        fieldData.setIndexTable(Metric.METRIC_TABLE);
+        fieldData.setIndexTableColumnName("data");
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+        metricFieldData.setDimension(false);
+        metricFieldData.setEventDateProcessorClass(annotation.value());
+        metricFieldData.setEventDateField(true);
+    }
+}
+
 class MinimumProcessor implements ObjectField.AnnotationProcessor<Annotation> {
     @Override
     @SuppressWarnings({ "all", "deprecation" })
@@ -723,71 +795,3 @@ class WhereProcessor implements ObjectField.AnnotationProcessor<Recordable.Where
         field.setPredicate(annotation.value());
     }
 }
-
-class MetricDimensionProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricDimension> {
-
-    @Override
-    public void process(ObjectType type, ObjectField field, Recordable.MetricDimension annotation) {
-        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
-        metricFieldData.setDimension(true);
-        metricFieldData.setRecordIdJoinTableName(Metric.RECORDMETRIC_TABLE);
-        metricFieldData.setRecordIdJoinColumnName(Metric.METRIC_METRICID_FIELD);
-
-        fieldData.setIndexTable(Metric.Static.getIndexTable(field));
-        fieldData.setIndexTableSameColumnNames(false);
-        fieldData.setIndexTableSource(true);
-        fieldData.setIndexTableReadOnly(true);
-
-    }
-}
-
-class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricValue> {
-
-    @Override
-    public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
-
-        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        fieldData.setIndexTable(null);
-        fieldData.setIndexTableColumnName("data");
-        fieldData.setIndexTableSameColumnNames(false);
-        fieldData.setIndexTableSource(true);
-        fieldData.setIndexTableReadOnly(true);
-
-        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
-        metricFieldData.setMetricValue(true);
-        Set<String> dimensions = new HashSet<String>(Arrays.asList(annotation.dimensions()));
-
-        // includeSelfDimension=false is not supported by SqlQuery yet. 
-        //if (annotation.includeSelfDimension()) {
-            metricFieldData.setIncludeSelfDimension(true);
-        //}
-        metricFieldData.setDimensions(dimensions);
-        if (annotation.eventDate().equals("")) {
-            metricFieldData.setEventDateFieldName(null);
-        } else {
-            metricFieldData.setEventDateFieldName(annotation.eventDate());
-        }
-    }
-}
-
-class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
-
-    @Override
-    public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
-        if (! ObjectField.DATE_TYPE.equals(field.getInternalItemType())) {
-            throw new RuntimeException("@MetricEventDate fields must be Date type");
-        }
-        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        fieldData.setIndexTable(Metric.METRIC_TABLE);
-        fieldData.setIndexTableColumnName("data");
-        fieldData.setIndexTableSource(true);
-        fieldData.setIndexTableReadOnly(true);
-
-        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
-        metricFieldData.setDimension(false);
-        metricFieldData.setEventDateProcessorClass(annotation.value());
-        metricFieldData.setEventDateField(true);
-    }
-}
-

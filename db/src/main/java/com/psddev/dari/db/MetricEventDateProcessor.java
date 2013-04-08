@@ -6,7 +6,7 @@ import java.util.Calendar;
 public interface MetricEventDateProcessor {
 
     public long process(long timestampMillis);
-    
+
     public class None implements MetricEventDateProcessor {
         public long process(long timestampMillis) {
             return 0;

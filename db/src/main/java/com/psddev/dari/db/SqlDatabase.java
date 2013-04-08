@@ -1619,7 +1619,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
 
                 List<Object> keys = new ArrayList<Object>();
-                
+
                 SqlGrouping<T> grouping;
                 ResultSetMetaData meta = result.getMetaData();
                 String aggregateColumnName = meta.getColumnName(1);
