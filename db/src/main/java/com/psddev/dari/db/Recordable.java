@@ -648,6 +648,27 @@ class MetricDimensionProcessor implements ObjectField.AnnotationProcessor<Record
     }
 }
 
+class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
+        if (! ObjectField.DATE_TYPE.equals(field.getInternalItemType())) {
+            throw new RuntimeException("@MetricEventDate fields must be Date type");
+        }
+
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
+
+        fieldData.setIndexTable(Metric.METRIC_TABLE);
+        fieldData.setIndexTableColumnName("data");
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+        metricFieldData.setDimension(false);
+        metricFieldData.setEventDateProcessorClass(annotation.value());
+        metricFieldData.setEventDateField(true);
+    }
+}
+
 class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricValue> {
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
@@ -673,27 +694,6 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         } else {
             metricFieldData.setEventDateFieldName(annotation.eventDate());
         }
-    }
-}
-
-class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
-    @Override
-    public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
-        if (! ObjectField.DATE_TYPE.equals(field.getInternalItemType())) {
-            throw new RuntimeException("@MetricEventDate fields must be Date type");
-        }
-
-        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
-
-        fieldData.setIndexTable(Metric.METRIC_TABLE);
-        fieldData.setIndexTableColumnName("data");
-        fieldData.setIndexTableSource(true);
-        fieldData.setIndexTableReadOnly(true);
-
-        metricFieldData.setDimension(false);
-        metricFieldData.setEventDateProcessorClass(annotation.value());
-        metricFieldData.setEventDateField(true);
     }
 }
 
