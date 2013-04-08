@@ -218,33 +218,6 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
         getState().saveUniquely();
     }
 
-    // --- RecordMetric support ---
-
-    /** @see RecordMetric.incrementMetric */
-    public void incrementMetric(String name, double value) {
-        this.as(RecordMetric.MetricAction.class).incrementMetric(name, value);
-    }
-    
-    /** @see RecordMetric.setMetric */
-    public void setMetric(String name, double value) {
-        this.as(RecordMetric.MetricAction.class).setMetric(name, value);
-    }
-
-    /** @see RecordMetric.getMetricByRecordId */
-    public double getMetricByRecord(String name) {
-        return this.as(RecordMetric.MetricAction.class).getMetricByRecordId(name);
-    }
-
-    /** @see RecordMetric.getMetric */
-    public double getMetricByDimensions(String name) {
-        return this.as(RecordMetric.MetricAction.class).getMetric(name);
-    }
-
-    /** @see RecordMetrics.deleteMetrics */
-    public void deleteMetrics() {
-        this.as(RecordMetric.MetricAction.class).deleteMetrics();
-    }
-
     // --- JSTL support ---
 
     public Map<String, Object> getAs() {
