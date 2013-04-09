@@ -7,9 +7,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -173,28 +171,13 @@ public interface Recordable {
         double value();
     }
 
-    /**
-     * Specifies that the target field virtually represents the metric event
-     * date and can be queried against. This field's value will not be loaded
-     * or saved into the state.
-     */
-    /* XXX */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @ObjectField.AnnotationProcessorClass(MetricEventDateAnnotationProcessor.class)
-    @Target(ElementType.FIELD)
-    public @interface MetricEventDate {
-        Class<? extends MetricEventDateProcessor> value() default MetricEventDateProcessor.Hourly.class;
-    }
-    /* XXX */
-
     /** Specifies the field the metric is recorded in. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
     @ObjectField.AnnotationProcessorClass(MetricValueProcessor.class)
     @Target(ElementType.FIELD)
     public @interface MetricValue {
-        String eventDate() default "";
+        Class<? extends MetricEventDateProcessor> eventDateProcessor() default MetricEventDateProcessor.None.class;
     }
 
     /**
@@ -618,45 +601,20 @@ class MaximumProcessor implements ObjectField.AnnotationProcessor<Annotation> {
     }
 }
 
-/* XXX */
-class MetricEventDateAnnotationProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricEventDate> {
-    @Override
-    public void process(ObjectType type, ObjectField field, Recordable.MetricEventDate annotation) {
-        if (! ObjectField.DATE_TYPE.equals(field.getInternalItemType())) {
-            throw new RuntimeException("@MetricEventDate fields must be Date type");
-        }
-
-        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
-
-        fieldData.setIndexTable(Metric.METRIC_TABLE);
-        fieldData.setIndexTableColumnName("data");
-        fieldData.setIndexTableSource(true);
-        fieldData.setIndexTableReadOnly(true);
-
-        metricFieldData.setEventDateProcessorClass(annotation.value());
-        metricFieldData.setEventDateField(true);
-    }
-}
-/* XXX */
-
 class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricValue> {
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
         Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
 
-        fieldData.setIndexTable(null);
-        fieldData.setIndexTableColumnName("data");
+        fieldData.setIndexTable(Metric.METRIC_TABLE);
+        fieldData.setIndexTableColumnName(Metric.METRIC_DATA_FIELD);
         fieldData.setIndexTableSameColumnNames(false);
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
-        if (annotation.eventDate().equals("")) {
-            metricFieldData.setEventDateFieldName(null);
-        } else {
-            metricFieldData.setEventDateFieldName(annotation.eventDate());
-        }
+        metricFieldData.setEventDateProcessorClass(annotation.eventDateProcessor());
+
         metricFieldData.setMetricValue(true);
     }
 }

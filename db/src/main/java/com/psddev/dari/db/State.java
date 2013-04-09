@@ -802,6 +802,21 @@ public class State implements Map<String, Object> {
         as(MetricAction.class).incrementMetric(name, value);
     }
 
+    /**
+     * @param eventDateMillis In milliseconds.
+     */
+    public void incrementMetric(String name, double value, long eventDateMillis) {
+        as(MetricAction.class).incrementMetric(name, value, eventDateMillis);
+    }
+
+    public void incrementMetric(String name, double value, Date eventDate) {
+        as(MetricAction.class).incrementMetric(name, value, eventDate.getTime());
+    }
+
+    public void incrementMetric(String name, double value, DateTime eventDate) {
+        as(MetricAction.class).incrementMetric(name, value, eventDate.getMillis());
+    }
+
     public double getMetric(String name) {
         return as(MetricAction.class).getMetric(name);
     }

@@ -160,7 +160,6 @@ class SqlQuery {
                     Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
                     if (fieldData.isIndexTableSource() &&
                             fieldData.getIndexTable() != null &&
-                            ! metricFieldData.isEventDateField() &&
                             ! metricFieldData.isMetricValue()) {
                         // TODO/performance: if this is a count(), don't join to this table.
                         // if this is a groupBy() and they don't want to group by
@@ -526,14 +525,13 @@ class SqlQuery {
 
             if (mappedKey.getField() != null) {
                 Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
-                if (deferMetricPredicates && (metricFieldData.isEventDateField() || metricFieldData.isMetricValue())) {
+                if (deferMetricPredicates && metricFieldData.isMetricValue()) {
                     if (recordMetricField == null) {
                         recordMetricField = mappedKey.getField();
                     } else if (! recordMetricField.equals(mappedKey.getField())) {
                         throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName() + " AND " + mappedKey.getField().getInternalName());
-                    //    XXX need to detect this better. 
                     }
-                    if (metricFieldData.isEventDateField()) {
+                    if ("date".equals(mappedKey.getHashAttribute())) {
                         recordMetricWherePredicates.add(predicate);
                         recordMetricParentWherePredicates.add(parentPredicate);
                     } else if (metricFieldData.isMetricValue()) {
@@ -793,7 +791,6 @@ class SqlQuery {
                     recordMetricField = sortField;
                 } else if (! recordMetricField.equals(sortField)) {
                     throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName() + " AND " + sortField.getInternalName());
-                //    XXX need to detect this better.
                 }
                 recordMetricSorters.add(sorter);
                 return;
@@ -934,10 +931,12 @@ class SqlQuery {
                 if (mappedKey.getField() != null) {
                     Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
                     if (metricFieldData.isMetricValue()) {
-                        throw new RuntimeException("Unable to group by @MetricValue: " + groupField);
-                    }
-                    if (metricFieldData.isEventDateField()) { // TODO: this one has to work eventually . . .
-                        throw new Query.NoFieldException(query.getGroup(), mappedKey.getField().getInternalName());
+                        if ("date".equals(mappedKey.getHashAttribute())) {
+                            // TODO: this one has to work eventually . . .
+                            throw new Query.NoFieldException(query.getGroup(), groupField);
+                        } else {
+                            throw new RuntimeException("Unable to group by @MetricValue: " + groupField);
+                        }
                     }
                 }
                 mappedKeys.put(groupField, mappedKey);
@@ -1066,7 +1065,6 @@ class SqlQuery {
      * of the given {@code groupFields}.
      */
     public String groupedMetricSql(String metricFieldName, String[] groupFields) {
-        //LOGGER.info("=== sql: " + buildGroupedMetricSql(metricFieldName, groupFields, selectClause, fromClause, whereClause, groupByClause, orderByClause));
         String[] innerGroupByFields = Arrays.copyOf(groupFields, groupFields.length+1);
         innerGroupByFields[groupFields.length] = Query.ID_KEY;
         // This prepares selectClause, et al.
@@ -1093,6 +1091,15 @@ class SqlQuery {
         fromBuilder.insert(0, "FROM Metric r ");
         whereBuilder.append(" AND r.symbolId = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
+
+        // Apply deferred WHERE predicates (eventDates)
+        if (recordMetricParentWherePredicates.size() != recordMetricWherePredicates.size()) {
+            throw new RuntimeException("parentWherePredicates.size() is != wheregPredicates.size() - Something has gone wrong internally.");
+        }
+        for (int i = 0; i < recordMetricWherePredicates.size(); i++) {
+            whereBuilder.append(" AND ");
+            addWherePredicate(whereBuilder, recordMetricWherePredicates.get(i), recordMetricParentWherePredicates.get(i), false, false);
+        }
 
         String innerSql = selectBuilder.toString() + " " + fromBuilder.toString() + " " + whereBuilder.toString() + " " + groupByBuilder.toString() + " " + havingBuilder.toString() + " " + orderByBuilder.toString();
 
@@ -1386,6 +1393,12 @@ class SqlQuery {
                 String indexKey = mappedKeys.get(queryKey).getIndexKey(index);
                 if (indexKey != null &&
                         indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index))) {
+                    // If there's a #date on the mapped key, make sure we are returning the correct join.
+                    if ((mappedKeys.get(queryKey).getHashAttribute() != null && 
+                            ! mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) ||
+                            mappedKeys.get(queryKey).getHashAttribute() == null && join.hashAttribute != null) {
+                        continue;
+                    }
                     return join;
                 }
             }
@@ -1412,10 +1425,6 @@ class SqlQuery {
         public final String indexType;
         public final String table;
         public final String idField;
-        public final String recordJoinTable;
-        public final String recordJoinTableAlias;
-        public final String recordJoinIdField;
-        public final String joinToPreviousRecordJoinTable;
         public final String keyField;
         public final List<String> indexKeys = new ArrayList<String>();
 
@@ -1425,12 +1434,14 @@ class SqlQuery {
         private final SqlIndex sqlIndex;
         private final SqlIndex.Table sqlIndexTable;
         private final String valueField;
+        private final String hashAttribute;
 
         public Join(String alias, String queryKey) {
             this.alias = alias;
             this.queryKey = queryKey;
 
             Query.MappedKey mappedKey = mappedKeys.get(queryKey);
+            this.hashAttribute = mappedKey.getHashAttribute();
             this.index = selectedIndexes.get(queryKey);
 
             this.indexType = mappedKey.getInternalType();
@@ -1451,10 +1462,6 @@ class SqlQuery {
                 tableName = null;
                 idField = null;
                 keyField = null;
-                recordJoinTable = null;
-                recordJoinTableAlias = null;
-                recordJoinIdField = null;
-                joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
             } else if (Query.TYPE_KEY.equals(queryKey)) {
@@ -1466,10 +1473,6 @@ class SqlQuery {
                 tableName = null;
                 idField = null;
                 keyField = null;
-                recordJoinTable = null;
-                recordJoinTableAlias = null;
-                recordJoinIdField = null;
-                joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
             } else if (Query.ANY_KEY.equals(queryKey)) {
@@ -1485,36 +1488,10 @@ class SqlQuery {
                 tableName = null;
                 idField = null;
                 keyField = null;
-                recordJoinTable = null;
-                recordJoinTableAlias = null;
-                recordJoinIdField = null;
-                joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(Metric.FieldData.class).isEventDateField()) {
-                needsIndexTable = false;
-                likeValuePrefix = null;
-                //addIndexKey(queryKey);
-                sqlIndexTable = this.sqlIndex.getReadTable(database, index);
-
-                StringBuilder tableBuilder = new StringBuilder();
-                tableName = sqlIndexTable.getName(database, index);
-                vendor.appendIdentifier(tableBuilder, tableName);
-                table = tableBuilder.toString();
-                alias = Metric.METRIC_TABLE;
-
-                valueField = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
-
-                idField = null;
-                keyField = null;
-                recordJoinIdField = null;
-                joinToPreviousRecordJoinTable = null;
-
-                recordJoinTableAlias = null;
-                recordJoinTable = null;
-                needsIsNotNull = false;
-
             } else if (joinField != null && joinField.as(Metric.FieldData.class).isMetricValue()) {
+
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 //addIndexKey(queryKey);
@@ -1524,21 +1501,23 @@ class SqlQuery {
                 tableName = sqlIndexTable.getName(database, index);
                 vendor.appendIdentifier(tableBuilder, tableName);
                 table = tableBuilder.toString();
-                alias = Metric.METRIC_TABLE;
+                alias = "r";
 
-                //valueField = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
-                StringBuilder fieldBuilder = new StringBuilder();
-                vendor.appendIdentifier(fieldBuilder, joinField.getInternalName());
-                valueField = fieldBuilder.toString();
 
                 idField = null;
                 keyField = null;
-                recordJoinIdField = null;
-                joinToPreviousRecordJoinTable = null;
 
-                recordJoinTableAlias = null;
-                recordJoinTable = null;
                 needsIsNotNull = false;
+
+                if ("date".equals(mappedKey.getHashAttribute())) {
+                    // for metricField#date, use "data"
+                    valueField = sqlIndexTable.getValueField(database, index, 0);
+                } else {
+                    // for metricField, use internalName
+                    StringBuilder fieldBuilder = new StringBuilder();
+                    vendor.appendIdentifier(fieldBuilder, joinField.getInternalName());
+                    valueField = fieldBuilder.toString();
+                }
 
             } else {
                 needsIndexTable = true;
@@ -1557,10 +1536,6 @@ class SqlQuery {
 
                 idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
-                recordJoinTable = null;
-                recordJoinTableAlias = null;
-                recordJoinIdField = null;
-                joinToPreviousRecordJoinTable = null;
                 needsIsNotNull = true;
             }
         }
@@ -1588,7 +1563,8 @@ class SqlQuery {
         }
 
         public void appendValue(StringBuilder builder, ComparisonPredicate comparison, Object value) {
-            ObjectField field = mappedKeys.get(comparison.getKey()).getField();
+            Query.MappedKey mappedKey = mappedKeys.get(comparison.getKey());
+            ObjectField field = mappedKey.getField();
             SqlIndex fieldSqlIndex = field != null ?
                     SqlIndex.Static.getByType(field.getInternalItemType()) :
                     sqlIndex;
@@ -1619,7 +1595,7 @@ class SqlQuery {
                 }
             }
 
-            if (field != null && field.as(Metric.FieldData.class).isEventDateField()) {
+            if (field != null && field.as(Metric.FieldData.class).isMetricValue() && "date".equals(mappedKey.getHashAttribute())) {
                 // EventDates in Metric are smaller than long
                 Character padChar = 'F';
                 if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) ||

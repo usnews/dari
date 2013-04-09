@@ -116,8 +116,7 @@ class Metric {
 
     public void setMetric(Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
-        // TODO: better to just call the processor and see if the timestamp is 0
-        if (! getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
+        if (getEventDate() != 0) {
             throw new RuntimeException("Metric.setMetric() can only be used if EventDateProcessor is None");
         }
         Static.doSetUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), amount, getUpdateDate(), getEventDate());
@@ -586,9 +585,7 @@ class Metric {
         private transient MetricEventDateProcessor eventDateProcessor;
 
         private boolean metricValue;
-        private boolean eventDateField;
         private String eventDateProcessorClassName;
-        private String eventDateFieldName;
 
         public boolean isMetricValue() {
             return metricValue;
@@ -598,13 +595,7 @@ class Metric {
             this.metricValue = metricValue;
         }
 
-        public boolean isEventDateField() {
-            return eventDateField;
-        }
-
-        public void setEventDateField(boolean eventDateField) {
-            this.eventDateField = eventDateField;
-        }
+        public boolean isEventDateField() { return false; } // XXX
 
         @SuppressWarnings("unchecked")
         public MetricEventDateProcessor getEventDateProcessor() {
@@ -629,14 +620,6 @@ class Metric {
 
         public void setEventDateProcessorClass(Class<? extends MetricEventDateProcessor> eventDateProcessorClass) {
             this.eventDateProcessorClassName = eventDateProcessorClass.getName();
-        }
-
-        public String getEventDateFieldName() {
-            return eventDateFieldName;
-        }
-
-        public void setEventDateFieldName(String eventDateFieldName) {
-            this.eventDateFieldName = eventDateFieldName;
         }
 
     }

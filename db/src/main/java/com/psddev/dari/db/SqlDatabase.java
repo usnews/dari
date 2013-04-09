@@ -1604,8 +1604,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         Statement statement = null;
         ResultSet result = null;
 
-        LOGGER.info("========= sqlQuery: " + sqlQuery);
-
         try {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
@@ -1705,7 +1703,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 if (! metricSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedMetricStatement(query, field, fields);
-                    LOGGER.info(" statement for sum for metric value " + field + " : " + sqlQuery);
                     Connection connection = null;
                     Statement statement = null;
                     ResultSet result = null;

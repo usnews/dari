@@ -665,9 +665,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         ObjectType type;
         Set<ObjectType> subQueryTypes = null;
         String subQueryKey = null;
+        String hashAttribute = null;
 
         while (hasMore) {
             int slashAt = keyRest.indexOf('/');
+            int hashAt = keyRest.indexOf('#');
 
             if (slashAt < 0) {
                 keyFirst = keyRest;
@@ -676,6 +678,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             } else {
                 keyFirst = keyRest.substring(0, slashAt);
                 keyRest = keyRest.substring(slashAt + 1);
+            }
+
+            if (hashAt >= 0) {
+                keyFirst = keyRest.substring(0, hashAt);
+                hashAttribute = keyRest.substring(hashAt + 1);
             }
 
             type = environment.getTypeByName(keyFirst);
@@ -766,6 +773,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         standardMappedKey.indexes = indexes;
         standardMappedKey.subQueryTypes = subQueryTypes;
         standardMappedKey.subQueryKey = subQueryKey;
+        standardMappedKey.hashAttribute = hashAttribute;
         return standardMappedKey;
     }
 
@@ -808,6 +816,9 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         public Query<?> getSubQueryWithComparison(ComparisonPredicate comparison);
 
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index);
+
+        public String getHashAttribute();
+
     }
 
     private static final Map<String, MappedKey> SPECIAL_MAPPED_KEYS; static {
@@ -824,6 +835,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         private Set<ObjectIndex> indexes;
         private Set<ObjectType> subQueryTypes;
         private String subQueryKey;
+        private String hashAttribute;
 
         public String getIndexKey(ObjectIndex index) {
             StringBuilder indexKeyBuilder = new StringBuilder();
@@ -930,6 +942,12 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
             return subQuery;
         }
+
+        @Override
+        public String getHashAttribute() {
+            if (hashAttribute == null) return null;
+            return hashAttribute.toLowerCase();
+        }
     }
 
     private static class SpecialMappedKey implements MappedKey {
@@ -977,6 +995,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         @Override
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index) {
+            return null;
+        }
+
+        @Override
+        public String getHashAttribute() {
             return null;
         }
     }

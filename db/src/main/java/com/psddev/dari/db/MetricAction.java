@@ -1,7 +1,6 @@
 package com.psddev.dari.db;
 
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,9 +12,7 @@ class MetricAction extends Modification<Object> {
     //private static final Logger LOGGER = LoggerFactory.getLogger(MetricAction.class);
 
     private transient final Map<String, Metric> recordMetrics = new HashMap<String, Metric>();
-    private transient final Map<String, ObjectField> eventDateFields = new HashMap<String, ObjectField>();
     private transient final Map<String, ObjectField> metricFields = new HashMap<String, ObjectField>();
-    private transient Date oldEventDateValue;
 
     private ObjectField findMetricField(String internalName) {
         ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
@@ -41,30 +38,13 @@ class MetricAction extends Modification<Object> {
         return metricFields.get(internalName);
     }
 
-    private ObjectField getEventDateField(String metricFieldInternalName) {
-        if (! eventDateFields.containsKey(metricFieldInternalName)) {
-            ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
-            ObjectField metricField = getMetricField(metricFieldInternalName);
-            String eventDateFieldName = metricField.as(Metric.FieldData.class).getEventDateFieldName();
-            if (eventDateFieldName != null) {
-                ObjectField eventDateField = recordType.getField(eventDateFieldName);
-                if (eventDateField == null) {
-                    throw new RuntimeException("Invalid eventDate field : " + eventDateFieldName);
-                }
-                if (eventDateField.as(Metric.FieldData.class).isEventDateField()) {
-                    eventDateFields.put(metricFieldInternalName, eventDateField);
-                } else {
-                    throw new RuntimeException("The field " + eventDateFieldName + " is not annotated as @EventDate.");
-                }
-            } else {
-                eventDateFields.put(metricFieldInternalName, null);
-            }
-        }
-        return eventDateFields.get(metricFieldInternalName);
+    public void incrementMetric(String metricFieldInternalName, double c) {
+        incrementMetric(metricFieldInternalName, c, System.currentTimeMillis());
     }
 
-    public void incrementMetric(String metricFieldInternalName, double c) {
+    public void incrementMetric(String metricFieldInternalName, double c, long eventDateMillis) {
         try {
+            getMetricObject(metricFieldInternalName).setEventDate(eventDateMillis);
             getMetricObject(metricFieldInternalName).incrementMetric(c);
         } catch (SQLException e) {
             throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.incrementMetric() : " + e.getLocalizedMessage());
@@ -123,26 +103,11 @@ class MetricAction extends Modification<Object> {
     private Metric getMetricObject(String metricFieldInternalName) {
         // if metricFieldInternalName is null, it will return the *first* @MetricValue in the type
 
-        ObjectField eventDateField = getEventDateField(metricFieldInternalName);
         if (! recordMetrics.containsKey(metricFieldInternalName)) {
             ObjectField metricField = getMetricField(metricFieldInternalName);
             Metric recordMetric = new Metric(this, metricField.getUniqueName());
-            if (eventDateField != null) {
-                recordMetric.setEventDateProcessor(eventDateField.as(Metric.FieldData.class).getEventDateProcessor());
-            } else {
-                recordMetric.setEventDateProcessor(null);
-            }
+            recordMetric.setEventDateProcessor(metricField.as(Metric.FieldData.class).getEventDateProcessor());
             recordMetrics.put(metricFieldInternalName, recordMetric);
-        }
-
-        if (eventDateField != null) {
-            Object eventDateValue = getState().getByPath(eventDateField.getInternalName());
-            if (eventDateValue != null && eventDateValue instanceof Date) {
-                if (! ((Date) eventDateValue).equals(oldEventDateValue)) {
-                    recordMetrics.get(metricFieldInternalName).setEventDate(((Date) eventDateValue).getTime());
-                    oldEventDateValue = (Date)((Date) eventDateValue).clone();
-                }
-            }
         }
 
         return recordMetrics.get(metricFieldInternalName);
