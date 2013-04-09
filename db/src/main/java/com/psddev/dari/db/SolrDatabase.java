@@ -401,13 +401,22 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             boolean isAscending = Sorter.ASCENDING_OPERATOR.equals(operator);
 
             if (isAscending || Sorter.DESCENDING_OPERATOR.equals(operator)) {
-                Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, (String) sorter.getOptions().get(0));
-                String internalType = mappedKey.getInternalType();
-                if (internalType != null) {
-                    solrQuery.addSortField(
-                            getSolrField(internalType).sortPrefix + mappedKey.getIndexKey(null),
-                            isAscending ? SolrQuery.ORDER.asc : SolrQuery.ORDER.desc);
+                String queryKey = (String) sorter.getOptions().get(0);
+                Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, queryKey);
+                String solrField = SPECIAL_FIELDS.get(mappedKey);
+
+                if (solrField == null) {
+                    String internalType = mappedKey.getInternalType();
+                    if (internalType != null) {
+                        solrField = getSolrField(internalType).sortPrefix + mappedKey.getIndexKey(null);
+                    }
                 }
+
+                if (solrField == null) {
+                    throw new UnsupportedIndexException(this, queryKey);
+                }
+
+                solrQuery.addSortField(solrField, isAscending ? SolrQuery.ORDER.asc : SolrQuery.ORDER.desc);
                 continue;
 
             } else if (Sorter.RELEVANT_OPERATOR.equals(operator)) {

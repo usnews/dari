@@ -6,7 +6,17 @@ import com.psddev.dari.util.Ping;
 public class DefaultDatabasePing implements Ping {
 
     @Override
+    @SuppressWarnings("unchecked")
     public void ping() {
-        Query.from(Object.class).first();
+        Database defaultDatabase = Database.Static.getDefault();
+
+        if (defaultDatabase instanceof Iterable) {
+            for (Database delegate : (Iterable<Database>) defaultDatabase) {
+                Query.from(Object.class).using(delegate).first();
+            }
+
+        } else {
+            Query.from(Object.class).first();
+        }
     }
 }

@@ -18,7 +18,9 @@ import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StringLogger;
 import com.psddev.dari.util.TypeDefinition;
 
+/** @deprecated No replacement. */
 @DebugFilter.Path("init")
+@Deprecated
 @SuppressWarnings("serial")
 public class InitializerServlet extends HttpServlet {
 

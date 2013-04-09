@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
  * <p>This filter loads:</p>
  *
  * <ul>
- * <li>{@link SettingsOverrideFilter}</li>
  * <li>{@link SourceFilter}</li>
  * <li>{@link LogCaptureFilter}</li>
  * <li>{@link ResourceFilter}</li>
