@@ -746,7 +746,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                 Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
 
-                if (fieldData.isIndexTableSource() && !metricFieldData.isDimension() && !metricFieldData.isEventDateField() && fieldData.getIndexTable() != null) {
+                if (fieldData.isIndexTableSource() && !metricFieldData.isEventDateField() && fieldData.getIndexTable() != null) {
                     loadExtraFields.add(field);
                 }
             }
@@ -1604,6 +1604,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         Statement statement = null;
         ResultSet result = null;
 
+        LOGGER.info("========= sqlQuery: " + sqlQuery);
+
         try {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
@@ -1616,7 +1618,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 if (i < offset || i >= last) {
                     continue;
                 }
-
 
                 List<Object> keys = new ArrayList<Object>();
 
@@ -1704,6 +1705,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 if (! metricSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedMetricStatement(query, field, fields);
+                    LOGGER.info(" statement for sum for metric value " + field + " : " + sqlQuery);
                     Connection connection = null;
                     Statement statement = null;
                     ResultSet result = null;
@@ -1714,8 +1716,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         if (this.getKeys().size() == 0) {
                             // Special case for .groupby() without any fields
-                            assert this.groupings.size() == 1;
-                            if (result.next()) {
+                            if (this.groupings.size() != 1) throw new RuntimeException("There should only be one grouping when grouping by nothing. Something went wrong internally.");
+                            if (result.next() && result.getBytes(1) != null) {
                                 this.setSum(field, result.getDouble(1));
                             } else {
                                 this.setSum(field, 0);
@@ -1740,10 +1742,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                                 // TODO: limit/offset
                                 List<Object> keys = new ArrayList<Object>();
                                 for (int j = 0; j < objectFields.size(); ++ j) {
-                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+3)));
+                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+3))); // 3 because _count and amount
                                 }
                                 if (groupingMap.containsKey(keys)) {
-                                    groupingMap.get(keys).setSum(field, result.getDouble(1));
+                                    if (result.getBytes(1) != null) {
+                                        groupingMap.get(keys).setSum(field, result.getDouble(1));
+                                    } else {
+                                        groupingMap.get(keys).setSum(field, 0);
+                                    }
                                 }
                             }
                         }

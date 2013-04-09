@@ -3,7 +3,7 @@ package com.psddev.dari.db;
 // TODO: Calendar is slow - use org.joda.time instead
 import java.util.Calendar;
 
-interface MetricEventDateProcessor {
+public interface MetricEventDateProcessor {
 
     public long process(long timestampMillis);
 

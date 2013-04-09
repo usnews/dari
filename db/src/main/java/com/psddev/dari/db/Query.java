@@ -111,7 +111,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     };
 
     public static final String ID_KEY = "_id";
-    public static final String METRIC_KEY = "_metric";
     public static final String TYPE_KEY = "_type";
     public static final String ANY_KEY = "_any";
 
@@ -791,7 +790,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     public interface MappedKey {
 
         public static final MappedKey ID = new SpecialMappedKey(ObjectField.UUID_TYPE);
-        public static final MappedKey METRIC = new SpecialMappedKey(ObjectField.UUID_TYPE);
         public static final MappedKey TYPE = new SpecialMappedKey(ObjectField.UUID_TYPE);
         public static final MappedKey ANY = new SpecialMappedKey(ObjectField.TEXT_TYPE);
 
@@ -815,7 +813,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private static final Map<String, MappedKey> SPECIAL_MAPPED_KEYS; static {
         Map<String, MappedKey> m = new HashMap<String, MappedKey>();
         m.put(ID_KEY, MappedKey.ID);
-        m.put(METRIC_KEY, MappedKey.METRIC);
         m.put(TYPE_KEY, MappedKey.TYPE);
         m.put(ANY_KEY, MappedKey.ANY);
         SPECIAL_MAPPED_KEYS = m;
@@ -1353,7 +1350,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             Map<String, String> m = new HashMap<String, String>();
             m.put("*", ANY_KEY);
             m.put("id", ID_KEY);
-            m.put("metricId", METRIC_KEY);
             m.put("typeId", TYPE_KEY);
             m.put("_fields", ANY_KEY);
             KEY_ALIASES = m;

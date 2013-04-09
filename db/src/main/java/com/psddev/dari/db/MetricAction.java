@@ -3,9 +3,10 @@ package com.psddev.dari.db;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 class MetricAction extends Modification<Object> {
 
@@ -15,7 +16,6 @@ class MetricAction extends Modification<Object> {
     private transient final Map<String, ObjectField> eventDateFields = new HashMap<String, ObjectField>();
     private transient final Map<String, ObjectField> metricFields = new HashMap<String, ObjectField>();
     private transient Date oldEventDateValue;
-    private transient Set<Integer> dimensionHashCodes;
 
     private ObjectField findMetricField(String internalName) {
         ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
@@ -63,35 +63,6 @@ class MetricAction extends Modification<Object> {
         return eventDateFields.get(metricFieldInternalName);
     }
 
-    private Set<ObjectField> getDimensions(String metricFieldInternalName) {
-        // Checking each field for @MetricDimension annotation
-        Set<ObjectField> dimensions = new HashSet<ObjectField>();
-        ObjectField metricField = getMetricField(metricFieldInternalName);
-        ObjectType objectType = ObjectType.getInstance(getState().getType().getObjectClass());
-        for (String dimensionFieldName : metricField.as(Metric.FieldData.class).getDimensions()) {
-            if (objectType.getField(dimensionFieldName) == null) {
-                throw new RuntimeException("Invalid dimension field : " + dimensionFieldName);
-            }
-            dimensions.add(objectType.getField(dimensionFieldName));
-        }
-        return dimensions;
-    }
-
-    private boolean dimensionValuesHaveChanged(String metricFieldInternalName) {
-        Set<Integer> newDimensionHashCodes = new HashSet<Integer>();
-        for (ObjectField field : getDimensions(metricFieldInternalName)) {
-            if (getState().getByPath(field.getInternalName()) != null) {
-                newDimensionHashCodes.add(getState().getByPath(field.getInternalName()).hashCode());
-            }
-        }
-        if (dimensionHashCodes == null || ! newDimensionHashCodes.equals(dimensionHashCodes)) {
-            dimensionHashCodes = newDimensionHashCodes;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     public void incrementMetric(String metricFieldInternalName, double c) {
         try {
             getMetricObject(metricFieldInternalName).incrementMetric(c);
@@ -120,19 +91,11 @@ class MetricAction extends Modification<Object> {
         try {
             Metric cr = getMetricObject(metricFieldInternalName);
             cr.setQueryDateRange(null, null);
-            return getMetricObject(metricFieldInternalName).getMetric();
+            Double metricValue = cr.getMetric();
+            if (metricValue == null) return 0.0d;
+            return metricValue;
         } catch (SQLException e) {
             throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.getMetric() : " + e.getLocalizedMessage());
-        }
-    }
-
-    public double getMetricByRecordId(String metricFieldInternalName) {
-        try {
-            Metric cr = getMetricObject(metricFieldInternalName);
-            cr.setQueryDateRange(null, null);
-            return getMetricObject(metricFieldInternalName).getMetricByRecordId();
-        } catch (SQLException e) {
-            throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.getMetricByRecordId() : " + e.getLocalizedMessage());
         }
     }
 
@@ -160,23 +123,14 @@ class MetricAction extends Modification<Object> {
     private Metric getMetricObject(String metricFieldInternalName) {
         // if metricFieldInternalName is null, it will return the *first* @MetricValue in the type
 
-        if (dimensionValuesHaveChanged(metricFieldInternalName)) {
-            if (recordMetrics.containsKey(metricFieldInternalName)) {
-                recordMetrics.remove(metricFieldInternalName);
-            }
-        }
-
         ObjectField eventDateField = getEventDateField(metricFieldInternalName);
         if (! recordMetrics.containsKey(metricFieldInternalName)) {
             ObjectField metricField = getMetricField(metricFieldInternalName);
-            Metric recordMetric = new Metric(this, metricField.getUniqueName(), getDimensions(metricFieldInternalName));
+            Metric recordMetric = new Metric(this, metricField.getUniqueName());
             if (eventDateField != null) {
                 recordMetric.setEventDateProcessor(eventDateField.as(Metric.FieldData.class).getEventDateProcessor());
             } else {
                 recordMetric.setEventDateProcessor(null);
-            }
-            if (metricField.as(Metric.FieldData.class).isIncludeSelfDimension()) {
-                recordMetric.setIncludeSelfDimension(true);
             }
             recordMetrics.put(metricFieldInternalName, recordMetric);
         }
