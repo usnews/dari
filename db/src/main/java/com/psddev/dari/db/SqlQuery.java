@@ -1375,7 +1375,10 @@ class SqlQuery {
             } else {
                 String indexKey = mappedKeys.get(queryKey).getIndexKey(index);
                 if (indexKey != null &&
-                        indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index))) {
+                        indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index)) && 
+                        ((mappedKeys.get(queryKey).getHashAttribute() != null && mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) || 
+                         (mappedKeys.get(queryKey).getHashAttribute() == null && join.hashAttribute == null))) {
+                    // If there's a #attribute on the mapped key, make sure we are returning the matching join.
                     return join;
                 }
             }
@@ -1392,13 +1395,10 @@ class SqlQuery {
             } else {
                 String indexKey = mappedKeys.get(queryKey).getIndexKey(index);
                 if (indexKey != null &&
-                        indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index))) {
-                    // If there's a #date on the mapped key, make sure we are returning the correct join.
-                    if ((mappedKeys.get(queryKey).getHashAttribute() != null && 
-                            ! mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) ||
-                            mappedKeys.get(queryKey).getHashAttribute() == null && join.hashAttribute != null) {
-                        continue;
-                    }
+                        indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index)) &&
+                        ((mappedKeys.get(queryKey).getHashAttribute() != null && mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) || 
+                         (mappedKeys.get(queryKey).getHashAttribute() == null && join.hashAttribute == null))) {
+                    // If there's a #attribute on the mapped key, make sure we are returning the matching join.
                     return join;
                 }
             }
