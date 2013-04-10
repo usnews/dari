@@ -595,8 +595,6 @@ class Metric {
             this.metricValue = metricValue;
         }
 
-        public boolean isEventDateField() { return false; } // XXX
-
         @SuppressWarnings("unchecked")
         public MetricEventDateProcessor getEventDateProcessor() {
             if (eventDateProcessor == null) {
