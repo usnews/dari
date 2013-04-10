@@ -531,10 +531,10 @@ class SqlQuery {
                     } else if (! recordMetricField.equals(mappedKey.getField())) {
                         throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName() + " AND " + mappedKey.getField().getInternalName());
                     }
-                    if ("date".equals(mappedKey.getHashAttribute())) {
+                    if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                         recordMetricWherePredicates.add(predicate);
                         recordMetricParentWherePredicates.add(parentPredicate);
-                    } else if (metricFieldData.isMetricValue()) {
+                    } else {
                         recordMetricHavingPredicates.add(predicate);
                         recordMetricParentHavingPredicates.add(parentPredicate);
                     }
@@ -931,7 +931,7 @@ class SqlQuery {
                 if (mappedKey.getField() != null) {
                     Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
                     if (metricFieldData.isMetricValue()) {
-                        if ("date".equals(mappedKey.getHashAttribute())) {
+                        if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                             // TODO: this one has to work eventually . . .
                             throw new Query.NoFieldException(query.getGroup(), groupField);
                         } else {
@@ -1509,7 +1509,7 @@ class SqlQuery {
 
                 needsIsNotNull = false;
 
-                if ("date".equals(mappedKey.getHashAttribute())) {
+                if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     // for metricField#date, use "data"
                     valueField = sqlIndexTable.getValueField(database, index, 0);
                 } else {
@@ -1595,7 +1595,7 @@ class SqlQuery {
                 }
             }
 
-            if (field != null && field.as(Metric.FieldData.class).isMetricValue() && "date".equals(mappedKey.getHashAttribute())) {
+            if (field != null && field.as(Metric.FieldData.class).isMetricValue() && Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                 // EventDates in Metric are smaller than long
                 Character padChar = 'F';
                 if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) ||
