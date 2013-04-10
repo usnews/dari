@@ -1,86 +1,50 @@
 package com.psddev.dari.db;
 
-// TODO: Calendar is slow - use org.joda.time instead
-import java.util.Calendar;
+import org.joda.time.DateTime;
 
 public interface MetricInterval {
 
-    public long process(long timestampMillis);
+    public long process(DateTime timestamp);
 
     public class None implements MetricInterval {
-        public long process(long timestampMillis) {
+        @Override
+        public long process(DateTime timestamp) {
             return 0;
         }
     }
 
     public class Hourly implements MetricInterval {
-        public long process(long timestampMillis) {
-            Calendar c = Calendar.getInstance();
-            c.clear();
-            c.setTimeInMillis(timestampMillis);
-            c.set(Calendar.MILLISECOND, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MINUTE, 0);
-            return c.getTimeInMillis();
+        @Override
+        public long process(DateTime timestamp) {
+            return timestamp.hourOfDay().roundFloorCopy().getMillis();
         }
     }
 
     public class Daily implements MetricInterval {
-        public long process(long timestampMillis) {
-            Calendar c = Calendar.getInstance();
-            c.clear();
-            c.setTimeInMillis(timestampMillis);
-            c.set(Calendar.MILLISECOND, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MINUTE, 0);
-            c.set(Calendar.HOUR_OF_DAY, 0);
-            return c.getTimeInMillis();
+        @Override
+        public long process(DateTime timestamp) {
+            return timestamp.dayOfMonth().roundFloorCopy().getMillis();
         }
     }
 
     public class Weekly implements MetricInterval {
-        public long process(long timestampMillis) {
-            Calendar c = Calendar.getInstance();
-            c.clear();
-            c.setTimeInMillis(timestampMillis);
-            c.set(Calendar.MILLISECOND, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MINUTE, 0);
-            c.set(Calendar.HOUR_OF_DAY, 0);
-            while (c.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY)
-                c.add(Calendar.DATE, -1);
-            return c.getTimeInMillis();
+        @Override
+        public long process(DateTime timestamp) {
+            return timestamp.weekOfWeekyear().roundFloorCopy().getMillis();
         }
     }
 
     public class Monthly implements MetricInterval {
-        public long process(long timestampMillis) {
-            Calendar c = Calendar.getInstance();
-            c.clear();
-            c.setTimeInMillis(timestampMillis);
-            c.set(Calendar.MILLISECOND, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MINUTE, 0);
-            c.set(Calendar.HOUR_OF_DAY, 0);
-            c.set(Calendar.DAY_OF_MONTH, 1);
-            return c.getTimeInMillis();
+        @Override
+        public long process(DateTime timestamp) {
+            return timestamp.monthOfYear().roundFloorCopy().getMillis();
         }
     }
 
     public class Yearly implements MetricInterval {
-        public long process(long timestampMillis) {
-            Calendar c = Calendar.getInstance();
-            c.clear();
-            c.setTimeInMillis(timestampMillis);
-            c.set(Calendar.MILLISECOND, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MINUTE, 0);
-            c.set(Calendar.HOUR_OF_DAY, 0);
-            c.set(Calendar.DAY_OF_MONTH, 1);
-            c.set(Calendar.MONTH, Calendar.JANUARY);
-            return c.getTimeInMillis();
+        @Override
+        public long process(DateTime timestamp) {
+            return timestamp.year().roundFloorCopy().getMillis();
         }
     }
-
 }
-

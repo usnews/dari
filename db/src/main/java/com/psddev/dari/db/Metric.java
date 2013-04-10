@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.joda.time.DateTime;
+
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 
@@ -90,7 +92,7 @@ class Metric {
 
     // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
     public void setEventDate(long timestampMillis) {
-        this.eventDate = getEventDateProcessor().process(timestampMillis);
+        this.eventDate = getEventDateProcessor().process(new DateTime(timestampMillis));
     }
 
     public long getEventDate() {
