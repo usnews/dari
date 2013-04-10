@@ -438,15 +438,17 @@ public class HtmlWriter extends Writer {
                         HtmlGrid grid = gridEntry.getValue();
 
                         write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
-                            write("var $layout = $(this);");
+                            write("var $layout = $(this), $child, $clear;");
 
                             for (String area : grid.getAreas()) {
-                                write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
+                                write("$child = $layout.find('> .dari-grid-area[data-grid-area=\"");
                                 write(StringUtils.escapeJavaScript(area));
-                                write("\"]')[0]);");
+                                write("\"]');");
+                                write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
                             }
 
-                            write("$layout[0].appendChild($layout.find('> .dari-grid-clear')[0]);");
+                            write("$clear = $layout.find('> .dari-grid-clear');");
+                            write("if ($clear.length > 0) { $layout[0].appendChild($clear[0]); }");
                         write("});");
                     }
                     write("return;");
