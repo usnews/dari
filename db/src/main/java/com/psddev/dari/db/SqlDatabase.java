@@ -1638,6 +1638,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         count = ObjectUtils.to(long.class, result.getObject(2));
                     }
                     grouping = new SqlGrouping<T>(keys, query, fields, count, groupings);
+                    if (amount == null) amount = 0d;
                     grouping.setSum(aggregateColumnName, amount);
                 }
                 groupings.add(grouping);
