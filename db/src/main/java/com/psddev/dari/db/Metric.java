@@ -39,7 +39,7 @@ class Metric {
     private final MetricQuery query;
     private final Record record;
 
-    private MetricEventDateProcessor eventDateProcessor;
+    private MetricInterval eventDateProcessor;
 
     private Long updateDate;
     private Long eventDate;
@@ -54,7 +54,7 @@ class Metric {
         this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol);
     }
 
-    public void setEventDateProcessor(MetricEventDateProcessor processor) {
+    public void setEventDateProcessor(MetricInterval processor) {
         this.eventDateProcessor = processor;
     }
 
@@ -62,9 +62,9 @@ class Metric {
         return record;
     }
 
-    public MetricEventDateProcessor getEventDateProcessor() {
+    public MetricInterval getEventDateProcessor() {
         if (eventDateProcessor == null) {
-            eventDateProcessor = new MetricEventDateProcessor.Hourly();
+            eventDateProcessor = new MetricInterval.Hourly();
         }
         return eventDateProcessor;
     }
@@ -596,7 +596,7 @@ class Metric {
     @Record.FieldInternalNamePrefix("metrics.")
     public static class FieldData extends Modification<ObjectField> {
 
-        private transient MetricEventDateProcessor eventDateProcessor;
+        private transient MetricInterval eventDateProcessor;
 
         private boolean metricValue;
         private String eventDateProcessorClassName;
@@ -610,13 +610,13 @@ class Metric {
         }
 
         @SuppressWarnings("unchecked")
-        public MetricEventDateProcessor getEventDateProcessor() {
+        public MetricInterval getEventDateProcessor() {
             if (eventDateProcessor == null) {
                 if (eventDateProcessorClassName == null) {
                     return null;
                 } else {
                     try {
-                        Class<MetricEventDateProcessor> cls = (Class<MetricEventDateProcessor>) Class.forName(eventDateProcessorClassName);
+                        Class<MetricInterval> cls = (Class<MetricInterval>) Class.forName(eventDateProcessorClassName);
                         eventDateProcessor = cls.newInstance();
                     } catch (ClassNotFoundException e) {
                         throw new RuntimeException(e);
@@ -630,7 +630,7 @@ class Metric {
             return eventDateProcessor;
         }
 
-        public void setEventDateProcessorClass(Class<? extends MetricEventDateProcessor> eventDateProcessorClass) {
+        public void setEventDateProcessorClass(Class<? extends MetricInterval> eventDateProcessorClass) {
             this.eventDateProcessorClassName = eventDateProcessorClass.getName();
         }
 

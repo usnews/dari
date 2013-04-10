@@ -3,17 +3,17 @@ package com.psddev.dari.db;
 // TODO: Calendar is slow - use org.joda.time instead
 import java.util.Calendar;
 
-public interface MetricEventDateProcessor {
+public interface MetricInterval {
 
     public long process(long timestampMillis);
 
-    public class None implements MetricEventDateProcessor {
+    public class None implements MetricInterval {
         public long process(long timestampMillis) {
             return 0;
         }
     }
 
-    public class Hourly implements MetricEventDateProcessor {
+    public class Hourly implements MetricInterval {
         public long process(long timestampMillis) {
             Calendar c = Calendar.getInstance();
             c.clear();
@@ -25,7 +25,7 @@ public interface MetricEventDateProcessor {
         }
     }
 
-    public class Daily implements MetricEventDateProcessor {
+    public class Daily implements MetricInterval {
         public long process(long timestampMillis) {
             Calendar c = Calendar.getInstance();
             c.clear();
@@ -38,7 +38,7 @@ public interface MetricEventDateProcessor {
         }
     }
 
-    public class Weekly implements MetricEventDateProcessor {
+    public class Weekly implements MetricInterval {
         public long process(long timestampMillis) {
             Calendar c = Calendar.getInstance();
             c.clear();
@@ -53,7 +53,7 @@ public interface MetricEventDateProcessor {
         }
     }
 
-    public class Monthly implements MetricEventDateProcessor {
+    public class Monthly implements MetricInterval {
         public long process(long timestampMillis) {
             Calendar c = Calendar.getInstance();
             c.clear();
@@ -67,7 +67,7 @@ public interface MetricEventDateProcessor {
         }
     }
 
-    public class Yearly implements MetricEventDateProcessor {
+    public class Yearly implements MetricInterval {
         public long process(long timestampMillis) {
             Calendar c = Calendar.getInstance();
             c.clear();

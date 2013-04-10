@@ -177,7 +177,7 @@ public interface Recordable {
     @ObjectField.AnnotationProcessorClass(MetricValueProcessor.class)
     @Target(ElementType.FIELD)
     public @interface MetricValue {
-        Class<? extends MetricEventDateProcessor> eventDateProcessor() default MetricEventDateProcessor.None.class;
+        Class<? extends MetricInterval> interval() default MetricInterval.Hourly.class;
     }
 
     /**
@@ -613,7 +613,7 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);
 
-        metricFieldData.setEventDateProcessorClass(annotation.eventDateProcessor());
+        metricFieldData.setEventDateProcessorClass(annotation.interval());
 
         metricFieldData.setMetricValue(true);
     }

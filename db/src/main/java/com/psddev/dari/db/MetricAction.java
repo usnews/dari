@@ -90,8 +90,8 @@ class MetricAction extends Modification<Object> {
     public double getMetricOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
         try {
             Metric cr = getMetricObject(metricFieldInternalName);
-            if (cr.getEventDateProcessor().equals(MetricEventDateProcessor.None.class)) {
-                throw new RuntimeException("Date range does not apply - no MetricEventDateProcessor");
+            if (cr.getEventDateProcessor().equals(MetricInterval.None.class)) {
+                throw new RuntimeException("Date range does not apply - no MetricInterval");
             }
             cr.setQueryDateRange(startTimestamp, endTimestamp);
             return getMetricObject(metricFieldInternalName).getMetric();
