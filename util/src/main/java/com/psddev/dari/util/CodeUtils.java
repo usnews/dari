@@ -606,6 +606,8 @@ public class CodeUtils {
                             System.setProperty("java.io.tmpdir", oldTmpdir);
                         }
                     }
+                } else {
+                    vm = vmClass.getMethod("attach", String.class).invoke(null, pid);
                 }
 
                 // Create a temporary instrumentation agent JAR.
@@ -635,7 +637,9 @@ public class CodeUtils {
                         jar.close();
                     }
 
-                    vmClass.getMethod("loadAgent", String.class).invoke(vm, file.getAbsolutePath());
+                    if (vm != null) {
+                        vmClass.getMethod("loadAgent", String.class).invoke(vm, file.getAbsolutePath());
+                    }
                     AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
 
                 } finally {
