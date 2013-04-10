@@ -216,7 +216,7 @@ class Metric {
                                     appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, AMOUNT_POSITION, 0);
                             updateBuilder.append(")");
                         } else {
-                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
+                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, AMOUNT_POSITION, amount);
                         }
                     } else {
                         appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
@@ -463,7 +463,6 @@ class Metric {
 
                 // First, find the max eventDate. Under normal circumstances, this will either be null (INSERT), before our eventDate (INSERT) or equal to our eventDate (UPDATE).
                 byte[] data = getDataById(db, id, typeId, symbol, null, null);
-                String sql;
 
                 if (data == null || timestampFromBytes(data) < eventDate) {
                     // No data for this eventDate; insert.
@@ -471,16 +470,31 @@ class Metric {
                     if (data != null) {
                         previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                     }
-                    parameters = new ArrayList<Object>();
-                    sql = getMetricInsertSql(db, parameters, id, typeId, symbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
+                    String sql = getMetricInsertSql(db, parameters, id, typeId, symbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
+                    SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 } else if (timestampFromBytes(data) == eventDate) {
                     // There is data for this eventDate; update it.
-                    sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, updateDate, eventDate, true, false);
+                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, updateDate, eventDate, true, false);
+                    SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 } else { // if (timestampFromBytes(data) > eventDate)
-                    // We are updating a row in the past, so we need to tell updateSql to update the cumulativeAmount for all rows in the future.
-                    sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, updateDate, eventDate, true, true);
+                    // The max(eventDate) in the table is greater than our
+                    // event date. If there exists a row in the past, UPDATE it
+                    // or if not, INSERT. Either way we will be updating future
+                    // data, so just INSERT with a value of 0 if necessary, then 
+                    // UPDATE all rows.
+                    byte[] oldData = getDataById(db, id, typeId, symbol, null, eventDate);
+                    if (oldData == null || timestampFromBytes(oldData) < eventDate) {
+                        double previousCumulativeAmount = 0.0d;
+                        if (oldData != null) {
+                            previousCumulativeAmount = amountFromBytes(oldData, CUMULATIVEAMOUNT_POSITION);
+                        }
+                        List<Object> parameters2 = new ArrayList<Object>();
+                        String sql2 = getMetricInsertSql(db, parameters2, id, typeId, symbol, 0, previousCumulativeAmount, updateDate, eventDate);
+                        SqlDatabase.Static.executeUpdateWithList( connection, sql2, parameters2);
+                    }
+                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, updateDate, eventDate, true, true);
+                    SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 }
-                SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
 
             } finally {
                 db.closeConnection(connection);
