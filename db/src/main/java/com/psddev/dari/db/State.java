@@ -802,38 +802,12 @@ public class State implements Map<String, Object> {
         as(MetricAction.class).incrementMetric(name, value);
     }
 
-    /**
-     * @param eventDateMillis In milliseconds.
-     */
-    public void incrementMetric(String name, double value, long eventDateMillis) {
-        as(MetricAction.class).incrementMetric(name, value, eventDateMillis);
-    }
-
-    public void incrementMetric(String name, double value, Date eventDate) {
-        as(MetricAction.class).incrementMetric(name, value, eventDate.getTime());
-    }
-
     public void incrementMetric(String name, double value, DateTime eventDate) {
         as(MetricAction.class).incrementMetric(name, value, eventDate.getMillis());
     }
 
     public double getMetric(String name) {
         return as(MetricAction.class).getMetric(name);
-    }
-
-    /**
-     * @param start In milliseconds.
-     * @param end In milliseconds.
-     */
-    public double getMetricBetween(String name, Long start, Long end) {
-        return as(MetricAction.class).getMetricOverDateRange(name, start, end);
-    }
-
-    public double getMetricBetween(String name, Date start, Date end) {
-        return as(MetricAction.class).getMetricOverDateRange(
-                name,
-                start != null ? start.getTime() : null,
-                end != null ? end.getTime() : null);
     }
 
     public double getMetricBetween(String name, DateTime start, DateTime end) {
