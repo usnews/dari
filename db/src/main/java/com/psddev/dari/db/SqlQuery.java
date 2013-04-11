@@ -874,16 +874,26 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (hasAnyDeferredMetricPredicates()) {
-            throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
+        if (! recordMetricHavingPredicates.isEmpty()) {
+            statementBuilder.append("SELECT ");
+            if (needsDistinct) {
+                statementBuilder.append("DISTINCT ");
+            }
+            statementBuilder.append(recordIdField);
+            statementBuilder.append(", (");
+            appendSubqueryMetricSql(statementBuilder, recordMetricField);
+            statementBuilder.append(") AS ");
+            vendor.appendIdentifier(statementBuilder, recordMetricField.getInternalName());
+        } else {
+            statementBuilder.append("SELECT COUNT(");
+            if (needsDistinct) {
+                statementBuilder.append("DISTINCT ");
+            }
+            statementBuilder.append(recordIdField);
+            statementBuilder.append(")");
         }
 
-        statementBuilder.append("SELECT COUNT(");
-        if (needsDistinct) {
-            statementBuilder.append("DISTINCT ");
-        }
-        statementBuilder.append(recordIdField);
-        statementBuilder.append(")\nFROM ");
+        statementBuilder.append(" \nFROM ");
         vendor.appendIdentifier(statementBuilder, "Record");
         statementBuilder.append(" ");
         statementBuilder.append(aliasPrefix);
@@ -891,6 +901,30 @@ class SqlQuery {
         statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
         statementBuilder.append(whereClause);
 
+        if (! recordMetricHavingPredicates.isEmpty()) {
+
+            StringBuilder wrapperStatementBuilder = new StringBuilder();
+            wrapperStatementBuilder.append("SELECT COUNT(*) FROM (");
+            wrapperStatementBuilder.append(statementBuilder);
+            wrapperStatementBuilder.append(") d0 ");
+            statementBuilder = wrapperStatementBuilder;
+
+            StringBuilder havingChildBuilder = new StringBuilder();
+            
+            if (recordMetricParentHavingPredicates.size() != recordMetricHavingPredicates.size()) {
+                throw new RuntimeException("parentHavingPredicates.size() is != havingPredicates.size() - Something has gone wrong internally.");
+            }
+            for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
+                addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
+                havingChildBuilder.append(" AND ");
+            }
+            if (havingChildBuilder.length() > 0) {
+                havingChildBuilder.setLength(havingChildBuilder.length()-5); // " AND "
+                statementBuilder.append(" WHERE ");
+                statementBuilder.append(havingChildBuilder);
+            }
+
+        }
         return statementBuilder.toString();
     }
 
@@ -1291,7 +1325,6 @@ class SqlQuery {
         }
 
         if (hasAnyDeferredMetricPredicates()) {
-            // throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
             statementBuilder.append(", (");
             appendSubqueryMetricSql(statementBuilder, recordMetricField);
             statementBuilder.append(") AS ");
