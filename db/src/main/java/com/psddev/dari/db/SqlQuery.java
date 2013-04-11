@@ -858,8 +858,8 @@ class SqlQuery {
         return false;
     }
 
-    private boolean hasDeferredMetricPredicates() {
-        if (recordMetricWherePredicates.size() > 0 ||  recordMetricHavingPredicates.size() > 0 || recordMetricSorters.size() > 0) {
+    private boolean hasAnyDeferredMetricPredicates() {
+        if (! recordMetricWherePredicates.isEmpty() || ! recordMetricHavingPredicates.isEmpty() || ! recordMetricSorters.isEmpty()) {
             return true;
         } else {
             return false;
@@ -874,7 +874,7 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (hasDeferredMetricPredicates()) {
+        if (hasAnyDeferredMetricPredicates()) {
             throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
         }
 
@@ -902,7 +902,7 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (hasDeferredMetricPredicates()) {
+        if (hasAnyDeferredMetricPredicates()) {
             throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
         }
 
@@ -960,7 +960,7 @@ class SqlQuery {
         StringBuilder groupBy = new StringBuilder();
         initializeClauses();
 
-        if (hasDeferredMetricPredicates()) {
+        if (hasAnyDeferredMetricPredicates()) {
             // add "id" to groupJoins
             mappedKeys.put(Query.ID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.ID_KEY));
             groupJoins.put(Query.ID_KEY, getJoin(Query.ID_KEY));
@@ -1051,8 +1051,9 @@ class SqlQuery {
 
         statementBuilder.append(havingClause);
 
-        if (hasDeferredMetricPredicates()) {
+        if (hasAnyDeferredMetricPredicates()) {
             // If there are deferred HAVING predicates, we need to go ahead and execute the metric query
+            // TODO: there might be a way to filter on more than 1 metric simultaneously.
             return buildGroupedMetricSql(recordMetricField.getInternalName(), groupFields, selectClause, fromClause, whereClause, groupByClause, orderByClause);
         } else {
             return statementBuilder.toString();
@@ -1072,7 +1073,7 @@ class SqlQuery {
         return buildGroupedMetricSql(metricFieldName, groupFields, selectClause, fromClause, whereClause, groupByClause, orderByClause);
     }
 
-    public String buildGroupedMetricSql(String metricFieldName, String[] groupFields, String selectClause, String fromClause, String whereClause, String groupByClause, String orderByClause) {
+    private String buildGroupedMetricSql(String metricFieldName, String[] groupFields, String selectClause, String fromClause, String whereClause, String groupByClause, String orderByClause) {
         StringBuilder selectBuilder = new StringBuilder(selectClause);
         StringBuilder fromBuilder = new StringBuilder(fromClause);
         StringBuilder whereBuilder = new StringBuilder(whereClause);
@@ -1177,6 +1178,62 @@ class SqlQuery {
             " " + orderByBuilder;
     }
 
+    private void appendSubqueryMetricSql(StringBuilder sql, ObjectField metricField) {
+        String actionSymbol = metricField.getJavaDeclaringClassName() + "/" + metricField.getInternalName();
+
+        StringBuilder minData = new StringBuilder("MIN(");
+        vendor.appendIdentifier(minData, Metric.METRIC_TABLE);
+        minData.append(".");
+        vendor.appendIdentifier(minData, Metric.METRIC_DATA_FIELD);
+        minData.append(")");
+
+        StringBuilder maxData = new StringBuilder("MAX(");
+        vendor.appendIdentifier(maxData, Metric.METRIC_TABLE);
+        maxData.append(".");
+        vendor.appendIdentifier(maxData, Metric.METRIC_DATA_FIELD);
+        maxData.append(")");
+
+        sql.append("SELECT ");
+        Metric.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
+        sql.append(" FROM ");
+        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+
+        sql.append(" WHERE ");
+        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+        sql.append(".");
+        vendor.appendIdentifier(sql, Metric.METRIC_ID_FIELD);
+        sql.append(" = ");
+        vendor.appendIdentifier(sql, "r");
+        sql.append(".");
+        vendor.appendIdentifier(sql, "id");
+
+        sql.append(" AND ");
+        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+        sql.append(".");
+        vendor.appendIdentifier(sql, Metric.METRIC_TYPE_FIELD);
+        sql.append(" = ");
+        vendor.appendIdentifier(sql, "r");
+        sql.append(".");
+        vendor.appendIdentifier(sql, "typeId");
+
+        sql.append(" AND ");
+        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+        sql.append(".");
+        vendor.appendIdentifier(sql, Metric.METRIC_SYMBOL_FIELD);
+        sql.append(" = ");
+        vendor.appendValue(sql, database.getSymbolId(actionSymbol));
+
+        // Apply deferred WHERE predicates (eventDates)
+        if (recordMetricParentWherePredicates.size() != recordMetricWherePredicates.size()) {
+            throw new RuntimeException("parentWherePredicates.size() is != wheregPredicates.size() - Something has gone wrong internally.");
+        }
+        for (int i = 0; i < recordMetricWherePredicates.size(); i++) {
+            sql.append(" AND ");
+            addWherePredicate(sql, recordMetricWherePredicates.get(i), recordMetricParentWherePredicates.get(i), false, false);
+        }
+
+    }
+
     /**
      * Returns an SQL statement that can be used to get when the rows
      * matching the query were last updated.
@@ -1206,10 +1263,6 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (hasDeferredMetricPredicates()) {
-            throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
-        }
-
         statementBuilder.append("SELECT");
         if (needsDistinct && vendor.supportsDistinctBlob()) {
             statementBuilder.append(" DISTINCT");
@@ -1235,6 +1288,16 @@ class SqlQuery {
         } else if (!fields.isEmpty()) {
             statementBuilder.append(", ");
             vendor.appendSelectFields(statementBuilder, fields);
+        }
+
+        if (hasAnyDeferredMetricPredicates()) {
+            // throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName());
+            statementBuilder.append(", (");
+            appendSubqueryMetricSql(statementBuilder, recordMetricField);
+            statementBuilder.append(") AS ");
+            vendor.appendIdentifier(statementBuilder, recordMetricField.getInternalName());
+            statementBuilder.append(" ");
+            query.getExtraSourceColumns().put(recordMetricField.getInternalName(), recordMetricField.getInternalName());
         }
 
         if (!orderBySelectColumns.isEmpty()) {
@@ -1296,13 +1359,71 @@ class SqlQuery {
                 vendor.appendSelectFields(distinctBuilder, fields);
             }
 
+            if (! query.getExtraSourceColumns().isEmpty()) {
+                for (String extraSourceColumn : query.getExtraSourceColumns().keySet()) {
+                    distinctBuilder.append(", ");
+                    vendor.appendIdentifier(distinctBuilder, "d0");
+                    distinctBuilder.append(".");
+                    vendor.appendIdentifier(distinctBuilder, extraSourceColumn);
+                }
+            }
+
             distinctBuilder.append(" FROM ");
             vendor.appendIdentifier(distinctBuilder, SqlDatabase.RECORD_TABLE);
             distinctBuilder.append(" r INNER JOIN (");
             distinctBuilder.append(statementBuilder.toString());
             distinctBuilder.append(") d0 ON (r.id = d0.id)");
 
-            return distinctBuilder.toString();
+            statementBuilder = distinctBuilder;
+        } else if (! recordMetricHavingPredicates.isEmpty()) {
+            StringBuilder wrapperStatementBuilder = new StringBuilder();
+            wrapperStatementBuilder.append("SELECT * FROM (");
+            wrapperStatementBuilder.append(statementBuilder);
+            wrapperStatementBuilder.append(") d0 ");
+            statementBuilder = wrapperStatementBuilder;
+        }
+
+        if (! recordMetricHavingPredicates.isEmpty()) {
+            // the whole query is already aliased to d0 due to one of the above
+            //statementBuilder.append(" WHERE ");
+
+            StringBuilder havingChildBuilder = new StringBuilder();
+            
+            if (recordMetricParentHavingPredicates.size() != recordMetricHavingPredicates.size()) {
+                throw new RuntimeException("parentHavingPredicates.size() is != havingPredicates.size() - Something has gone wrong internally.");
+            }
+            for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
+                addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
+                havingChildBuilder.append(" AND ");
+            }
+            if (havingChildBuilder.length() > 0) {
+                havingChildBuilder.setLength(havingChildBuilder.length()-5); // " AND "
+                statementBuilder.append(" WHERE ");
+                statementBuilder.append(havingChildBuilder);
+            }
+
+            StringBuilder orderByBuilder = new StringBuilder();
+            // Apply all ORDER BY (deferred and original)
+            for (Sorter sorter : query.getSorters()) {
+                addOrderByClause(orderByBuilder, sorter, false, true);
+            }
+
+            if (orderByBuilder.length() > 0) {
+                orderByBuilder.setLength(orderByBuilder.length() - 2);
+                orderByBuilder.insert(0, "\nORDER BY ");
+                statementBuilder.append(orderByBuilder);
+            }
+
+        } else if (! recordMetricSorters.isEmpty()) {
+            StringBuilder orderByBuilder = new StringBuilder();
+            for (Sorter sorter : recordMetricSorters) {
+                addOrderByClause(orderByBuilder, sorter, false, true);
+            }
+            if (orderByBuilder.length() > 0) {
+                orderByBuilder.setLength(orderByBuilder.length() - 2);
+                orderByBuilder.insert(0, "\nORDER BY ");
+                statementBuilder.append(orderByBuilder);
+            }
         }
 
         return statementBuilder.toString();
