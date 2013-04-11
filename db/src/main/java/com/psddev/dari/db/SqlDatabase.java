@@ -823,13 +823,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         sql.append("SELECT ");
 
         if (metricFieldData.isMetricValue()) {
-            StringBuilder minData = new StringBuilder("MIN(");
-            StringBuilder maxData = new StringBuilder("MAX(");
+
             String indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
+
+            StringBuilder minData = new StringBuilder("MIN(");
             vendor.appendIdentifier(minData, indexColumnName);
-            vendor.appendIdentifier(maxData, indexColumnName);
             minData.append(")");
+
+            StringBuilder maxData = new StringBuilder("MAX(");
+            vendor.appendIdentifier(maxData, indexColumnName);
             maxData.append(")");
+
             Metric.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
             sql.append(" AS ");
             vendor.appendIdentifier(sql, field.getInternalName());
