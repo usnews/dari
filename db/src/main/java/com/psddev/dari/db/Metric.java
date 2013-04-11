@@ -124,7 +124,7 @@ class Metric {
         Static.doSetUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), amount, getUpdateDate(), getEventDate());
     }
 
-    public void deleteMetrics() throws SQLException {
+    public void deleteMetric() throws SQLException {
         Static.doMetricDelete(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol());
     }
 

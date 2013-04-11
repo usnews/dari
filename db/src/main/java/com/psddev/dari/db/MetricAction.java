@@ -59,11 +59,11 @@ class MetricAction extends Modification<Object> {
         }
     }
 
-    public void deleteMetrics() {
+    public void deleteMetric(String metricFieldInternalName) {
         try {
-            getMetricObject(null).deleteMetrics();
+            getMetricObject(metricFieldInternalName).deleteMetric();
         } catch (SQLException e) {
-            throw new DatabaseException(getMetricObject(null).getDatabase(), "Error in Metric.deleteMetrics() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricObject(null).getDatabase(), "Error in Metric.deleteMetric() : " + e.getLocalizedMessage());
         }
     }
 
