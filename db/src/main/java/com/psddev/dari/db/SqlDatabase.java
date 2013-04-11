@@ -744,8 +744,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+                Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
 
-                if (fieldData.isIndexTableSource() && fieldData.getIndexTable() != null) {
+                if (fieldData.isIndexTableSource() && metricFieldData.isMetricValue()) {
                     loadExtraFields.add(field);
                 }
             }
