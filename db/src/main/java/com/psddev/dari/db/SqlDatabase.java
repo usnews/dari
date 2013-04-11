@@ -687,7 +687,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     ResultSet result = null;
 
                     try {
-                        connection = openQueryConnection(query);
+                        connection = openReadConnection();
                         statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
