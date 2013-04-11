@@ -744,7 +744,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
 
                 if (fieldData.isIndexTableSource() && fieldData.getIndexTable() != null) {
                     loadExtraFields.add(field);
@@ -764,7 +763,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         extraStatement = connection.createStatement();
                         extraResult = executeQueryBeforeTimeout(
                                 extraStatement,
-                                extraSourceSelectStatementById(field, objectState.getId()),
+                                extraSourceSelectStatementById(field, objectState.getId(), objectState.getTypeId()),
                                 getQueryReadTimeout(query));
 
                         if (extraResult.next()) {
@@ -794,8 +793,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     // Maybe: move this to SqlQuery and use initializeClauses() and
     // needsRecordTable=false instead of passing id to this method. Needs
     // countperformance branch to do this.
-    private String extraSourceSelectStatementById(ObjectField field, UUID id) {
+    private String extraSourceSelectStatementById(ObjectField field, UUID id, UUID typeId) {
         FieldData fieldData = field.as(FieldData.class);
+        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
         ObjectType parentType = field.getParentType();
         StringBuilder keyName = new StringBuilder(parentType.getInternalName());
 
@@ -822,18 +822,32 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         sql.append("SELECT ");
 
-        for (String indexFieldName : useIndex.getFields()) {
+        if (metricFieldData.isMetricValue()) {
+            StringBuilder minData = new StringBuilder("MIN(");
+            StringBuilder maxData = new StringBuilder("MAX(");
             String indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
-
-            ++ fieldIndex;
-
-            vendor.appendIdentifier(sql, indexColumnName);
+            vendor.appendIdentifier(minData, indexColumnName);
+            vendor.appendIdentifier(maxData, indexColumnName);
+            minData.append(")");
+            maxData.append(")");
+            Metric.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
             sql.append(" AS ");
-            vendor.appendIdentifier(sql, indexFieldName);
-            sql.append(", ");
+            vendor.appendIdentifier(sql, field.getInternalName());
+
+        } else {
+            for (String indexFieldName : useIndex.getFields()) {
+                String indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
+
+                ++ fieldIndex;
+
+                vendor.appendIdentifier(sql, indexColumnName);
+                sql.append(" AS ");
+                vendor.appendIdentifier(sql, indexFieldName);
+                sql.append(", ");
+            }
+            sql.setLength(sql.length() - 2);
         }
 
-        sql.setLength(sql.length() - 2);
         sql.append(" FROM ");
         vendor.appendIdentifier(sql, sourceTableName);
         sql.append(" WHERE ");
@@ -844,6 +858,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         vendor.appendIdentifier(sql, "symbolId");
         sql.append(" = ");
         sql.append(symbolId);
+        if (metricFieldData.isMetricValue()) {
+            sql.append(" AND ");
+            vendor.appendIdentifier(sql, "typeId");
+            sql.append(" = ");
+            vendor.appendValue(sql, typeId);
+        }
 
         return sql.toString();
     }

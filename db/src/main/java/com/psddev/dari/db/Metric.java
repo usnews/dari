@@ -310,6 +310,27 @@ class Metric {
 
         // Methods that generate complicated bits of SQL
 
+        public static void appendSelectCalculatedAmountSql(StringBuilder str, SqlVendor vendor, String minDataColumnIdentifier, String maxDataColumnIdentifier, boolean includeSum) {
+
+            str.append("ROUND(");
+            if (includeSum) str.append("SUM");
+            str.append("(");
+            appendSelectAmountSql(str, vendor, maxDataColumnIdentifier, Metric.CUMULATIVEAMOUNT_POSITION);
+            str.append(" - (");
+            appendSelectAmountSql(str, vendor, minDataColumnIdentifier, Metric.CUMULATIVEAMOUNT_POSITION);
+            str.append(" - ");
+            appendSelectAmountSql(str, vendor, minDataColumnIdentifier, Metric.AMOUNT_POSITION);
+            str.append(") ");
+
+            str.append(")");
+            str.append(" / ");
+            vendor.appendValue(str, Metric.AMOUNT_DECIMAL_SHIFT);
+            str.append(",");
+            vendor.appendValue(str, Metric.AMOUNT_DECIMAL_PLACES);
+            str.append(") ");
+
+        }
+
         public static void appendSelectAmountSql(StringBuilder str, SqlVendor vendor, String columnIdentifier, int position) {
             // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic.
             // position is 1 or 2

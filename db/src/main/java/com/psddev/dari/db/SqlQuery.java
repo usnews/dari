@@ -1116,19 +1116,8 @@ class SqlQuery {
 
         selectBuilder.append("SELECT ");
 
-        selectBuilder.append("ROUND(SUM(");
-        Metric.Static.appendSelectAmountSql(selectBuilder, vendor, "maxData", Metric.CUMULATIVEAMOUNT_POSITION);
-        selectBuilder.append(" - (");
-        Metric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", Metric.CUMULATIVEAMOUNT_POSITION);
-        selectBuilder.append(" - ");
-        Metric.Static.appendSelectAmountSql(selectBuilder, vendor, "minData", Metric.AMOUNT_POSITION);
-        selectBuilder.append(") ");
+        Metric.Static.appendSelectCalculatedAmountSql(selectBuilder, vendor, "minData", "maxData", true);
 
-        selectBuilder.append(") / ");
-        vendor.appendValue(selectBuilder, Metric.AMOUNT_DECIMAL_SHIFT);
-        selectBuilder.append(",");
-        vendor.appendValue(selectBuilder, Metric.AMOUNT_DECIMAL_PLACES);
-        selectBuilder.append(") ");
         vendor.appendIdentifier(selectBuilder, metricField.getInternalName());
 
         selectBuilder.append(", SUM(1");
