@@ -746,7 +746,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                 Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
 
-                if (fieldData.isIndexTableSource() && metricFieldData.isMetricValue()) {
+                if (fieldData.isIndexTableSource() && ! metricFieldData.isMetricValue()) {
                     loadExtraFields.add(field);
                 }
             }
