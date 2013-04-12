@@ -6,8 +6,6 @@ CREATE TABLE Metric (
     id BINARY(16) NOT NULL,
     typeId BINARY(16) NOT NULL,
     symbolId INT NOT NULL,
-    createDate BIGINT NOT NULL,
-    updateDate BIGINT NOT NULL,
     data BINARY(20) NOT NULL,
     PRIMARY KEY (symbolId, typeId, id, data)
     /*,UNIQUE KEY k_dataEventDate (actionSymbolId, metricId, data(4))*/ /* This one can be removed in production; it's only there to ensure Metric doesn't misbehave. */

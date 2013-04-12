@@ -23,8 +23,6 @@ class Metric {
     public static final String METRIC_ID_FIELD = "id";
     public static final String METRIC_TYPE_FIELD = "typeId";
     public static final String METRIC_SYMBOL_FIELD = "symbolId";
-    public static final String METRIC_CREATEDATE_FIELD = "createDate";
-    public static final String METRIC_UPDATEDATE_FIELD = "updateDate";
     public static final String METRIC_DATA_FIELD = "data";
 
     public static final int AMOUNT_DECIMAL_PLACES = 6;
@@ -43,7 +41,6 @@ class Metric {
 
     private MetricInterval eventDateProcessor;
 
-    private Long updateDate;
     private Long eventDate;
 
     public Metric(SqlDatabase database, Record record, String actionSymbol) {
@@ -79,17 +76,6 @@ class Metric {
         return query;
     }
 
-    public void setUpdateDate(long timestampMillis) {
-        this.updateDate = timestampMillis;
-    }
-
-    public long getUpdateDate() {
-        if (updateDate == null) {
-            updateDate = System.currentTimeMillis();
-        }
-        return updateDate;
-    }
-
     // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
     public void setEventDate(long timestampMillis) {
         this.eventDate = getEventDateProcessor().process(new DateTime(timestampMillis));
@@ -113,7 +99,7 @@ class Metric {
     public void incrementMetric(Double amount) throws SQLException {
         // find the metricId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
-        Static.doIncrementUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), amount, getUpdateDate(), getEventDate());
+        Static.doIncrementUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), amount, getEventDate());
     }
 
     public void setMetric(Double amount) throws SQLException {
@@ -121,7 +107,7 @@ class Metric {
         if (getEventDate() != 0) {
             throw new RuntimeException("Metric.setMetric() can only be used if EventDateProcessor is None");
         }
-        Static.doSetUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), amount, getUpdateDate(), getEventDate());
+        Static.doSetUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), amount, getEventDate());
     }
 
     public void deleteMetric() throws SQLException {
@@ -188,7 +174,7 @@ class Metric {
             return sqlBuilder.toString();
         }
 
-        private static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, String symbol, double amount, long updateDate, long eventDate, boolean increment, boolean updateFuture) {
+        private static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, String symbol, double amount, long eventDate, boolean increment, boolean updateFuture) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
             vendor.appendIdentifier(updateBuilder, METRIC_TABLE);
@@ -228,10 +214,6 @@ class Metric {
                 updateBuilder.append(" )");
             updateBuilder.append(" )");
 
-            updateBuilder.append(", ");
-            vendor.appendIdentifier(updateBuilder, METRIC_UPDATEDATE_FIELD);
-            updateBuilder.append(" = ");
-            vendor.appendBindValue(updateBuilder, updateDate, parameters);
             updateBuilder.append(" WHERE ");
             vendor.appendIdentifier(updateBuilder, METRIC_ID_FIELD);
             updateBuilder.append(" = ");
@@ -261,7 +243,7 @@ class Metric {
             return updateBuilder.toString();
         }
 
-        private static String getMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, String symbol, double amount, double cumulativeAmount, long createDate, long eventDate) {
+        private static String getMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, String symbol, double amount, double cumulativeAmount, long eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, METRIC_TABLE);
@@ -270,8 +252,6 @@ class Metric {
             cols.put(METRIC_ID_FIELD, id);
             cols.put(METRIC_TYPE_FIELD, typeId);
             cols.put(METRIC_SYMBOL_FIELD, db.getSymbolId(symbol));
-            cols.put(METRIC_CREATEDATE_FIELD, createDate);
-            cols.put(METRIC_UPDATEDATE_FIELD, createDate);
             cols.put(METRIC_DATA_FIELD, toBytes(eventDate, cumulativeAmount, amount));
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendIdentifier(insertBuilder, entry.getKey());
@@ -479,7 +459,7 @@ class Metric {
 
         // methods that actually touch the database
 
-        private static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, String symbol, double incrementAmount, long updateDate, long eventDate) throws SQLException {
+        private static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, String symbol, double incrementAmount, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<Object> parameters = new ArrayList<Object>();
@@ -493,11 +473,11 @@ class Metric {
                     if (data != null) {
                         previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                     }
-                    String sql = getMetricInsertSql(db, parameters, id, typeId, symbol, incrementAmount, previousCumulativeAmount+incrementAmount, updateDate, eventDate);
+                    String sql = getMetricInsertSql(db, parameters, id, typeId, symbol, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
                     SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 } else if (timestampFromBytes(data) == eventDate) {
                     // There is data for this eventDate; update it.
-                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, updateDate, eventDate, true, false);
+                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, eventDate, true, false);
                     SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 } else { // if (timestampFromBytes(data) > eventDate)
                     // The max(eventDate) in the table is greater than our
@@ -512,10 +492,10 @@ class Metric {
                             previousCumulativeAmount = amountFromBytes(oldData, CUMULATIVEAMOUNT_POSITION);
                         }
                         List<Object> parameters2 = new ArrayList<Object>();
-                        String sql2 = getMetricInsertSql(db, parameters2, id, typeId, symbol, 0, previousCumulativeAmount, updateDate, eventDate);
+                        String sql2 = getMetricInsertSql(db, parameters2, id, typeId, symbol, 0, previousCumulativeAmount, eventDate);
                         SqlDatabase.Static.executeUpdateWithList( connection, sql2, parameters2);
                     }
-                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, updateDate, eventDate, true, true);
+                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, incrementAmount, eventDate, true, true);
                     SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
                 }
 
@@ -524,18 +504,18 @@ class Metric {
             }
         }
 
-        private static void doSetUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, String symbol, double amount, long updateDate, long eventDate) throws SQLException {
+        private static void doSetUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, String symbol, double amount, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             if (eventDate != 0L) {
                 throw new RuntimeException("Metric.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
             }
             try {
                 List<Object> parameters = new ArrayList<Object>();
-                String sql = getUpdateSql(db, parameters, id, typeId, symbol, amount, updateDate, eventDate, false, false);
+                String sql = getUpdateSql(db, parameters, id, typeId, symbol, amount, eventDate, false, false);
                 int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 if (rowsAffected == 0) {
                     parameters = new ArrayList<Object>();
-                    sql = getMetricInsertSql(db, parameters, id, typeId, symbol, amount, amount, updateDate, eventDate);
+                    sql = getMetricInsertSql(db, parameters, id, typeId, symbol, amount, amount, eventDate);
                     SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                 }
             } finally {
