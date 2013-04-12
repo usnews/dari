@@ -995,9 +995,11 @@ class SqlQuery {
         initializeClauses();
 
         if (hasAnyDeferredMetricPredicates()) {
-            // add "id" to groupJoins
+            // add "id" and "dimensionId" to groupJoins
             mappedKeys.put(Query.ID_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.ID_KEY));
             groupJoins.put(Query.ID_KEY, getJoin(Query.ID_KEY));
+            mappedKeys.put(Query.DIMENSION_KEY, query.mapEmbeddedKey(database.getEnvironment(), Query.DIMENSION_KEY));
+            groupJoins.put(Query.DIMENSION_KEY, getJoin(Query.DIMENSION_KEY));
         }
 
         statementBuilder.append("SELECT COUNT(");
@@ -1014,7 +1016,7 @@ class SqlQuery {
             statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
             statementBuilder.append(" ");
             String columnAlias = null;
-            if (! entry.getValue().queryKey.equals(Query.ID_KEY)) { // Special case for id
+            if (! entry.getValue().queryKey.equals(Query.ID_KEY) && ! entry.getValue().queryKey.equals(Query.DIMENSION_KEY)) { // Special case for id and dimensionId
                 // These column names just need to be unique if we put this statement in a subquery
                 columnAlias = "value" + columnNum;
                 groupBySelectColumnAliases.put(entry.getValue().getValueField(entry.getKey(), null), columnAlias);
@@ -1100,8 +1102,9 @@ class SqlQuery {
      * of the given {@code groupFields}.
      */
     public String groupedMetricSql(String metricFieldName, String[] groupFields) {
-        String[] innerGroupByFields = Arrays.copyOf(groupFields, groupFields.length+1);
+        String[] innerGroupByFields = Arrays.copyOf(groupFields, groupFields.length+2);
         innerGroupByFields[groupFields.length] = Query.ID_KEY;
+        innerGroupByFields[groupFields.length+1] = Query.DIMENSION_KEY;
         // This prepares selectClause, et al.
         groupStatement(innerGroupByFields);
         return buildGroupedMetricSql(metricFieldName, groupFields, selectClause, fromClause, whereClause, groupByClause, orderByClause);
@@ -1123,8 +1126,8 @@ class SqlQuery {
         String actionSymbol = metricField.getJavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         selectBuilder.insert(7, "MIN(r.data) minData, MAX(r.data) maxData, "); // Right after "SELECT " (7 chars)
-        fromBuilder.insert(0, "FROM Metric r ");
-        whereBuilder.append(" AND r.symbolId = ");
+        fromBuilder.insert(0, "FROM "+Metric.METRIC_TABLE+" r ");
+        whereBuilder.append(" AND r."+Metric.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
         // Apply deferred WHERE predicates (eventDates)
@@ -1611,6 +1614,22 @@ class SqlQuery {
                 needsIndexTable = false;
                 likeValuePrefix = null;
                 valueField = recordTypeIdField;
+                sqlIndexTable = null;
+                table = null;
+                tableName = null;
+                idField = null;
+                keyField = null;
+                needsIsNotNull = true;
+
+            } else if (Query.DIMENSION_KEY.equals(queryKey)) {
+                needsIndexTable = false;
+                likeValuePrefix = null;
+                //valueField = Metric.METRIC_DIMENSION_FIELD;
+                StringBuilder fieldBuilder = new StringBuilder();
+                vendor.appendIdentifier(fieldBuilder, "r");
+                fieldBuilder.append(".");
+                vendor.appendIdentifier(fieldBuilder, Metric.METRIC_DIMENSION_FIELD);
+                valueField = fieldBuilder.toString();
                 sqlIndexTable = null;
                 table = null;
                 tableName = null;
