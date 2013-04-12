@@ -1756,6 +1756,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             Map<List<Object>, SqlGrouping<T>> groupingMap = new HashMap<List<Object>, SqlGrouping<T>>();
                             for (Grouping<T> grouping : groupings) {
                                 if (grouping instanceof SqlGrouping) {
+                                    ((SqlGrouping<T>) grouping).setSum(field, 0);
                                     groupingMap.put(grouping.getKeys(), (SqlGrouping<T>) grouping);
                                 }
                             }
