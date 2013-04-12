@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -236,6 +237,41 @@ class Metric {
             sqlBuilder.append(" FROM (");
             sqlBuilder.append(innerSql);
             sqlBuilder.append(") x");
+
+            return sqlBuilder.toString();
+        }
+
+        private static String getDimensionsSql(SqlDatabase db, UUID id, UUID typeId, String symbol, Long minEventDate, Long maxEventDate) {
+            StringBuilder sqlBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+            String innerSql = getDataSql(db, id, typeId, symbol, null, minEventDate, maxEventDate, true);
+
+            sqlBuilder.append("SELECT ");
+            vendor.appendIdentifier(sqlBuilder, "d");
+            sqlBuilder.append(".");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_VALUE_FIELD);
+            sqlBuilder.append(", ");
+            appendSelectCalculatedAmountSql(sqlBuilder, vendor, "minData", "maxData", true);
+            sqlBuilder.append(" FROM (");
+            sqlBuilder.append(innerSql);
+            sqlBuilder.append(") x ");
+            sqlBuilder.append(" JOIN ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_TABLE);
+            sqlBuilder.append(" ");
+            vendor.appendIdentifier(sqlBuilder, "d");
+            sqlBuilder.append(" ON (");
+            vendor.appendIdentifier(sqlBuilder, "x");
+            sqlBuilder.append(".");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendIdentifier(sqlBuilder, "d");
+            sqlBuilder.append(".");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+            sqlBuilder.append(")");
+            sqlBuilder.append(" GROUP BY ");
+            vendor.appendIdentifier(sqlBuilder, "d");
+            sqlBuilder.append(".");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_VALUE_FIELD);
 
             return sqlBuilder.toString();
         }
@@ -667,7 +703,19 @@ class Metric {
         }
 
         private static Map<String, Double> getMetricDimensionsById(SqlDatabase db, UUID id, UUID typeId, String symbol, Long minEventDate, Long maxEventDate) throws SQLException {
-            throw new RuntimeException("NYI"); // TODO: return map of all dimension values and their metric values for this date range
+            String sql = getDimensionsSql(db, id, typeId, symbol, minEventDate, maxEventDate);
+            Map<String, Double> values = new HashMap<String, Double>();
+            Connection connection = db.openReadConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                while (result.next()) {
+                    values.put(result.getString(1), result.getDouble(2));
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            return values;
         }
 
         private static Double getMetricByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, Long minEventDate, Long maxEventDate) throws SQLException {
