@@ -798,20 +798,71 @@ public class State implements Map<String, Object> {
         queueAtomicOperation(new AtomicOperation.Replace(name, getValue(name), value));
     }
 
+    // Implicit null dimension
     public void incrementMetric(String name, double value) {
-        as(MetricAction.class).incrementMetric(name, value);
+        as(MetricAction.class).incrementDimensionMetric(name, null, value);
     }
 
+    public void incrementMetric(String name, String dimensionValue, double value) {
+        as(MetricAction.class).incrementDimensionMetric(name, dimensionValue, value);
+    }
+
+    // Implicit null dimension
     public void incrementMetric(String name, double value, DateTime eventDate) {
-        as(MetricAction.class).incrementMetric(name, value, eventDate.getMillis());
+        as(MetricAction.class).incrementDimensionMetric(name, null, value, eventDate.getMillis());
     }
 
-    public double getMetric(String name) {
-        return as(MetricAction.class).getMetric(name);
+    public void incrementMetric(String name, String dimensionValue, double value, DateTime eventDate) {
+        as(MetricAction.class).incrementDimensionMetric(name, dimensionValue, value, eventDate.getMillis());
     }
 
+    // Sum of all dimensions 
+    public double getMetricSum(String name) {
+        return as(MetricAction.class).getMetricSum(name);
+    }
+
+    public double getMetric(String name, String dimensionValue) {
+        return as(MetricAction.class).getDimensionMetric(name, dimensionValue);
+    }
+
+    // Implicit null dimension
+    public double getMetric(String name) { 
+        return as(MetricAction.class).getDimensionMetric(name, null);
+    }
+
+    // All dimensions
+    public Map<String, Double> getMetricValues(String name) {
+        return as(MetricAction.class).getMetricValues(name);
+    }
+
+    // All dimensions
+    public Map<String, Double> getMetricValuesBetween(String name, DateTime start, DateTime end) {
+        return as(MetricAction.class).getMetricValuesOverDateRange(
+                name,
+                start != null ? start.getMillis() : null,
+                end != null ? end.getMillis() : null);
+    }
+
+    // Implicit null dimension
     public double getMetricBetween(String name, DateTime start, DateTime end) {
         return as(MetricAction.class).getMetricOverDateRange(
+                name,
+                null,
+                start != null ? start.getMillis() : null,
+                end != null ? end.getMillis() : null);
+    }
+
+    public double getMetricBetween(String name, String dimensionValue, DateTime start, DateTime end) {
+        return as(MetricAction.class).getMetricOverDateRange(
+                name,
+                dimensionValue,
+                start != null ? start.getMillis() : null,
+                end != null ? end.getMillis() : null);
+    }
+
+    // Sum of all dimensions
+    public double getMetricSumBetween(String name, DateTime start, DateTime end) {
+        return as(MetricAction.class).getMetricSumOverDateRange(
                 name,
                 start != null ? start.getMillis() : null,
                 end != null ? end.getMillis() : null);
