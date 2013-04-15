@@ -25,7 +25,12 @@ class MetricAction extends Modification<Object> {
                 }
             }
         } else {
-            ObjectField objectField = recordType.getField(internalName);
+            ObjectField objectField = getState().getDatabase().getEnvironment().getField(internalName);
+
+            if (objectField == null) {
+                objectField = recordType.getField(internalName);
+            }
+
             if (objectField != null && objectField.as(Metric.FieldData.class).isMetricValue()) {
                 return objectField;
             }

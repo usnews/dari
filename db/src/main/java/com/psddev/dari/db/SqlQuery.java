@@ -1216,7 +1216,7 @@ class SqlQuery {
     }
 
     private void appendSubqueryMetricSql(StringBuilder sql, ObjectField metricField) {
-        String actionSymbol = metricField.getJavaDeclaringClassName() + "/" + metricField.getInternalName();
+        String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         StringBuilder minData = new StringBuilder("MIN(");
         vendor.appendIdentifier(minData, Metric.METRIC_TABLE);
