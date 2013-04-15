@@ -893,7 +893,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         };
     }
 
-    private class SqlIterator<T> implements Iterator<T> {
+    private class SqlIterator<T> implements java.io.Closeable, Iterator<T> {
 
         private final String sqlQuery;
         private final Query<T> query;
