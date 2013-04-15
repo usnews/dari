@@ -54,6 +54,7 @@ class Metric {
     private MetricInterval eventDateProcessor;
 
     private Long eventDate;
+    private boolean isImplicitEventDate;
 
     public Metric(SqlDatabase database, Record record, String actionSymbol) {
         this.db = database;
@@ -89,13 +90,19 @@ class Metric {
     }
 
     // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
-    public void setEventDate(long timestampMillis) {
+    public void setEventDate(Long timestampMillis) {
+        if (timestampMillis == null) {
+            timestampMillis = System.currentTimeMillis();
+            isImplicitEventDate = true;
+        } else {
+            isImplicitEventDate = false;
+        }
         this.eventDate = getEventDateProcessor().process(new DateTime(timestampMillis));
     }
 
     public long getEventDate() {
         if (eventDate == null) {
-            setEventDate((System.currentTimeMillis()));
+            setEventDate(null);
         }
         return eventDate;
     }
@@ -119,7 +126,7 @@ class Metric {
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
         // find the metricId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
-        Static.doIncrementUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), amount, getEventDate());
+        Static.doIncrementUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), amount, getEventDate(), isImplicitEventDate);
     }
 
     public void setMetric(String dimensionValue, Double amount) throws SQLException {
@@ -599,44 +606,69 @@ class Metric {
 
         // methods that actually touch the database
 
-        private static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, double incrementAmount, long eventDate) throws SQLException {
+        private static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, double incrementAmount, long eventDate, boolean isImplicitEventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
                 List<Object> parameters = new ArrayList<Object>();
 
-                // First, find the max eventDate. Under normal circumstances, this will either be null (INSERT), before our eventDate (INSERT) or equal to our eventDate (UPDATE).
-                byte[] data = getDataByIdAndDimension(db, id, typeId, symbol, dimensionId, null, null);
+                if (isImplicitEventDate) {
+                    // If they have not passed in an eventDate, we can assume a couple of things:
+                    // 1) The event date is the CURRENT date
+                    // 2) There is NOT any FUTURE data
+                    // 3) We CANNOT assume the row exists
 
-                if (data == null || timestampFromBytes(data) < eventDate) {
-                    // No data for this eventDate; insert.
-                    double previousCumulativeAmount = 0.0d;
-                    if (data != null) {
-                        previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
-                    }
-                    String sql = getMetricInsertSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
-                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
-                } else if (timestampFromBytes(data) == eventDate) {
-                    // There is data for this eventDate; update it.
+                    // Try to do an update. This is the best case scenario, and does not require any reads.
                     String sql = getUpdateSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
-                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
-                } else { // if (timestampFromBytes(data) > eventDate)
-                    // The max(eventDate) in the table is greater than our
-                    // event date. If there exists a row in the past, UPDATE it
-                    // or if not, INSERT. Either way we will be updating future
-                    // data, so just INSERT with a value of 0 if necessary, then 
-                    // UPDATE all rows.
-                    byte[] oldData = getDataByIdAndDimension(db, id, typeId, symbol, dimensionId, null, eventDate);
-                    if (oldData == null || timestampFromBytes(oldData) < eventDate) {
+                    int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                    if (0 == rowsAffected) {
+                        // There is no data for the current date. Now we have to read 
+                        // the previous cumulative amount so we can insert a new row.
+                        byte[] data = getDataByIdAndDimension(db, id, typeId, symbol, dimensionId, null, null);
                         double previousCumulativeAmount = 0.0d;
-                        if (oldData != null) {
-                            previousCumulativeAmount = amountFromBytes(oldData, CUMULATIVEAMOUNT_POSITION);
+                        if (data != null) {
+                            previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                         }
-                        List<Object> parameters2 = new ArrayList<Object>();
-                        String sql2 = getMetricInsertSql(db, parameters2, id, typeId, symbol, dimensionId, 0, previousCumulativeAmount, eventDate);
-                        SqlDatabase.Static.executeUpdateWithList( connection, sql2, parameters2);
+                        parameters = new ArrayList<Object>();
+                        sql = getMetricInsertSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
+                        SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
                     }
-                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, true);
-                    SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
+
+                } else {
+
+                    // First, find the max eventDate. Under normal circumstances, this will either be null (INSERT), before our eventDate (INSERT) or equal to our eventDate (UPDATE).
+                    byte[] data = getDataByIdAndDimension(db, id, typeId, symbol, dimensionId, null, null);
+
+                    if (data == null || timestampFromBytes(data) < eventDate) {
+                        // No data for this eventDate; insert.
+                        double previousCumulativeAmount = 0.0d;
+                        if (data != null) {
+                            previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
+                        }
+                        String sql = getMetricInsertSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
+                        SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                    } else if (timestampFromBytes(data) == eventDate) {
+                        // There is data for this eventDate; update it.
+                        String sql = getUpdateSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
+                        SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                    } else { // if (timestampFromBytes(data) > eventDate)
+                        // The max(eventDate) in the table is greater than our
+                        // event date. If there exists a row in the past, UPDATE it
+                        // or if not, INSERT. Either way we will be updating future
+                        // data, so just INSERT with a value of 0 if necessary, then 
+                        // UPDATE all rows.
+                        byte[] oldData = getDataByIdAndDimension(db, id, typeId, symbol, dimensionId, null, eventDate);
+                        if (oldData == null || timestampFromBytes(oldData) < eventDate) {
+                            double previousCumulativeAmount = 0.0d;
+                            if (oldData != null) {
+                                previousCumulativeAmount = amountFromBytes(oldData, CUMULATIVEAMOUNT_POSITION);
+                            }
+                            List<Object> parameters2 = new ArrayList<Object>();
+                            String sql2 = getMetricInsertSql(db, parameters2, id, typeId, symbol, dimensionId, 0, previousCumulativeAmount, eventDate);
+                            SqlDatabase.Static.executeUpdateWithList( connection, sql2, parameters2);
+                        }
+                        String sql = getUpdateSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, true);
+                        SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
+                    }
                 }
 
             } finally {

@@ -56,11 +56,11 @@ class MetricAction extends Modification<Object> {
 
     // Explicit dimension
     public void incrementDimensionMetric(String metricFieldInternalName, String dimensionValue, double amount) {
-        incrementDimensionMetric(metricFieldInternalName, dimensionValue, amount, System.currentTimeMillis());
+        incrementDimensionMetric(metricFieldInternalName, dimensionValue, amount, null);
     }
 
     // Explicit dimension
-    public void incrementDimensionMetric(String metricFieldInternalName, String dimensionValue, double amount, long eventDateMillis) {
+    public void incrementDimensionMetric(String metricFieldInternalName, String dimensionValue, double amount, Long eventDateMillis) {
         try {
             metricValueCache.remove(metricFieldInternalName);
             getMetricObject(metricFieldInternalName).setEventDate(eventDateMillis);
