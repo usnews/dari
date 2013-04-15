@@ -3,6 +3,7 @@ package com.psddev.dari.db;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -235,4 +236,13 @@ class MetricAction extends Modification<Object> {
 
         return recordMetrics.get(metricFieldInternalName);
     }
+
+    public static UUID getDimensionId(String dimensionValue) {
+        try {
+            return Metric.getDimensionIdByValue(dimensionValue);
+        } catch (SQLException e) {
+            throw new DatabaseException(Database.Static.getFirst(SqlDatabase.class), "Error in Metric.getDimensionIdByValue() : " + e.getLocalizedMessage());
+        }
+    }
+
 }

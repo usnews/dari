@@ -54,8 +54,11 @@ class SqlQuery {
     private Join mysqlIndexHint;
     private boolean forceLeftJoins;
 
-    private final List<Predicate> recordMetricWherePredicates = new ArrayList<Predicate>();
-    private final List<Predicate> recordMetricParentWherePredicates = new ArrayList<Predicate>();
+    private final List<Predicate> recordMetricDatePredicates = new ArrayList<Predicate>();
+    private final List<Predicate> recordMetricParentDatePredicates = new ArrayList<Predicate>();
+
+    private final List<Predicate> recordMetricDimensionPredicates = new ArrayList<Predicate>();
+    private final List<Predicate> recordMetricParentDimensionPredicates = new ArrayList<Predicate>();
 
     private final List<Predicate> recordMetricHavingPredicates = new ArrayList<Predicate>();
     private final List<Predicate> recordMetricParentHavingPredicates = new ArrayList<Predicate>();
@@ -531,9 +534,12 @@ class SqlQuery {
                     } else if (! recordMetricField.equals(mappedKey.getField())) {
                         throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName() + " AND " + mappedKey.getField().getInternalName());
                     }
-                    if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
-                        recordMetricWherePredicates.add(predicate);
-                        recordMetricParentWherePredicates.add(parentPredicate);
+                    if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) { 
+                        recordMetricDatePredicates.add(predicate);
+                        recordMetricParentDatePredicates.add(parentPredicate);
+                    } else if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) { 
+                        recordMetricDimensionPredicates.add(predicate);
+                        recordMetricParentDimensionPredicates.add(parentPredicate);
                     } else {
                         recordMetricHavingPredicates.add(predicate);
                         recordMetricParentHavingPredicates.add(parentPredicate);
@@ -859,7 +865,7 @@ class SqlQuery {
     }
 
     private boolean hasAnyDeferredMetricPredicates() {
-        if (! recordMetricWherePredicates.isEmpty() || ! recordMetricHavingPredicates.isEmpty() || ! recordMetricSorters.isEmpty()) {
+        if (! recordMetricDatePredicates.isEmpty() || ! recordMetricDimensionPredicates.isEmpty() || ! recordMetricHavingPredicates.isEmpty() || ! recordMetricSorters.isEmpty()) {
             return true;
         } else {
             return false;
@@ -911,9 +917,6 @@ class SqlQuery {
 
             StringBuilder havingChildBuilder = new StringBuilder();
             
-            if (recordMetricParentHavingPredicates.size() != recordMetricHavingPredicates.size()) {
-                throw new RuntimeException("parentHavingPredicates.size() is != havingPredicates.size() - Something has gone wrong internally.");
-            }
             for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
                 addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
                 havingChildBuilder.append(" AND ");
@@ -965,7 +968,9 @@ class SqlQuery {
                 if (mappedKey.getField() != null) {
                     Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
                     if (metricFieldData.isMetricValue()) {
-                        if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                        if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                            // TODO: this one has to work eventually . . .
+                        } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                             // TODO: this one has to work eventually . . .
                             throw new Query.NoFieldException(query.getGroup(), groupField);
                         } else {
@@ -1130,13 +1135,15 @@ class SqlQuery {
         whereBuilder.append(" AND r."+Metric.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
-        // Apply deferred WHERE predicates (eventDates)
-        if (recordMetricParentWherePredicates.size() != recordMetricWherePredicates.size()) {
-            throw new RuntimeException("parentWherePredicates.size() is != wheregPredicates.size() - Something has gone wrong internally.");
+        // Apply deferred WHERE predicates (eventDates and dimensionIds)
+        for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
+            whereBuilder.append(" AND "); // TODO: this should sometimes be OR
+            addWherePredicate(whereBuilder, recordMetricDatePredicates.get(i), recordMetricParentDatePredicates.get(i), false, false);
         }
-        for (int i = 0; i < recordMetricWherePredicates.size(); i++) {
-            whereBuilder.append(" AND ");
-            addWherePredicate(whereBuilder, recordMetricWherePredicates.get(i), recordMetricParentWherePredicates.get(i), false, false);
+
+        for (int i = 0; i < recordMetricDimensionPredicates.size(); i++) {
+            whereBuilder.append(" AND "); // TODO: this should sometimes be OR
+            addWherePredicate(whereBuilder, recordMetricDimensionPredicates.get(i), recordMetricParentDimensionPredicates.get(i), false, false);
         }
 
         String innerSql = selectBuilder.toString() + " " + fromBuilder.toString() + " " + whereBuilder.toString() + " " + groupByBuilder.toString() + " " + havingBuilder.toString() + " " + orderByBuilder.toString();
@@ -1183,9 +1190,6 @@ class SqlQuery {
         }
 
         // Apply deferred HAVING predicates (sums)
-        if (recordMetricParentHavingPredicates.size() != recordMetricHavingPredicates.size()) {
-            throw new RuntimeException("parentHavingPredicates.size() is != havingPredicates.size() - Something has gone wrong internally.");
-        }
         StringBuilder havingChildBuilder = new StringBuilder();
         for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
             addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
@@ -1260,14 +1264,28 @@ class SqlQuery {
         sql.append(" = ");
         vendor.appendValue(sql, database.getSymbolId(actionSymbol));
 
-        // Apply deferred WHERE predicates (eventDates)
-        if (recordMetricParentWherePredicates.size() != recordMetricWherePredicates.size()) {
-            throw new RuntimeException("parentWherePredicates.size() is != wheregPredicates.size() - Something has gone wrong internally.");
-        }
-        for (int i = 0; i < recordMetricWherePredicates.size(); i++) {
+        // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
+        if (recordMetricDimensionPredicates.isEmpty()) {
             sql.append(" AND ");
-            addWherePredicate(sql, recordMetricWherePredicates.get(i), recordMetricParentWherePredicates.get(i), false, false);
+            vendor.appendIdentifier(sql, Metric.METRIC_DIMENSION_FIELD);
+            sql.append(" = ");
+            vendor.appendValue(sql, MetricAction.getDimensionId(null));
         }
+
+        // Apply deferred WHERE predicates (eventDates and metric Dimensions)
+        for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
+            sql.append(" AND "); // TODO: this should sometimes be OR
+            addWherePredicate(sql, recordMetricDatePredicates.get(i), recordMetricParentDatePredicates.get(i), false, false);
+        }
+        for (int i = 0; i < recordMetricDimensionPredicates.size(); i++) {
+            sql.append(" AND "); // TODO: this should sometimes be OR
+            addWherePredicate(sql, recordMetricDimensionPredicates.get(i), recordMetricParentDimensionPredicates.get(i), false, false);
+        }
+
+        //sql.append(" AND ");
+        //vendor.appendIdentifier(sql, Metric.METRIC_DIMENSION_FIELD);
+        //sql.append(" = ");
+        //vendor.appendValue(sql, dimensionId);
 
     }
 
@@ -1425,9 +1443,6 @@ class SqlQuery {
 
             StringBuilder havingChildBuilder = new StringBuilder();
             
-            if (recordMetricParentHavingPredicates.size() != recordMetricHavingPredicates.size()) {
-                throw new RuntimeException("parentHavingPredicates.size() is != havingPredicates.size() - Something has gone wrong internally.");
-            }
             for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
                 addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
                 havingChildBuilder.append(" AND ");
@@ -1671,7 +1686,10 @@ class SqlQuery {
 
                 needsIsNotNull = false;
 
-                if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                    // for metricField#dimension, use dimensionId
+                    valueField = Metric.METRIC_DIMENSION_FIELD;
+                } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     // for metricField#date, use "data"
                     valueField = sqlIndexTable.getValueField(database, index, 0);
                 } else {
@@ -1731,7 +1749,10 @@ class SqlQuery {
                     SqlIndex.Static.getByType(field.getInternalItemType()) :
                     sqlIndex;
 
-            if (fieldSqlIndex == SqlIndex.UUID) {
+            if (field != null && field.as(Metric.FieldData.class).isMetricValue() && Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                value = MetricAction.getDimensionId(String.valueOf(value));
+
+            } else if (fieldSqlIndex == SqlIndex.UUID) {
                 value = ObjectUtils.to(UUID.class, value);
 
             } else if (fieldSqlIndex == SqlIndex.NUMBER

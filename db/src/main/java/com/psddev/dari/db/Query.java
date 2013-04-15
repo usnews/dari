@@ -115,6 +115,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     public static final String DIMENSION_KEY = "_dimension";
     public static final String ANY_KEY = "_any";
     public static final String METRIC_DATE_ATTRIBUTE = "date";
+    public static final String METRIC_DIMENSION_ATTRIBUTE = "dimension";
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
 

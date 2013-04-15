@@ -141,6 +141,23 @@ class Metric {
         Static.doMetricDelete(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol());
     }
 
+    public static UUID getDimensionIdByValue(String dimensionValue) throws SQLException {
+        if (dimensionValue == null || "".equals(dimensionValue)) {
+            return UuidUtils.ZERO_UUID;
+        }
+        UUID dimensionId = dimensionCache.getIfPresent(dimensionValue);
+        if (dimensionId == null) {
+            SqlDatabase db = Database.Static.getFirst(SqlDatabase.class);
+            dimensionId = Static.getDimensionIdByValue(db, dimensionValue);
+            if (dimensionId == null) {
+                dimensionId = UuidUtils.createSequentialUuid();
+                Static.doInsertDimensionValue(db, dimensionId, dimensionValue);
+            }
+            dimensionCache.put(dimensionValue, dimensionId);
+        }
+        return dimensionId;
+    }
+
     private UUID getDimensionId(String dimensionValue) throws SQLException {
         if (dimensionValue == null || "".equals(dimensionValue)) {
             return UuidUtils.ZERO_UUID;
