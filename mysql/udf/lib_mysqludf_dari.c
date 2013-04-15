@@ -350,7 +350,6 @@ char *dari_increment_metric(UDF_INIT *initid, UDF_ARGS *args, char *result,
      *
      */
 
-    int timestamp;
     long cumulative;
     long interval;
 
@@ -360,12 +359,6 @@ char *dari_increment_metric(UDF_INIT *initid, UDF_ARGS *args, char *result,
 
     cumulative = amount_from_bytes(data, DATE_BYTE_SIZE);
     interval = amount_from_bytes(data, DATE_BYTE_SIZE + AMOUNT_BYTE_SIZE);
-
-    fprintf(stderr, "%s, %d %ld (%lf) %ld (%lf)\n", 
-            data,
-            timestamp,
-            cumulative, cumulative_increment, 
-            interval, interval_increment);
 
     cumulative += cumulative_increment;
     interval += interval_increment;
