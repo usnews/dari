@@ -11,6 +11,13 @@
 #define KEEP_GLOB "@__KEEP_*_@"
 #define DEFAULT_BUFFER_SIZE 1024
 
+#define INCREMENT_BUFFER 20
+#define AMOUNT_DECIMAL_PLACES 6
+#define AMOUNT_DECIMAL_SHIFT 1000000
+#define DATE_DECIMAL_SHIFT 60000
+#define DATE_BYTE_SIZE 4
+#define AMOUNT_BYTE_SIZE 8
+
 my_bool dari_get_fields_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void dari_get_fields_deinit(UDF_INIT *initid);
 char *dari_get_fields(UDF_INIT *initid, UDF_ARGS *args, char *result,
@@ -19,6 +26,11 @@ char *dari_get_fields(UDF_INIT *initid, UDF_ARGS *args, char *result,
 my_bool dari_get_value_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void dari_get_value_deinit(UDF_INIT *initid);
 char *dari_get_value(UDF_INIT *initid, UDF_ARGS *args, char *result,
+                     unsigned long *length, char *is_null, char *error);
+
+my_bool dari_increment_metric_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+void dari_increment_metric_deinit(UDF_INIT *initid);
+char *dari_increment_metric(UDF_INIT *initid, UDF_ARGS *args, char *result,
                      unsigned long *length, char *is_null, char *error);
 
 /** 
@@ -301,5 +313,99 @@ my_bool dari_get_value_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 }
 
 void dari_get_value_deinit(UDF_INIT *initid) {
+    free(initid->ptr);
+}
+
+static long amount_from_bytes(const char *bytes, int offset) {
+    int i = 0;
+    long amount = 0;
+
+    for (i = 0; i < AMOUNT_BYTE_SIZE; ++i) {
+        amount = (amount << 8) | (bytes[i + offset] & 0xff);
+    }
+
+    return amount;
+}
+
+/**
+ * MySQL UDF implementation that parses the 'data' column of a 
+ * Dari Metric record and increments the values.
+ *
+ * Internal API.
+ *
+ * Usage:
+ *
+ *    dari_increment_metric(data, <cumulative amount>, <interval amount>)
+ *    dari_increment_metric(data, 1, 1)
+ *
+ */
+char *dari_increment_metric(UDF_INIT *initid, UDF_ARGS *args, char *result,
+                     unsigned long *length, char *is_null, char *error) {
+
+    /* Data is in the format of:
+     *
+     * Bytes 1-4 is timestamp.
+     * Bytes 5-12 is cumulative amount.
+     * Bytes 13-20 is interval amount.
+     *
+     */
+
+    int timestamp;
+    long cumulative;
+    long interval;
+
+    const char *data = (const char *) args->args[0];
+    double cumulative_increment = *((double *) args->args[1]);
+    double interval_increment = *((double *) args->args[2]);
+
+    cumulative = amount_from_bytes(data, DATE_BYTE_SIZE);
+    interval = amount_from_bytes(data, DATE_BYTE_SIZE + AMOUNT_BYTE_SIZE);
+
+    fprintf(stderr, "%s, %d %ld (%lf) %ld (%lf)\n", 
+            data,
+            timestamp,
+            cumulative, cumulative_increment, 
+            interval, interval_increment);
+
+    cumulative += cumulative_increment;
+    interval += interval_increment;
+
+    memcpy(initid->ptr, data, 4);
+
+    int i;
+    int size = AMOUNT_BYTE_SIZE;
+    int offset = 4;
+    for (i = 0; i < size; ++i) {
+        initid->ptr[i + offset] = (cumulative >> ((size - i - 1) << 3));
+    }
+
+    offset += size;
+    for (i = 0; i < size; ++i) {
+        initid->ptr[i + offset] = (interval >> ((size - i - 1) << 3));
+    }
+
+    *length = INCREMENT_BUFFER;
+
+    return initid->ptr;
+}
+
+my_bool dari_increment_metric_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+    if (args->arg_count != 3) {
+        char *error = "Requires three arguments.";
+        memcpy(message, error, strlen(error));
+        return 1;
+    }
+
+    args->arg_type[0] = STRING_RESULT;
+    args->arg_type[1] = REAL_RESULT;
+    args->arg_type[2] = REAL_RESULT;
+
+    initid->ptr = malloc(INCREMENT_BUFFER);
+    initid->max_length = INCREMENT_BUFFER;
+
+    return 0;
+}
+
+void dari_increment_metric_deinit(UDF_INIT *initid) {
     free(initid->ptr);
 }
