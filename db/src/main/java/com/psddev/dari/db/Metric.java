@@ -33,11 +33,11 @@ class Metric {
     public static final String METRIC_DIMENSION_VALUE_FIELD = "value";
     public static final String METRIC_DATA_FIELD = "data";
 
-    public static final int AMOUNT_DECIMAL_PLACES = 6;
-    public static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
-    public static final long DATE_DECIMAL_SHIFT = 60000L;
-    public static final int CUMULATIVEAMOUNT_POSITION = 1;
-    public static final int AMOUNT_POSITION = 2;
+    private static final int AMOUNT_DECIMAL_PLACES = 6;
+    private static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
+    private static final long DATE_DECIMAL_SHIFT = 60000L;
+    private static final int CUMULATIVEAMOUNT_POSITION = 1;
+    private static final int AMOUNT_POSITION = 2;
 
     private static final int QUERY_TIMEOUT = 3;
     private static final int DATE_BYTE_SIZE = 4;
