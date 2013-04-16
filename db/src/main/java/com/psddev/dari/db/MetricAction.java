@@ -120,7 +120,7 @@ class MetricAction extends Modification<Object> {
 
     // Explicit dimension
     public double getDimensionMetricOverDateRange(String metricFieldInternalName, String dimensionValue, Long startTimestamp, Long endTimestamp) {
-        final String cacheKey = String.valueOf(dimensionValue) + ":" + String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
+        final String cacheKey = String.valueOf(dimensionValue) + " :" + String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
         if (! getMetricCache(metricFieldInternalName).containsKey(cacheKey)) {
             try {
                 Metric cr = getMetricObject(metricFieldInternalName);
@@ -139,20 +139,12 @@ class MetricAction extends Modification<Object> {
     }
 
     // Explicit dimension
-    public Map<DateTime, Double> getDimensionMetricTimeline(String metricFieldInternalName, String dimensionValue) {
-        return getDimensionMetricTimelineOverDateRange(metricFieldInternalName, dimensionValue, null, null, null);
-    }
-
     public Map<DateTime, Double> getDimensionMetricTimeline(String metricFieldInternalName, String dimensionValue, MetricInterval metricInterval) {
         return getDimensionMetricTimelineOverDateRange(metricFieldInternalName, dimensionValue, metricInterval, null, null);
     }
 
-    public Map<DateTime, Double> getDimensionMetricTimelineOverDateRange(String metricFieldInternalName, String dimensionValue, Long startTimestamp, Long endTimestamp) {
-        return getDimensionMetricTimelineOverDateRange(metricFieldInternalName, dimensionValue, null, startTimestamp, endTimestamp);
-    }
-
     public Map<DateTime, Double> getDimensionMetricTimelineOverDateRange(String metricFieldInternalName, String dimensionValue, MetricInterval metricInterval, Long startTimestamp, Long endTimestamp) {
-        final String cacheKey = String.valueOf(dimensionValue)+":"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
+        final String cacheKey = String.valueOf(dimensionValue)+" :"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
         if (! getMetricTimelineCache(metricFieldInternalName).containsKey(cacheKey)) {
             try {
                 Metric cr = getMetricObject(metricFieldInternalName);
@@ -165,6 +157,32 @@ class MetricAction extends Modification<Object> {
                 }
             } catch (SQLException e) {
                 throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.getMetricTimeline() : " + e.getLocalizedMessage());
+            }
+        }
+        return getMetricTimelineCache(metricFieldInternalName).get(cacheKey);
+    }
+
+
+    // Sum of all dimensions
+    public Map<DateTime, Double> getMetricSumTimeline(String metricFieldInternalName, MetricInterval metricInterval) {
+        return getMetricSumTimelineOverDateRange(metricFieldInternalName, metricInterval, null, null);
+    }
+
+    // Sum of all dimensions
+    public Map<DateTime, Double> getMetricSumTimelineOverDateRange(String metricFieldInternalName, MetricInterval metricInterval, Long startTimestamp, Long endTimestamp) {
+        final String cacheKey = "sum:"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
+        if (! getMetricTimelineCache(metricFieldInternalName).containsKey(cacheKey)) {
+            try {
+                Metric cr = getMetricObject(metricFieldInternalName);
+                cr.setQueryDateRange(startTimestamp, endTimestamp);
+                Map<DateTime, Double> metricTimeline = cr.getMetricSumTimeline(metricInterval);
+                if (metricTimeline == null) {
+                    getMetricTimelineCache(metricFieldInternalName).put(cacheKey, new HashMap<DateTime, Double>());
+                } else {
+                    getMetricTimelineCache(metricFieldInternalName).put(cacheKey, metricTimeline);
+                }
+            } catch (SQLException e) {
+                throw new DatabaseException(getMetricObject(metricFieldInternalName).getDatabase(), "Error in Metric.getMetricSumTimeline() : " + e.getLocalizedMessage());
             }
         }
         return getMetricTimelineCache(metricFieldInternalName).get(cacheKey);

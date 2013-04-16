@@ -130,6 +130,13 @@ class Metric {
         return Static.getMetricTimelineByIdAndDimension(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
     }
 
+    public Map<DateTime, Double> getMetricSumTimeline(MetricInterval metricInterval) throws SQLException {
+        if (metricInterval == null) {
+            metricInterval = getEventDateProcessor();
+        }
+        return Static.getMetricSumTimelineById(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
+    }
+
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
         // find the metricId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
@@ -346,6 +353,26 @@ class Metric {
             String sql = getDataSql(db, id, typeId, symbol, dimensionId, minEventDate, maxEventDate, true, extraSelectSqlBuilder.toString(), extraGroupBySqlBuilder.toString());
 
             return sql;
+        }
+
+        private static String getSumTimelineSql(SqlDatabase db, UUID id, UUID typeId, String symbol, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
+            
+            StringBuilder sqlBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+
+            String innerSql = getTimelineSql(db, id, typeId, symbol, null, minEventDate, maxEventDate, metricInterval);
+
+            sqlBuilder.append("SELECT ");
+            appendSelectCalculatedAmountSql(sqlBuilder, vendor, "minData", "maxData", true);
+            sqlBuilder.append(", ");
+            vendor.appendIdentifier(sqlBuilder, "eventDate");
+            sqlBuilder.append(" FROM (");
+            sqlBuilder.append(innerSql);
+            sqlBuilder.append(") x");
+            sqlBuilder.append(" GROUP BY ");
+            vendor.appendIdentifier(sqlBuilder, "eventDate");
+
+            return sqlBuilder.toString();
         }
 
         private static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, String symbol, UUID dimensionId, double amount, long eventDate, boolean increment, boolean updateFuture) {
@@ -865,6 +892,25 @@ class Metric {
                     double minCumulativeAmount = amountFromBytes(minData, CUMULATIVEAMOUNT_POSITION);
                     double minAmount = amountFromBytes(minData, AMOUNT_POSITION);
                     double intervalAmount = maxCumulativeAmount - (minCumulativeAmount - minAmount);
+                    values.put(new DateTime(timestamp), intervalAmount);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            return values;
+        }
+
+        private static Map<DateTime, Double> getMetricSumTimelineById(SqlDatabase db, UUID id, UUID typeId, String symbol, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) throws SQLException {
+            String sql = getSumTimelineSql(db, id, typeId, symbol, minEventDate, maxEventDate, metricInterval);
+            Map<DateTime, Double> values = new LinkedHashMap<DateTime, Double>();
+            Connection connection = db.openReadConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                while (result.next()) {
+                    double intervalAmount = result.getLong(1);
+                    long timestamp = result.getLong(2);
+                    timestamp = metricInterval.process(new DateTime(timestamp));
                     values.put(new DateTime(timestamp), intervalAmount);
                 }
             } finally {
