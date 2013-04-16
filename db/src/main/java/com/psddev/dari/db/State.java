@@ -844,8 +844,55 @@ public class State implements Map<String, Object> {
     }
 
     // Implicit null dimension
+    public Map<DateTime, Double> getMetricTimeline(String name) {
+        return as(MetricAction.class).getDimensionMetricTimeline(
+                name, null);
+    }
+
+    public Map<DateTime, Double> getMetricTimeline(String name, MetricInterval metricInterval) {
+        return as(MetricAction.class).getDimensionMetricTimeline(
+                name, null, metricInterval);
+    }
+
+    public Map<DateTime, Double> getMetricTimeline(String name, String dimensionValue) {
+        return as(MetricAction.class).getDimensionMetricTimeline(
+                name, dimensionValue);
+    }
+
+    public Map<DateTime, Double> getMetricTimeline(String name, String dimensionValue, MetricInterval metricInterval) {
+        return as(MetricAction.class).getDimensionMetricTimeline(
+                name, dimensionValue, metricInterval);
+    }
+
+    public Map<DateTime, Double> getMetricTimelineBetween(String name, String dimensionValue, MetricInterval metricInterval, DateTime start, DateTime end) {
+        return as(MetricAction.class).getDimensionMetricTimelineOverDateRange(
+                name,
+                dimensionValue,
+                metricInterval,
+                start != null ? start.getMillis() : null,
+                end != null ? end.getMillis() : null);
+    }
+
+    public Map<DateTime, Double> getMetricTimelineBetween(String name, String dimensionValue, DateTime start, DateTime end) {
+        return as(MetricAction.class).getDimensionMetricTimelineOverDateRange(
+                name,
+                dimensionValue,
+                start != null ? start.getMillis() : null,
+                end != null ? end.getMillis() : null);
+    }
+
+    // Implicit null dimension
+    public Map<DateTime, Double> getMetricTimelineBetween(String name, DateTime start, DateTime end) {
+        return as(MetricAction.class).getDimensionMetricTimelineOverDateRange(
+                name,
+                null,
+                start != null ? start.getMillis() : null,
+                end != null ? end.getMillis() : null);
+    }
+
+    // Implicit null dimension
     public double getMetricBetween(String name, DateTime start, DateTime end) {
-        return as(MetricAction.class).getMetricOverDateRange(
+        return as(MetricAction.class).getDimensionMetricOverDateRange(
                 name,
                 null,
                 start != null ? start.getMillis() : null,
@@ -853,7 +900,7 @@ public class State implements Map<String, Object> {
     }
 
     public double getMetricBetween(String name, String dimensionValue, DateTime start, DateTime end) {
-        return as(MetricAction.class).getMetricOverDateRange(
+        return as(MetricAction.class).getDimensionMetricOverDateRange(
                 name,
                 dimensionValue,
                 start != null ? start.getMillis() : null,

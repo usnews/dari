@@ -123,6 +123,13 @@ class Metric {
         return Static.getMetricDimensionsById(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
+    public Map<DateTime, Double> getMetricTimeline(String dimensionValue, MetricInterval metricInterval) throws SQLException {
+        if (metricInterval == null) {
+            metricInterval = getEventDateProcessor();
+        }
+        return Static.getMetricTimelineByIdAndDimension(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
+    }
+
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
         // find the metricId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
@@ -183,6 +190,10 @@ class Metric {
         // Methods that generate SQL statements
 
         private static String getDataSql(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean selectMinData) {
+            return getDataSql(db, id, typeId, symbol, dimensionId, minEventDate, maxEventDate, selectMinData, null, null);
+        }
+
+        private static String getDataSql(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean selectMinData, String extraSelectSql, String extraGroupBySql) {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 
@@ -203,6 +214,11 @@ class Metric {
                 vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(") ");
                 vendor.appendIdentifier(sqlBuilder, "minData");
+            }
+
+            if (extraSelectSql != null && ! "".equals(extraSelectSql)) {
+                sqlBuilder.append(", ");
+                sqlBuilder.append(extraSelectSql);
             }
 
             sqlBuilder.append(" FROM ");
@@ -246,6 +262,13 @@ class Metric {
             if (dimensionId == null) {
                 sqlBuilder.append(" GROUP BY ");
                 vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+                if (extraGroupBySql != null && ! "".equals(extraGroupBySql)) {
+                    sqlBuilder.append(", ");
+                    sqlBuilder.append(extraGroupBySql);
+                }
+            } else if (extraGroupBySql != null && ! "".equals(extraGroupBySql)) {
+                sqlBuilder.append(" GROUP BY ");
+                sqlBuilder.append(extraGroupBySql);
             }
 
             return sqlBuilder.toString();
@@ -298,6 +321,31 @@ class Metric {
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_VALUE_FIELD);
 
             return sqlBuilder.toString();
+        }
+
+        private static String getTimelineSql(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
+            
+            SqlVendor vendor = db.getVendor();
+            String dateFormatString = metricInterval.getSqlDateFormat(vendor);
+
+            StringBuilder extraSelectSqlBuilder = new StringBuilder("MIN(");
+            appendSelectTimestampSql(extraSelectSqlBuilder, vendor, "data");
+            extraSelectSqlBuilder.append(") * ");
+            vendor.appendValue(extraSelectSqlBuilder, DATE_DECIMAL_SHIFT);
+            extraSelectSqlBuilder.append(" ");
+            vendor.appendIdentifier(extraSelectSqlBuilder, "eventDate");
+
+            StringBuilder extraGroupBySqlBuilder = new StringBuilder("DATE_FORMAT(FROM_UNIXTIME(");
+            appendSelectTimestampSql(extraGroupBySqlBuilder, vendor, "data");
+            extraGroupBySqlBuilder.append("*");
+            vendor.appendValue(extraGroupBySqlBuilder, (DATE_DECIMAL_SHIFT/1000L));
+            extraGroupBySqlBuilder.append("),");
+            vendor.appendValue(extraGroupBySqlBuilder, dateFormatString);
+            extraGroupBySqlBuilder.append(")");
+
+            String sql = getDataSql(db, id, typeId, symbol, dimensionId, minEventDate, maxEventDate, true, extraSelectSqlBuilder.toString(), extraGroupBySqlBuilder.toString());
+
+            return sql;
         }
 
         private static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, String symbol, UUID dimensionId, double amount, long eventDate, boolean increment, boolean updateFuture) {
@@ -453,6 +501,7 @@ class Metric {
         }
 
         // Methods that generate complicated bits of SQL
+        // TODO: all of these are MySQL only.
 
         public static void appendSelectCalculatedAmountSql(StringBuilder str, SqlVendor vendor, String minDataColumnIdentifier, String maxDataColumnIdentifier, boolean includeSum) {
 
@@ -487,6 +536,23 @@ class Metric {
                         vendor.appendValue(str, 1+DATE_BYTE_SIZE + ((position-1)*AMOUNT_BYTE_SIZE));
                         str.append(",");
                         vendor.appendValue(str, AMOUNT_BYTE_SIZE);
+                    str.append(")");
+                str.append(")");
+            str.append(", 16, 10)");
+        }
+
+        public static void appendSelectTimestampSql(StringBuilder str, SqlVendor vendor, String columnIdentifier) {
+            // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic.
+            // position is 1 or 2
+            // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
+            str.append("CONV(");
+                str.append("HEX(");
+                    str.append("SUBSTR(");
+                        str.append(columnIdentifier);
+                        str.append(",");
+                        vendor.appendValue(str, 1);
+                        str.append(",");
+                        vendor.appendValue(str, DATE_BYTE_SIZE);
                     str.append(")");
                 str.append(")");
             str.append(", 16, 10)");
@@ -781,6 +847,30 @@ class Metric {
                 double minAmount = amountFromBytes(datas.get(1), AMOUNT_POSITION);
                 return maxCumulativeAmount - (minCumulativeAmount - minAmount);
             }
+        }
+
+        private static Map<DateTime, Double> getMetricTimelineByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) throws SQLException {
+            String sql = getTimelineSql(db, id, typeId, symbol, dimensionId, minEventDate, maxEventDate, metricInterval);
+            Map<DateTime, Double> values = new LinkedHashMap<DateTime, Double>();
+            Connection connection = db.openReadConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                while (result.next()) {
+                    byte[] maxData = result.getBytes(1);
+                    byte[] minData = result.getBytes(2);
+                    long timestamp = result.getLong(3);
+                    timestamp = metricInterval.process(new DateTime(timestamp));
+                    double maxCumulativeAmount = amountFromBytes(maxData, CUMULATIVEAMOUNT_POSITION);
+                    double minCumulativeAmount = amountFromBytes(minData, CUMULATIVEAMOUNT_POSITION);
+                    double minAmount = amountFromBytes(minData, AMOUNT_POSITION);
+                    double intervalAmount = maxCumulativeAmount - (minCumulativeAmount - minAmount);
+                    values.put(new DateTime(timestamp), intervalAmount);
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+            return values;
         }
 
         /*
