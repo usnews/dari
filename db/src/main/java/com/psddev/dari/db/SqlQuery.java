@@ -1128,7 +1128,7 @@ class SqlQuery {
             throw new Query.NoFieldException(query.getGroup(), metricFieldName);
         }
         ObjectField metricField = mappedKey.getField();
-        String actionSymbol = metricField.getJavaDeclaringClassName() + "/" + metricField.getInternalName();
+        String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         selectBuilder.insert(7, "MIN(r.data) minData, MAX(r.data) maxData, "); // Right after "SELECT " (7 chars)
         fromBuilder.insert(0, "FROM "+Metric.METRIC_TABLE+" r ");
