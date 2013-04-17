@@ -888,6 +888,10 @@ public class State implements Map<String, Object> {
         return errors != null && errors.get(field).size() > 0;
     }
 
+    public void clearAllErrors() {
+        errors = null;
+    }
+
     /** Returns a modifiable map of all the extras values from this state. */
     public Map<String, Object> getExtras() {
         if (extras == null) {
@@ -1648,7 +1652,7 @@ public class State implements Map<String, Object> {
             throw new IllegalStateException("No unique indexes!");
         }
 
-        DatabaseException lastError = null;
+        Exception lastError = null;
         boolean ignoreRead = Database.Static.isIgnoreReadConnection();
 
         try {
@@ -1666,7 +1670,7 @@ public class State implements Map<String, Object> {
                         saveImmediately();
                         return;
 
-                    } catch (DatabaseException error) {
+                    } catch (Exception error) {
                         lastError = error;
                     }
                 }
@@ -1676,7 +1680,7 @@ public class State implements Map<String, Object> {
             Database.Static.setIgnoreReadConnection(ignoreRead);
         }
 
-        throw lastError;
+        ErrorUtils.rethrow(lastError);
     }
 
     /**
