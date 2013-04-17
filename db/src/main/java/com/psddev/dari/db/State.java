@@ -1837,4 +1837,31 @@ public class State implements Map<String, Object> {
     public void putValue(String path, Object value) {
         putByPath(path, value);
     }
+
+    /** @deprecated Use {@link Metric#getValue} instead. */
+    @Deprecated
+    public double getMetric(String name) {
+        Object metricObject = this.getByPath(name);
+        Metric metric;
+        if (metricObject != null && metricObject instanceof Metric) {
+            metric = (Metric) metricObject;
+        } else {
+            metric = new Metric(this, name);
+        }
+        return metric.getValue();
+    }
+
+    /** @deprecated Use {@link Metric#increment} instead. */
+    @Deprecated
+    public void incrementMetric(String name, double value) {
+        Object metricObject = this.getByPath(name);
+        Metric metric;
+        if (metricObject != null && metricObject instanceof Metric) {
+            metric = (Metric) metricObject;
+        } else {
+            metric = new Metric(this, name);
+        }
+        metric.increment(value);
+    }
+
 }
