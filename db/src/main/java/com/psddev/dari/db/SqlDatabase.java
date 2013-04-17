@@ -744,7 +744,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !queryTypes.contains(type)) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
+                MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
 
                 if (fieldData.isIndexTableSource() && ! metricFieldData.isMetricValue()) {
                     loadExtraFields.add(field);
@@ -796,7 +796,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     // countperformance branch to do this.
     private String extraSourceSelectStatementById(ObjectField field, UUID id, UUID typeId) {
         FieldData fieldData = field.as(FieldData.class);
-        Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
+        MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
         ObjectType parentType = field.getParentType();
         StringBuilder keyName = new StringBuilder(parentType.getInternalName());
 
@@ -835,7 +835,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             vendor.appendIdentifier(maxData, indexColumnName);
             maxData.append(")");
 
-            Metric.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
+            MetricDatabase.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
             sql.append(" AS ");
             vendor.appendIdentifier(sql, field.getInternalName());
 
@@ -1725,7 +1725,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public double getSum(String field) {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
-            if (sumField.as(Metric.FieldData.class).isMetricValue()) {
+            if (sumField.as(MetricDatabase.FieldData.class).isMetricValue()) {
                 if (! metricSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedMetricStatement(query, field, fields);

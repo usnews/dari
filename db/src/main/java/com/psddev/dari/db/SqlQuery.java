@@ -160,7 +160,7 @@ class SqlQuery {
             for (ObjectType type : queryTypes) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    Metric.FieldData metricFieldData = field.as(Metric.FieldData.class);
+                    MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
                     if (fieldData.isIndexTableSource() &&
                             fieldData.getIndexTable() != null &&
                             ! metricFieldData.isMetricValue()) {
@@ -527,7 +527,7 @@ class SqlQuery {
             boolean isFieldCollection = mappedKey.isInternalCollectionType();
 
             if (mappedKey.getField() != null) {
-                Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
+                MetricDatabase.FieldData metricFieldData = mappedKey.getField().as(MetricDatabase.FieldData.class);
                 if (deferMetricPredicates && metricFieldData.isMetricValue()) {
                     if (recordMetricField == null) {
                         recordMetricField = mappedKey.getField();
@@ -791,7 +791,7 @@ class SqlQuery {
         if (ascending || descending || closest || farthest) {
             String queryKey = (String) sorter.getOptions().get(0);
 
-            if (deferMetricPredicates && mappedKeys.get(queryKey).getField().as(Metric.FieldData.class).isMetricValue()) {
+            if (deferMetricPredicates && mappedKeys.get(queryKey).getField().as(MetricDatabase.FieldData.class).isMetricValue()) {
                 ObjectField sortField = mappedKeys.get(queryKey).getField();
                 if (recordMetricField == null) {
                     recordMetricField = sortField;
@@ -966,7 +966,7 @@ class SqlQuery {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
                 if (mappedKey.getField() != null) {
-                    Metric.FieldData metricFieldData = mappedKey.getField().as(Metric.FieldData.class);
+                    MetricDatabase.FieldData metricFieldData = mappedKey.getField().as(MetricDatabase.FieldData.class);
                     if (metricFieldData.isMetricValue()) {
                         if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                             // TODO: this one has to work eventually . . .
@@ -1131,8 +1131,8 @@ class SqlQuery {
         String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         selectBuilder.insert(7, "MIN(r.data) minData, MAX(r.data) maxData, "); // Right after "SELECT " (7 chars)
-        fromBuilder.insert(0, "FROM "+Metric.METRIC_TABLE+" r ");
-        whereBuilder.append(" AND r."+Metric.METRIC_SYMBOL_FIELD+" = ");
+        fromBuilder.insert(0, "FROM "+MetricDatabase.METRIC_TABLE+" r ");
+        whereBuilder.append(" AND r."+MetricDatabase.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
@@ -1161,7 +1161,7 @@ class SqlQuery {
 
         selectBuilder.append("SELECT ");
 
-        Metric.Static.appendSelectCalculatedAmountSql(selectBuilder, vendor, "minData", "maxData", true);
+        MetricDatabase.Static.appendSelectCalculatedAmountSql(selectBuilder, vendor, "minData", "maxData", true);
 
         vendor.appendIdentifier(selectBuilder, metricField.getInternalName());
 
@@ -1223,53 +1223,53 @@ class SqlQuery {
         String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         StringBuilder minData = new StringBuilder("MIN(");
-        vendor.appendIdentifier(minData, Metric.METRIC_TABLE);
+        vendor.appendIdentifier(minData, MetricDatabase.METRIC_TABLE);
         minData.append(".");
-        vendor.appendIdentifier(minData, Metric.METRIC_DATA_FIELD);
+        vendor.appendIdentifier(minData, MetricDatabase.METRIC_DATA_FIELD);
         minData.append(")");
 
         StringBuilder maxData = new StringBuilder("MAX(");
-        vendor.appendIdentifier(maxData, Metric.METRIC_TABLE);
+        vendor.appendIdentifier(maxData, MetricDatabase.METRIC_TABLE);
         maxData.append(".");
-        vendor.appendIdentifier(maxData, Metric.METRIC_DATA_FIELD);
+        vendor.appendIdentifier(maxData, MetricDatabase.METRIC_DATA_FIELD);
         maxData.append(")");
 
         sql.append("SELECT ");
-        Metric.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
+        MetricDatabase.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
         sql.append(" FROM ");
-        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
 
         sql.append(" WHERE ");
-        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
         sql.append(".");
-        vendor.appendIdentifier(sql, Metric.METRIC_ID_FIELD);
+        vendor.appendIdentifier(sql, MetricDatabase.METRIC_ID_FIELD);
         sql.append(" = ");
         vendor.appendIdentifier(sql, "r");
         sql.append(".");
         vendor.appendIdentifier(sql, "id");
 
         sql.append(" AND ");
-        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
         sql.append(".");
-        vendor.appendIdentifier(sql, Metric.METRIC_TYPE_FIELD);
+        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TYPE_FIELD);
         sql.append(" = ");
         vendor.appendIdentifier(sql, "r");
         sql.append(".");
         vendor.appendIdentifier(sql, "typeId");
 
         sql.append(" AND ");
-        vendor.appendIdentifier(sql, Metric.METRIC_TABLE);
+        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
         sql.append(".");
-        vendor.appendIdentifier(sql, Metric.METRIC_SYMBOL_FIELD);
+        vendor.appendIdentifier(sql, MetricDatabase.METRIC_SYMBOL_FIELD);
         sql.append(" = ");
         vendor.appendValue(sql, database.getSymbolId(actionSymbol));
 
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
             sql.append(" AND ");
-            vendor.appendIdentifier(sql, Metric.METRIC_DIMENSION_FIELD);
+            vendor.appendIdentifier(sql, MetricDatabase.METRIC_DIMENSION_FIELD);
             sql.append(" = ");
-            vendor.appendValue(sql, MetricAction.getDimensionId(null));
+            vendor.appendValue(sql, MetricDatabase.getDimensionIdByValue(null));
         }
 
         // Apply deferred WHERE predicates (eventDates and metric Dimensions)
@@ -1283,7 +1283,7 @@ class SqlQuery {
         }
 
         //sql.append(" AND ");
-        //vendor.appendIdentifier(sql, Metric.METRIC_DIMENSION_FIELD);
+        //vendor.appendIdentifier(sql, MetricDatabase.METRIC_DIMENSION_FIELD);
         //sql.append(" = ");
         //vendor.appendValue(sql, dimensionId);
 
@@ -1639,11 +1639,11 @@ class SqlQuery {
             } else if (Query.DIMENSION_KEY.equals(queryKey)) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                //valueField = Metric.METRIC_DIMENSION_FIELD;
+                //valueField = MetricDatabase.METRIC_DIMENSION_FIELD;
                 StringBuilder fieldBuilder = new StringBuilder();
                 vendor.appendIdentifier(fieldBuilder, "r");
                 fieldBuilder.append(".");
-                vendor.appendIdentifier(fieldBuilder, Metric.METRIC_DIMENSION_FIELD);
+                vendor.appendIdentifier(fieldBuilder, MetricDatabase.METRIC_DIMENSION_FIELD);
                 valueField = fieldBuilder.toString();
                 sqlIndexTable = null;
                 table = null;
@@ -1667,7 +1667,7 @@ class SqlQuery {
                 keyField = null;
                 needsIsNotNull = true;
 
-            } else if (joinField != null && joinField.as(Metric.FieldData.class).isMetricValue()) {
+            } else if (joinField != null && joinField.as(MetricDatabase.FieldData.class).isMetricValue()) {
 
                 needsIndexTable = false;
                 likeValuePrefix = null;
@@ -1688,7 +1688,7 @@ class SqlQuery {
 
                 if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     // for metricField#dimension, use dimensionId
-                    valueField = Metric.METRIC_DIMENSION_FIELD;
+                    valueField = MetricDatabase.METRIC_DIMENSION_FIELD;
                 } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     // for metricField#date, use "data"
                     valueField = sqlIndexTable.getValueField(database, index, 0);
@@ -1749,8 +1749,11 @@ class SqlQuery {
                     SqlIndex.Static.getByType(field.getInternalItemType()) :
                     sqlIndex;
 
-            if (field != null && field.as(Metric.FieldData.class).isMetricValue() && Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
-                value = MetricAction.getDimensionId(String.valueOf(value));
+            if (field != null && field.as(MetricDatabase.FieldData.class).isMetricValue() && Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                String stringValue = null;
+                if (value != null) 
+                    stringValue = String.valueOf(value);
+                value = MetricDatabase.getDimensionIdByValue(stringValue);
 
             } else if (fieldSqlIndex == SqlIndex.UUID) {
                 value = ObjectUtils.to(UUID.class, value);
@@ -1778,14 +1781,14 @@ class SqlQuery {
                 }
             }
 
-            if (field != null && field.as(Metric.FieldData.class).isMetricValue() && Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
-                // EventDates in Metric are smaller than long
+            if (field != null && field.as(MetricDatabase.FieldData.class).isMetricValue() && Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                // EventDates in MetricDatabase are smaller than long
                 Character padChar = 'F';
                 if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) ||
                         PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
                     padChar = '0';
                 }
-                Metric.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
+                MetricDatabase.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
             } else {
                 vendor.appendValue(builder, value);
             }
