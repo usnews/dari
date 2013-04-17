@@ -47,7 +47,7 @@ class MetricDatabase {
 
     private final SqlDatabase db;
     private final MetricQuery query;
-    private final Record record;
+    private final State state;
 
     private static final transient Cache<String, UUID> dimensionCache = CacheBuilder.newBuilder().maximumSize(DIMENSION_CACHE_SIZE).build();
 
@@ -56,22 +56,22 @@ class MetricDatabase {
     private Long eventDate;
     private boolean isImplicitEventDate;
 
-    public MetricDatabase(SqlDatabase database, Record record, String actionSymbol) {
+    public MetricDatabase(SqlDatabase database, State state, String actionSymbol) {
         this.db = database;
-        this.query = new MetricQuery(actionSymbol, record);
-        this.record = record;
+        this.query = new MetricQuery(actionSymbol, state);
+        this.state = state;
     }
 
-    public MetricDatabase(Record record, String actionSymbol) {
-        this(Database.Static.getFirst(SqlDatabase.class), record, actionSymbol);
+    public MetricDatabase(State state, String actionSymbol) {
+        this(Database.Static.getFirst(SqlDatabase.class), state, actionSymbol);
     }
 
     public void setEventDateProcessor(MetricInterval processor) {
         this.eventDateProcessor = processor;
     }
 
-    private Record getRecord() {
-        return record;
+    private State getState() {
+        return state;
     }
 
     public MetricInterval getEventDateProcessor() {
@@ -90,57 +90,65 @@ class MetricDatabase {
     }
 
     // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
-    public void setEventDate(Long timestampMillis) {
-        if (timestampMillis == null) {
-            timestampMillis = System.currentTimeMillis();
+    public void setEventDate(DateTime eventDate) {
+        if (eventDate == null) {
+            eventDate = new DateTime();
             isImplicitEventDate = true;
         } else {
             isImplicitEventDate = false;
         }
-        this.eventDate = getEventDateProcessor().process(new DateTime(timestampMillis));
+        this.eventDate = getEventDateProcessor().process(eventDate);
+    }
+
+    public void setEventDateMillis(Long timestampMillis) {
+        setEventDate((timestampMillis == null ? null : new DateTime(timestampMillis)));
     }
 
     public long getEventDate() {
         if (eventDate == null) {
-            setEventDate(null);
+            setEventDateMillis(null);
         }
         return eventDate;
     }
 
-    public void setQueryDateRange(Long startTimestamp, Long endTimestamp) {
+    public void setQueryDateRange(DateTime startTimestamp, DateTime endTimestamp) {
+        setQueryTimestampRange((startTimestamp == null ? null : startTimestamp.getMillis()), (endTimestamp == null ? null : endTimestamp.getMillis()));
+    }
+
+    public void setQueryTimestampRange(Long startTimestamp, Long endTimestamp) {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
 
     public Double getMetric(String dimensionValue) throws SQLException {
-        return Static.getMetricByIdAndDimension(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return Static.getMetricByIdAndDimension(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
     public Double getMetricSum() throws SQLException {
-        return Static.getMetricSumById(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return Static.getMetricSumById(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
     public Map<String, Double> getMetricValues() throws SQLException {
-        return Static.getMetricDimensionsById(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return Static.getMetricDimensionsById(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
     public Map<DateTime, Double> getMetricTimeline(String dimensionValue, MetricInterval metricInterval) throws SQLException {
         if (metricInterval == null) {
             metricInterval = getEventDateProcessor();
         }
-        return Static.getMetricTimelineByIdAndDimension(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
+        return Static.getMetricTimelineByIdAndDimension(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
     }
 
     public Map<DateTime, Double> getMetricSumTimeline(MetricInterval metricInterval) throws SQLException {
         if (metricInterval == null) {
             metricInterval = getEventDateProcessor();
         }
-        return Static.getMetricSumTimelineById(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
+        return Static.getMetricSumTimelineById(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
     }
 
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
         // find the metricId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
-        Static.doIncrementUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), amount, getEventDate(), isImplicitEventDate);
+        Static.doIncrementUpdateOrInsert(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), amount, getEventDate(), isImplicitEventDate);
     }
 
     public void setMetric(String dimensionValue, Double amount) throws SQLException {
@@ -148,11 +156,11 @@ class MetricDatabase {
         if (getEventDate() != 0) {
             throw new RuntimeException("MetricDatabase.setMetric() can only be used if EventDateProcessor is None");
         }
-        Static.doSetUpdateOrInsert(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), amount, getEventDate());
+        Static.doSetUpdateOrInsert(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol(), getDimensionId(dimensionValue), amount, getEventDate());
     }
 
     public void deleteMetric() throws SQLException {
-        Static.doMetricDelete(getDatabase(), getRecord().getId(), getRecord().getState().getTypeId(), getQuery().getSymbol());
+        Static.doMetricDelete(getDatabase(), getState().getId(), getState().getTypeId(), getQuery().getSymbol());
     }
 
     public static UUID getDimensionIdByValue(String dimensionValue) {

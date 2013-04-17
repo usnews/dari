@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -13,6 +14,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.joda.time.DateTime;
 
 import com.psddev.dari.util.ObjectUtils;
 
@@ -1137,12 +1140,12 @@ class SqlQuery {
 
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
-            whereBuilder.append(" AND "); // TODO: this should sometimes be OR
+            whereBuilder.append(" AND ");
             addWherePredicate(whereBuilder, recordMetricDatePredicates.get(i), recordMetricParentDatePredicates.get(i), false, false);
         }
 
         for (int i = 0; i < recordMetricDimensionPredicates.size(); i++) {
-            whereBuilder.append(" AND "); // TODO: this should sometimes be OR
+            whereBuilder.append(" AND ");
             addWherePredicate(whereBuilder, recordMetricDimensionPredicates.get(i), recordMetricParentDimensionPredicates.get(i), false, false);
         }
 
@@ -1274,11 +1277,11 @@ class SqlQuery {
 
         // Apply deferred WHERE predicates (eventDates and metric Dimensions)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
-            sql.append(" AND "); // TODO: this should sometimes be OR
+            sql.append(" AND ");
             addWherePredicate(sql, recordMetricDatePredicates.get(i), recordMetricParentDatePredicates.get(i), false, false);
         }
         for (int i = 0; i < recordMetricDimensionPredicates.size(); i++) {
-            sql.append(" AND "); // TODO: this should sometimes be OR
+            sql.append(" AND ");
             addWherePredicate(sql, recordMetricDimensionPredicates.get(i), recordMetricParentDimensionPredicates.get(i), false, false);
         }
 
@@ -1749,11 +1752,32 @@ class SqlQuery {
                     SqlIndex.Static.getByType(field.getInternalItemType()) :
                     sqlIndex;
 
-            if (field != null && field.as(MetricDatabase.FieldData.class).isMetricValue() && Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
-                String stringValue = null;
-                if (value != null) 
-                    stringValue = String.valueOf(value);
-                value = MetricDatabase.getDimensionIdByValue(stringValue);
+            if (field != null && field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+
+                if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+                    String stringValue = null;
+                    if (value != null) 
+                        stringValue = String.valueOf(value);
+                    value = MetricDatabase.getDimensionIdByValue(stringValue);
+
+                } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
+
+                    // EventDates in MetricDatabase are smaller than long
+                    Character padChar = 'F';
+                    if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) ||
+                            PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
+                        padChar = '0';
+                    }
+                    if (value instanceof DateTime) value = ((DateTime) value).getMillis();
+                    if (value instanceof Date) value = ((Date) value).getTime();
+                    MetricDatabase.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
+                    // Taking care of the appending since it is raw SQL; return here so it isn't appended again
+                    return;
+
+                } else {
+                    value = ObjectUtils.to(Double.class, value);
+
+                }
 
             } else if (fieldSqlIndex == SqlIndex.UUID) {
                 value = ObjectUtils.to(UUID.class, value);
@@ -1781,17 +1805,7 @@ class SqlQuery {
                 }
             }
 
-            if (field != null && field.as(MetricDatabase.FieldData.class).isMetricValue() && Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
-                // EventDates in MetricDatabase are smaller than long
-                Character padChar = 'F';
-                if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) ||
-                        PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
-                    padChar = '0';
-                }
-                MetricDatabase.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
-            } else {
-                vendor.appendValue(builder, value);
-            }
+            vendor.appendValue(builder, value);
         }
 
         public String getValueField(String queryKey, ComparisonPredicate comparison) {

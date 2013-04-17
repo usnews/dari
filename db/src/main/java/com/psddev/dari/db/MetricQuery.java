@@ -1,16 +1,14 @@
 package com.psddev.dari.db;
 
-import java.util.UUID;
-
 class MetricQuery {
     private String symbol;
-    private final Record record;
+    private final State state;
     private Long startTimestamp;
     private Long endTimestamp;
 
-    public MetricQuery(String symbol, Record record) {
+    public MetricQuery(String symbol, State state) {
         this.symbol = symbol;
-        this.record = record;
+        this.state = state;
     }
 
     public String getSymbol() {
@@ -21,8 +19,8 @@ class MetricQuery {
         this.symbol = symbol;
     }
 
-    public Record getRecord() {
-        return record;
+    public State getState() {
+        return state;
     }
 
     public Long getStartTimestamp() {
@@ -39,6 +37,6 @@ class MetricQuery {
     }
 
     public String toString() {
-        return "action: " + getSymbol() + " recordId: " + getRecord().getId() + " date range: " + startTimestamp + " - " + endTimestamp;
+        return "action: " + getSymbol() + " recordId: " + getState().getId() + " date range: " + startTimestamp + " - " + endTimestamp;
     }
 }

@@ -731,7 +731,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-
         // Load some extra column from source index tables.
         @SuppressWarnings("unchecked")
         Set<UUID> unresolvedTypeIds = (Set<UUID>) query.getOptions().get(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION);
@@ -739,15 +738,23 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
-        if (type != null &&
-                (unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
-                !queryTypes.contains(type)) {
+        // Set up Metric fields
+        if (type != null) {
             for (ObjectField field : type.getFields()) {
-                SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
+                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field.getInternalName()));
+                }
+            }
 
-                if (fieldData.isIndexTableSource() && ! metricFieldData.isMetricValue()) {
-                    loadExtraFields.add(field);
+            if ((unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
+                !queryTypes.contains(type)) {
+                for (ObjectField field : type.getFields()) {
+                    SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+                    MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
+
+                    if (fieldData.isIndexTableSource() && ! metricFieldData.isMetricValue()) {
+                        loadExtraFields.add(field);
+                    }
                 }
             }
         }
@@ -796,7 +803,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     // countperformance branch to do this.
     private String extraSourceSelectStatementById(ObjectField field, UUID id, UUID typeId) {
         FieldData fieldData = field.as(FieldData.class);
-        MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
         ObjectType parentType = field.getParentType();
         StringBuilder keyName = new StringBuilder(parentType.getInternalName());
 
@@ -823,35 +829,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         sql.append("SELECT ");
 
-        if (metricFieldData.isMetricValue()) {
-
+        for (String indexFieldName : useIndex.getFields()) {
             String indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
 
-            StringBuilder minData = new StringBuilder("MIN(");
-            vendor.appendIdentifier(minData, indexColumnName);
-            minData.append(")");
+            ++ fieldIndex;
 
-            StringBuilder maxData = new StringBuilder("MAX(");
-            vendor.appendIdentifier(maxData, indexColumnName);
-            maxData.append(")");
-
-            MetricDatabase.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
+            vendor.appendIdentifier(sql, indexColumnName);
             sql.append(" AS ");
-            vendor.appendIdentifier(sql, field.getInternalName());
-
-        } else {
-            for (String indexFieldName : useIndex.getFields()) {
-                String indexColumnName = indexTable.getValueField(this, useIndex, fieldIndex);
-
-                ++ fieldIndex;
-
-                vendor.appendIdentifier(sql, indexColumnName);
-                sql.append(" AS ");
-                vendor.appendIdentifier(sql, indexFieldName);
-                sql.append(", ");
-            }
-            sql.setLength(sql.length() - 2);
+            vendor.appendIdentifier(sql, indexFieldName);
+            sql.append(", ");
         }
+        sql.setLength(sql.length() - 2);
 
         sql.append(" FROM ");
         vendor.appendIdentifier(sql, sourceTableName);
@@ -863,12 +851,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         vendor.appendIdentifier(sql, "symbolId");
         sql.append(" = ");
         sql.append(symbolId);
-        if (metricFieldData.isMetricValue()) {
-            sql.append(" AND ");
-            vendor.appendIdentifier(sql, "typeId");
-            sql.append(" = ");
-            vendor.appendValue(sql, typeId);
-        }
 
         return sql.toString();
     }

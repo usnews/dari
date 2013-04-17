@@ -3,254 +3,253 @@ package com.psddev.dari.db;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 import org.joda.time.DateTime;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 
-class Metric extends Modification<Object> {
+public class Metric implements Recordable {
+
+    private static final int CACHE_SIZE = 50; // This is per State, it doesn't need to be big.
+
+    private transient final String metricFieldInternalName;
+    private transient State state;
+    private transient final ObjectField metricField;
+    private transient final ObjectType recordType;
+    private transient final MetricDatabase metricDatabase;
 
     //private static final Logger LOGGER = LoggerFactory.getLogger(Metric.class);
 
-    private transient final Map<String, MetricDatabase> recordMetrics = new HashMap<String, MetricDatabase>();
-    private transient final Map<String, ObjectField> metricFields = new HashMap<String, ObjectField>();
-    private transient final Map<String, Map<String, Double>> metricValueCache = new HashMap<String, Map<String, Double>>();
-    private transient final Map<String, Map<String, Map<String, Double>>> metricValuesCache = new HashMap<String, Map<String, Map<String, Double>>>();
-    private transient final Map<String, Map<String, Map<DateTime, Double>>> metricTimelineCache = new HashMap<String, Map<String, Map<DateTime, Double>>>();
+    private transient final Cache<String, Double> metricCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
+    private transient final Cache<String, Map<String, Double>> metricValuesCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
+    private transient final Cache<String, Map<DateTime, Double>> metricTimelineCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
 
-    private ObjectField findMetricField(String internalName) {
-        ObjectType recordType = ObjectType.getInstance(getOriginalObject().getClass());
-        if (internalName == null) {
-            for (ObjectField objectField : recordType.getFields()) {
-                if (objectField.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                    return objectField;
-                }
-            }
-        } else {
-            ObjectField objectField = getState().getDatabase().getEnvironment().getField(internalName);
-
-            if (objectField == null) {
-                objectField = recordType.getField(internalName);
-            }
-
-            if (objectField != null && objectField.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                return objectField;
-            }
-        }
-        throw new RuntimeException("At least one numeric field must be marked as @MetricValue");
+    public Metric(State state, String metricFieldInternalName) {
+        this.state = state;
+        this.metricFieldInternalName = metricFieldInternalName;
+        this.recordType = ObjectType.getInstance(state.getOriginalObject().getClass());
+        this.metricField = recordType.getField(metricFieldInternalName);
+        this.metricDatabase = new MetricDatabase(state, metricField.getUniqueName());
+        this.metricDatabase.setEventDateProcessor(metricField.as(MetricDatabase.FieldData.class).getEventDateProcessor());
     }
 
-    private Map<String, Double> getMetricCache(String internalName) {
-        if (! metricValueCache.containsKey(internalName)) {
-            metricValueCache.put(internalName, new HashMap<String, Double>());
-        }
-        return metricValueCache.get(internalName);
+    @Override
+    public void setState(State state) {
+        this.state = state;
     }
 
-    private Map<String, Map<String, Double>> getMetricValuesCache(String internalName) {
-        if (! metricValuesCache.containsKey(internalName)) {
-            metricValuesCache.put(internalName, new HashMap<String, Map<String, Double>>());
-        }
-        return metricValuesCache.get(internalName);
+    @Override
+    public State getState() {
+        return this.state;
     }
 
-    private Map<String, Map<DateTime, Double>> getMetricTimelineCache(String internalName) {
-        if (! metricTimelineCache.containsKey(internalName)) {
-            metricTimelineCache.put(internalName, new HashMap<String, Map<DateTime, Double>>());
-        }
-        return metricTimelineCache.get(internalName);
+    @Override
+    public <T> T as(Class<T> modificationClass) {
+        return getState().as(modificationClass);
     }
 
-    private void clearCaches(String metricFieldInternalName) {
-        metricValueCache.remove(metricFieldInternalName);
-        metricTimelineCache.remove(metricFieldInternalName);
-        metricValuesCache.remove(metricFieldInternalName);
+    private void clearCaches() {
+        metricCache.invalidateAll();
+        metricTimelineCache.invalidateAll();
+        metricValuesCache.invalidateAll();
     }
 
-    private ObjectField getMetricField(String internalName) {
-        if (!metricFields.containsKey(internalName)) {
-            metricFields.put(internalName, findMetricField(internalName));
-        }
-        return metricFields.get(internalName);
+    // Implicit null dimension
+    public void increment(double amount) {
+        incrementDimensionOnEventDate(null, amount, null);
+    }
+
+    // Implicit null dimension
+    public void incrementOnEventDate(double amount, DateTime eventDate) {
+        incrementDimensionOnEventDate(null, amount, eventDate);
     }
 
     // Explicit dimension
-    public void incrementDimensionMetric(String metricFieldInternalName, String dimensionValue, double amount) {
-        incrementDimensionMetric(metricFieldInternalName, dimensionValue, amount, null);
+    public void incrementDimension(String dimensionValue, double amount) {
+        incrementDimensionOnEventDate(dimensionValue, amount, null);
     }
 
     // Explicit dimension
-    public void incrementDimensionMetric(String metricFieldInternalName, String dimensionValue, double amount, Long eventDateMillis) {
+    public void incrementDimensionOnEventDate(String dimensionValue, double amount, DateTime eventDate) {
         try {
-            clearCaches(metricFieldInternalName);
-            getMetricDatabase(metricFieldInternalName).setEventDate(eventDateMillis);
-            getMetricDatabase(metricFieldInternalName).incrementMetric(dimensionValue, amount);
+            clearCaches();
+            metricDatabase.setEventDate(eventDate);
+            metricDatabase.incrementMetric(dimensionValue, amount);
         } catch (SQLException e) {
-            throw new DatabaseException(getMetricDatabase(metricFieldInternalName).getDatabase(), "Error in MetricDatabase.incrementMetric() : " + e.getLocalizedMessage());
-        }
-    }
-
-    // Explicit dimension
-    public void setDimensionMetric(String metricFieldInternalName, String dimensionValue, double c) {
-        try {
-            clearCaches(metricFieldInternalName);
-            getMetricDatabase(metricFieldInternalName).setMetric(dimensionValue, c);
-        } catch (SQLException e) {
-            throw new DatabaseException(getMetricDatabase(metricFieldInternalName).getDatabase(), "Error in MetricDatabase.setMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.incrementMetric() : " + e.getLocalizedMessage());
         }
     }
 
     // All dimensions
-    public void deleteMetric(String metricFieldInternalName) {
+    public void delete() {
         try {
-            getMetricDatabase(metricFieldInternalName).deleteMetric();
+            metricDatabase.deleteMetric();
         } catch (SQLException e) {
-            throw new DatabaseException(getMetricDatabase(null).getDatabase(), "Error in MetricDatabase.deleteMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.deleteMetric() : " + e.getLocalizedMessage());
         }
     }
 
     //////////////////////////////////////////////////
 
-    // Explicit dimension
-    public double getDimensionMetric(String metricFieldInternalName, String dimensionValue) {
-        return getDimensionMetricOverDateRange(metricFieldInternalName, dimensionValue, null, null);
+    // Implicit null dimension
+    public double getValue() {
+        return getDimensionValueBetween(null, null, null);
+    }
+
+    // Implicit null dimension
+    public double getValueBetween(DateTime startTimestamp, DateTime endTimestamp) {
+        return getDimensionValueBetween(null, startTimestamp, endTimestamp);
     }
 
     // Explicit dimension
-    public double getDimensionMetricOverDateRange(String metricFieldInternalName, String dimensionValue, Long startTimestamp, Long endTimestamp) {
-        final String cacheKey = String.valueOf(dimensionValue) + " :" + String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
-        if (! getMetricCache(metricFieldInternalName).containsKey(cacheKey)) {
+    public double getDimensionValue(String dimensionValue) {
+        return getDimensionValueBetween(dimensionValue, null, null);
+    }
+
+    // Explicit dimension
+    public double getDimensionValueBetween(String dimensionValue, DateTime startTimestamp, DateTime endTimestamp) {
+        final String cacheKey = "m:" + String.valueOf(dimensionValue) + ":" + String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
+        Double metricValue = metricCache.getIfPresent(cacheKey);
+        if (metricValue == null) {
             try {
-                MetricDatabase cr = getMetricDatabase(metricFieldInternalName);
-                cr.setQueryDateRange(startTimestamp, endTimestamp);
-                Double metricValue = cr.getMetric(dimensionValue);
+                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+                metricValue = metricDatabase.getMetric(dimensionValue);
                 if (metricValue == null) {
-                    getMetricCache(metricFieldInternalName).put(cacheKey, 0.0d);
-                } else {
-                    getMetricCache(metricFieldInternalName).put(cacheKey, metricValue);
+                    metricValue = 0.0d;
                 }
+                metricCache.put(cacheKey, metricValue);
             } catch (SQLException e) {
-                throw new DatabaseException(getMetricDatabase(metricFieldInternalName).getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
+                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
             }
         }
-        return getMetricCache(metricFieldInternalName).get(cacheKey);
+        return metricValue;
+    }
+
+    // Implicit null dimension
+    public Map<DateTime, Double> getTimeline() {
+        return getDimensionTimelineBetween(null, null, null, null);
+    }
+
+    // Implicit null dimension
+    public Map<DateTime, Double> getTimeline(MetricInterval metricInterval) {
+        return getDimensionTimelineBetween(null, metricInterval, null, null);
+    }
+
+    // Implicit null dimension
+    public Map<DateTime, Double> getTimelineBetween(MetricInterval metricInterval, DateTime startTimestamp, DateTime endTimestamp) {
+        return getDimensionTimelineBetween(null, metricInterval, startTimestamp, startTimestamp);
     }
 
     // Explicit dimension
-    public Map<DateTime, Double> getDimensionMetricTimeline(String metricFieldInternalName, String dimensionValue, MetricInterval metricInterval) {
-        return getDimensionMetricTimelineOverDateRange(metricFieldInternalName, dimensionValue, metricInterval, null, null);
+    public Map<DateTime, Double> getDimensionTimeline(String dimensionValue) {
+        return getDimensionTimelineBetween(dimensionValue, null, null, null);
     }
 
-    public Map<DateTime, Double> getDimensionMetricTimelineOverDateRange(String metricFieldInternalName, String dimensionValue, MetricInterval metricInterval, Long startTimestamp, Long endTimestamp) {
-        final String cacheKey = String.valueOf(dimensionValue)+" :"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
-        if (! getMetricTimelineCache(metricFieldInternalName).containsKey(cacheKey)) {
+    // Explicit dimension
+    public Map<DateTime, Double> getDimensionTimeline(String dimensionValue, MetricInterval metricInterval) {
+        return getDimensionTimelineBetween(dimensionValue, metricInterval, null, null);
+    }
+
+    // Explicit dimension
+    public Map<DateTime, Double> getDimensionTimelineBetween(String dimensionValue, MetricInterval metricInterval, DateTime startTimestamp, DateTime endTimestamp) {
+        final String cacheKey = "m:"+String.valueOf(dimensionValue)+":"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
+        Map<DateTime, Double> metricTimeline = metricTimelineCache.getIfPresent(cacheKey);
+        if (metricTimeline == null) {
             try {
-                MetricDatabase cr = getMetricDatabase(metricFieldInternalName);
-                cr.setQueryDateRange(startTimestamp, endTimestamp);
-                Map<DateTime, Double> metricTimeline = cr.getMetricTimeline(dimensionValue, metricInterval);
+                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+                metricTimeline = metricDatabase.getMetricTimeline(dimensionValue, metricInterval);
                 if (metricTimeline == null) {
-                    getMetricTimelineCache(metricFieldInternalName).put(cacheKey, new HashMap<DateTime, Double>());
-                } else {
-                    getMetricTimelineCache(metricFieldInternalName).put(cacheKey, metricTimeline);
+                    metricTimeline = new HashMap<DateTime, Double>();
                 }
+                metricTimelineCache.put(cacheKey, metricTimeline);
             } catch (SQLException e) {
-                throw new DatabaseException(getMetricDatabase(metricFieldInternalName).getDatabase(), "Error in MetricDatabase.getMetricTimeline() : " + e.getLocalizedMessage());
+                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetricTimeline() : " + e.getLocalizedMessage());
             }
         }
-        return getMetricTimelineCache(metricFieldInternalName).get(cacheKey);
-    }
-
-
-    // Sum of all dimensions
-    public Map<DateTime, Double> getMetricSumTimeline(String metricFieldInternalName, MetricInterval metricInterval) {
-        return getMetricSumTimelineOverDateRange(metricFieldInternalName, metricInterval, null, null);
+        return metricTimeline;
     }
 
     // Sum of all dimensions
-    public Map<DateTime, Double> getMetricSumTimelineOverDateRange(String metricFieldInternalName, MetricInterval metricInterval, Long startTimestamp, Long endTimestamp) {
-        final String cacheKey = "sum:"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
-        if (! getMetricTimelineCache(metricFieldInternalName).containsKey(cacheKey)) {
+    public Map<DateTime, Double> getSumTimeline() {
+        return getSumTimelineBetween(null, null, null);
+    }
+
+    // Sum of all dimensions
+    public Map<DateTime, Double> getSumTimeline(MetricInterval metricInterval) {
+        return getSumTimelineBetween(metricInterval, null, null);
+    }
+
+    // Sum of all dimensions
+    public Map<DateTime, Double> getSumTimelineBetween(MetricInterval metricInterval, DateTime startTimestamp, DateTime endTimestamp) {
+        final String cacheKey = "s:"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
+        Map<DateTime, Double> metricTimeline = metricTimelineCache.getIfPresent(cacheKey);
+        if (metricTimeline == null) {
             try {
-                MetricDatabase cr = getMetricDatabase(metricFieldInternalName);
-                cr.setQueryDateRange(startTimestamp, endTimestamp);
-                Map<DateTime, Double> metricTimeline = cr.getMetricSumTimeline(metricInterval);
+                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+                metricTimeline = metricDatabase.getMetricSumTimeline(metricInterval);
                 if (metricTimeline == null) {
-                    getMetricTimelineCache(metricFieldInternalName).put(cacheKey, new HashMap<DateTime, Double>());
-                } else {
-                    getMetricTimelineCache(metricFieldInternalName).put(cacheKey, metricTimeline);
+                    metricTimeline = new HashMap<DateTime, Double>();
                 }
+                metricTimelineCache.put(cacheKey, metricTimeline);
             } catch (SQLException e) {
-                throw new DatabaseException(getMetricDatabase(metricFieldInternalName).getDatabase(), "Error in MetricDatabase.getMetricSumTimeline() : " + e.getLocalizedMessage());
+                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
             }
         }
-        return getMetricTimelineCache(metricFieldInternalName).get(cacheKey);
+        return metricTimeline;
     }
 
     // Sum of all dimensions
-    public double getMetricSum(String metricFieldInternalName) {
-        return getMetricSumOverDateRange(metricFieldInternalName, null, null);
+    public double getSum() {
+        return getSumBetween(null, null);
     }
 
     // Sum of all dimensions
-    public double getMetricSumOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
+    public double getSumBetween(DateTime startTimestamp, DateTime endTimestamp) {
         final String cacheKey = "sum:"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
-        if (! getMetricCache(metricFieldInternalName).containsKey(cacheKey)) {
+        Double metricValue = metricCache.getIfPresent(cacheKey);
+        if (metricValue == null) {
             try {
-                MetricDatabase cr = getMetricDatabase(metricFieldInternalName);
-                cr.setQueryDateRange(startTimestamp, endTimestamp);
-                Double metricValue = cr.getMetricSum();
+                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+                metricValue = metricDatabase.getMetricSum();
                 if (metricValue == null) {
-                    getMetricCache(metricFieldInternalName).put(cacheKey, 0.0d);
-                } else {
-                    getMetricCache(metricFieldInternalName).put(cacheKey, metricValue);
+                    metricValue = 0.0d;
                 }
+                metricCache.put(cacheKey, metricValue);
             } catch (SQLException e) {
-                throw new DatabaseException(getMetricDatabase(metricFieldInternalName).getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
+                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
             }
         }
-        return getMetricCache(metricFieldInternalName).get(cacheKey);
+        return metricValue;
     }
 
     // All dimensions
-    public Map<String, Double> getMetricValues(String metricFieldInternalName) {
-        return getMetricValuesOverDateRange(metricFieldInternalName, null, null);
+    public Map<String, Double> getValues() {
+        return getValuesBetween(null, null);
     }
 
     // All dimensions
-    public Map<String, Double> getMetricValuesOverDateRange(String metricFieldInternalName, Long startTimestamp, Long endTimestamp) {
+    public Map<String, Double> getValuesBetween(DateTime startTimestamp, DateTime endTimestamp) {
         final String cacheKey = String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
-        if (! getMetricValuesCache(metricFieldInternalName).containsKey(cacheKey)) {
+        Map<String, Double> metricValues = metricValuesCache.getIfPresent(cacheKey);
+        if (metricValues == null) {
             try {
-                MetricDatabase cr = getMetricDatabase(metricFieldInternalName);
-                cr.setQueryDateRange(startTimestamp, endTimestamp);
-                Map<String, Double> metricValues = cr.getMetricValues();
+                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+                metricValues = metricDatabase.getMetricValues();
                 if (metricValues == null) {
-                    getMetricValuesCache(metricFieldInternalName).put(cacheKey, new HashMap<String, Double>());
-                } else {
-                    getMetricValuesCache(metricFieldInternalName).put(cacheKey, metricValues);
+                    metricValues = new HashMap<String, Double>();
                 }
+                metricValuesCache.put(cacheKey, metricValues);
             } catch (SQLException e) {
-                throw new DatabaseException(getMetricDatabase(metricFieldInternalName).getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
+                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
             }
         }
-        return getMetricValuesCache(metricFieldInternalName).get(cacheKey);
+        return metricValues;
     }
 
     //////////////////////////////////////////////////
-
-    private MetricDatabase getMetricDatabase(String metricFieldInternalName) {
-        // if metricFieldInternalName is null, it will return the *first* @MetricValue in the type
-
-        if (! recordMetrics.containsKey(metricFieldInternalName)) {
-            ObjectField metricField = getMetricField(metricFieldInternalName);
-            MetricDatabase recordMetric = new MetricDatabase(this, metricField.getUniqueName());
-            recordMetric.setEventDateProcessor(metricField.as(MetricDatabase.FieldData.class).getEventDateProcessor());
-            recordMetrics.put(metricFieldInternalName, recordMetric);
-        }
-
-        return recordMetrics.get(metricFieldInternalName);
-    }
 
 }
