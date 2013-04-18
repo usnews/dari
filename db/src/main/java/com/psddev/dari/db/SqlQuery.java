@@ -1770,7 +1770,7 @@ class SqlQuery {
                     }
                     if (value instanceof DateTime) value = ((DateTime) value).getMillis();
                     if (value instanceof Date) value = ((Date) value).getTime();
-                    MetricDatabase.Static.appendBinEncodeTimestampSql(builder, null, vendor, (Long) value, padChar);
+                    vendor.appendMetricBinEncodeTimestampSql(builder, null, (Long) value, padChar);
                     // Taking care of the appending since it is raw SQL; return here so it isn't appended again
                     return;
 

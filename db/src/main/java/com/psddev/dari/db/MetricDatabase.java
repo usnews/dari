@@ -33,21 +33,21 @@ class MetricDatabase {
     public static final String METRIC_DIMENSION_VALUE_FIELD = "value";
     public static final String METRIC_DATA_FIELD = "data";
 
-    private static final int AMOUNT_DECIMAL_PLACES = 6;
-    private static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
-    private static final long DATE_DECIMAL_SHIFT = 60000L;
-    private static final int CUMULATIVEAMOUNT_POSITION = 1;
-    private static final int AMOUNT_POSITION = 2;
+    public static final int AMOUNT_DECIMAL_PLACES = 6;
+    public static final long AMOUNT_DECIMAL_SHIFT = (long) Math.pow(10, AMOUNT_DECIMAL_PLACES);
+    public static final long DATE_DECIMAL_SHIFT = 60000L;
+    public static final int CUMULATIVEAMOUNT_POSITION = 1;
+    public static final int AMOUNT_POSITION = 2;
+    public static final int DATE_BYTE_SIZE = 4;
+    public static final int AMOUNT_BYTE_SIZE = 8;
 
     private static final int QUERY_TIMEOUT = 3;
-    private static final int DATE_BYTE_SIZE = 4;
-    private static final int AMOUNT_BYTE_SIZE = 8;
-
     private static final int DIMENSION_CACHE_SIZE = 1000;
 
     private final SqlDatabase db;
     private final MetricQuery query;
     private final State state;
+
 
     private static final transient Cache<String, UUID> dimensionCache = CacheBuilder.newBuilder().maximumSize(DIMENSION_CACHE_SIZE).build();
 
@@ -268,14 +268,14 @@ class MetricDatabase {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(" <= ");
-                appendBinEncodeTimestampSql(sqlBuilder, null, vendor, maxEventDate, 'F');
+                vendor.appendMetricBinEncodeTimestampSql(sqlBuilder, null, maxEventDate, 'F');
             }
 
             if (minEventDate != null) {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(" >= ");
-                appendBinEncodeTimestampSql(sqlBuilder, null, vendor, minEventDate, '0');
+                vendor.appendMetricBinEncodeTimestampSql(sqlBuilder, null, minEventDate, '0');
             }
 
             if (dimensionId == null) {
@@ -345,22 +345,16 @@ class MetricDatabase {
         private static String getTimelineSql(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
             
             SqlVendor vendor = db.getVendor();
-            String dateFormatString = metricInterval.getSqlDateFormat(vendor);
 
             StringBuilder extraSelectSqlBuilder = new StringBuilder("MIN(");
-            appendSelectTimestampSql(extraSelectSqlBuilder, vendor, "data");
+            vendor.appendMetricSelectTimestampSql(extraSelectSqlBuilder, METRIC_DATA_FIELD);
             extraSelectSqlBuilder.append(") * ");
             vendor.appendValue(extraSelectSqlBuilder, DATE_DECIMAL_SHIFT);
             extraSelectSqlBuilder.append(" ");
             vendor.appendIdentifier(extraSelectSqlBuilder, "eventDate");
 
-            StringBuilder extraGroupBySqlBuilder = new StringBuilder("DATE_FORMAT(FROM_UNIXTIME(");
-            appendSelectTimestampSql(extraGroupBySqlBuilder, vendor, "data");
-            extraGroupBySqlBuilder.append("*");
-            vendor.appendValue(extraGroupBySqlBuilder, (DATE_DECIMAL_SHIFT/1000L));
-            extraGroupBySqlBuilder.append("),");
-            vendor.appendValue(extraGroupBySqlBuilder, dateFormatString);
-            extraGroupBySqlBuilder.append(")");
+            StringBuilder extraGroupBySqlBuilder = new StringBuilder();
+            vendor.appendMetricDateFormatTimestampSql(extraGroupBySqlBuilder, METRIC_DATA_FIELD, metricInterval);
 
             String sql = getDataSql(db, id, typeId, symbol, dimensionId, minEventDate, maxEventDate, true, extraSelectSqlBuilder.toString(), extraGroupBySqlBuilder.toString());
 
@@ -395,37 +389,8 @@ class MetricDatabase {
 
             vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
             updateBuilder.append(" = ");
-            updateBuilder.append(" UNHEX(");
-                updateBuilder.append("CONCAT(");
-                    // timestamp
-                    appendHexEncodeExistingTimestampSql(updateBuilder, vendor, METRIC_DATA_FIELD);
-                    updateBuilder.append(',');
-                    // cumulativeAmount and amount
-                    if (increment) {
-                        appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, CUMULATIVEAMOUNT_POSITION, amount);
-                        updateBuilder.append(',');
-                        if (updateFuture) {
-                            updateBuilder.append("IF (");
-                                vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
-                                updateBuilder.append(" LIKE ");
-                                    updateBuilder.append(" CONCAT(");
-                                        appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
-                                    updateBuilder.append(", '%')");
-                                    updateBuilder.append(","); // if it's the exact date, then update the amount
-                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, AMOUNT_POSITION, amount);
-                                    updateBuilder.append(","); // if it's a date in the future, leave the date alone
-                                    appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, AMOUNT_POSITION, 0);
-                            updateBuilder.append(")");
-                        } else {
-                            appendHexEncodeIncrementAmountSql(updateBuilder, parameters, vendor, METRIC_DATA_FIELD, AMOUNT_POSITION, amount);
-                        }
-                    } else {
-                        appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
-                        updateBuilder.append(',');
-                        appendHexEncodeSetAmountSql(updateBuilder, parameters, vendor, amount);
-                    }
-                updateBuilder.append(" )");
-            updateBuilder.append(" )");
+
+            vendor.appendMetricUpdateDataSql(updateBuilder, METRIC_DATA_FIELD, parameters, amount, eventDate, increment, updateFuture);
 
             updateBuilder.append(" WHERE ");
             vendor.appendIdentifier(updateBuilder, METRIC_ID_FIELD);
@@ -452,11 +417,11 @@ class MetricDatabase {
             if (updateFuture) {
                 // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
                 updateBuilder.append(" >= ");
-                appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, '0');
+                vendor.appendMetricBinEncodeTimestampSql(updateBuilder, parameters, eventDate, '0');
             } else {
                 updateBuilder.append(" LIKE ");
                 updateBuilder.append(" CONCAT(");
-                appendBinEncodeTimestampSql(updateBuilder, parameters, vendor, eventDate, null);
+                vendor.appendMetricBinEncodeTimestampSql(updateBuilder, parameters, eventDate, null);
                 updateBuilder.append(", '%')");
             }
 
@@ -540,18 +505,17 @@ class MetricDatabase {
         }
 
         // Methods that generate complicated bits of SQL
-        // TODO: all of these are MySQL only.
 
         public static void appendSelectCalculatedAmountSql(StringBuilder str, SqlVendor vendor, String minDataColumnIdentifier, String maxDataColumnIdentifier, boolean includeSum) {
 
             str.append("ROUND(");
             if (includeSum) str.append("SUM");
             str.append("(");
-            appendSelectAmountSql(str, vendor, maxDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
+            vendor.appendMetricSelectAmountSql(str, maxDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
             str.append(" - (");
-            appendSelectAmountSql(str, vendor, minDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
+            vendor.appendMetricSelectAmountSql(str, minDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
             str.append(" - ");
-            appendSelectAmountSql(str, vendor, minDataColumnIdentifier, AMOUNT_POSITION);
+            vendor.appendMetricSelectAmountSql(str, minDataColumnIdentifier, AMOUNT_POSITION);
             str.append(") ");
 
             str.append(")");
@@ -561,102 +525,6 @@ class MetricDatabase {
             vendor.appendValue(str, AMOUNT_DECIMAL_PLACES);
             str.append(") ");
 
-        }
-
-        public static void appendSelectAmountSql(StringBuilder str, SqlVendor vendor, String columnIdentifier, int position) {
-            // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic.
-            // position is 1 or 2
-            // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
-            str.append("CONV(");
-                str.append("HEX(");
-                    str.append("SUBSTR(");
-                        str.append(columnIdentifier);
-                        str.append(",");
-                        vendor.appendValue(str, 1+DATE_BYTE_SIZE + ((position-1)*AMOUNT_BYTE_SIZE));
-                        str.append(",");
-                        vendor.appendValue(str, AMOUNT_BYTE_SIZE);
-                    str.append(")");
-                str.append(")");
-            str.append(", 16, 10)");
-        }
-
-        public static void appendSelectTimestampSql(StringBuilder str, SqlVendor vendor, String columnIdentifier) {
-            // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic.
-            // position is 1 or 2
-            // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
-            str.append("CONV(");
-                str.append("HEX(");
-                    str.append("SUBSTR(");
-                        str.append(columnIdentifier);
-                        str.append(",");
-                        vendor.appendValue(str, 1);
-                        str.append(",");
-                        vendor.appendValue(str, DATE_BYTE_SIZE);
-                    str.append(")");
-                str.append(")");
-            str.append(", 16, 10)");
-        }
-
-        public static void appendHexEncodeTimestampSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, long timestamp, Character rpadChar) {
-            if (rpadChar != null) {
-                str.append("RPAD(");
-            }
-            str.append("LPAD(");
-                str.append("HEX(");
-                    if (parameters == null) {
-                        vendor.appendValue(str, (int) (timestamp / DATE_DECIMAL_SHIFT));
-                    } else {
-                        vendor.appendBindValue(str, (int) (timestamp / DATE_DECIMAL_SHIFT), parameters);
-                    }
-                str.append(")");
-            str.append(", "+(DATE_BYTE_SIZE*2)+", '0')");
-            if (rpadChar != null) {
-                str.append(",");
-                vendor.appendValue(str, DATE_BYTE_SIZE*2+AMOUNT_BYTE_SIZE*2+AMOUNT_BYTE_SIZE*2);
-                str.append(", '");
-                str.append(rpadChar);
-                str.append("')");
-            }
-        }
-
-        public static void appendBinEncodeTimestampSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, long timestamp, Character rpadHexChar) {
-            str.append("UNHEX(");
-            appendHexEncodeTimestampSql(str, parameters, vendor, timestamp, rpadHexChar);
-            str.append(")");
-        }
-
-        private static void appendHexEncodeExistingTimestampSql(StringBuilder str, SqlVendor vendor, String columnIdentifier) {
-            // columnName is "data" or "max(`data`)"
-            str.append("HEX(");
-                str.append("SUBSTR(");
-                    str.append(columnIdentifier);
-                    str.append(",");
-                    vendor.appendValue(str, 1);
-                    str.append(",");
-                    vendor.appendValue(str, DATE_BYTE_SIZE);
-                str.append(")");
-            str.append(")");
-        }
-
-        private static void appendHexEncodeSetAmountSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, double amount) {
-            str.append("LPAD(");
-                str.append("HEX(");
-                    vendor.appendBindValue(str, (int) (amount * AMOUNT_DECIMAL_SHIFT), parameters);
-                str.append(" )");
-            str.append(", "+(AMOUNT_BYTE_SIZE*2)+", '0')");
-        }
-
-        private static void appendHexEncodeIncrementAmountSql(StringBuilder str, List<Object> parameters, SqlVendor vendor, String columnName, int position, double amount) {
-            // position is 1 or 2
-            // columnName is "data" unless it is aliased
-            str.append("LPAD(");
-                str.append("HEX(");
-                    // conv(hex(substr(data, 1+4, 8)), 16, 10)
-                    appendSelectAmountSql(str, vendor, columnName, position);
-                    str.append("+");
-                    vendor.appendBindValue(str, (long)(amount * AMOUNT_DECIMAL_SHIFT), parameters);
-                str.append(" )");
-            str.append(", "+(AMOUNT_BYTE_SIZE*2)+", '0')");
         }
 
         // methods that convert bytes into values and back again
