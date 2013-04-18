@@ -547,6 +547,7 @@ public class SqlVendor {
     public static class MySQL extends SqlVendor {
 
         private Boolean hasUdfGetFields;
+        private Boolean hasUdfIncrementMetric;
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
@@ -647,37 +648,102 @@ public class SqlVendor {
         /* ******************* METRICS ******************* */
         @Override
         public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
-            sql.append(" UNHEX(");
-                sql.append("CONCAT(");
-                    // timestamp
-                    appendHexEncodeExistingTimestampSql(sql, columnIdentifier);
-                    sql.append(',');
-                    // cumulativeAmount and amount
-                    if (increment) {
-                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.CUMULATIVEAMOUNT_POSITION, amount);
-                        sql.append(',');
-                        if (updateFuture) {
-                            sql.append("IF (");
-                                appendIdentifier(sql, columnIdentifier);
-                                sql.append(" LIKE ");
-                                    sql.append(" CONCAT(");
-                                        appendMetricBinEncodeTimestampSql(sql, parameters, eventDate, null);
-                                    sql.append(", '%')");
-                                    sql.append(","); // if it's the exact date, then update the amount
-                                    appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
-                                    sql.append(","); // if it's a date in the future, leave the date alone
-                                    appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
-                            sql.append(")");
-                        } else {
-                            appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+
+            SqlDatabase database = getDatabase();
+
+            if (hasUdfIncrementMetric == null) {
+                Connection connection = database.openConnection();
+
+                try {
+                    Statement statement = connection.createStatement();
+                    try {
+                        ResultSet result = statement.executeQuery("SELECT dari_increment_metric(null, 0, 0)");
+                        try {
+                            hasUdfIncrementMetric = true;
+                        } finally {
+                            result.close();
                         }
-                    } else {
-                        appendHexEncodeSetAmountSql(sql, parameters, amount);
-                        sql.append(',');
-                        appendHexEncodeSetAmountSql(sql, parameters, amount);
+                    } finally {
+                        statement.close();
                     }
+
+                } catch (SQLException error) {
+                    if ("42000".equals(error.getSQLState())) {
+                        hasUdfIncrementMetric = false;
+                    }
+
+                } finally {
+                    database.closeConnection(connection);
+                }
+            }
+
+            if (hasUdfIncrementMetric) {
+                // dari_increment_metric() does NOT shift the decimal place for us.
+                long adjustedAmount = (long) (amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT);
+                sql.append("dari_increment_metric(");
+                sql.append(columnIdentifier);
+                sql.append(',');
+                if (increment) { // increment
+                    // cumulativeAmount should always be incremented
+                    appendBindValue(sql, adjustedAmount, parameters);
+                    sql.append(',');
+                    if (updateFuture) {
+                        // if we're updating future rows, only update the interval amount if it's the exact eventDate
+                        sql.append("IF (");
+                            appendIdentifier(sql, columnIdentifier);
+                            sql.append(" LIKE ");
+                                sql.append(" CONCAT(");
+                                    appendMetricBinEncodeTimestampSql(sql, parameters, eventDate, null);
+                                sql.append(", '%')");
+                                sql.append(","); // if it's the exact date, then update the amount
+                                appendBindValue(sql, adjustedAmount, parameters);
+                                sql.append(","); // if it's a date in the future, leave the date alone
+                                appendBindValue(sql, 0, parameters);
+                        sql.append(")");
+                    } else {
+                        appendBindValue(sql, adjustedAmount, parameters);
+                    }
+                } else { // only used for set, not increment
+                    appendBindValue(sql, amount, parameters);
+                    sql.append(',');
+                    appendBindValue(sql, amount, parameters);
+                }
+                sql.append(")");
+            } else {
+                sql.append(" UNHEX(");
+                    sql.append("CONCAT(");
+                        // timestamp
+                        appendHexEncodeExistingTimestampSql(sql, columnIdentifier);
+                        sql.append(',');
+                        // cumulativeAmount and amount
+                        if (increment) {
+                            // cumulativeAmount should always be incremented
+                            appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.CUMULATIVEAMOUNT_POSITION, amount);
+                            sql.append(',');
+                            if (updateFuture) {
+                                // if we're updating future rows, only update the interval amount if it's the exact eventDate
+                                sql.append("IF (");
+                                    appendIdentifier(sql, columnIdentifier);
+                                    sql.append(" LIKE ");
+                                        sql.append(" CONCAT(");
+                                            appendMetricBinEncodeTimestampSql(sql, parameters, eventDate, null);
+                                        sql.append(", '%')");
+                                        sql.append(","); // if it's the exact date, then update the amount
+                                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                                        sql.append(","); // if it's a date in the future, leave the date alone
+                                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
+                                sql.append(")");
+                            } else {
+                                appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                            }
+                        } else {
+                            appendHexEncodeSetAmountSql(sql, parameters, amount);
+                            sql.append(',');
+                            appendHexEncodeSetAmountSql(sql, parameters, amount);
+                        }
+                    sql.append(" )");
                 sql.append(" )");
-            sql.append(" )");
+            }
         }
 
         @Override
@@ -731,7 +797,7 @@ public class SqlVendor {
         private void appendHexEncodeSetAmountSql(StringBuilder str, List<Object> parameters, double amount) {
             str.append("LPAD(");
                 str.append("HEX(");
-                    appendBindValue(str, (int) (amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
+                    appendBindValue(str, (long) (amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
                 str.append(" )");
             str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");
         }
@@ -783,7 +849,6 @@ public class SqlVendor {
                 str.append(" )");
             str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");
         }
-
 
         /* ******************* METRICS ******************* */
 
