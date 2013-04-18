@@ -19,9 +19,9 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.ConversionException;
+import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
@@ -47,8 +47,6 @@ public class State implements Map<String, Object> {
     public static final String REFERENCE_FIELD_QUERY_OPTION = "dari.referenceField";
 
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
 
     private static final int STATUS_FLAG_OFFSET = 16;
     private static final int STATUS_FLAG_MASK = -1 >>> STATUS_FLAG_OFFSET;
@@ -1291,6 +1289,12 @@ public class State implements Map<String, Object> {
         }
     }
 
+    private static final Converter CONVERTER; static {
+        CONVERTER = new Converter();
+        CONVERTER.putAllStandardFunctions();
+        CONVERTER.setThrowError(true);
+    }
+
     private void setJavaField(
             ObjectField field,
             Field javaField,
@@ -1304,7 +1308,7 @@ public class State implements Map<String, Object> {
 
         try {
             Type javaFieldType = javaField.getGenericType();
-            Exception fieldSetError = null;
+
             if ((!javaField.getType().isPrimitive() &&
                     !Number.class.isAssignableFrom(javaField.getType())) &&
                     (javaFieldType instanceof Class ||
@@ -1315,31 +1319,35 @@ public class State implements Map<String, Object> {
                 try {
                     javaField.set(object, value);
                     return;
-                } catch (IllegalArgumentException ex) {
-                    fieldSetError = ex;
+
+                } catch (IllegalArgumentException error) {
                 }
             }
-
-            Object converted = javaFieldType instanceof TypeVariable ? value : ObjectUtils.to(javaFieldType, value);
 
             try {
-                javaField.set(object, converted);
-            } catch (IllegalArgumentException error) {
-                converted = null;
-            }
+                javaField.set(object, javaFieldType instanceof TypeVariable ? value : CONVERTER.convert(javaFieldType, value));
 
-            if (converted == null) {
-                rawValues.put("dari.trash." + key, value);
-                if (LOGGER.isDebugEnabled()) {
-                    Class<?> valueClass = value != null ? value.getClass() : null;
-                    LOGGER.debug(String.format(
-                            "Can't convert [%s] of [%s] to [%s]!",
-                            value, valueClass, javaFieldType), fieldSetError);
+            } catch (Exception error) {
+                Throwable cause;
+
+                if (error instanceof ConversionException) {
+                    cause = error.getCause();
+
+                    if (cause == null) {
+                        cause = error;
+                    }
+
+                } else {
+                    cause = error;
                 }
+
+                rawValues.put("dari.trash." + key, value);
+                rawValues.put("dari.trashError." + key, cause.getClass().getName());
+                rawValues.put("dari.trashErrorMessage." + key, cause.getMessage());
             }
 
-        } catch (IllegalAccessException ex) {
-            throw new IllegalStateException(ex);
+        } catch (IllegalAccessException error) {
+            throw new IllegalStateException(error);
         }
     }
 
