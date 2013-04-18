@@ -9,14 +9,15 @@ CREATE TABLE Metric (
     dimensionId BINARY(16) NOT NULL,
     data BINARY(20) NOT NULL,
     PRIMARY KEY (symbolId, typeId, id, dimensionId, data),
-    KEY k_alldims (symbolId, typeId, id, data, dimensionId)
+    KEY k_metricAlldims (symbolId, typeId, id, data, dimensionId),
+    UNIQUE KEY k_metricUnique (symbolId, id, dimensionId, data(4))
 ) ENGINE=InnoDB DEFAULT CHARSET=binary;
 
 DROP TABLE IF EXISTS MetricDimension;
 CREATE TABLE MetricDimension (
     dimensionId BINARY(16) NOT NULL PRIMARY KEY,
     value VARBINARY(500) NOT NULL,
-    UNIQUE KEY k_value (value)
+    UNIQUE KEY k_metricDimensionValue (value)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC;
 
 CREATE OR REPLACE VIEW Metric_n AS

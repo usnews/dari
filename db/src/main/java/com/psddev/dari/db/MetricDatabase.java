@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.UuidUtils;
 
 import org.joda.time.DateTime;
@@ -599,17 +600,17 @@ class MetricDatabase {
         private static void doIncrementUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, double incrementAmount, long eventDate, boolean isImplicitEventDate) throws SQLException {
             Connection connection = db.openConnection();
             try {
-                List<Object> parameters = new ArrayList<Object>();
 
                 if (isImplicitEventDate) {
                     // If they have not passed in an eventDate, we can assume a couple of things:
                     // 1) The event date is the CURRENT date
                     // 2) There is NOT any FUTURE data
                     // 3) We CANNOT assume the row exists
+                    List<Object> updateParameters = new ArrayList<Object>();
 
                     // Try to do an update. This is the best case scenario, and does not require any reads.
-                    String sql = getUpdateSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
-                    int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                    String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
+                    int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
                     if (0 == rowsAffected) {
                         // There is no data for the current date. Now we have to read 
                         // the previous cumulative amount so we can insert a new row.
@@ -618,9 +619,10 @@ class MetricDatabase {
                         if (data != null) {
                             previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                         }
-                        parameters = new ArrayList<Object>();
-                        sql = getMetricInsertSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
-                        SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                        // Try to insert, if that fails then try the update again
+                        List<Object> insertParameters = new ArrayList<Object>();
+                        String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbol, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
+                        tryInsertThenUpdate(db, connection, insertSql, insertParameters, updateSql, updateParameters);
                     }
 
                 } else {
@@ -634,12 +636,19 @@ class MetricDatabase {
                         if (data != null) {
                             previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
                         }
-                        String sql = getMetricInsertSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
-                        SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+
+                        List<Object> insertParameters = new ArrayList<Object>();
+                        String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbol, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
+
+                        List<Object> updateParameters = new ArrayList<Object>();
+                        String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
+
+                        tryInsertThenUpdate(db, connection, insertSql, insertParameters, updateSql, updateParameters);
                     } else if (timestampFromBytes(data) == eventDate) {
                         // There is data for this eventDate; update it.
-                        String sql = getUpdateSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
-                        SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                        List<Object> updateParameters = new ArrayList<Object>();
+                        String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
+                        SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
                     } else { // if (timestampFromBytes(data) > eventDate)
                         // The max(eventDate) in the table is greater than our
                         // event date. If there exists a row in the past, UPDATE it
@@ -652,17 +661,40 @@ class MetricDatabase {
                             if (oldData != null) {
                                 previousCumulativeAmount = amountFromBytes(oldData, CUMULATIVEAMOUNT_POSITION);
                             }
-                            List<Object> parameters2 = new ArrayList<Object>();
-                            String sql2 = getMetricInsertSql(db, parameters2, id, typeId, symbol, dimensionId, 0, previousCumulativeAmount, eventDate);
-                            SqlDatabase.Static.executeUpdateWithList( connection, sql2, parameters2);
+                            List<Object> insertParameters = new ArrayList<Object>();
+                            String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbol, dimensionId, 0, previousCumulativeAmount, eventDate);
+
+                            tryInsertThenUpdate(db, connection, insertSql, insertParameters, null, null); // the UPDATE is going to be executed regardless of whether this fails - it's only inserting 0 anyway.
                         }
-                        String sql = getUpdateSql(db, parameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, true);
-                        SqlDatabase.Static.executeUpdateWithList( connection, sql, parameters);
+                        // Now update all the future rows.
+                        List<Object> updateParameters = new ArrayList<Object>();
+                        String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, true);
+                        SqlDatabase.Static.executeUpdateWithList( connection, updateSql, updateParameters);
                     }
                 }
 
             } finally {
                 db.closeConnection(connection);
+            }
+        }
+
+        // This is for the occasional race condition when we check for the existence of a row, it does not exist, then two threads try to insert at (almost) the same time.
+        private static void tryInsertThenUpdate(SqlDatabase db, Connection connection, String insertSql, List<Object> insertParameters, String updateSql, List<Object> updateParameters) throws SQLException {
+            try {
+                SqlDatabase.Static.executeUpdateWithList(connection, insertSql, insertParameters);
+            } catch (SQLException ex) {
+                if (db.getVendor().isDuplicateKeyException(ex)) {
+                    // Try the update again, maybe we lost a race condition.
+                    if (updateSql != null) {
+                        int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
+                        if (1 != rowsAffected) {
+                            // If THAT didn't work, of we somehow updated more than one row, just throw the original exception again; it is a legitimate unique key violation
+                            throw ex;
+                        }
+                    }
+                } else {
+                    throw ex;
+                }
             }
         }
 

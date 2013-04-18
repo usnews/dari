@@ -488,6 +488,10 @@ public class SqlVendor {
         appendIdentifier(builder, SqlDatabase.DATA_COLUMN);
     }
 
+    public boolean isDuplicateKeyException(SQLException ex) {
+        return "23000".equals(ex.getSQLState());
+    }
+
     /* ******************* METRICS ******************* */
     // These are all very vendor-specific.
     public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
@@ -541,6 +545,11 @@ public class SqlVendor {
         @Override
         protected void appendColumnTypePoint(StringBuilder builder) {
             builder.append("DOUBLE NOT NULL");
+        }
+
+        @Override
+        public boolean isDuplicateKeyException(SQLException ex) {
+            return "23001".equals(ex.getSQLState()) || "23505".equals(ex.getSQLState());
         }
     }
 
