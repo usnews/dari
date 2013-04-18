@@ -340,7 +340,11 @@ static long amount_from_bytes(const char *bytes, int offset) {
  *
  */
 char *dari_increment_metric(UDF_INIT *initid, UDF_ARGS *args, char *result,
-                     unsigned long *length, char *is_null, char *error) {
+                     unsigned long *length, char *is_null, char *message) {
+
+    if (args->lengths[0] < 20) {
+        return NULL;
+    }
 
     /* Data is in the format of:
      *
@@ -390,8 +394,11 @@ my_bool dari_increment_metric_init(UDF_INIT *initid, UDF_ARGS *args, char *messa
     }
 
     args->arg_type[0] = STRING_RESULT;
+    args->maybe_null[0] = 0;;
     args->arg_type[1] = REAL_RESULT;
+    args->maybe_null[1] = 0;;
     args->arg_type[2] = REAL_RESULT;
+    args->maybe_null[2] = 0;;
 
     initid->ptr = malloc(INCREMENT_BUFFER);
     initid->max_length = INCREMENT_BUFFER;
