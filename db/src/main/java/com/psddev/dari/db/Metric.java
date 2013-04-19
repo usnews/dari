@@ -81,7 +81,7 @@ public class Metric extends Record {
      * Returns the metric value associated with the main ({@code null})
      * dimension between the given {@code start} and {@code end}.
      */
-    public double get(DateTime start, DateTime end) {
+    public double getValue(DateTime start, DateTime end) {
         return getByDimensionBetween(null, start, end);
     }
 
@@ -89,7 +89,7 @@ public class Metric extends Record {
      * Returns the metric value associated with the main ({@code null})
      * dimension.
      */
-    public double get() {
+    public double getValue() {
         return getByDimensionBetween(null, null, null);
     }
 
