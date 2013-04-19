@@ -6,17 +6,11 @@ import java.util.Map;
 
 import org.joda.time.DateTime;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 
 public class Metric implements Recordable {
 
-    private static final int CACHE_SIZE = 50; // This is per State, it doesn't need to be big.
-
-    private transient final String metricFieldInternalName;
     private transient State state;
     private transient final ObjectField metricField;
     private transient final ObjectType recordType;
@@ -24,13 +18,8 @@ public class Metric implements Recordable {
 
     //private static final Logger LOGGER = LoggerFactory.getLogger(Metric.class);
 
-    private transient final Cache<String, Double> metricCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
-    private transient final Cache<String, Map<String, Double>> metricValuesCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
-    private transient final Cache<String, Map<DateTime, Double>> metricTimelineCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
-
     public Metric(State state, String metricFieldInternalName) {
         this.state = state;
-        this.metricFieldInternalName = metricFieldInternalName;
         this.recordType = ObjectType.getInstance(state.getOriginalObject().getClass());
         this.metricField = recordType.getField(metricFieldInternalName);
         this.metricDatabase = new MetricDatabase(state, metricField.getUniqueName());
@@ -52,12 +41,6 @@ public class Metric implements Recordable {
         return getState().as(modificationClass);
     }
 
-    private void clearCaches() {
-        metricCache.invalidateAll();
-        metricTimelineCache.invalidateAll();
-        metricValuesCache.invalidateAll();
-    }
-
     // Implicit null dimension
     public void increment(double amount) {
         incrementDimensionOnEventDate(null, amount, null);
@@ -76,7 +59,6 @@ public class Metric implements Recordable {
     // Explicit dimension
     public void incrementDimensionOnEventDate(String dimensionValue, double amount, DateTime eventDate) {
         try {
-            clearCaches();
             metricDatabase.setEventDate(eventDate);
             metricDatabase.incrementMetric(dimensionValue, amount);
         } catch (SQLException e) {
@@ -112,21 +94,13 @@ public class Metric implements Recordable {
 
     // Explicit dimension
     public double getDimensionValueBetween(String dimensionValue, DateTime startTimestamp, DateTime endTimestamp) {
-        final String cacheKey = "m:" + String.valueOf(dimensionValue) + ":" + String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
-        Double metricValue = metricCache.getIfPresent(cacheKey);
-        if (metricValue == null) {
-            try {
-                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
-                metricValue = metricDatabase.getMetric(dimensionValue);
-                if (metricValue == null) {
-                    metricValue = 0.0d;
-                }
-                metricCache.put(cacheKey, metricValue);
-            } catch (SQLException e) {
-                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
-            }
+        try {
+            metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+            Double metricValue = metricDatabase.getMetric(dimensionValue);
+            return metricValue == null ? 0.0 : metricValue;
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
         }
-        return metricValue;
     }
 
     // Implicit null dimension
@@ -156,21 +130,13 @@ public class Metric implements Recordable {
 
     // Explicit dimension
     public Map<DateTime, Double> getDimensionTimelineBetween(String dimensionValue, MetricInterval metricInterval, DateTime startTimestamp, DateTime endTimestamp) {
-        final String cacheKey = "m:"+String.valueOf(dimensionValue)+":"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
-        Map<DateTime, Double> metricTimeline = metricTimelineCache.getIfPresent(cacheKey);
-        if (metricTimeline == null) {
-            try {
-                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
-                metricTimeline = metricDatabase.getMetricTimeline(dimensionValue, metricInterval);
-                if (metricTimeline == null) {
-                    metricTimeline = new HashMap<DateTime, Double>();
-                }
-                metricTimelineCache.put(cacheKey, metricTimeline);
-            } catch (SQLException e) {
-                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetricTimeline() : " + e.getLocalizedMessage());
-            }
+        try {
+            metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+            Map<DateTime, Double> metricTimeline = metricDatabase.getMetricTimeline(dimensionValue, metricInterval);
+            return metricTimeline == null ? new HashMap<DateTime, Double>() : metricTimeline;
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetricTimeline() : " + e.getLocalizedMessage());
         }
-        return metricTimeline;
     }
 
     // Sum of all dimensions
@@ -185,21 +151,13 @@ public class Metric implements Recordable {
 
     // Sum of all dimensions
     public Map<DateTime, Double> getSumTimelineBetween(MetricInterval metricInterval, DateTime startTimestamp, DateTime endTimestamp) {
-        final String cacheKey = "s:"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp) + ":" + ( metricInterval == null ? "default" : metricInterval.getClass().getName());
-        Map<DateTime, Double> metricTimeline = metricTimelineCache.getIfPresent(cacheKey);
-        if (metricTimeline == null) {
-            try {
-                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
-                metricTimeline = metricDatabase.getMetricSumTimeline(metricInterval);
-                if (metricTimeline == null) {
-                    metricTimeline = new HashMap<DateTime, Double>();
-                }
-                metricTimelineCache.put(cacheKey, metricTimeline);
-            } catch (SQLException e) {
-                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
-            }
+        try {
+            metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+            Map<DateTime, Double> metricTimeline = metricDatabase.getMetricSumTimeline(metricInterval);
+            return metricTimeline == null ? new HashMap<DateTime, Double>() : metricTimeline;
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
         }
-        return metricTimeline;
     }
 
     // Sum of all dimensions
@@ -209,21 +167,13 @@ public class Metric implements Recordable {
 
     // Sum of all dimensions
     public double getSumBetween(DateTime startTimestamp, DateTime endTimestamp) {
-        final String cacheKey = "sum:"+String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
-        Double metricValue = metricCache.getIfPresent(cacheKey);
-        if (metricValue == null) {
-            try {
-                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
-                metricValue = metricDatabase.getMetricSum();
-                if (metricValue == null) {
-                    metricValue = 0.0d;
-                }
-                metricCache.put(cacheKey, metricValue);
-            } catch (SQLException e) {
-                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
-            }
+        try {
+            metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+            Double metricValue = metricDatabase.getMetricSum();
+            return metricValue == null ? 0.0 : metricValue;
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
         }
-        return metricValue;
     }
 
     // All dimensions
@@ -233,21 +183,13 @@ public class Metric implements Recordable {
 
     // All dimensions
     public Map<String, Double> getValuesBetween(DateTime startTimestamp, DateTime endTimestamp) {
-        final String cacheKey = String.valueOf(startTimestamp) + ":" + String.valueOf(endTimestamp);
-        Map<String, Double> metricValues = metricValuesCache.getIfPresent(cacheKey);
-        if (metricValues == null) {
-            try {
-                metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
-                metricValues = metricDatabase.getMetricValues();
-                if (metricValues == null) {
-                    metricValues = new HashMap<String, Double>();
-                }
-                metricValuesCache.put(cacheKey, metricValues);
-            } catch (SQLException e) {
-                throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
-            }
+        try {
+            metricDatabase.setQueryDateRange(startTimestamp, endTimestamp);
+            Map<String, Double> metricValues = metricDatabase.getMetricValues();
+            return metricValues == null ? new HashMap<String, Double>() : metricValues;
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
         }
-        return metricValues;
     }
 
     //////////////////////////////////////////////////
