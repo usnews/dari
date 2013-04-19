@@ -50,8 +50,6 @@ public class Metric extends Record {
      * dimension} and {@code time}. 
      *
      * @param dimension May be {@code null}.
-     * @param time If {@code null}, right now. This does not affect when the
-     *             row will actually be inserted into the database.
      */
     public void incrementDimensionEventually(double amount, String dimension) {
         metricDatabase.setEventDate(null);
