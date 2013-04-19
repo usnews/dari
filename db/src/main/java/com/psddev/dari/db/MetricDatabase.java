@@ -230,7 +230,7 @@ class MetricDatabase {
         return dimensionId;
     }
 
-    private UUID getDimensionId(String dimensionValue) throws SQLException {
+    public UUID getDimensionId(String dimensionValue) throws SQLException {
         if (dimensionValue == null || "".equals(dimensionValue)) {
             return UuidUtils.ZERO_UUID;
         }
