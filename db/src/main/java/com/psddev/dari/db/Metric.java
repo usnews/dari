@@ -21,22 +21,22 @@ public class Metric extends Record {
     }
 
     /**
-     * Increases the metric value by the given {@code amount} right now.
+     * Increases the metric value by the given {@code amount}.
      */
-    public void incrementNow(double amount) {
-        increment(amount, null, null);
+    public void increment(double amount) {
+        incrementDimensionAt(amount, null, null);
     }
 
     /**
      * Increases the metric value by the given {@code amount} and associate it
-     * with the given {@code dimension} and {@code date}.
+     * with the given {@code dimension} and {@code time}.
      *
      * @param dimension May be {@code null}.
      * @param date If {@code null}, right now.
      */
-    public void increment(double amount, String dimension, DateTime date) {
+    public void incrementDimensionAt(double amount, String dimension, DateTime time) {
         try {
-            metricDatabase.setEventDate(date);
+            metricDatabase.setEventDate(time);
             metricDatabase.incrementMetric(dimension, amount);
         } catch (SQLException e) {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.incrementMetric() : " + e.getLocalizedMessage());
