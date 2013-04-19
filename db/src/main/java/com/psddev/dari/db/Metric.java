@@ -3,6 +3,7 @@ package com.psddev.dari.db;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.joda.time.DateTime;
 
@@ -32,7 +33,7 @@ public class Metric extends Record {
      * with the given {@code dimension} and {@code time}.
      *
      * @param dimension May be {@code null}.
-     * @param date If {@code null}, right now.
+     * @param time If {@code null}, right now.
      */
     public void incrementDimensionAt(double amount, String dimension, DateTime time) {
         try {
@@ -41,6 +42,26 @@ public class Metric extends Record {
         } catch (SQLException e) {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.incrementMetric() : " + e.getLocalizedMessage());
         }
+    }
+
+    /**
+     * Asynchronously (within the next few seconds) increases the metric value
+     * by the given {@code amount} and associate it with the given {@code
+     * dimension} and {@code time}. 
+     *
+     * @param dimension May be {@code null}.
+     * @param time If {@code null}, right now. This does not affect when the
+     *             row will actually be inserted into the database.
+     */
+    public void incrementDimensionEventually(double amount, String dimension) {
+        metricDatabase.setEventDate(null);
+        UUID dimensionId;
+        try {
+            dimensionId = metricDatabase.getDimensionId(dimension);
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getDimensionId() : " + e.getLocalizedMessage());
+        }
+        MetricIncrementQueue.queueIncrement(metricDatabase, dimensionId, amount);
     }
 
     /** Deletes all metric values. */

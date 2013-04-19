@@ -63,20 +63,53 @@ class MetricDatabase {
         this.typeId = typeId;
     }
 
+    public MetricDatabase(UUID id, UUID typeId, String symbol) {
+        this(Database.Static.getFirst(SqlDatabase.class), id, typeId, symbol);
+    }
+
     public MetricDatabase(State state, String symbol) {
-        this(Database.Static.getFirst(SqlDatabase.class), state.getId(), state.getTypeId(), symbol);
+        this(state.getId(), state.getTypeId(), symbol);
     }
 
     public void setEventDateProcessor(MetricInterval processor) {
         this.eventDateProcessor = processor;
     }
 
-    private UUID getId() {
+    public UUID getId() {
         return id;
     }
 
-    private UUID getTypeId() {
+    public UUID getTypeId() {
         return typeId;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == null || !(other instanceof MetricDatabase)) {
+            return false;
+        }
+
+        if (getId().equals(((MetricDatabase) other).getId()) &&
+            getTypeId().equals(((MetricDatabase) other).getTypeId()) &&
+            getSymbolId() == ((MetricDatabase) other).getSymbolId() &&
+            getEventDate() == ((MetricDatabase) other).getEventDate()) {
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+    public String toKeyString() {
+        StringBuilder str = new StringBuilder();
+        str.append(getId());
+        str.append(":");
+        str.append(getTypeId());
+        str.append(":");
+        str.append(getSymbolId());
+        str.append(":");
+        str.append(getEventDate());
+        return str.toString();
     }
 
     public MetricInterval getEventDateProcessor() {
@@ -88,6 +121,10 @@ class MetricDatabase {
 
     public SqlDatabase getDatabase() {
         return db;
+    }
+
+    public int getSymbolId() {
+        return getQuery().getSymbolId();
     }
 
     private MetricQuery getQuery() {
@@ -151,9 +188,13 @@ class MetricDatabase {
     }
 
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
-        // find the metricId, it might be null
         if (amount == 0) return; // This actually causes some problems if it's not here
         Static.doIncrementUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), amount, getEventDate(), isImplicitEventDate);
+    }
+
+    public void incrementMetricByDimensionId(UUID dimensionId, Double amount) throws SQLException {
+        if (amount == 0) return; // This actually causes some problems if it's not here
+        Static.doIncrementUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), dimensionId, amount, getEventDate(), isImplicitEventDate);
     }
 
     public void setMetric(String dimensionValue, Double amount) throws SQLException {
