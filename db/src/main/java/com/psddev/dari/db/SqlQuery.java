@@ -537,10 +537,10 @@ class SqlQuery {
                     } else if (! recordMetricField.equals(mappedKey.getField())) {
                         throw new Query.NoFieldException(query.getGroup(), recordMetricField.getInternalName() + " AND " + mappedKey.getField().getInternalName());
                     }
-                    if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) { 
+                    if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                         recordMetricDatePredicates.add(predicate);
                         recordMetricParentDatePredicates.add(parentPredicate);
-                    } else if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) { 
+                    } else if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                         recordMetricDimensionPredicates.add(predicate);
                         recordMetricParentDimensionPredicates.add(parentPredicate);
                     } else {
@@ -919,7 +919,7 @@ class SqlQuery {
             statementBuilder = wrapperStatementBuilder;
 
             StringBuilder havingChildBuilder = new StringBuilder();
-            
+
             for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
                 addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
                 havingChildBuilder.append(" AND ");
@@ -1445,7 +1445,7 @@ class SqlQuery {
             //statementBuilder.append(" WHERE ");
 
             StringBuilder havingChildBuilder = new StringBuilder();
-            
+
             for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
                 addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
                 havingChildBuilder.append(" AND ");
@@ -1539,8 +1539,8 @@ class SqlQuery {
             } else {
                 String indexKey = mappedKeys.get(queryKey).getIndexKey(index);
                 if (indexKey != null &&
-                        indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index)) && 
-                        ((mappedKeys.get(queryKey).getHashAttribute() != null && mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) || 
+                        indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index)) &&
+                        ((mappedKeys.get(queryKey).getHashAttribute() != null && mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) ||
                          (mappedKeys.get(queryKey).getHashAttribute() == null && join.hashAttribute == null))) {
                     // If there's a #attribute on the mapped key, make sure we are returning the matching join.
                     return join;
@@ -1560,7 +1560,7 @@ class SqlQuery {
                 String indexKey = mappedKeys.get(queryKey).getIndexKey(index);
                 if (indexKey != null &&
                         indexKey.equals(mappedKeys.get(join.queryKey).getIndexKey(join.index)) &&
-                        ((mappedKeys.get(queryKey).getHashAttribute() != null && mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) || 
+                        ((mappedKeys.get(queryKey).getHashAttribute() != null && mappedKeys.get(queryKey).getHashAttribute().equals(join.hashAttribute)) ||
                          (mappedKeys.get(queryKey).getHashAttribute() == null && join.hashAttribute == null))) {
                     // If there's a #attribute on the mapped key, make sure we are returning the matching join.
                     return join;
@@ -1756,7 +1756,7 @@ class SqlQuery {
 
                 if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     String stringValue = null;
-                    if (value != null) 
+                    if (value != null)
                         stringValue = String.valueOf(value);
                     value = MetricDatabase.getDimensionIdByValue(stringValue);
 

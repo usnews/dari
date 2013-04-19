@@ -344,7 +344,7 @@ class MetricDatabase {
         }
 
         private static String getTimelineSql(SqlDatabase db, UUID id, UUID typeId, String symbol, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
-            
+
             SqlVendor vendor = db.getVendor();
 
             StringBuilder extraSelectSqlBuilder = new StringBuilder("MIN(");
@@ -363,7 +363,7 @@ class MetricDatabase {
         }
 
         private static String getSumTimelineSql(SqlDatabase db, UUID id, UUID typeId, String symbol, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
-            
+
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 
@@ -612,7 +612,7 @@ class MetricDatabase {
                     String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbol, dimensionId, incrementAmount, eventDate, true, false);
                     int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
                     if (0 == rowsAffected) {
-                        // There is no data for the current date. Now we have to read 
+                        // There is no data for the current date. Now we have to read
                         // the previous cumulative amount so we can insert a new row.
                         byte[] data = getDataByIdAndDimension(db, id, typeId, symbol, dimensionId, null, null);
                         double previousCumulativeAmount = 0.0d;
@@ -653,7 +653,7 @@ class MetricDatabase {
                         // The max(eventDate) in the table is greater than our
                         // event date. If there exists a row in the past, UPDATE it
                         // or if not, INSERT. Either way we will be updating future
-                        // data, so just INSERT with a value of 0 if necessary, then 
+                        // data, so just INSERT with a value of 0 if necessary, then
                         // UPDATE all rows.
                         byte[] oldData = getDataByIdAndDimension(db, id, typeId, symbol, dimensionId, null, eventDate);
                         if (oldData == null || timestampFromBytes(oldData) < eventDate) {

@@ -495,7 +495,7 @@ public class SqlVendor {
     /* ******************* METRICS ******************* */
     // These are all very vendor-specific.
     public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
-        // This DOES shift the decimal place and round to 6 places. 
+        // This DOES shift the decimal place and round to 6 places.
         // columnIdentifier is "`data`" or "MAX(`data`)" - already quoted if it needs to be
         throw new DatabaseException(this.getDatabase(), "Metrics is not fully implemented for this vendor.");
     }
@@ -506,7 +506,7 @@ public class SqlVendor {
         throw new DatabaseException(this.getDatabase(), "Metrics is not fully implemented for this vendor.");
     }
     public void appendMetricSelectTimestampSql(StringBuilder str, String columnIdentifier) {
-        // This does NOT shift the decimal place - the result will need to be multiplied 
+        // This does NOT shift the decimal place - the result will need to be multiplied
         // by MetricDatabase.DATE_DECIMAL_SHIFT to get a timestamp in milliseconds.
         // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
         throw new DatabaseException(this.getDatabase(), "Metrics is not fully implemented for this vendor.");
