@@ -11,9 +11,11 @@ public class Metric extends Record {
 
     private transient final MetricDatabase metricDatabase;
 
-    protected Metric(State state, String fieldInternalName) {
-        ObjectField field = state.getField(fieldInternalName);
-
+    /**
+     * @param state Can't be {@code null}.
+     * @param field Can't be {@code null}.
+     */
+    protected Metric(State state, ObjectField field) {
         this.metricDatabase = new MetricDatabase(state, field.getUniqueName());
         this.metricDatabase.setEventDateProcessor(field.as(MetricDatabase.FieldData.class).getEventDateProcessor());
     }

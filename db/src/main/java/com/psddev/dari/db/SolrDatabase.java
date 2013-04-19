@@ -1038,11 +1038,18 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         // Set up Metric fields
+        for (ObjectField field : getEnvironment().getFields()) {
+            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+            }
+        }
+
         ObjectType type = objectState.getType();
+
         if (type != null) {
             for (ObjectField field : type.getFields()) {
                 if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field.getInternalName()));
+                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
                 }
             }
         }

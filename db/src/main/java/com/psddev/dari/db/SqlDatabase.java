@@ -741,14 +741,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         // Set up Metric fields
         for (ObjectField field : getEnvironment().getFields()) {
             if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                objectState.putByPath(field.getInternalName(), new Metric(objectState, field.getInternalName()));
+                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
             }
         }
 
         if (type != null) {
             for (ObjectField field : type.getFields()) {
                 if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field.getInternalName()));
+                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
                 }
             }
 
