@@ -739,6 +739,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
         // Set up Metric fields
+        for (ObjectField field : getEnvironment().getFields()) {
+            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                objectState.putByPath(field.getInternalName(), new Metric(objectState, field.getInternalName()));
+            }
+        }
+
         if (type != null) {
             for (ObjectField field : type.getFields()) {
                 if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {

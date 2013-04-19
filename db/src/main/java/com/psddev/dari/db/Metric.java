@@ -9,36 +9,18 @@ import org.joda.time.DateTime;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 
-public class Metric implements Recordable {
+@Metric.Embedded
+public class Metric extends Record {
 
-    private transient State state;
     private transient final ObjectField metricField;
-    private transient final ObjectType recordType;
     private transient final MetricDatabase metricDatabase;
 
     //private static final Logger LOGGER = LoggerFactory.getLogger(Metric.class);
 
     public Metric(State state, String metricFieldInternalName) {
-        this.state = state;
-        this.recordType = ObjectType.getInstance(state.getOriginalObject().getClass());
-        this.metricField = recordType.getField(metricFieldInternalName);
+        this.metricField = state.getField(metricFieldInternalName);
         this.metricDatabase = new MetricDatabase(state, metricField.getUniqueName());
         this.metricDatabase.setEventDateProcessor(metricField.as(MetricDatabase.FieldData.class).getEventDateProcessor());
-    }
-
-    @Override
-    public void setState(State state) {
-        this.state = state;
-    }
-
-    @Override
-    public State getState() {
-        return this.state;
-    }
-
-    @Override
-    public <T> T as(Class<T> modificationClass) {
-        return getState().as(modificationClass);
     }
 
     // Implicit null dimension
