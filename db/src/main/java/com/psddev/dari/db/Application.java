@@ -62,14 +62,16 @@ public class Application extends Record {
                 Database database) {
 
             ObjectType type = database.getEnvironment().getTypeByClass(applicationClass);
-            T app = Query.from(applicationClass).using(database).first();
+            Query<T> query = Query.from(applicationClass).where("_type = ?", type.getId()).using(database);
+            query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
+            T app = query.first();
 
             if (app == null) {
                 DistributedLock lock = DistributedLock.Static.getInstance(database, applicationClass.getName());
                 lock.lock();
 
                 try {
-                    app = Query.from(applicationClass).using(database).first();
+                    app = query.first();
                     if (app == null) {
                         app = (T) type.createObject(null);
                         app.setName(type.getDisplayName());
