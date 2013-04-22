@@ -67,6 +67,7 @@ class SqlQuery {
     private final List<Predicate> recordMetricParentHavingPredicates = new ArrayList<Predicate>();
     private final List<Sorter> recordMetricSorters = new ArrayList<Sorter>();
     private ObjectField recordMetricField;
+    private Map<String, String> reverseAliasSql = new HashMap<String, String>();
 
     /**
      * Creates an instance that can translate the given {@code query}
@@ -588,6 +589,9 @@ class SqlQuery {
             }
 
             String joinValueField = join.getValueField(queryKey, comparisonPredicate);
+            if (reverseAliasSql.containsKey(joinValueField)) {
+                joinValueField = reverseAliasSql.get(joinValueField);
+            }
             String operator = comparisonPredicate.getOperator();
             StringBuilder comparisonBuilder = new StringBuilder();
             boolean hasMissing = false;
@@ -1164,7 +1168,10 @@ class SqlQuery {
 
         selectBuilder.append("SELECT ");
 
-        MetricDatabase.Static.appendSelectCalculatedAmountSql(selectBuilder, vendor, "minData", "maxData", true);
+        StringBuilder amountBuilder  = new StringBuilder();
+        MetricDatabase.Static.appendSelectCalculatedAmountSql(amountBuilder, vendor, "minData", "maxData", true);
+        selectBuilder.append(amountBuilder);
+        reverseAliasSql.put(metricField.getInternalName(), amountBuilder.toString());
 
         vendor.appendIdentifier(selectBuilder, metricField.getInternalName());
 
@@ -1770,7 +1777,7 @@ class SqlQuery {
                     }
                     if (value instanceof DateTime) value = ((DateTime) value).getMillis();
                     if (value instanceof Date) value = ((Date) value).getTime();
-                    vendor.appendMetricBinEncodeTimestampSql(builder, null, (Long) value, padChar);
+                    vendor.appendMetricEncodeTimestampSql(builder, null, (Long) value, padChar);
                     // Taking care of the appending since it is raw SQL; return here so it isn't appended again
                     return;
 

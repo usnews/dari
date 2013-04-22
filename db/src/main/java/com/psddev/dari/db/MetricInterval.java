@@ -25,8 +25,10 @@ public interface MetricInterval {
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
             if (vendor instanceof SqlVendor.MySQL)
                 return "%Y%m%d%H";
+            else if (vendor instanceof SqlVendor.PostgreSQL)
+                return "YYYYMMDDHH24";
             else
-                throw new DatabaseException(vendor.getDatabase(), "Metrics is not fully implemented for this vendor");
+                throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
         }
     }
 
@@ -38,8 +40,10 @@ public interface MetricInterval {
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
             if (vendor instanceof SqlVendor.MySQL)
                 return "%Y%m%d";
+            else if (vendor instanceof SqlVendor.PostgreSQL)
+                return "YYYYMMDD";
             else
-                throw new DatabaseException(vendor.getDatabase(), "Metrics is not fully implemented for this vendor");
+                throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
         }
     }
 
@@ -51,8 +55,10 @@ public interface MetricInterval {
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
             if (vendor instanceof SqlVendor.MySQL)
                 return "%Y%u";
+            else if (vendor instanceof SqlVendor.PostgreSQL)
+                return "YYYYWW";
             else
-                throw new DatabaseException(vendor.getDatabase(), "Metrics is not fully implemented for this vendor");
+                throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
         }
     }
 
@@ -64,8 +70,10 @@ public interface MetricInterval {
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
             if (vendor instanceof SqlVendor.MySQL)
                 return "%Y%m";
+            else if (vendor instanceof SqlVendor.PostgreSQL)
+                return "YYYYMM";
             else
-                throw new DatabaseException(vendor.getDatabase(), "Metrics is not fully implemented for this vendor");
+                throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
         }
     }
 
@@ -77,8 +85,10 @@ public interface MetricInterval {
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
             if (vendor instanceof SqlVendor.MySQL)
                 return "%Y";
+            else if (vendor instanceof SqlVendor.PostgreSQL)
+                return "YYYY";
             else
-                throw new DatabaseException(vendor.getDatabase(), "Metrics is not fully implemented for this vendor");
+                throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
         }
     }
 }

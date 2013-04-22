@@ -254,11 +254,7 @@ class MetricDatabase {
 
         // Methods that generate SQL statements
 
-        private static String getDataSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean selectMinData) {
-            return getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, selectMinData, null, null);
-        }
-
-        private static String getDataSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean selectMinData, String extraSelectSql, String extraGroupBySql) {
+        private static String getDataSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean selectMinData, boolean doDecodeToBytes, String extraSelectSql, String extraGroupBySql) {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 
@@ -269,15 +265,28 @@ class MetricDatabase {
                 sqlBuilder.append(", ");
             }
 
-            sqlBuilder.append("MAX(");
-            vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
-            sqlBuilder.append(") ");
+            StringBuilder maxDataBuilder = new StringBuilder("MAX(");
+            vendor.appendIdentifier(maxDataBuilder, METRIC_DATA_FIELD);
+            maxDataBuilder.append(")");
+            if (doDecodeToBytes) {
+                vendor.appendMetricDataBytes(sqlBuilder, maxDataBuilder.toString());
+            } else {
+                sqlBuilder.append(maxDataBuilder);
+            }
+            sqlBuilder.append(" ");
             vendor.appendIdentifier(sqlBuilder, "maxData");
 
             if (selectMinData) {
-                sqlBuilder.append(", MIN(");
-                vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
-                sqlBuilder.append(") ");
+                sqlBuilder.append(", ");
+                StringBuilder minDataBuilder = new StringBuilder("MIN(");
+                vendor.appendIdentifier(minDataBuilder, METRIC_DATA_FIELD);
+                minDataBuilder.append(")");
+                if (doDecodeToBytes) {
+                    vendor.appendMetricDataBytes(sqlBuilder, minDataBuilder.toString());
+                } else {
+                sqlBuilder.append(minDataBuilder);
+                }
+                sqlBuilder.append(" ");
                 vendor.appendIdentifier(sqlBuilder, "minData");
             }
 
@@ -314,14 +323,14 @@ class MetricDatabase {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(" <= ");
-                vendor.appendMetricBinEncodeTimestampSql(sqlBuilder, null, maxEventDate, 'F');
+                vendor.appendMetricEncodeTimestampSql(sqlBuilder, null, maxEventDate, 'F');
             }
 
             if (minEventDate != null) {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
                 sqlBuilder.append(" >= ");
-                vendor.appendMetricBinEncodeTimestampSql(sqlBuilder, null, minEventDate, '0');
+                vendor.appendMetricEncodeTimestampSql(sqlBuilder, null, minEventDate, '0');
             }
 
             if (dimensionId == null) {
@@ -342,7 +351,7 @@ class MetricDatabase {
         private static String getSumSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate) {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
-            String innerSql = getDataSql(db, id, typeId, symbolId, null, minEventDate, maxEventDate, true);
+            String innerSql = getDataSql(db, id, typeId, symbolId, null, minEventDate, maxEventDate, true, false, null, null);
 
             sqlBuilder.append("SELECT ");
             appendSelectCalculatedAmountSql(sqlBuilder, vendor, "minData", "maxData", true);
@@ -356,18 +365,20 @@ class MetricDatabase {
         private static String getDimensionsSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate) {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
-            String innerSql = getDataSql(db, id, typeId, symbolId, null, minEventDate, maxEventDate, true);
+            String innerSql = getDataSql(db, id, typeId, symbolId, null, minEventDate, maxEventDate, true, false, null, null);
 
             sqlBuilder.append("SELECT ");
-            vendor.appendIdentifier(sqlBuilder, "d");
-            sqlBuilder.append(".");
-            vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_VALUE_FIELD);
+            StringBuilder dimValField = new StringBuilder();
+            vendor.appendIdentifier(dimValField, "d");
+            dimValField.append(".");
+            vendor.appendIdentifier(dimValField, METRIC_DIMENSION_VALUE_FIELD);
+            sqlBuilder.append(vendor.convertRawToStringSql(METRIC_DIMENSION_VALUE_FIELD));
             sqlBuilder.append(", ");
             appendSelectCalculatedAmountSql(sqlBuilder, vendor, "minData", "maxData", true);
             sqlBuilder.append(" FROM (");
             sqlBuilder.append(innerSql);
             sqlBuilder.append(") x ");
-            sqlBuilder.append(" JOIN ");
+            sqlBuilder.append(" JOIN "); // This could be a left join if we want to include NULL dimension values in this query. 
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_TABLE);
             sqlBuilder.append(" ");
             vendor.appendIdentifier(sqlBuilder, "d");
@@ -388,7 +399,7 @@ class MetricDatabase {
             return sqlBuilder.toString();
         }
 
-        private static String getTimelineSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
+        private static String getTimelineSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval, boolean doDecodeToBytes) {
             
             SqlVendor vendor = db.getVendor();
 
@@ -402,9 +413,17 @@ class MetricDatabase {
             StringBuilder extraGroupBySqlBuilder = new StringBuilder();
             vendor.appendMetricDateFormatTimestampSql(extraGroupBySqlBuilder, METRIC_DATA_FIELD, metricInterval);
 
-            String sql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, true, extraSelectSqlBuilder.toString(), extraGroupBySqlBuilder.toString());
+            StringBuilder sqlBuilder = new StringBuilder();
+            String innerSql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, true, doDecodeToBytes, extraSelectSqlBuilder.toString(), extraGroupBySqlBuilder.toString());
+            sqlBuilder.append(innerSql);
+            sqlBuilder.append(" ORDER BY ");
+            if (dimensionId == null) {
+                vendor.appendIdentifier(sqlBuilder, "dimensionId");
+                sqlBuilder.append(", ");
+            }
+            vendor.appendIdentifier(sqlBuilder, "eventDate");
 
-            return sql;
+            return sqlBuilder.toString();
         }
 
         private static String getSumTimelineSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
@@ -412,7 +431,7 @@ class MetricDatabase {
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 
-            String innerSql = getTimelineSql(db, id, typeId, symbolId, null, minEventDate, maxEventDate, metricInterval);
+            String innerSql = getTimelineSql(db, id, typeId, symbolId, null, minEventDate, maxEventDate, metricInterval, false);
 
             sqlBuilder.append("SELECT ");
             appendSelectCalculatedAmountSql(sqlBuilder, vendor, "minData", "maxData", true);
@@ -422,6 +441,9 @@ class MetricDatabase {
             sqlBuilder.append(innerSql);
             sqlBuilder.append(") x");
             sqlBuilder.append(" GROUP BY ");
+            vendor.appendIdentifier(sqlBuilder, "eventDate");
+
+            sqlBuilder.append(" ORDER BY ");
             vendor.appendIdentifier(sqlBuilder, "eventDate");
 
             return sqlBuilder.toString();
@@ -463,11 +485,11 @@ class MetricDatabase {
             if (updateFuture) {
                 // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
                 updateBuilder.append(" >= ");
-                vendor.appendMetricBinEncodeTimestampSql(updateBuilder, parameters, eventDate, '0');
+                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, '0');
             } else {
                 updateBuilder.append(" LIKE ");
                 updateBuilder.append(" CONCAT(");
-                vendor.appendMetricBinEncodeTimestampSql(updateBuilder, parameters, eventDate, null);
+                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, null);
                 updateBuilder.append(", '%')");
             }
 
@@ -484,18 +506,17 @@ class MetricDatabase {
             cols.put(METRIC_TYPE_FIELD, typeId);
             cols.put(METRIC_SYMBOL_FIELD, symbolId);
             cols.put(METRIC_DIMENSION_FIELD, dimensionId);
-            cols.put(METRIC_DATA_FIELD, toBytes(eventDate, cumulativeAmount, amount));
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendIdentifier(insertBuilder, entry.getKey());
                 insertBuilder.append(", ");
             }
-            insertBuilder.setLength(insertBuilder.length()-2);
+            vendor.appendIdentifier(insertBuilder, METRIC_DATA_FIELD);
             insertBuilder.append(") VALUES (");
             for (Map.Entry<String, Object> entry : cols.entrySet()) {
                 vendor.appendBindValue(insertBuilder, entry.getValue(), parameters);
                 insertBuilder.append(", ");
             }
-            insertBuilder.setLength(insertBuilder.length()-2);
+            vendor.appendBindMetricBytes(insertBuilder, toBytes(eventDate, cumulativeAmount, amount), parameters);
             insertBuilder.append(")");
             return insertBuilder.toString();
         }
@@ -834,7 +855,7 @@ class MetricDatabase {
         }
 
         private static Map<DateTime, Double> getMetricTimelineByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) throws SQLException {
-            String sql = getTimelineSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, metricInterval);
+            String sql = getTimelineSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, metricInterval, true);
             Map<DateTime, Double> values = new LinkedHashMap<DateTime, Double>();
             Connection connection = db.openReadConnection();
             try {
@@ -885,7 +906,7 @@ class MetricDatabase {
         */
 
         private static byte[] getDataByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate) throws SQLException {
-            String sql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, false);
+            String sql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, false, true, null, null);
             byte[] data = null;
             Connection connection = db.openReadConnection();
             try {
@@ -902,7 +923,7 @@ class MetricDatabase {
 
         private static List<byte[]> getMinMaxDataByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate) throws SQLException {
             List<byte[]> datas = new ArrayList<byte[]>();
-            String sql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, true);
+            String sql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, true, true, null, null);
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
@@ -924,7 +945,7 @@ class MetricDatabase {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
                 if (result.next()) {
-                   return UuidUtils.fromBytes(result.getBytes(1));
+                    return db.getVendor().getUuid(result, 1);
                 }
             } finally {
                 db.closeConnection(connection);
