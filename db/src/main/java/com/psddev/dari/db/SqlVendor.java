@@ -492,6 +492,10 @@ public class SqlVendor {
         return "23000".equals(ex.getSQLState());
     }
 
+    public String convertRawToStringSql(String field) {
+        return "CONVERT(" + field + " USING utf8)";
+    }
+
     /* ******************* METRICS ******************* */
     // These are all very vendor-specific.
     public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
@@ -944,6 +948,11 @@ public class SqlVendor {
             if (uuid != null && parameters != null) {
                 parameters.add(uuid);
             }
+        }
+
+        @Override
+        public String convertRawToStringSql(String field) {
+            return "ENCODE(" + field + ", 'ESCAPE')";
         }
     }
 

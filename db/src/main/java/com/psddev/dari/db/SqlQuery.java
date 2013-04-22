@@ -1830,7 +1830,7 @@ class SqlQuery {
             }
 
             if (comparison != null && comparison.isIgnoreCase()) {
-                field = "LOWER(CONVERT(" + field + " USING utf8))";
+                field = "LOWER(" + vendor.convertRawToStringSql(field) + ")";
             }
 
             return field;
