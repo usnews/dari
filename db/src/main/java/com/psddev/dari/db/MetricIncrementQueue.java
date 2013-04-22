@@ -26,21 +26,18 @@ class MetricIncrementQueue {
 
     private static void putInMap(MetricDatabase metricDatabase, UUID dimensionId, double amount) {
 
-        int tries = 100;
         String key = getKey(metricDatabase, dimensionId);
         QueuedMetricIncrement placeholder = new QueuedMetricIncrement(metricDatabase, dimensionId, 0d);
-        for (int i = 0; i < tries; i++) { // if we can't get it in 100 tries, throw an exception to avoid something bad happening. This shouldn't ever happen.
+        while (true) {
             QueuedMetricIncrement current = queuedIncrements.putIfAbsent(key, placeholder);
             if (current == null) current = placeholder; 
             QueuedMetricIncrement next = new QueuedMetricIncrement(metricDatabase, dimensionId, current.amount + amount);
             if (queuedIncrements.replace(key, current, next)) {
                 return;
             } else {
-                // LOGGER.info("TRYING AGAIN FOR THE "+(i+1)+"ST TIME");
                 continue;
             }
         }
-        throw new RuntimeException("MetricIncrementQueue.queueIncrement() wasn't able to increment the value in the ConcurrentHashMap in " + tries + " tries.");
 
     }
 
