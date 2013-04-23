@@ -137,6 +137,9 @@ class MetricDatabase {
             eventDate = new DateTime();
             isImplicitEventDate = true;
         } else {
+            if (eventDate.getMillis() > new DateTime().getMillis()) {
+                throw new RuntimeException("Metric.eventDate may not be a date in the future.");
+            }
             isImplicitEventDate = false;
         }
         this.eventDate = getEventDateProcessor().process(eventDate);
