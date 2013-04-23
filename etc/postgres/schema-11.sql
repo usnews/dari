@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS Record (
 CREATE INDEX k_record_id ON Record (id);
 CREATE VIEW Record_d AS SELECT id, typeId, CONVERT_FROM(data, 'UTF-8') AS data FROM Record;
 
+CREATE EXTENSION postgis; 
+
 CREATE TABLE IF NOT EXISTS RecordLocation2 (
     id UUID NOT NULL,
     symbolId INT NOT NULL,
@@ -57,4 +59,4 @@ CREATE TABLE IF NOT EXISTS Symbol (
     PRIMARY KEY (symbolId)
 );
 CREATE UNIQUE INDEX k_symbol_value ON Symbol (value);
-CREATE VIEW Symbol_d AS SELECT symbolId, CONVERT_FROM(value, 'UTF-8') AS value FROM RecordString3;
+CREATE VIEW Symbol_d AS SELECT symbolId, CONVERT_FROM(value, 'UTF-8') AS value FROM Symbol;
