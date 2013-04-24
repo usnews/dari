@@ -127,6 +127,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private List<String> fields;
     private transient Database database;
     private boolean isResolveToReferenceOnly;
+    private boolean noCache;
     private Double timeout;
     private transient Map<String, Object> options;
     private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
@@ -289,6 +290,22 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public void setResolveToReferenceOnly(boolean isResolveToReferenceOnly) {
         this.isResolveToReferenceOnly = isResolveToReferenceOnly;
+    }
+
+    /**
+     * Returns {@code true} if the result of this query can be cached and it
+     * can return a cached result.
+     */
+    public boolean isCache() {
+        return !noCache;
+    }
+
+    /**
+     * Sets whether the result of this query can be cached and it can return
+     * a cached result.
+     */
+    public void setCache(boolean cache) {
+        this.noCache = !cache;
     }
 
     public Double getTimeout() {
@@ -556,6 +573,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public Query<E> resolveToReferenceOnly() {
         setResolveToReferenceOnly(true);
+        return this;
+    }
+
+    public Query<E> noCache() {
+        setCache(false);
         return this;
     }
 

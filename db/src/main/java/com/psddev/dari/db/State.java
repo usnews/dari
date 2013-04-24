@@ -418,6 +418,9 @@ public class State implements Map<String, Object> {
         } else if (value instanceof Query) {
             return ((Query<?>) value).getState().getSimpleValues();
 
+        } else if (value instanceof Metric) {
+            return null;
+
         } else if (value instanceof Recordable) {
             State valueState = ((Recordable) value).getState();
             if (valueState.isNew()) {

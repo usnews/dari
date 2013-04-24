@@ -100,6 +100,7 @@ public class DistributedLock implements Lock {
                         from(Object.class).
                         where("_id = ?", keyId).
                         using(database).
+                        noCache().
                         first());
 
             } finally {
@@ -183,13 +184,25 @@ public class DistributedLock implements Lock {
         synchronized (holderRef) {
             try {
                 LOGGER.debug("Releasing [{}]", this);
-                State key = State.getInstance(Query.
-                        from(Object.class).
-                        where("_id = ?", keyId).
-                        using(database).
-                        first());
-                if (key != null && lockId.equals(key.get("lockId"))) {
-                    key.deleteImmediately();
+
+                boolean oldIgnore = Database.Static.isIgnoreReadConnection();
+                State key;
+
+                try {
+                    Database.Static.setIgnoreReadConnection(true);
+                    key = State.getInstance(Query.
+                            from(Object.class).
+                            where("_id = ?", keyId).
+                            using(database).
+                            noCache().
+                            first());
+
+                    if (key != null && lockId.equals(key.get("lockId"))) {
+                        key.deleteImmediately();
+                    }
+
+                } finally {
+                    Database.Static.setIgnoreReadConnection(oldIgnore);
                 }
 
             } finally {

@@ -16,7 +16,7 @@ public class Metric extends Record {
      * @param state Can't be {@code null}.
      * @param field Can't be {@code null}.
      */
-    protected Metric(State state, ObjectField field) {
+    public Metric(State state, ObjectField field) {
         this.metricDatabase = new MetricDatabase(state, field.getUniqueName());
         this.metricDatabase.setEventDateProcessor(field.as(MetricDatabase.FieldData.class).getEventDateProcessor());
     }

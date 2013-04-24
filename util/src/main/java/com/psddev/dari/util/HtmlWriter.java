@@ -111,6 +111,18 @@ public class HtmlWriter extends Writer {
     }
 
     /**
+     * Writes the given {@code object} as a string without any escaping.
+     *
+     * @param object If {@code null}, writes nothing.
+     */
+    public HtmlWriter writeRaw(Object object) throws IOException {
+        if (object != null) {
+            write(object.toString());
+        }
+        return this;
+    }
+
+    /**
      * Writes the given {@code tag} with the given {@code attributes}.
      *
      * <p>This method doesn't keep state, so it should be used with doctype
@@ -329,6 +341,12 @@ public class HtmlWriter extends Writer {
                 "overflow", "hidden",
                 "visibility", "hidden");
 
+        writeCss(".dari-grid-mw",
+                "height", 0);
+
+        writeCss(".dari-grid-mh",
+                "width", 0);
+
         for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context, request).entrySet()) {
             write("\n\n");
 
@@ -372,6 +390,22 @@ public class HtmlWriter extends Writer {
                             "height", adjustment.height != null ? adjustment.height : "auto",
                             "margin", adjustment.getMargin(unit),
                             "width", adjustment.width != null ? adjustment.width : "auto");
+                    write(cssSuffix);
+                }
+
+                for (CssUnit width : area.width.getAll()) {
+                    String unit = width.getUnit();
+
+                    if (!"fr".equals(unit)) {
+                        writeCss(gridSelector + " .dari-grid-mw-" + unit + selectorSuffix,
+                                "padding-left", width);
+                        write(cssSuffix);
+                    }
+                }
+
+                for (CssUnit height : area.height.getAll()) {
+                    writeCss(gridSelector + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
+                            "padding-top", height);
                     write(cssSuffix);
                 }
             }
@@ -524,11 +558,13 @@ public class HtmlWriter extends Writer {
                     int i = 0;
 
                     for (CssUnit column : area.width.getAll()) {
-                        if (!"fr".equals(column.getUnit())) {
+                        String unit = column.getUnit();
+
+                        if (!"fr".equals(unit)) {
                             ++ i;
-                            writeStart("div", "style", cssString(
-                                    "padding-left", column,
-                                    "height", 0));
+                            writeStart("div",
+                                    "class", "dari-grid-mw dari-grid-mw-" + unit,
+                                    "data-grid-area", areaName);
                         }
                     }
 
@@ -547,9 +583,9 @@ public class HtmlWriter extends Writer {
 
                     for (CssUnit row : area.height.getAll()) {
                         ++ i;
-                        writeStart("div", "style", cssString(
-                                "padding-top", row,
-                                "width", 0));
+                        writeStart("div",
+                                "class", "dari-grid-mh dari-grid-mh-" + row.getUnit(),
+                                "data-grid-area", areaName);
                     }
 
                     for (; i > 0; -- i) {
