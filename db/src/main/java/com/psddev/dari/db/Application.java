@@ -63,7 +63,6 @@ public class Application extends Record {
 
             ObjectType type = database.getEnvironment().getTypeByClass(applicationClass);
             Query<T> query = Query.from(applicationClass).where("_type = ?", type.getId()).using(database);
-            query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
             T app = query.first();
 
             if (app == null) {
