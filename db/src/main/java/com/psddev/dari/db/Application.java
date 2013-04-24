@@ -70,7 +70,7 @@ public class Application extends Record {
                 lock.lock();
 
                 try {
-                    app = query.first();
+                    app = query.clone().noCache().first();
                     if (app == null) {
                         app = (T) type.createObject(null);
                         app.setName(type.getDisplayName());
