@@ -23,7 +23,7 @@ PaginatedResult<Article> result = Query.from(Article.class).using(caching).selec
  *
  * <p>These are some of the queries that won't trigger additional
  * reads in the delegate database:</p>
- * 
+ *
  * <ul>
  * <li>{@code Query.from(Article.class).using(caching).count()}</li>
  * <li>{@code Query.from(Article.class).using(caching).where("_id = ?", result.getItems().get(0));}</li>
@@ -93,6 +93,14 @@ public class CachingDatabase extends ForwardingDatabase {
 
     // --- ForwardingDatabase support ---
 
+    private boolean isCacheDisabled(Query<?> query) {
+        if (query.isCache()) {
+            return query.as(QueryOptions.class).isDisabled();
+        } else {
+            return true;
+        }
+    }
+
     private List<Object> findIdOnlyQueryValues(Query<?> query) {
         if (query.getSorters().isEmpty()) {
             Predicate predicate = query.getPredicate();
@@ -136,7 +144,7 @@ public class CachingDatabase extends ForwardingDatabase {
     @Override
     @SuppressWarnings("unchecked")
     public <T> List<T> readAll(Query<T> query) {
-        if (query.as(QueryOptions.class).isDisabled()) {
+        if (isCacheDisabled(query)) {
             return super.readAll(query);
         }
 
@@ -189,7 +197,7 @@ public class CachingDatabase extends ForwardingDatabase {
 
     @Override
     public long readCount(Query<?> query) {
-        if (query.as(QueryOptions.class).isDisabled()) {
+        if (isCacheDisabled(query)) {
             return super.readCount(query);
         }
 
@@ -227,7 +235,7 @@ public class CachingDatabase extends ForwardingDatabase {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T readFirst(Query<T> query) {
-        if (query.as(QueryOptions.class).isDisabled()) {
+        if (isCacheDisabled(query)) {
             return super.readFirst(query);
         }
 
@@ -265,7 +273,7 @@ public class CachingDatabase extends ForwardingDatabase {
     @Override
     @SuppressWarnings("unchecked")
     public <T> PaginatedResult<T> readPartial(Query<T> query, long offset, int limit) {
-        if (query.as(QueryOptions.class).isDisabled()) {
+        if (isCacheDisabled(query)) {
             return super.readPartial(query, offset, limit);
         }
 
@@ -295,7 +303,13 @@ public class CachingDatabase extends ForwardingDatabase {
         return (PaginatedResult<T>) result;
     }
 
-    /** {@link Query} options for {@link CachingDatabase}. */
+    /**
+     * {@link Query} options for {@link CachingDatabase}.
+     *
+     * @deprecated Use {@link Query#isCache}, {@link Query#noCache}, or
+     * {@link Query#setCache} instead.
+     */
+    @Deprecated
     @Modification.FieldInternalNamePrefix("caching.")
     public static class QueryOptions extends Modification<Query<?>> {
 
@@ -304,7 +318,10 @@ public class CachingDatabase extends ForwardingDatabase {
         /**
          * Returns {@code true} if the caching should be disabled when
          * running the query.
+         *
+         * @deprecated Use {@link Query#isCache} instead.
          */
+        @Deprecated
         public boolean isDisabled() {
             Boolean old = ObjectUtils.to(Boolean.class, getOriginalObject().getOptions().get(IS_DISABLED_QUERY_OPTION));
             return old != null ? old : disabled;
@@ -313,7 +330,11 @@ public class CachingDatabase extends ForwardingDatabase {
         /**
          * Sets whether the caching should be disabled when running
          * the query.
+         *
+         * @deprecated Use {@link Query#noCache} or {@link Query#setCache}
+         * instead.
          */
+        @Deprecated
         public void setDisabled(boolean disabled) {
             this.disabled = disabled;
         }
