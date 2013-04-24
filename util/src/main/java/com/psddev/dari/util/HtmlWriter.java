@@ -111,6 +111,18 @@ public class HtmlWriter extends Writer {
     }
 
     /**
+     * Writes the given {@code object} as a string without any escaping.
+     *
+     * @param object If {@code null}, writes nothing.
+     */
+    public HtmlWriter writeRaw(Object object) throws IOException {
+        if (object != null) {
+            write(object.toString());
+        }
+        return this;
+    }
+
+    /**
      * Writes the given {@code tag} with the given {@code attributes}.
      *
      * <p>This method doesn't keep state, so it should be used with doctype
