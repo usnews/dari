@@ -119,7 +119,7 @@ public class InputTag extends TagSupport {
                         formId = formTag.getId();
                     }
 
-                    LOGGER.warn("Could not write input field [{}] for form [{}]" +
+                    LOGGER.debug("Could not write input field [{}] for form [{}]" +
                             " because the writer or object is null",
                             new Object[] {name, formId});
                 }
