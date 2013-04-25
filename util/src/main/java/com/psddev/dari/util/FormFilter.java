@@ -47,6 +47,12 @@ public class FormFilter extends AbstractFilter {
                 request.setAttribute(FORM_RESULT_ATTRIBUTE, result);
 
                 if (JspUtils.isFinished(request, JspUtils.getHeaderResponse(request, response))) {
+
+                    // write out any contents of the response buffer and return
+                    String responseString = buffered.getResponseString();
+                    if (responseString.length() > 0) {
+                        response.getWriter().write(responseString);
+                    }
                     return;
                 }
 
@@ -54,8 +60,6 @@ public class FormFilter extends AbstractFilter {
                 throw e;
 
             } catch (Throwable throwable) {
-                throwable.printStackTrace(); // TODO: Remove debug statement
-
                 request.setAttribute(IS_FORM_SUCCESSFUL_ATTRIBUTE, Boolean.FALSE);
                 request.setAttribute(FORM_ERROR_ATTRIBUTE, throwable);
             }
