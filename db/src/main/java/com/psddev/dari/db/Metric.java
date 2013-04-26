@@ -82,8 +82,19 @@ public class Metric extends Record {
     /**
      * Returns the metric value associated with the main ({@code null})
      * dimension between the given {@code start} and {@code end}.
+     *
+     * @deprecated Use {@link #getValueBetween} instead.
      */
+    @Deprecated
     public double getValue(DateTime start, DateTime end) {
+        return getByDimensionBetween(null, start, end);
+    }
+
+    /**
+     * Returns the metric value associated with the main ({@code null})
+     * dimension between the given {@code start} and {@code end}.
+     */
+    public double getValueBetween(DateTime start, DateTime end) {
         return getByDimensionBetween(null, start, end);
     }
 
