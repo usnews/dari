@@ -113,6 +113,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     public static final String ID_KEY = "_id";
     public static final String TYPE_KEY = "_type";
     public static final String DIMENSION_KEY = "_dimension";
+    public static final String COUNT_KEY = "_count";
     public static final String ANY_KEY = "_any";
     public static final String METRIC_DATE_ATTRIBUTE = "date";
     public static final String METRIC_DIMENSION_ATTRIBUTE = "dimension";
@@ -825,6 +826,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         public static final MappedKey ID = new SpecialMappedKey(ObjectField.UUID_TYPE);
         public static final MappedKey TYPE = new SpecialMappedKey(ObjectField.UUID_TYPE);
         public static final MappedKey DIMENSION = new SpecialMappedKey(ObjectField.UUID_TYPE);
+        public static final MappedKey COUNT = new SpecialMappedKey(ObjectField.NUMBER_TYPE);
         public static final MappedKey ANY = new SpecialMappedKey(ObjectField.TEXT_TYPE);
 
         public String getIndexKey(ObjectIndex index);
@@ -852,6 +854,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         m.put(ID_KEY, MappedKey.ID);
         m.put(TYPE_KEY, MappedKey.TYPE);
         m.put(DIMENSION_KEY, MappedKey.DIMENSION);
+        m.put(COUNT_KEY, MappedKey.COUNT);
         m.put(ANY_KEY, MappedKey.ANY);
         SPECIAL_MAPPED_KEYS = m;
     }
@@ -1402,6 +1405,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             m.put("id", ID_KEY);
             m.put("typeId", TYPE_KEY);
             m.put("dimensionId", DIMENSION_KEY);
+            m.put("_count", COUNT_KEY);
             m.put("_fields", ANY_KEY);
             KEY_ALIASES = m;
         }
