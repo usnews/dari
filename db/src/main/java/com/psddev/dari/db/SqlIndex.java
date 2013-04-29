@@ -229,6 +229,9 @@ public enum SqlIndex {
                     }
 
                     return valueFieldName;
+                } else if (field != null &&
+                        field.as(SqlDatabase.FieldData.class).getIndexTableColumnName() != null) {
+                    return field.as(SqlDatabase.FieldData.class).getIndexTableColumnName();
                 }
             }
 
@@ -497,10 +500,10 @@ public enum SqlIndex {
          */
         public static SqlIndex getByIndex(ObjectIndex index) {
             List<String> fieldNames = index.getFields();
-            if (fieldNames.size() > 1) {
+            ObjectField field = index.getParent().getField(fieldNames.get(0));
+            if (fieldNames.size() > 1 || field.as(SqlDatabase.FieldData.class).getIndexTable() != null) {
                 return SqlIndex.CUSTOM;
             } else {
-                ObjectField field = index.getParent().getField(fieldNames.get(0));
                 String type = field != null ? field.getInternalItemType() : index.getType();
                 return getByType(type);
             }
@@ -540,7 +543,8 @@ public enum SqlIndex {
 
             for (ObjectStruct struct : structs) {
                 for (ObjectIndex index : struct.getIndexes()) {
-                    if (index.getFields().size() > 1) {
+                    ObjectField field = index.getParent().getField(index.getFields().get(0));
+                    if (index.getFields().size() > 1 || field.as(SqlDatabase.FieldData.class).getIndexTable() != null) {
                         customIndexes.add(index);
                     }
                 }

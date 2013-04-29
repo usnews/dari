@@ -11,6 +11,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Skeletal implementation of a storage item. Subclasses should further
  * implement the following:
@@ -21,6 +24,8 @@ import java.util.Map;
  * </ul>
  */
 public abstract class AbstractStorageItem implements StorageItem {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStorageItem.class);
 
     /**
      * Sub-setting key for the base URL that's used to construct the
@@ -218,7 +223,11 @@ public abstract class AbstractStorageItem implements StorageItem {
 
         if (listeners != null) {
             for (StorageItemListener listener : listeners) {
-                listener.afterSave(this);
+                try {
+                    listener.afterSave(this);
+                } catch (Exception error) {
+                    LOGGER.warn(String.format("Can't execute [%s] on [%s]!", listener, this), error);
+                }
             }
         }
     }

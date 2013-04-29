@@ -94,7 +94,7 @@ public class Stats {
      * @see #Stats(String, double, double, double...)
      */
     public Stats(String name) {
-        this(name, 86400.0, 1.0, 60.0, 600.0);
+        this(name, 3600.0, 5.0, 60.0, 600.0);
     }
 
     /**

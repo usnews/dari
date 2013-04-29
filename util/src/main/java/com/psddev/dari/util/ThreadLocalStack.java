@@ -2,6 +2,7 @@ package com.psddev.dari.util;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.NoSuchElementException;
 
 public class ThreadLocalStack<T> {
 
@@ -31,6 +32,16 @@ public class ThreadLocalStack<T> {
         return stack != null ? stack.peekFirst() : null;
     }
 
+    private T popReally(Deque<T> stack) {
+        T popped = stack.pollFirst();
+
+        if (stack.isEmpty()) {
+            stackLocal.remove();
+        }
+
+        return popped;
+    }
+
     public T pop() {
         Deque<T> stack = stackLocal.get();
 
@@ -38,9 +49,18 @@ public class ThreadLocalStack<T> {
             return null;
 
         } else {
-            T popped = stack.pollFirst();
-            stackLocal.remove();
-            return popped;
+            return popReally(stack);
+        }
+    }
+
+    public T popOrError() {
+        Deque<T> stack = stackLocal.get();
+
+        if (stack == null || stack.isEmpty()) {
+            throw new NoSuchElementException();
+
+        } else {
+            return popReally(stack);
         }
     }
 

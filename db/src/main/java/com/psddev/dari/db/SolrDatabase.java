@@ -1037,6 +1037,23 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             extras.put(NORMALIZED_SCORE_EXTRA, ((Number) score).floatValue() / maxScore);
         }
 
+        // Set up Metric fields
+        for (ObjectField field : getEnvironment().getFields()) {
+            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+            }
+        }
+
+        ObjectType type = objectState.getType();
+
+        if (type != null) {
+            for (ObjectField field : type.getFields()) {
+                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+                }
+            }
+        }
+
         return swapObjectType(query, object);
     }
 

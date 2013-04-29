@@ -213,17 +213,16 @@ abstract class StateValueUtils {
         try {
             return converter.toJavaValue(database, object, field, subType, value);
 
-        } catch (Exception ex) {
-            if (LOGGER.isDebugEnabled()) {
-                Class<?> valueClass = value != null ? value.getClass() : null;
-                LOGGER.debug(String.format(
-                        "Can't convert [%s] of [%s] to [%s]!",
-                        value, valueClass, type), ex);
+        } catch (Exception error) {
+            if (object != null) {
+                State state = State.getInstance(object);
+                String name = field.getInternalName();
+
+                state.put("dari.trash." + name, value);
+                state.put("dari.trashError." + name, error.getClass().getName());
+                state.put("dari.trashErrorMessage." + name, error.getMessage());
             }
 
-            if (object != null) {
-                State.getInstance(object).putValue("dari.trash." + field.getInternalName(), value);
-            }
             return null;
         }
     }

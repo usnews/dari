@@ -112,7 +112,10 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public static final String ID_KEY = "_id";
     public static final String TYPE_KEY = "_type";
+    public static final String DIMENSION_KEY = "_dimension";
     public static final String ANY_KEY = "_any";
+    public static final String METRIC_DATE_ATTRIBUTE = "date";
+    public static final String METRIC_DIMENSION_ATTRIBUTE = "dimension";
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
 
@@ -124,9 +127,10 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private List<String> fields;
     private transient Database database;
     private boolean isResolveToReferenceOnly;
+    private boolean noCache;
     private Double timeout;
     private transient Map<String, Object> options;
-    private transient HashSet<String> extraSourceColumns = new HashSet<String>();
+    private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
@@ -286,6 +290,22 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public void setResolveToReferenceOnly(boolean isResolveToReferenceOnly) {
         this.isResolveToReferenceOnly = isResolveToReferenceOnly;
+    }
+
+    /**
+     * Returns {@code true} if the result of this query can be cached and it
+     * can return a cached result.
+     */
+    public boolean isCache() {
+        return !noCache;
+    }
+
+    /**
+     * Sets whether the result of this query can be cached and it can return
+     * a cached result.
+     */
+    public void setCache(boolean cache) {
+        this.noCache = !cache;
     }
 
     public Double getTimeout() {
@@ -556,6 +576,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return this;
     }
 
+    public Query<E> noCache() {
+        setCache(false);
+        return this;
+    }
+
     public Query<E> timeout(Double timeout) {
         setTimeout(timeout);
         return this;
@@ -665,9 +690,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         ObjectType type;
         Set<ObjectType> subQueryTypes = null;
         String subQueryKey = null;
+        String hashAttribute = null;
 
         while (hasMore) {
             int slashAt = keyRest.indexOf('/');
+            int hashAt = keyRest.indexOf('#');
 
             if (slashAt < 0) {
                 keyFirst = keyRest;
@@ -676,6 +703,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             } else {
                 keyFirst = keyRest.substring(0, slashAt);
                 keyRest = keyRest.substring(slashAt + 1);
+            }
+
+            if (hashAt >= 0) {
+                keyFirst = keyRest.substring(0, hashAt);
+                hashAttribute = keyRest.substring(hashAt + 1);
             }
 
             type = environment.getTypeByName(keyFirst);
@@ -766,6 +798,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         standardMappedKey.indexes = indexes;
         standardMappedKey.subQueryTypes = subQueryTypes;
         standardMappedKey.subQueryKey = subQueryKey;
+        standardMappedKey.hashAttribute = hashAttribute;
         return standardMappedKey;
     }
 
@@ -791,6 +824,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         public static final MappedKey ID = new SpecialMappedKey(ObjectField.UUID_TYPE);
         public static final MappedKey TYPE = new SpecialMappedKey(ObjectField.UUID_TYPE);
+        public static final MappedKey DIMENSION = new SpecialMappedKey(ObjectField.UUID_TYPE);
         public static final MappedKey ANY = new SpecialMappedKey(ObjectField.TEXT_TYPE);
 
         public String getIndexKey(ObjectIndex index);
@@ -808,12 +842,16 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         public Query<?> getSubQueryWithComparison(ComparisonPredicate comparison);
 
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index);
+
+        public String getHashAttribute();
+
     }
 
     private static final Map<String, MappedKey> SPECIAL_MAPPED_KEYS; static {
         Map<String, MappedKey> m = new HashMap<String, MappedKey>();
         m.put(ID_KEY, MappedKey.ID);
         m.put(TYPE_KEY, MappedKey.TYPE);
+        m.put(DIMENSION_KEY, MappedKey.DIMENSION);
         m.put(ANY_KEY, MappedKey.ANY);
         SPECIAL_MAPPED_KEYS = m;
     }
@@ -824,6 +862,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         private Set<ObjectIndex> indexes;
         private Set<ObjectType> subQueryTypes;
         private String subQueryKey;
+        private String hashAttribute;
 
         public String getIndexKey(ObjectIndex index) {
             StringBuilder indexKeyBuilder = new StringBuilder();
@@ -930,6 +969,12 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
             return subQuery;
         }
+
+        @Override
+        public String getHashAttribute() {
+            if (hashAttribute == null) return null;
+            return hashAttribute.toLowerCase();
+        }
     }
 
     private static class SpecialMappedKey implements MappedKey {
@@ -977,6 +1022,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         @Override
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index) {
+            return null;
+        }
+
+        @Override
+        public String getHashAttribute() {
             return null;
         }
     }
@@ -1351,6 +1401,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             m.put("*", ANY_KEY);
             m.put("id", ID_KEY);
             m.put("typeId", TYPE_KEY);
+            m.put("dimensionId", DIMENSION_KEY);
             m.put("_fields", ANY_KEY);
             KEY_ALIASES = m;
         }
@@ -1419,7 +1470,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return this.facetedFields;
     }
 
-    public HashSet<String> getExtraSourceColumns() {
+    public Map<String, String> getExtraSourceColumns() {
         return this.extraSourceColumns;
     }
 

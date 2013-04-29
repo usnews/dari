@@ -171,6 +171,15 @@ public interface Recordable {
         double value();
     }
 
+    /** Specifies the field the metric is recorded in. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @ObjectField.AnnotationProcessorClass(MetricValueProcessor.class)
+    @Target(ElementType.FIELD)
+    public @interface MetricValue {
+        Class<? extends MetricInterval> interval() default MetricInterval.Hourly.class;
+    }
+
     /**
      * Specifies either the minimum numeric value or string length of the
      * target field.
@@ -277,7 +286,7 @@ public interface Recordable {
     }
 
     // --- Deprecated ---
-    //
+
     /** @deprecated Use {@link Denormalized} instead. */
     @Deprecated
     @Documented
@@ -589,6 +598,24 @@ class MaximumProcessor implements ObjectField.AnnotationProcessor<Annotation> {
         field.setMaximum(annotation instanceof Recordable.FieldMaximum ?
                 ((Recordable.FieldMaximum) annotation).value() :
                 ((Recordable.Maximum) annotation).value());
+    }
+}
+
+class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable.MetricValue> {
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
+        SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
+
+        fieldData.setIndexTable(MetricDatabase.METRIC_TABLE);
+        fieldData.setIndexTableColumnName(MetricDatabase.METRIC_DATA_FIELD);
+        fieldData.setIndexTableSameColumnNames(false);
+        fieldData.setIndexTableSource(true);
+        fieldData.setIndexTableReadOnly(true);
+
+        metricFieldData.setEventDateProcessorClass(annotation.interval());
+
+        metricFieldData.setMetricValue(true);
     }
 }
 
