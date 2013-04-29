@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -147,6 +148,14 @@ abstract class StateValueUtils {
                 }
                 for (UUID id : unresolvedIds) {
                     circularReferences.put(id, null);
+                }
+            }
+
+            for (Iterator<Map.Entry<UUID, Object>> i = references.entrySet().iterator(); i.hasNext(); ) {
+                Map.Entry<UUID, Object> entry = i.next();
+
+                if (!ObjectUtils.isBlank(State.getInstance(entry.getValue()).get("dari.visibilities"))) {
+                    entry.setValue(null);
                 }
             }
 
