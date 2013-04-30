@@ -922,13 +922,16 @@ public abstract class AbstractDatabase<C> implements Database {
         DatabaseEnvironment environment = getEnvironment();
 
         for (State state : states) {
-            state.clearAllErrors();
-
-            if (beforeLocks && !state.validate()) {
-                if (errors == null) {
-                    errors = new ArrayList<State>();
+            if (beforeLocks) {
+                if (!state.validate()) {
+                    if (errors == null) {
+                        errors = new ArrayList<State>();
+                    }
+                    errors.add(state);
                 }
-                errors.add(state);
+
+            } else {
+                state.clearAllErrors();
             }
 
             ObjectType type = state.getType();
