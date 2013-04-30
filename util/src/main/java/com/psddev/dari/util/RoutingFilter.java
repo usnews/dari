@@ -121,9 +121,11 @@ public class RoutingFilter extends AbstractFilter {
                 return "";
 
             } else {
+                application = StringUtils.removeEnd(StringUtils.ensureStart(application, "/"), "/");
                 application = Settings.getOrDefault(String.class, APPLICATION_PATH_SETTING_PREFIX + application, application);
+                application = StringUtils.removeEnd(StringUtils.ensureStart(application, "/"), "/");
 
-                return StringUtils.removeEnd(StringUtils.ensureStart(application, "/"), "/");
+                return application;
             }
         }
     }
