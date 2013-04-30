@@ -153,8 +153,10 @@ abstract class StateValueUtils {
 
             for (Iterator<Map.Entry<UUID, Object>> i = references.entrySet().iterator(); i.hasNext(); ) {
                 Map.Entry<UUID, Object> entry = i.next();
+                Object object = entry.getValue();
 
-                if (!ObjectUtils.isBlank(State.getInstance(entry.getValue()).get("dari.visibilities"))) {
+                if (object != null &&
+                        !ObjectUtils.isBlank(State.getInstance(object).get("dari.visibilities"))) {
                     entry.setValue(null);
                 }
             }
