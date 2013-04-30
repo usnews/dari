@@ -110,6 +110,24 @@ public class RoutingFilter extends AbstractFilter {
         String value();
     }
 
+    /** {@link RoutingFilter} utility methods. */
+    public static final class Static {
+
+        private Static() {
+        }
+
+        public static String getApplicationPath(String application) {
+            if (application == null) {
+                return "";
+
+            } else {
+                application = Settings.getOrDefault(String.class, APPLICATION_PATH_SETTING_PREFIX + application, application);
+
+                return StringUtils.removeEnd(StringUtils.ensureStart(application, "/"), "/");
+            }
+        }
+    }
+
     private class ServletWrapper implements ServletConfig {
 
         private final String application;
