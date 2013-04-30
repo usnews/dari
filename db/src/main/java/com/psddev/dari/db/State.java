@@ -1307,7 +1307,16 @@ public class State implements Map<String, Object> {
             }
 
             try {
-                javaField.set(object, javaFieldType instanceof TypeVariable ? value : CONVERTER.convert(javaFieldType, value));
+                if (javaFieldType instanceof TypeVariable) {
+                    javaField.set(object, value);
+
+                } else if (javaFieldType instanceof Class &&
+                        ((Class<?>) javaFieldType).isPrimitive()) {
+                    javaField.set(object, ObjectUtils.to(javaFieldType, value));
+
+                } else {
+                    javaField.set(object, CONVERTER.convert(javaFieldType, value));
+                }
 
             } catch (Exception error) {
                 Throwable cause;
