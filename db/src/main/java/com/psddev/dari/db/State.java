@@ -366,7 +366,7 @@ public class State implements Map<String, Object> {
             if (field == null) {
                 values.put(name, toSimpleValue(value, false));
 
-            } else if (value != null) {
+            } else if (value != null && !(value instanceof Metric)) {
                 values.put(name, toSimpleValue(value, field.isEmbedded()));
             }
         }
