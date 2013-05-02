@@ -15,12 +15,12 @@ class MetricIncrementQueue {
 
     private static final ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements = new ConcurrentHashMap<String, QueuedMetricIncrement>();;
 
-    public static void queueIncrement(MetricDatabase metricDatabase, UUID dimensionId, double amount) {
+    public static void queueIncrement(MetricDatabase metricDatabase, UUID dimensionId, double amount, double withinSeconds) {
 
         putInMap(metricDatabase, dimensionId, amount);
 
         // If the task is already running or has been scheduled, this won't do anything. 
-        MetricIncrementQueueTask.getInstance(queuedIncrements).schedule(1);
+        MetricIncrementQueueTask.getInstance(queuedIncrements).schedule(withinSeconds);
 
     }
 
