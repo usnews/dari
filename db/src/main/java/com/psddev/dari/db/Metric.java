@@ -50,9 +50,10 @@ public class Metric extends Record {
      * dimension} and {@code time}. 
      *
      * @param dimension May be {@code null}.
+     * @param time May be {@code null}.
      */
-    public void incrementDimensionEventually(double amount, String dimension) {
-        metricDatabase.setEventDate(null);
+    public void incrementDimensionEventually(double amount, String dimension, DateTime time) {
+        metricDatabase.setEventDate(time);
         UUID dimensionId;
         try {
             dimensionId = metricDatabase.getDimensionId(dimension);
