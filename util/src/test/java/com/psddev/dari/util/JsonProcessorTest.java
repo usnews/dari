@@ -15,7 +15,7 @@ public class JsonProcessorTest {
         object.string1 = "string1";
 
         assertEquals(
-                "{\"string1\":\"string1\"}",
+                "{\"string1\":\"string1\",\"string2\":null,\"string3\":null,\"date1\":null}",
                 processor.generate(object));
     }
 
@@ -29,7 +29,7 @@ public class JsonProcessorTest {
         object.string1 = "string1";
 
         assertEquals(
-                "{\n  \"string1\" : \"string1\"\n}",
+                "{\n  \"string1\" : \"string1\",\n  \"string2\" : null,\n  \"string3\" : null,\n  \"date1\" : null\n}",
                 processor.generate(object));
     }
 
@@ -85,7 +85,7 @@ public class JsonProcessorTest {
         object.string3 = "string3";
 
         assertEquals(
-                "{\"string1\":\"string1\",\"string3\":\"string3\"}",
+                "{\"date1\":null,\"string1\":\"string1\",\"string3\":\"string3\"}",
                 processor.generate(object));
     }
 
@@ -103,7 +103,7 @@ public class JsonProcessorTest {
         object.string1 = "string1";
 
         assertEquals(
-                "{\"foo\":\"string1\"}",
+                "{\"date1\":null,\"foo\":\"string1\",\"string2\":null,\"string3\":null}",
                 processor.generate(object));
     }
 
@@ -127,7 +127,7 @@ public class JsonProcessorTest {
         object.date1 = new Date();
 
         assertEquals(
-                "{\"date1\":" + object.date1.getTime() + "}",
+                "{\"date1\":" + object.date1.getTime() + ",\"string1\":null,\"string2\":null,\"string3\":null}",
                 processor.generate(object));
     }
 
