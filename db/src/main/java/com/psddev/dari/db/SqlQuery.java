@@ -928,23 +928,18 @@ class SqlQuery {
         StringBuilder statementBuilder = new StringBuilder();
         initializeClauses();
 
-        if (! recordMetricHavingPredicates.isEmpty()) {
-            statementBuilder.append("SELECT ");
-            if (needsDistinct) {
-                statementBuilder.append("DISTINCT ");
-            }
-            statementBuilder.append(recordIdField);
-            statementBuilder.append(", (");
-            appendSubqueryMetricSql(statementBuilder, recordMetricField);
-            statementBuilder.append(") AS ");
+        statementBuilder.append("SELECT COUNT(");
+        if (needsDistinct) {
+            statementBuilder.append("DISTINCT ");
+        }
+        statementBuilder.append(recordIdField);
+        statementBuilder.append(")");
+
+        // Metric sorters, dates, dimension specifiers, etc., don't apply; 
+        // only the HAVING will require a metric query
+        if (! recordMetricHavingPredicates.isEmpty()) { 
+            statementBuilder.append(", ");
             vendor.appendIdentifier(statementBuilder, recordMetricField.getInternalName());
-        } else {
-            statementBuilder.append("SELECT COUNT(");
-            if (needsDistinct) {
-                statementBuilder.append("DISTINCT ");
-            }
-            statementBuilder.append(recordIdField);
-            statementBuilder.append(")");
         }
 
         statementBuilder.append(" \nFROM ");
@@ -953,16 +948,15 @@ class SqlQuery {
         statementBuilder.append(aliasPrefix);
         statementBuilder.append("r");
         statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
-        statementBuilder.append(whereClause);
-
         if (! recordMetricHavingPredicates.isEmpty()) {
-
-            StringBuilder wrapperStatementBuilder = new StringBuilder();
-            wrapperStatementBuilder.append("SELECT COUNT(*) FROM (");
-            wrapperStatementBuilder.append(statementBuilder);
-            wrapperStatementBuilder.append(") d0 ");
-            statementBuilder = wrapperStatementBuilder;
-
+            statementBuilder.append(" \nJOIN (");
+            appendSubqueryMetricSql(statementBuilder, recordMetricField);
+            statementBuilder.append(") m \nON (");
+            appendSimpleOnClause(statementBuilder, vendor, "r", "id", "=", "m", "id");
+            statementBuilder.append(" AND ");
+            appendSimpleOnClause(statementBuilder, vendor, "r", "typeId", "=", "m", "typeId");
+            statementBuilder.append(")");
+            statementBuilder.append(whereClause);
             StringBuilder havingChildBuilder = new StringBuilder();
 
             for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
@@ -971,10 +965,12 @@ class SqlQuery {
             }
             if (havingChildBuilder.length() > 0) {
                 havingChildBuilder.setLength(havingChildBuilder.length()-5); // " AND "
-                statementBuilder.append(" WHERE ");
+                statementBuilder.append(" AND ");
                 statementBuilder.append(havingChildBuilder);
             }
 
+        } else {
+            statementBuilder.append(whereClause);
         }
         return statementBuilder.toString();
     }
@@ -1198,9 +1194,7 @@ class SqlQuery {
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
             whereBuilder.append(" AND ");
-            vendor.appendIdentifier(whereBuilder, MetricDatabase.METRIC_DIMENSION_FIELD);
-            whereBuilder.append(" = ");
-            vendor.appendValue(whereBuilder, MetricDatabase.getDimensionIdByValue(null));
+            appendSimpleWhereClause(whereBuilder, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
         }
 
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
@@ -1215,7 +1209,6 @@ class SqlQuery {
         }
 
         String innerSql = selectBuilder.toString() + " " + fromBuilder.toString() + " " + whereBuilder.toString() + " " + groupByBuilder.toString() + " " + havingBuilder.toString() + " " + orderByBuilder.toString();
-
 
         selectBuilder = new StringBuilder();
         fromBuilder = new StringBuilder();
@@ -1305,53 +1298,43 @@ class SqlQuery {
         String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         StringBuilder minData = new StringBuilder("MIN(");
-        vendor.appendIdentifier(minData, MetricDatabase.METRIC_TABLE);
+        vendor.appendIdentifier(minData, "r");
         minData.append(".");
         vendor.appendIdentifier(minData, MetricDatabase.METRIC_DATA_FIELD);
         minData.append(")");
 
         StringBuilder maxData = new StringBuilder("MAX(");
-        vendor.appendIdentifier(maxData, MetricDatabase.METRIC_TABLE);
+        vendor.appendIdentifier(maxData, "r");
         maxData.append(".");
         vendor.appendIdentifier(maxData, MetricDatabase.METRIC_DATA_FIELD);
         maxData.append(")");
 
         sql.append("SELECT ");
+        appendSimpleAliasedColumn(sql, vendor, "r", MetricDatabase.METRIC_ID_FIELD);
+        sql.append(", ");
+        appendSimpleAliasedColumn(sql, vendor, "r", MetricDatabase.METRIC_TYPE_FIELD);
+        sql.append(", ");
         MetricDatabase.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
+        sql.append(" ");
+        vendor.appendIdentifier(sql, metricField.getInternalName());
         sql.append(" FROM ");
         vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
-
-        sql.append(" WHERE ");
-        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
-        sql.append(".");
-        vendor.appendIdentifier(sql, MetricDatabase.METRIC_ID_FIELD);
-        sql.append(" = ");
+        sql.append(" ");
         vendor.appendIdentifier(sql, "r");
-        sql.append(".");
-        vendor.appendIdentifier(sql, "id");
+
+        // Apply the "main" JOINs
+        sql.append(fromClause);
+
+        // Apply the "main" WHERE clause
+        sql.append(whereClause);
 
         sql.append(" AND ");
-        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
-        sql.append(".");
-        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TYPE_FIELD);
-        sql.append(" = ");
-        vendor.appendIdentifier(sql, "r");
-        sql.append(".");
-        vendor.appendIdentifier(sql, "typeId");
-
-        sql.append(" AND ");
-        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
-        sql.append(".");
-        vendor.appendIdentifier(sql, MetricDatabase.METRIC_SYMBOL_FIELD);
-        sql.append(" = ");
-        vendor.appendValue(sql, database.getSymbolId(actionSymbol));
+        appendSimpleWhereClause(sql, vendor, "r", MetricDatabase.METRIC_SYMBOL_FIELD, "=", database.getSymbolId(actionSymbol));
 
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
             sql.append(" AND ");
-            vendor.appendIdentifier(sql, MetricDatabase.METRIC_DIMENSION_FIELD);
-            sql.append(" = ");
-            vendor.appendValue(sql, MetricDatabase.getDimensionIdByValue(null));
+            appendSimpleWhereClause(sql, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
         }
 
         // Apply deferred WHERE predicates (eventDates and metric Dimensions)
@@ -1364,10 +1347,12 @@ class SqlQuery {
             addWherePredicate(sql, recordMetricDimensionPredicates.get(i), recordMetricParentDimensionPredicates.get(i), false, false);
         }
 
-        //sql.append(" AND ");
-        //vendor.appendIdentifier(sql, MetricDatabase.METRIC_DIMENSION_FIELD);
-        //sql.append(" = ");
-        //vendor.appendValue(sql, dimensionId);
+        sql.append(" GROUP BY ");
+        appendSimpleAliasedColumn(sql, vendor, "r", MetricDatabase.METRIC_ID_FIELD);
+        sql.append(", ");
+        appendSimpleAliasedColumn(sql, vendor, "r", MetricDatabase.METRIC_TYPE_FIELD);
+        sql.append(", ");
+        appendSimpleAliasedColumn(sql, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD);
 
     }
 
@@ -1428,9 +1413,7 @@ class SqlQuery {
         }
 
         if (hasAnyDeferredMetricPredicates()) {
-            statementBuilder.append(", (");
-            appendSubqueryMetricSql(statementBuilder, recordMetricField);
-            statementBuilder.append(") AS ");
+            statementBuilder.append(", ");
             vendor.appendIdentifier(statementBuilder, recordMetricField.getInternalName());
             statementBuilder.append(" ");
             query.getExtraSourceColumns().put(recordMetricField.getInternalName(), recordMetricField.getInternalName());
@@ -1471,6 +1454,16 @@ class SqlQuery {
             vendor.appendIdentifier(statementBuilder, "id");
             statementBuilder.append(" = ru.");
             vendor.appendIdentifier(statementBuilder, "id");
+        }
+
+        if (hasAnyDeferredMetricPredicates()) {
+            statementBuilder.append(" \nJOIN (");
+            appendSubqueryMetricSql(statementBuilder, recordMetricField);
+            statementBuilder.append(") m \nON (");
+            appendSimpleOnClause(statementBuilder, vendor, "r", "id", "=", "m", "id");
+            statementBuilder.append(" AND ");
+            appendSimpleOnClause(statementBuilder, vendor, "r", "typeId", "=", "m", "typeId");
+            statementBuilder.append(")");
         }
 
         statementBuilder.append(fromClause);
@@ -1655,6 +1648,29 @@ class SqlQuery {
     public String getAliasPrefix() {
         return aliasPrefix;
     }
+
+    private void appendSimpleOnClause(StringBuilder sql, SqlVendor vendor, String leftTableAlias, String leftColumnName, String operator, String rightTableAlias, String rightColumnName) {
+        appendSimpleAliasedColumn(sql, vendor, leftTableAlias, leftColumnName);
+        sql.append(" ");
+        sql.append(operator);
+        sql.append(" ");
+        appendSimpleAliasedColumn(sql, vendor, rightTableAlias, rightColumnName);
+    }
+
+    private void appendSimpleWhereClause(StringBuilder sql, SqlVendor vendor, String leftTableAlias, String leftColumnName, String operator, Object value) {
+        appendSimpleAliasedColumn(sql, vendor, leftTableAlias, leftColumnName);
+        sql.append(" ");
+        sql.append(operator);
+        sql.append(" ");
+        vendor.appendValue(sql, value);
+    }
+
+    private void appendSimpleAliasedColumn(StringBuilder sql, SqlVendor vendor, String tableAlias, String columnName) {
+        vendor.appendIdentifier(sql, tableAlias);
+        sql.append(".");
+        vendor.appendIdentifier(sql, columnName);
+    }
+
 
     private class Join {
 
