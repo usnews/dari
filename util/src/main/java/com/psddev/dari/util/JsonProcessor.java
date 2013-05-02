@@ -319,12 +319,10 @@ public class JsonProcessor {
 
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             Object key = entry.getKey();
+
             if (key != null) {
-                Object value = entry.getValue();
-                if (value != null) {
-                    generator.writeFieldName(key.toString());
-                    writeAny(generator, transformedCache, value);
-                }
+                generator.writeFieldName(key.toString());
+                writeAny(generator, transformedCache, entry.getValue());
             }
         }
 

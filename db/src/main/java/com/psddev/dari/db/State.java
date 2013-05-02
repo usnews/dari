@@ -357,11 +357,20 @@ public class State implements Map<String, Object> {
      */
     public Map<String, Object> getSimpleValues() {
         Map<String, Object> values = new LinkedHashMap<String, Object>();
-        for (Map.Entry<String, Object> e : getValues().entrySet()) {
-            String name = e.getKey();
+
+        for (Map.Entry<String, Object> entry : getValues().entrySet()) {
+            String name = entry.getKey();
+            Object value = entry.getValue();
             ObjectField field = getField(name);
-            values.put(name, toSimpleValue(e.getValue(), field != null && field.isEmbedded()));
+
+            if (field == null) {
+                values.put(name, toSimpleValue(value, false));
+
+            } else if (value != null && !(value instanceof Metric)) {
+                values.put(name, toSimpleValue(value, field.isEmbedded()));
+            }
         }
+
         values.put(StateValueUtils.ID_KEY, getId().toString());
         values.put(StateValueUtils.TYPE_KEY, getTypeId().toString());
         return values;
@@ -1307,7 +1316,16 @@ public class State implements Map<String, Object> {
             }
 
             try {
-                javaField.set(object, javaFieldType instanceof TypeVariable ? value : CONVERTER.convert(javaFieldType, value));
+                if (javaFieldType instanceof TypeVariable) {
+                    javaField.set(object, value);
+
+                } else if (javaFieldType instanceof Class &&
+                        ((Class<?>) javaFieldType).isPrimitive()) {
+                    javaField.set(object, ObjectUtils.to(javaFieldType, value));
+
+                } else {
+                    javaField.set(object, CONVERTER.convert(javaFieldType, value));
+                }
 
             } catch (Exception error) {
                 Throwable cause;

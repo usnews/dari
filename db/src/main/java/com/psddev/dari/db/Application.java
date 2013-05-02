@@ -14,8 +14,10 @@ public class Application extends Record {
     public static final String MAIN_CLASS_SETTING = "dari/mainApplicationClass";
 
     @Indexed
+    @Required
     private String name;
 
+    @Deprecated
     private String url;
 
     /** Returns the name. */
@@ -28,12 +30,22 @@ public class Application extends Record {
         this.name = name;
     }
 
-    /** Returns the URL. */
+    /**
+     * Returns the URL.
+     *
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public String getUrl() {
         return url;
     }
 
-    /** Sets the URL. */
+    /**
+     * Sets the URL.
+     *
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public void setUrl(String url) {
         this.url = url;
     }

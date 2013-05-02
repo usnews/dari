@@ -66,7 +66,7 @@ public class StatsDebugServlet extends HttpServlet {
                             } else {
                                 for (Iterator<Double> i = measurement.getDurationAverages(0, begin, end).iterator(); i.hasNext(); ) {
                                     double average = i.next();
-                                    writer.write(Double.isNaN(average) ? "null" : String.valueOf(average * 1e3));
+                                    writer.write(Double.isNaN(average) ? "null" : String.valueOf(average * 5e3));
                                     if (i.hasNext()) {
                                         writer.write(",");
                                     }
@@ -153,7 +153,7 @@ public class StatsDebugServlet extends HttpServlet {
                 writeStart("script", "type", "text/javascript", "src", "/_resource/d3/cubism.v1.min.js").writeEnd();
                 writeStart("script", "type", "text/javascript");
                     write("var maxDataSize = 400;");
-                    write("var context = cubism.context().serverDelay(0).clientDelay(0).step(1e3).size(maxDataSize);");
+                    write("var context = cubism.context().serverDelay(0).clientDelay(0).step(5e3).size(maxDataSize);");
                 writeEnd();
 
                 for (Iterator<Stats> i = Stats.Static.getAll().iterator(); i.hasNext(); ) {
@@ -286,7 +286,7 @@ public class StatsDebugServlet extends HttpServlet {
                     if (Double.isNaN(duration)) {
                         writeStart("span", "class", "label").writeHtml("N/A").writeEnd();
                     } else {
-                        writeObject(duration * 1e3).writeHtml("ms");
+                        writeObject(duration * 5e3).writeHtml("ms");
                     }
                     if (link) {
                         writeEnd();

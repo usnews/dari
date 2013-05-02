@@ -544,7 +544,9 @@ public enum SqlIndex {
             for (ObjectStruct struct : structs) {
                 for (ObjectIndex index : struct.getIndexes()) {
                     ObjectField field = index.getParent().getField(index.getFields().get(0));
-                    if (index.getFields().size() > 1 || field.as(SqlDatabase.FieldData.class).getIndexTable() != null) {
+                    if (field != null &&
+                            (index.getFields().size() > 1 ||
+                            field.as(SqlDatabase.FieldData.class).getIndexTable() != null)) {
                         customIndexes.add(index);
                     }
                 }

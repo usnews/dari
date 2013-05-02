@@ -18,13 +18,48 @@ import javax.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * @see <a href="http://www.w3.org/TR/css3-grid-layout/">CSS Grid Layout</a>
+ */
 public class HtmlGrid {
 
     private final List<CssUnit> columns;
     private final List<CssUnit> rows;
     private final List<List<String>> template;
 
+    /**
+     * Creates an instance based on the given {@code columns}, {@code rows},
+     * and {@code template}.
+     *
+     * @param columns Can't be blank.
+     * @param rows Can't be blank.
+     * @param template Can't be blank.
+     */
+    public HtmlGrid(List<CssUnit> columns, List<CssUnit> rows, List<List<String>> template) {
+        ErrorUtils.errorIfBlank(columns, "columns");
+        ErrorUtils.errorIfBlank(rows, "rows");
+        ErrorUtils.errorIfBlank(template, "template");
+
+        this.columns = columns;
+        this.rows = rows;
+        this.template = template;
+    }
+
+    /**
+     * Creates an instance based on the given CSS {@code columnsString}
+     * ({@code grid-definition-columns}), {@code rowsString}
+     * ({@code grid-definition-rows}), and {@code templateStrings}
+     * ({@code grid-template}).
+     *
+     * @param columnsString Can't be {@code blank}.
+     * @param rowsString Can't be {@code blank}.
+     * @param templateStrings Can't be {@code blank}.
+     */
     public HtmlGrid(String columnsString, String rowsString, String... templateStrings) {
+        ErrorUtils.errorIfBlank(columnsString, "columnsString");
+        ErrorUtils.errorIfBlank(rowsString, "rowsString");
+        ErrorUtils.errorIfBlank(templateStrings, "templateStrings");
+
         columns = createCssUnits(columnsString);
         rows = createCssUnits(rowsString);
         template = new ArrayList<List<String>>();
