@@ -22,6 +22,7 @@ public class SmtpMailProvider extends AbstractMailProvider {
     private final static Logger logger = LoggerFactory.getLogger(SmtpMailProvider.class);
 
     private String host;
+    private int port = 25;
     private String username;
     private String password;
 
@@ -40,6 +41,14 @@ public class SmtpMailProvider extends AbstractMailProvider {
 
     public void setHost(String host) {
         this.host = host;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
     }
 
     public String getUsername() {
@@ -111,6 +120,7 @@ public class SmtpMailProvider extends AbstractMailProvider {
         Properties props = new Properties();
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.host", host);
+        props.put("mail.smtp.port", port);
 
         if (useTls) {
             props.put("mail.smtp.starttls.enable", "true");
