@@ -1152,9 +1152,24 @@ class SqlQuery {
      * of the given {@code groupFields}.
      */
     public String groupedMetricSql(String metricFieldName, String[] groupFields) {
-        String[] innerGroupByFields = Arrays.copyOf(groupFields, groupFields.length+2);
-        innerGroupByFields[groupFields.length] = Query.ID_KEY;
-        innerGroupByFields[groupFields.length+1] = Query.DIMENSION_KEY;
+        int addFields = 2;
+        boolean addIdField = true;
+        boolean addDimField = true;
+        for (int i = 0; i < groupFields.length; i++) {
+            if (Query.ID_KEY.equals(groupFields[i])) {
+                addFields--;
+                addIdField = false;
+            }
+            if (Query.DIMENSION_KEY.equals(groupFields[i])) {
+                addFields--;
+                addDimField = false;
+            }
+        }
+        String[] innerGroupByFields = Arrays.copyOf(groupFields, groupFields.length+addFields);
+        if (addIdField)
+            innerGroupByFields[groupFields.length] = Query.ID_KEY;
+        if (addDimField)
+            innerGroupByFields[groupFields.length+1] = Query.DIMENSION_KEY;
         // This prepares selectClause, et al.
         groupStatement(innerGroupByFields);
         return buildGroupedMetricSql(metricFieldName, groupFields, selectClause, fromClause, whereClause, groupByClause, orderByClause);
@@ -1180,6 +1195,14 @@ class SqlQuery {
         whereBuilder.append(" AND r."+MetricDatabase.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
+        // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
+        if (recordMetricDimensionPredicates.isEmpty()) {
+            whereBuilder.append(" AND ");
+            vendor.appendIdentifier(whereBuilder, MetricDatabase.METRIC_DIMENSION_FIELD);
+            whereBuilder.append(" = ");
+            vendor.appendValue(whereBuilder, MetricDatabase.getDimensionIdByValue(null));
+        }
+
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
             whereBuilder.append(" AND ");
@@ -1193,9 +1216,6 @@ class SqlQuery {
 
         String innerSql = selectBuilder.toString() + " " + fromBuilder.toString() + " " + whereBuilder.toString() + " " + groupByBuilder.toString() + " " + havingBuilder.toString() + " " + orderByBuilder.toString();
 
-        if (groupFields.length != groupBySelectColumnAliases.size()) {
-            throw new RuntimeException("groupFields.length is not the same as groupBySelectColumnAliases.size() - something went wrong internally.");
-        }
 
         selectBuilder = new StringBuilder();
         fromBuilder = new StringBuilder();
@@ -1213,12 +1233,26 @@ class SqlQuery {
 
         vendor.appendIdentifier(selectBuilder, metricField.getInternalName());
 
-        selectBuilder.append(", SUM(1");
-        //vendor.appendIdentifier(selectBuilder, "_count");
+        selectBuilder.append(", COUNT(");
+        vendor.appendIdentifier(selectBuilder, "id");
         selectBuilder.append(") ");
         vendor.appendIdentifier(selectBuilder, "_count");
 
+        List<String> groupBySelectColumns = new ArrayList<String>();
         for (String field : groupBySelectColumnAliases.values()) {
+            groupBySelectColumns.add(field);
+        }
+        // Special case for id and dimensionId
+        for (int i = 0; i < groupFields.length; i++) {
+            if (Query.ID_KEY.equals(groupFields[i])) {
+                groupBySelectColumns.add("id");
+            }
+            if (Query.DIMENSION_KEY.equals(groupFields[i])) {
+                groupBySelectColumns.add("dimensionId");
+            }
+        }
+
+        for (String field : groupBySelectColumns) {
             selectBuilder.append(", ");
             vendor.appendIdentifier(selectBuilder, field);
         }
@@ -1227,9 +1261,9 @@ class SqlQuery {
         fromBuilder.append(innerSql);
         fromBuilder.append(" ) x ");
 
-        if (groupBySelectColumnAliases.size() > 0) {
+        if (groupBySelectColumns.size() > 0) {
             groupByBuilder.append(" GROUP BY ");
-            for (String field : groupBySelectColumnAliases.values()) {
+            for (String field : groupBySelectColumns) {
                 if (groupByBuilder.length() > 10) {  // " GROUP BY ".length()
                     groupByBuilder.append(", ");
                 }
