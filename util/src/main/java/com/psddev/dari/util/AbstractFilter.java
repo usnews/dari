@@ -80,6 +80,13 @@ public abstract class AbstractFilter implements Filter {
     private static final String EXECUTED_MAP_ATTRIBUTE = ATTRIBUTE_PREFIX + "executedMap";
     private static final String FILTERS_ATTRIBUTE = ATTRIBUTE_PREFIX + "filters";
 
+    private static final PullThroughValue<Set<Class<? extends Auto>>> AUTO_CLASSES = new PullThroughValue<Set<Class<? extends Auto>>>() {
+        @Override
+        protected Set<Class<? extends Auto>> produce() {
+            return ObjectUtils.findClasses(Auto.class);
+        }
+    };
+
     private FilterConfig filterConfig;
     private ServletContext servletContext;
     private final List<Filter> initialized = new ArrayList<Filter>();
@@ -226,9 +233,20 @@ public abstract class AbstractFilter implements Filter {
         // Find all dependencies.
         List<Filter> dependencies = new ArrayList<Filter>();
         Iterable<Class<? extends Filter>> dependenciesIterable = dependencies();
+        List<Class<? extends Filter>> dependencyClasses = new ArrayList<Class<? extends Filter>>();
 
         if (dependenciesIterable != null) {
-            for (Class<? extends Filter> dependencyClass : dependenciesIterable) {
+            for (Class<? extends Filter> d : dependenciesIterable) {
+                dependencyClasses.add(d);
+            }
+        }
+
+        for (Class<? extends Auto> autoClass : AUTO_CLASSES.get()) {
+            getFilter(autoClass).updateDependencies(getClass(), dependencyClasses);
+        }
+
+        if (!dependencyClasses.isEmpty()) {
+            for (Class<? extends Filter> dependencyClass : dependencyClasses) {
                 if (executed.contains(dependencyClass)) {
                     continue;
                 }
@@ -316,7 +334,7 @@ public abstract class AbstractFilter implements Filter {
     }
 
     @SuppressWarnings("unchecked")
-    private Filter getFilter(Class<? extends Filter> filterClass) throws ServletException {
+    private <F extends Filter> F getFilter(Class<F> filterClass) throws ServletException {
         ServletContext context = getServletContext();
         Map<Class<? extends Filter>, Filter> filters = (Map<Class<? extends Filter>, Filter>) context.getAttribute(FILTERS_ATTRIBUTE);
 
@@ -345,7 +363,7 @@ public abstract class AbstractFilter implements Filter {
             }
         }
 
-        return filter;
+        return (F) filter;
     }
 
     private static boolean hasOverride(ConcurrentMap<Class<?>, Boolean> overrides, Class<?> filterClass, String methodName) {
@@ -517,6 +535,21 @@ public abstract class AbstractFilter implements Filter {
             throws Exception {
 
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Filter that can automatically configure itself based on other
+     * {@link AbstractFilter}s.
+     */
+    public interface Auto extends Filter {
+
+        /**
+         * Updates the given {@code dependencies} for the given
+         * {@code filterClass}.
+         */
+        public void updateDependencies(
+                Class<? extends AbstractFilter> filterClass,
+                List<Class<? extends Filter>> dependencies);
     }
 
     // Passes an alternate and unique view of the config to the filter
