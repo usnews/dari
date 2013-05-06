@@ -129,6 +129,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private transient Database database;
     private boolean isResolveToReferenceOnly;
     private boolean noCache;
+    private boolean master;
     private Double timeout;
     private transient Map<String, Object> options;
     private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
@@ -307,6 +308,20 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      */
     public void setCache(boolean cache) {
         this.noCache = !cache;
+    }
+
+    /**
+     * Returns {@code true} if this query will run on the master database.
+     */
+    public boolean isMaster() {
+        return master;
+    }
+
+    /**
+     * Sets whether this query will run on the master database.
+     */
+    public void setMaster(boolean master) {
+        this.master = master;
     }
 
     public Double getTimeout() {
@@ -579,6 +594,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public Query<E> noCache() {
         setCache(false);
+        return this;
+    }
+
+    public Query<E> master() {
+        setMaster(true);
         return this;
     }
 

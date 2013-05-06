@@ -51,6 +51,7 @@ public class State implements Map<String, Object> {
     private static final int ALL_RESOLVED_FLAG = 1 << 0;
     private static final int RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
     private static final int RESOLVE_WITHOUT_CACHE = 1 << 2;
+    private static final int RESOLVE_USING_MASTER = 1 << 3;
 
     private static final ThreadLocal<List<Listener>> LISTENERS_LOCAL = new ThreadLocal<List<Listener>>();
 
@@ -952,6 +953,18 @@ public class State implements Map<String, Object> {
             flags &= ~RESOLVE_WITHOUT_CACHE;
         } else {
             flags |= RESOLVE_WITHOUT_CACHE;
+        }
+    }
+
+    public boolean isResolveUsingMaster() {
+        return (flags & RESOLVE_USING_MASTER) > 0;
+    }
+
+    public void setResolveUsingMaster(boolean resolveUsingMaster) {
+        if (resolveUsingMaster) {
+            flags |= RESOLVE_USING_MASTER;
+        } else {
+            flags &= ~RESOLVE_USING_MASTER;
         }
     }
 

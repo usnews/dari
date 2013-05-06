@@ -141,8 +141,14 @@ abstract class StateValueUtils {
                         option(State.REFERENCE_FIELD_QUERY_OPTION, field).
                         option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds);
 
-                if (parentState != null && !parentState.isResolveUsingCache()) {
-                    query.setCache(false);
+                if (parentState != null) {
+                    if (!parentState.isResolveUsingCache()) {
+                        query.setCache(false);
+                    }
+
+                    if (parentState.isResolveUsingMaster()) {
+                        query.setMaster(true);
+                    }
                 }
 
                 for (Object object : query.selectAll()) {
