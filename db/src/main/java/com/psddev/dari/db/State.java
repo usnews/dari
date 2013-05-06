@@ -48,8 +48,9 @@ public class State implements Map<String, Object> {
 
     private static final int STATUS_FLAG_OFFSET = 16;
     private static final int STATUS_FLAG_MASK = -1 >>> STATUS_FLAG_OFFSET;
-    private static final int IS_ALL_RESOLVED_FLAG = 1 << 0;
-    private static final int IS_RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
+    private static final int ALL_RESOLVED_FLAG = 1 << 0;
+    private static final int RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
+    private static final int RESOLVE_WITHOUT_CACHE = 1 << 2;
 
     private static final ThreadLocal<List<Listener>> LISTENERS_LOCAL = new ThreadLocal<List<Listener>>();
 
@@ -931,14 +932,26 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveToReferenceOnly() {
-        return (flags & IS_RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
+        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
     }
 
-    public void setResolveToReferenceOnly(boolean isResolveToReferenceOnly) {
-        if (isResolveToReferenceOnly) {
-            flags |= IS_RESOLVE_TO_REFERENCE_ONLY_FLAG;
+    public void setResolveToReferenceOnly(boolean resolveToReferenceOnly) {
+        if (resolveToReferenceOnly) {
+            flags |= RESOLVE_TO_REFERENCE_ONLY_FLAG;
         } else {
-            flags &= ~IS_RESOLVE_TO_REFERENCE_ONLY_FLAG;
+            flags &= ~RESOLVE_TO_REFERENCE_ONLY_FLAG;
+        }
+    }
+
+    public boolean isResolveUsingCache() {
+        return (flags & RESOLVE_WITHOUT_CACHE) == 0;
+    }
+
+    public void setResolveUsingCache(boolean resolveUsingCache) {
+        if (resolveUsingCache) {
+            flags &= ~RESOLVE_WITHOUT_CACHE;
+        } else {
+            flags |= RESOLVE_WITHOUT_CACHE;
         }
     }
 
@@ -1147,16 +1160,16 @@ public class State implements Map<String, Object> {
      * @param field If {@code null}, resolves all references.
      */
     public void resolveReference(String field) {
-        if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+        if ((flags & ALL_RESOLVED_FLAG) > 0) {
             return;
         }
 
         synchronized (this) {
-            if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+            if ((flags & ALL_RESOLVED_FLAG) > 0) {
                 return;
             }
 
-            flags |= IS_ALL_RESOLVED_FLAG;
+            flags |= ALL_RESOLVED_FLAG;
 
             if (linkedObjects.isEmpty()) {
                 return;
@@ -1495,7 +1508,7 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
-                flags &= ~IS_ALL_RESOLVED_FLAG;
+                flags &= ~ALL_RESOLVED_FLAG;
                 return;
 
             } else {
@@ -1662,9 +1675,7 @@ public class State implements Map<String, Object> {
             throw new IllegalStateException("No type!");
         }
 
-        Query<?> query = Query.fromType(type);
-
-        query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
+        Query<?> query = Query.fromType(type).noCache();
 
         for (ObjectIndex index : type.getIndexes()) {
             if (index.isUnique()) {

@@ -1180,6 +1180,8 @@ public abstract class AbstractDatabase<C> implements Database {
         if (query != null) {
             objectState.setDatabase(query.getDatabase());
             objectState.setResolveToReferenceOnly(query.isResolveToReferenceOnly());
+            objectState.setResolveUsingCache(query.isCache());
+
             if (query.isReferenceOnly()) {
                 objectState.setStatus(StateStatus.REFERENCE_ONLY);
             }

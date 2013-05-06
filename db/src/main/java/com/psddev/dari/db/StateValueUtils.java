@@ -133,19 +133,26 @@ abstract class StateValueUtils {
 
             // Fetch unresolved objects and cache them.
             if (!unresolvedIds.isEmpty()) {
-                for (Object object : Query.
+                Query<?> query = Query.
                         from(Object.class).
                         where("_id = ?", unresolvedIds).
                         using(database).
                         option(State.REFERENCE_RESOLVING_QUERY_OPTION, parent).
                         option(State.REFERENCE_FIELD_QUERY_OPTION, field).
-                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds).
-                        selectAll()) {
+                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds);
+
+                if (parentState != null && !parentState.isResolveUsingCache()) {
+                    query.setCache(false);
+                }
+
+                for (Object object : query.selectAll()) {
                     UUID id = State.getInstance(object).getId();
+
                     unresolvedIds.remove(id);
                     circularReferences.put(id, object);
                     references.put(id, object);
                 }
+
                 for (UUID id : unresolvedIds) {
                     circularReferences.put(id, null);
                 }
