@@ -1172,12 +1172,18 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     @Override
     public Query<E> clone() {
         Query<E> clone = new Query<E>(group, objectClass);
+
         clone.setPredicate(predicate);
         clone.setSorters(sorters != null ? new ArrayList<Sorter>(sorters) : null);
+        clone.setFields(fields != null ? new ArrayList<String>(fields) : null);
         clone.setDatabase(database);
         clone.setResolveToReferenceOnly(isResolveToReferenceOnly);
+        clone.setCache(!noCache);
+        clone.setMaster(master);
+        clone.setResolveInvisible(resolveInvisible);
         clone.setTimeout(timeout);
         clone.setOptions(options != null ? new HashMap<String, Object>(options) : null);
+
         return clone;
     }
 
