@@ -130,6 +130,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private boolean isResolveToReferenceOnly;
     private boolean noCache;
     private boolean master;
+    private boolean resolveInvisible;
     private Double timeout;
     private transient Map<String, Object> options;
     private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
@@ -322,6 +323,14 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      */
     public void setMaster(boolean master) {
         this.master = master;
+    }
+
+    public boolean isResolveInvisible() {
+        return resolveInvisible;
+    }
+
+    public void setResolveInvisible(boolean resolveInvisible) {
+        this.resolveInvisible = resolveInvisible;
     }
 
     public Double getTimeout() {
@@ -599,6 +608,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public Query<E> master() {
         setMaster(true);
+        return this;
+    }
+
+    public Query<E> resolveInvisible() {
+        setResolveInvisible(true);
         return this;
     }
 

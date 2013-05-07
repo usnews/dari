@@ -168,7 +168,9 @@ abstract class StateValueUtils {
                 Map.Entry<UUID, Object> entry = i.next();
                 Object object = entry.getValue();
 
-                if (object != null &&
+                if ((parentState == null ||
+                        !parentState.isResolveInvisible()) &&
+                        object != null &&
                         !ObjectUtils.isBlank(State.getInstance(object).get("dari.visibilities"))) {
                     entry.setValue(null);
                 }
