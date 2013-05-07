@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -212,7 +213,7 @@ public class State implements Map<String, Object> {
 
                 if (value != null) {
                     byte[] typeId = UuidUtils.toBytes(getTypeId());
-                    byte[] md5 = StringUtils.md5(field + "/" + value.toString());
+                    byte[] md5 = StringUtils.md5(field + "/" + value.toString().trim().toLowerCase(Locale.ENGLISH));
 
                     for (int i = 0, length = typeId.length; i < length; ++ i) {
                         typeId[i] ^= md5[i];
