@@ -54,56 +54,60 @@ public abstract class ForwardingDatabase implements Database {
         getDelegate().setEnvironment(environment);
     }
 
+    protected <T> Query<T> filterQuery(Query<T> query) {
+        return query;
+    }
+
     @Override
     public <T> List<T> readAll(Query<T> query) {
-        return getDelegate().readAll(query);
+        return getDelegate().readAll(filterQuery(query));
     }
 
     @Deprecated
     @Override
     public <T> List<T> readList(Query<T> query) {
-        return getDelegate().readList(query);
+        return getDelegate().readList(filterQuery(query));
     }
 
     @Override
     public <T> List<Grouping<T>> readAllGrouped(Query<T> query, String... fields) {
-        return getDelegate().readAllGrouped(query, fields);
+        return getDelegate().readAllGrouped(filterQuery(query), fields);
     }
 
     @Override
     public long readCount(Query<?> query) {
-        return getDelegate().readCount(query);
+        return getDelegate().readCount(filterQuery(query));
     };
 
     @Override
     public <T> T readFirst(Query<T> query) {
-        return getDelegate().readFirst(query);
+        return getDelegate().readFirst(filterQuery(query));
     }
 
     @Override
     public <T> Iterable<T> readIterable(Query<T> query, int fetchSize) {
-        return getDelegate().readIterable(query, fetchSize);
+        return getDelegate().readIterable(filterQuery(query), fetchSize);
     }
 
     @Override
     public Date readLastUpdate(Query<?> query) {
-        return getDelegate().readLastUpdate(query);
+        return getDelegate().readLastUpdate(filterQuery(query));
     }
 
     @Override
     public <T> PaginatedResult<T> readPartial(Query<T> query, long offset, int limit) {
-        return getDelegate().readPartial(query, offset, limit);
+        return getDelegate().readPartial(filterQuery(query), offset, limit);
     }
 
     @Override
     public <T> PaginatedResult<Grouping<T>> readPartialGrouped(Query<T> query, long offset, int limit, String... fields) {
-        return getDelegate().readPartialGrouped(query, offset, limit, fields);
+        return getDelegate().readPartialGrouped(filterQuery(query), offset, limit, fields);
     }
 
     @Deprecated
     @Override
     public Map<Object, Long> readGroupedCount(Query<?> query, String field) {
-        return getDelegate().readGroupedCount(query, field);
+        return getDelegate().readGroupedCount(filterQuery(query), field);
     }
 
     @Override
@@ -131,19 +135,23 @@ public abstract class ForwardingDatabase implements Database {
         return getDelegate().endWrites();
     }
 
+    protected State filterState(State state) {
+        return state;
+    }
+
     @Override
     public void save(State state) {
-        getDelegate().save(state);
+        getDelegate().save(filterState(state));
     }
 
     @Override
     public void saveUnsafely(State state) {
-        getDelegate().saveUnsafely(state);
+        getDelegate().saveUnsafely(filterState(state));
     }
 
     @Override
     public void index(State state) {
-        getDelegate().index(state);
+        getDelegate().index(filterState(state));
     }
 
     @Override
@@ -153,12 +161,12 @@ public abstract class ForwardingDatabase implements Database {
 
     @Override
     public void delete(State state) {
-        getDelegate().delete(state);
+        getDelegate().delete(filterState(state));
     }
 
     @Override
     public void deleteByQuery(Query<?> query) {
-        getDelegate().deleteByQuery(query);
+        getDelegate().deleteByQuery(filterQuery(query));
     }
 
     // --- Object support ---
