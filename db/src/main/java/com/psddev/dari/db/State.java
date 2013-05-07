@@ -110,20 +110,30 @@ public class State implements Map<String, Object> {
         }
     }
 
-    /** Returns the originating database. */
+    /**
+     * Returns the effective originating database.
+     *
+     * <p>This method will check the following:</p>
+     *
+     * <ul>
+     * <li>{@linkplain #getRealDatabase Real originating database}.</li>
+     * <li>{@linkplain Database.Static#getDefault Default database}.</li>
+     * <li>{@linkplain ObjectType#getSourceDatabase Source database}.</li>
+     * <li>
+     *
+     * @return Never {@code null}.
+     */
     public Database getDatabase() {
         if (database == null) {
-            Database defaultDatabase = Database.Static.getDefault();
-
-            setDatabase(defaultDatabase);
-
+            Database newDatabase = Database.Static.getDefault();
+            this.database = newDatabase;
             ObjectType type = getType();
 
             if (type != null) {
-                Database source = type.getSourceDatabase();
+                newDatabase = type.getSourceDatabase();
 
-                if (source != null) {
-                    setDatabase(source);
+                if (newDatabase != null) {
+                    this.database = newDatabase;
                 }
             }
         }
@@ -131,7 +141,20 @@ public class State implements Map<String, Object> {
         return database;
     }
 
-    /** Sets the originating database. */
+    /**
+     * Returns the real originating database.
+     *
+     * @return May be {@code null}.
+     */
+    public Database getRealDatabase() {
+        return database;
+    }
+
+    /**
+     * Sets the originating database.
+     *
+     * @param database May be {@code null}.
+     */
     public void setDatabase(Database database) {
         this.database = database;
     }

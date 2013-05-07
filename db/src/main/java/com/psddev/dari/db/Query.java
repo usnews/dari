@@ -154,13 +154,18 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     /**
      * Queries over objects of types that are compatible with the given
      * {@code type}.
+     *
+     * @param type If {@code null}, queries over everything.
+     * @return Never {@code null}.
      */
     public static Query<Object> fromType(ObjectType type) {
         if (type == null) {
             return new Query<Object>(null, null);
+
         } else {
             Query<Object> query = new Query<Object>(type.getInternalName(), type.getObjectClass());
-            query.setDatabase(type.getState().getDatabase());
+
+            query.setDatabase(type.getState().getRealDatabase());
             return query;
         }
     }
