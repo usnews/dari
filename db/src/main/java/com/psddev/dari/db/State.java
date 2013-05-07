@@ -296,6 +296,14 @@ public class State implements Map<String, Object> {
         }
     }
 
+    /**
+     * Returns {@code true} if this state is visible (all visibility-indexed
+     * fields are {@code null}).
+     */
+    public boolean isVisible() {
+        return ObjectUtils.isBlank(get("dari.visibilities"));
+    }
+
     public ObjectField getField(String name) {
         ObjectField field = getDatabase().getEnvironment().getField(name);
         if (field == null) {
