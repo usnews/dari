@@ -687,7 +687,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     ResultSet result = null;
 
                     try {
-                        connection = openReadConnection();
+                        connection = super.openQueryConnection(query);
                         statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
@@ -994,7 +994,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             query = initialQuery;
 
             try {
-                connection = openReadConnection();
+                connection = openQueryConnection(query);
                 statement = connection.createStatement();
                 statement.setFetchSize(
                         getVendor() instanceof SqlVendor.MySQL ? Integer.MIN_VALUE :
