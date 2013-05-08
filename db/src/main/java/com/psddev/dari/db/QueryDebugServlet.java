@@ -4,8 +4,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,6 +24,7 @@ import com.psddev.dari.util.DebugFilter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.UuidUtils;
 
 @DebugFilter.Path("query")
 @SuppressWarnings("serial")
@@ -41,6 +46,8 @@ public class QueryDebugServlet extends HttpServlet {
 
         private final Pattern ID_PATTERN = Pattern.compile("([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})");
         private final Pattern DATE_FIELD_PATTERN = Pattern.compile("(?m)^(\\s*\".*\" : (\\d{11,}),)$");
+
+        public static final double INITIAL_VISIBILITY_HUE = Math.random();
 
         private enum SortOrder {
 
@@ -79,6 +86,9 @@ public class QueryDebugServlet extends HttpServlet {
         private final long offset;
         private final int limit;
         private final String filter;
+        private final boolean showVisible;
+        private final Map<String, List<String>> visibilityFilters;
+        private final Map<String, Double> visibilityColors;
         private final Query<Object> query;
 
         public Page(ServletContext context, HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -93,6 +103,40 @@ public class QueryDebugServlet extends HttpServlet {
             additionalFieldsString = page.param(String.class, "additionalFields");
             ignoreReadConnectionString = page.param(String.class, "ignoreReadConnection");
             ignoreReadConnection = ignoreReadConnectionString == null ? true : Boolean.parseBoolean(ignoreReadConnectionString);
+
+            visibilityFilters = new HashMap<String, List<String>>();
+            boolean showVisible = false;
+            for (String visibilityFilterString : page.params(String.class, "visibilityFilters")) {
+
+                if ("VISIBLE".equals(visibilityFilterString)) {
+                    showVisible = true;
+                    continue;
+                }
+
+                String[] parts = visibilityFilterString.split("\\x7c");
+                if (parts.length == 2) {
+                    String uniqueIndexName = parts[0];
+                    String indexValue = parts[1];
+
+                    List<String> indexValues = visibilityFilters.get(uniqueIndexName);
+                    if (indexValues == null) {
+                        indexValues = new ArrayList<String>();
+                        visibilityFilters.put(uniqueIndexName, indexValues);
+                    }
+                    indexValues.add(indexValue);
+                }
+            }
+
+            if (visibilityFilters.isEmpty()) {
+                showVisible = true;
+            }
+            this.showVisible = showVisible;
+
+            visibilityColors = new HashMap<String, Double>();
+            if (!visibilityFilters.isEmpty()) {
+
+            }
+
             offset = page.param(long.class, "offset");
             limit = page.paramOrDefault(int.class, "limit", 50);
             filter = "Filter".equals(page.param(String.class, "action")) ? page.param(String.class, "filter") : null;
@@ -103,15 +147,27 @@ public class QueryDebugServlet extends HttpServlet {
                 query = Query.from(Object.class).where("_id = ?", idFromWhere);
 
             } else {
-                query = Query.fromType(type);
+                if (visibilityFilters.isEmpty()) {
+                    query = Query.fromType(type);
+                } else {
+                    query = Query.from(Object.class);
+                }
 
                 Double timeout = page.param(Double.class, "timeout");
                 if (timeout != null) {
                     query.setTimeout(timeout);
                 }
 
+                if (!visibilityFilters.isEmpty()) {
+                    query.where(getVisibilitiesPredicate());
+                }
+
                 if (!ObjectUtils.isBlank(where)) {
-                    query.where(where);
+                    if (visibilityFilters.isEmpty()) {
+                        query.where(where);
+                    } else {
+                        query.where(getFullyQualifiedPredicateForType(type, PredicateParser.Static.parse(where)));
+                    }
                 }
 
                 if (!ObjectUtils.isBlank(sortField)) {
@@ -152,6 +208,9 @@ public class QueryDebugServlet extends HttpServlet {
                 } else if ("select".equals(action)) {
                     renderSelect();
 
+                } else if ("visibilityFilters".equals(action)) {
+                    renderVisibilityFilters();
+
                 } else {
                     renderDefault();
                 }
@@ -162,6 +221,321 @@ public class QueryDebugServlet extends HttpServlet {
             } finally {
                 Database.Static.setIgnoreReadConnection(false);
             }
+        }
+
+        private Predicate getFullyQualifiedPredicateForType(ObjectType type, Predicate predicate) {
+            if (type == null) {
+                return predicate;
+            }
+
+            if (predicate instanceof ComparisonPredicate) {
+
+                ComparisonPredicate comparison = (ComparisonPredicate) predicate;
+
+                String operator = comparison.getOperator();
+                boolean isIgnoreCase = comparison.isIgnoreCase();
+                List<Object> values = comparison.getValues();
+
+                // try to get the full qualified version of the key based on the type
+                String key = comparison.getKey();
+
+                int slashAt = key.indexOf('/');
+                if (slashAt >= 0) {
+
+                    String firstPart = key.substring(0, slashAt);
+                    if (ObjectUtils.getClassByName(firstPart) == null) {
+                        String lastPart = key.substring(slashAt);
+
+                        ObjectIndex index = type.getIndex(firstPart);
+                        if (index != null) {
+                            key = index.getUniqueName() + lastPart;
+                        }
+                    }
+
+                } else {
+                    ObjectIndex index = type.getIndex(key);
+                    if (index != null) {
+                        key = index.getUniqueName();
+                    }
+                }
+
+                return new ComparisonPredicate(operator, isIgnoreCase, key, values);
+
+            } else if (predicate instanceof CompoundPredicate) {
+
+                CompoundPredicate compound = (CompoundPredicate) predicate;
+
+                List<Predicate> children = null;
+
+                if (compound.getChildren() != null) {
+                    children = new ArrayList<Predicate>();
+                    for (Predicate child : compound.getChildren()) {
+                        children.add(getFullyQualifiedPredicateForType(type, child));
+                    }
+                }
+
+                return new CompoundPredicate(compound.getOperator(), children);
+
+            } else {
+                return predicate;
+            }
+        }
+
+        private Predicate getVisibilitiesPredicate() {
+            if (!visibilityFilters.isEmpty()) {
+
+                Predicate visibilityIndexPredicate = null;
+
+                for (Map.Entry<String, List<String>> entry : visibilityFilters.entrySet()) {
+
+                    String indexUniqueName = entry.getKey();
+                    List<String> indexValues = entry.getValue();
+
+                    Iterator<String> indexValuesIterator = indexValues.iterator();
+
+                    if (showVisible) {
+                        Predicate predicate = PredicateParser.Static.parse(indexUniqueName + " is missing");
+
+                        if (visibilityIndexPredicate == null) {
+                            visibilityIndexPredicate = predicate;
+                        } else {
+                            visibilityIndexPredicate = CompoundPredicate.combine(
+                                    PredicateParser.OR_OPERATOR,
+                                    visibilityIndexPredicate,
+                                    predicate);
+                        }
+                    }
+
+                    while (indexValuesIterator.hasNext()) {
+                        Predicate predicate = PredicateParser.Static.parse(indexUniqueName + " = ?", indexValuesIterator.next());
+
+                        if (visibilityIndexPredicate == null) {
+                            visibilityIndexPredicate = predicate;
+                        } else {
+                            visibilityIndexPredicate = CompoundPredicate.combine(
+                                    PredicateParser.OR_OPERATOR,
+                                    visibilityIndexPredicate,
+                                    predicate);
+                        }
+                    }
+                }
+
+                Predicate typePredicate = null;
+
+                if (type != null) {
+                    Set<UUID> typeIds = new HashSet<UUID>();
+
+                    if (showVisible) {
+                        for (ObjectType concreteType : type.findConcreteTypes()) {
+                            typeIds.add(concreteType.getId());
+                        }
+                    }
+
+                    for (Map.Entry<String, List<String>> entry : visibilityFilters.entrySet()) {
+
+                        String indexUniqueName = entry.getKey();
+                        List<String> indexValues = entry.getValue();
+
+                        String indexName;
+                        int slashAt = indexUniqueName.indexOf('/');
+                        if (slashAt >= 0) {
+                            indexName = indexUniqueName.substring(slashAt+1);
+
+                        } else {
+                            indexName = indexUniqueName;
+                        }
+
+                        typeIds.addAll(getVisbilityTypeIdsForValuesAndTypes(indexName, new HashSet<String>(indexValues), type.findConcreteTypes()));
+                    }
+
+                    typePredicate = PredicateParser.Static.parse("_type = ?", typeIds);
+                }
+
+                if (typePredicate == null) {
+                    return visibilityIndexPredicate;
+
+                } else {
+                    return CompoundPredicate.combine(PredicateParser.AND_OPERATOR, typePredicate, visibilityIndexPredicate);
+                }
+
+            } else {
+                return PredicateParser.Static.parse("true");
+            }
+        }
+
+        private Set<UUID> getVisbilityTypeIdsForValuesAndTypes(String indexName, Set<String> indexValues, Set<ObjectType> types) {
+            Set<UUID> visibilityTypeIds = new HashSet<UUID>();
+
+            for (String indexValue : indexValues) {
+                for (ObjectType type : types) {
+                    byte[] md5 = StringUtils.md5(indexName + "/" + indexValue);
+                    byte[] typeId = UuidUtils.toBytes(type.getId());
+
+                    for (int i = 0, length = typeId.length; i < length; ++ i) {
+                        typeId[i] ^= md5[i];
+                    }
+
+                    visibilityTypeIds.add(UuidUtils.fromBytes(typeId));
+                }
+            }
+
+            return visibilityTypeIds;
+        }
+
+        private ObjectField getVisibilityAwareField(State state) {
+            @SuppressWarnings("unchecked")
+            List<String> visibilities = (List<String>) state.get("dari.visibilities");
+
+            if (visibilities != null && !visibilities.isEmpty()) {
+                String fieldName = visibilities.get(visibilities.size() - 1);
+                ObjectField field = state.getField(fieldName);
+
+                return field;
+            }
+
+            return null;
+        }
+
+        private void renderVisibilityFilters() throws IOException {
+
+            if (page.param(boolean.class, "showVisibilityFiltersLink")) {
+                writeStart("a",
+                        "target", "visibilityFilters",
+                        "href", page.url("", "action", "visibilityFilters", "showVisibilityFiltersLink", null));
+                    writeHtml("Show Visibility Filters");
+                writeEnd();
+                return;
+            }
+
+            Map<ObjectIndex, List<Object>> visibilityIndexValues = new HashMap<ObjectIndex, List<Object>>();
+
+            boolean hasVisibilityValues = false;
+
+            for (ObjectIndex index : database.getEnvironment().getIndexes()) {
+
+                // ignore inRowIndexes
+                if (index.isVisibility() && !index.isShortConstant()) {
+                    visibilityIndexValues.put(index, new ArrayList<Object>());
+                }
+            }
+
+            if (type != null) {
+                for (ObjectIndex index : type.getIndexes()) {
+
+                    // ignore inRowIndexes
+                    if (index.isVisibility() && !index.isShortConstant()) {
+                        visibilityIndexValues.put(index, new ArrayList<Object>());
+                    }
+                }
+            }
+
+            for (Map.Entry<ObjectIndex, List<Object>> entry : visibilityIndexValues.entrySet()) {
+
+                ObjectIndex index = entry.getKey();
+                String uniqueName = index.getUniqueName();
+
+                for (Grouping<Object> grouping : Query.from(Object.class).where(uniqueName + " != missing").groupBy(uniqueName)) {
+                    Object key0 = grouping.getKeys().get(0);
+
+                    if (key0 instanceof byte[]) {
+                        key0 = new String((byte[]) key0);
+                    }
+
+                    entry.getValue().add(key0);
+                    hasVisibilityValues = true;
+                }
+            }
+
+            if (!hasVisibilityValues) {
+                return;
+            }
+
+            writeStart("div", "class", "visibilityFilters");
+                writeStart("ul", "class", "unstyled");
+
+                    writeStart("li");
+                        writeTag("input",
+                                "class", "hide",
+                                "type", "checkbox",
+                                "name", "visibilityFilters",
+                                "value", "VISIBLE",
+                                "checked", showVisible ? "checked" : null);
+                        writeStart("span",
+                                "class", "label visibility-label" + (showVisible ? "" : " disabled"),
+                                "title", "Show visible objects",
+                                "style", "background-color: #000;");
+                            writeObject("VISIBLE");
+                        writeEnd();
+                    writeEnd();
+
+                    double goldenRatio = 0.618033988749895;
+                    double hue = INITIAL_VISIBILITY_HUE;
+
+                    for (Map.Entry<ObjectIndex, List<Object>> entry : visibilityIndexValues.entrySet()) {
+                        ObjectIndex index = entry.getKey();
+                        List<Object> visibilityValues = entry.getValue();
+
+                        ObjectField field = null;
+                        ObjectType declaringType = null;
+                        Class<?> declaringClass = ObjectUtils.getClassByName(index.getJavaDeclaringClassName());
+
+                        if (declaringClass != null) {
+                            declaringType = ObjectType.getInstance(declaringClass);
+
+                            if (declaringType != null) {
+                                field = declaringType.getField(index.getName());
+                            }
+                        }
+
+                        for (Object visibilityValue : visibilityValues) {
+
+                            hue += goldenRatio;
+                            hue %= 1.0;
+
+                            visibilityColors.put(index.getUniqueName() + "/" + visibilityValue, hue);
+                            System.out.println(visibilityColors);
+
+                            boolean visibilityValueChecked = false;
+                            if (visibilityFilters != null) {
+                                List<String> selectedVisibilityValues = visibilityFilters.get(index.getUniqueName());
+                                if (selectedVisibilityValues != null) {
+                                    visibilityValueChecked = selectedVisibilityValues.contains(visibilityValue);
+                                }
+                            }
+
+                            String visibilityLabel = visibilityValue.toString();
+                            try {
+                                if (field != null) {
+                                    State state = new State();
+                                    state.put(index.getName(), visibilityValue);
+
+                                    Object declaringObject = state.as(declaringClass);
+                                    if (declaringObject instanceof VisibilityLabel) {
+                                        visibilityLabel = ((VisibilityLabel) declaringObject).createVisibilityLabel(field);
+                                    }
+                                }
+                            } catch (Exception e) {
+                            }
+
+                            writeStart("li");
+                                writeTag("input",
+                                        "class", "hide",
+                                        "type", "checkbox",
+                                        "name", "visibilityFilters",
+                                        "value", index.getUniqueName() + "|" + visibilityValue,
+                                        "checked", visibilityValueChecked ? "checked" : null);
+                                writeStart("span",
+                                        "class", "label visibility-label" + (visibilityValueChecked ? "" : " disabled"),
+                                        "title", index.getUniqueName(),
+                                        "style", "background: hsl(" + (hue * 360) + ",50%,50%);");
+                                    writeObject(visibilityLabel);
+                                writeEnd();
+                            writeEnd();
+                        }
+                    }
+
+                writeEnd();
+            writeEnd();
         }
 
         private void renderCount() throws IOException {
@@ -234,7 +608,7 @@ public class QueryDebugServlet extends HttpServlet {
                     } else if (SubAction.EDIT_FIELDED.equals(subAction)) {
                         @SuppressWarnings("all")
                         FormWriter form = new FormWriter(this);
-                        form.putAllStandardInputProcessors();
+                        form.putAllStandardInputProcessors2();
 
                         if (page.isFormPost()) {
                             try {
@@ -378,17 +752,6 @@ public class QueryDebugServlet extends HttpServlet {
                                     "placeholder", "Additional Fields (Comma Separated)",
                                     "style", "margin-top: 4px;",
                                     "value", additionalFieldsString);
-
-                            writeTag("br");
-                            writeStart("label", "class", "checkbox");
-                                writeTag("input",
-                                        "name", "ignoreReadConnection",
-                                        "type", "checkbox",
-                                        "style", "margin-top: 4px;",
-                                        "value", "true",
-                                        "checked", ignoreReadConnection ? "checked" : null);
-                                writeHtml(" Ignore read-specific connection settings");
-                            writeEnd();
                         writeEnd();
                     writeEnd();
                 writeEnd();
@@ -475,7 +838,7 @@ public class QueryDebugServlet extends HttpServlet {
                                         writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
                                         writeStart("td").writeHtml(itemState.getLabel()).writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                            writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                         }
                                     writeEnd();
                                 }
@@ -497,6 +860,12 @@ public class QueryDebugServlet extends HttpServlet {
                 writeStart("style", "type", "text/css");
                     write(".edit input[type=text], .edit textarea { width: 90%; }");
                     write(".edit textarea { min-height: 6em; }");
+
+                    // for visibility filters
+                    write(".visibilityFilters li { display: inline-block; margin-right: 5px; cursor: pointer; }");
+                    write(".visibilityFilters input { margin-top: 4px; }");
+                    write(".visibility-label { -moz-user-select: none; -ms-user-select: none; -o-user-select: none; -webkit-user-select: none; user-select: none; }");
+                    write(".visibility-label.disabled { background: #999 !important; }");
                 writeEnd();
 
                 includeStylesheet("/_resource/jquery/jquery.objectId.css");
@@ -509,6 +878,19 @@ public class QueryDebugServlet extends HttpServlet {
                     write("(function() {");
                         write("$('.repeatable').repeatable();");
                         write("$('.objectId').objectId();");
+
+                        // for visibility filters
+                        write("$(document).on('click', '.visibility-label', function(evt) {");
+                            write("var $label = $(evt.target);");
+                            write("var $input = $label.closest('li').find('input');");
+                            write("$input.prop('checked', !$input.prop('checked'));");
+                            write("$label.toggleClass('disabled', !$input.prop('checked'))");
+                        write("});");
+                        write("$(document).on('change', 'select[name=from]', function(evt) {");
+                            write("console.log('changed!', $(evt.target).val());");
+                            write("$('.typeChangeForm').find('input[name=from]').val($(evt.target).val()).end().submit();");
+                        write("});");
+
                     write("})();");
                 writeEnd();
 
@@ -619,6 +1001,20 @@ public class QueryDebugServlet extends HttpServlet {
                                         "checked", ignoreReadConnection ? "checked" : null);
                                 writeHtml(" Ignore read-specific connection settings");
                             writeEnd();
+
+                            writeTag("br");
+                            writeStart("div", "class", "frame", "name", "visibilityFilters");
+                                if (visibilityFilters.isEmpty()) {
+                                    writeStart("a",
+                                            "target", "visibilityFilters",
+                                            "href", page.url("", "action", "visibilityFilters"));
+                                        writeHtml("Show Visibility Filters");
+                                    writeEnd();
+                                } else {
+                                    renderVisibilityFilters();
+                                }
+                            writeEnd();
+
                         writeEnd();
                     writeEnd();
 
@@ -636,6 +1032,21 @@ public class QueryDebugServlet extends HttpServlet {
                             writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Filter");
                         writeEnd();
                     writeEnd();
+                writeEnd();
+
+                writeStart("form",
+                        "target", "visibilityFilters",
+                        "action", page.url("", "action", "visibilityFilters", "from", null),
+                        "class", "form-inline typeChangeForm",
+                        "method", "get");
+                    writeTag("input",
+                            "type", "hidden",
+                            "name", "from",
+                            "value", type != null ? type.getId() : null);
+                    writeTag("input",
+                            "type", "hidden",
+                            "name", "showVisibilityFiltersLink",
+                            "value", "true");
                 writeEnd();
 
                 try {
@@ -659,24 +1070,25 @@ public class QueryDebugServlet extends HttpServlet {
                             writeEnd();
 
                             writeStart("div", "class", "btn-group");
-                                writeStart("a",
+                                writeStart(offset > 0 ? "a" : "span",
                                         "class", "btn" + (offset > 0 ? "" : " disabled"),
-                                        "href", page.url("", "offset", 0));
+                                        "href", offset > 0 ? page.url("", "offset", 0) : null);
                                     writeStart("i", "class", "icon-fast-backward").writeEnd();
                                     writeHtml(" First");
                                 writeEnd();
-                                writeStart("a",
+                                writeStart(result.hasPrevious() ? "a" : "span",
                                         "class", "btn" + (result.hasPrevious() ? "" : " disabled"),
-                                        "href", page.url("", "offset", result.getPreviousOffset()));
+                                        "href", result.hasPrevious() ? page.url("", "offset", result.getPreviousOffset()) : null);
                                     writeStart("i", "class", "icon-step-backward").writeEnd();
                                     writeHtml(" Previous");
                                 writeEnd();
-                                writeStart("a",
+                                writeStart(result.hasNext() ? "a" : "span",
                                         "class", "btn" + (result.hasNext() ? "" : " disabled"),
-                                        "href", page.url("", "offset", result.getNextOffset()));
+                                        "href", result.hasNext() ? page.url("", "offset", result.getNextOffset()) : null);
                                     writeHtml("Next ");
                                     writeStart("i", "class", "icon-step-forward").writeEnd();
                                 writeEnd();
+
                             writeEnd();
 
                             String[] additionalFields;
@@ -692,6 +1104,9 @@ public class QueryDebugServlet extends HttpServlet {
                                         writeStart("th").writeHtml("#").writeEnd();
                                         writeStart("th").writeHtml("ID").writeEnd();
                                         writeStart("th").writeHtml("Type").writeEnd();
+                                        if (!visibilityFilters.isEmpty()) {
+                                            writeStart("th").writeHtml("Visibility").writeEnd();
+                                        }
                                         writeStart("th").writeHtml("Label").writeEnd();
                                         for (String additionalField : additionalFields) {
                                             writeStart("th").writeHtml(additionalField).writeEnd();
@@ -708,6 +1123,28 @@ public class QueryDebugServlet extends HttpServlet {
                                             writeStart("td").writeHtml(++ offsetCopy).writeEnd();
                                             writeStart("td").writeHtml(itemState.getId()).writeEnd();
                                             writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
+                                            if (!visibilityFilters.isEmpty()) {
+                                                writeStart("td");
+                                                    String visibilityLabel = itemState.getVisibilityLabel();
+                                                    if (!StringUtils.isBlank(visibilityLabel)) {
+
+                                                        Double hue = null;
+                                                        ObjectField visibilityField = getVisibilityAwareField(itemState);
+                                                        if (visibilityField != null) {
+                                                            Object visibilityValue = itemState.get(visibilityField.getInternalName());
+                                                            if (visibilityValue != null) {
+                                                                hue = visibilityColors.get(visibilityField.getUniqueName() + "/" + String.valueOf(visibilityValue).toLowerCase().trim());
+                                                            }
+                                                        }
+
+                                                        writeStart("span",
+                                                                "class", "label",
+                                                                "style", (hue != null ? "background: hsl(" + (hue * 360) + ",50%,50%);" : null));
+                                                            writeHtmlOrDefault(itemState.getVisibilityLabel(), "?");
+                                                        writeEnd();
+                                                    }
+                                                writeEnd();
+                                            }
                                             writeStart("td");
                                                 writeStart("a",
                                                         "target", "show",
@@ -718,7 +1155,7 @@ public class QueryDebugServlet extends HttpServlet {
                                                 writeEnd();
                                             writeEnd();
                                             for (String additionalField : additionalFields) {
-                                                writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                                writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                             }
                                         writeEnd();
                                     }
@@ -747,6 +1184,9 @@ public class QueryDebugServlet extends HttpServlet {
                                     writeStart("th").writeHtml("#").writeEnd();
                                     writeStart("th").writeHtml("ID").writeEnd();
                                     writeStart("th").writeHtml("Type").writeEnd();
+                                    if (!visibilityFilters.isEmpty()) {
+                                        writeStart("th").writeHtml("Visibility").writeEnd();
+                                    }
                                     writeStart("th").writeHtml("Label").writeEnd();
                                     for (String additionalField : additionalFields) {
                                         writeStart("th").writeHtml(additionalField).writeEnd();
@@ -781,13 +1221,35 @@ public class QueryDebugServlet extends HttpServlet {
                                         writeStart("td").writeHtml(matched).writeEnd();
                                         writeStart("td").writeHtml(itemState.getId()).writeEnd();
                                         writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
+                                        if (!visibilityFilters.isEmpty()) {
+                                            writeStart("td");
+                                                String visibilityLabel = itemState.getVisibilityLabel();
+                                                if (!StringUtils.isBlank(visibilityLabel)) {
+
+                                                    Double hue = null;
+                                                    ObjectField visibilityField = getVisibilityAwareField(itemState);
+                                                    if (visibilityField != null) {
+                                                        Object visibilityValue = itemState.get(visibilityField.getInternalName());
+                                                        if (visibilityValue != null) {
+                                                            hue = visibilityColors.get(visibilityField.getUniqueName() + "/" + String.valueOf(visibilityValue).toLowerCase().trim());
+                                                        }
+                                                    }
+
+                                                    writeStart("span",
+                                                            "class", "label",
+                                                            "style", (hue != null ? "background: hsl(" + (hue * 360) + ",50%,50%);" : null));
+                                                        writeHtmlOrDefault(itemState.getVisibilityLabel(), "?");
+                                                    writeEnd();
+                                                }
+                                            writeEnd();
+                                        }
                                         writeStart("td");
                                             writeStart("a", "href", "?where=id+%3D+" + itemState.getId(), "target", "_blank");
                                                 writeHtml(itemState.getLabel());
                                             writeEnd();
                                         writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                            writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                         }
                                     writeEnd();
 
