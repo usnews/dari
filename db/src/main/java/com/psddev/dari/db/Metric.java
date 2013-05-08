@@ -29,6 +29,17 @@ public class Metric extends Record {
     }
 
     /**
+     * Sets the metric value to the given {@code amount}.
+     */
+    public void setDimension(double amount, String dimension) {
+        try {
+            metricDatabase.setMetric(dimension, amount);
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.setMetric() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
      * Increases the metric value by the given {@code amount} and associate it
      * with the given {@code dimension} and {@code time}.
      *
