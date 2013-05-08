@@ -133,19 +133,32 @@ abstract class StateValueUtils {
 
             // Fetch unresolved objects and cache them.
             if (!unresolvedIds.isEmpty()) {
-                for (Object object : Query.
+                Query<?> query = Query.
                         from(Object.class).
                         where("_id = ?", unresolvedIds).
                         using(database).
                         option(State.REFERENCE_RESOLVING_QUERY_OPTION, parent).
                         option(State.REFERENCE_FIELD_QUERY_OPTION, field).
-                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds).
-                        selectAll()) {
+                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds);
+
+                if (parentState != null) {
+                    if (!parentState.isResolveUsingCache()) {
+                        query.setCache(false);
+                    }
+
+                    if (parentState.isResolveUsingMaster()) {
+                        query.setMaster(true);
+                    }
+                }
+
+                for (Object object : query.selectAll()) {
                     UUID id = State.getInstance(object).getId();
+
                     unresolvedIds.remove(id);
                     circularReferences.put(id, object);
                     references.put(id, object);
                 }
+
                 for (UUID id : unresolvedIds) {
                     circularReferences.put(id, null);
                 }
@@ -155,7 +168,9 @@ abstract class StateValueUtils {
                 Map.Entry<UUID, Object> entry = i.next();
                 Object object = entry.getValue();
 
-                if (object != null &&
+                if ((parentState == null ||
+                        !parentState.isResolveInvisible()) &&
+                        object != null &&
                         !ObjectUtils.isBlank(State.getInstance(object).get("dari.visibilities"))) {
                     entry.setValue(null);
                 }

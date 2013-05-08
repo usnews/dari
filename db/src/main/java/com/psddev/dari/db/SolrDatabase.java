@@ -939,7 +939,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         Profiler.Static.startThreadEvent(QUERY_PROFILER_EVENT);
 
         try {
-            return openReadConnection().query(solrQuery, SolrRequest.METHOD.POST);
+            return openQueryConnection(query).query(solrQuery, SolrRequest.METHOD.POST);
 
         } catch (SolrServerException ex) {
             throw new DatabaseException(this, String.format(

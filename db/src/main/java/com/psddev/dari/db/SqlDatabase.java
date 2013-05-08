@@ -687,7 +687,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     ResultSet result = null;
 
                     try {
-                        connection = openReadConnection();
+                        connection = super.openQueryConnection(query);
                         statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
@@ -994,7 +994,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             query = initialQuery;
 
             try {
-                connection = openReadConnection();
+                connection = openQueryConnection(query);
                 statement = connection.createStatement();
                 statement.setFetchSize(
                         getVendor() instanceof SqlVendor.MySQL ? Integer.MIN_VALUE :
@@ -1157,8 +1157,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    // Opens a connection that should be used to execute the given query.
-    private Connection openQueryConnection(Query<?> query) {
+    @Override
+    public Connection openQueryConnection(Query<?> query) {
         if (query != null) {
             Connection connection = (Connection) query.getOptions().get(CONNECTION_QUERY_OPTION);
 
@@ -1167,14 +1167,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
 
             Boolean useRead = ObjectUtils.to(Boolean.class, query.getOptions().get(USE_READ_DATA_SOURCE_QUERY_OPTION));
+
             if (useRead == null) {
                 useRead = Boolean.TRUE;
             }
+
             if (!useRead) {
                 return openConnection();
             }
         }
-        return openReadConnection();
+
+        return super.openQueryConnection(query);
     }
 
     @Override

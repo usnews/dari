@@ -355,6 +355,9 @@ public interface StorageItem extends SettingsBackedObject {
                                         if (childPath.length() == 0) {
                                             newCssBuilder.append("''");
 
+                                        } else if (childPath.startsWith("data:")) {
+                                            newCssBuilder.append(childPath);
+
                                         } else {
                                             childUri = new URI(servletPath).resolve(childPath);
 

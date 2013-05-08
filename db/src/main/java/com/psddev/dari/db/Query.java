@@ -129,6 +129,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private transient Database database;
     private boolean isResolveToReferenceOnly;
     private boolean noCache;
+    private boolean master;
+    private boolean resolveInvisible;
     private Double timeout;
     private transient Map<String, Object> options;
     private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
@@ -152,13 +154,18 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     /**
      * Queries over objects of types that are compatible with the given
      * {@code type}.
+     *
+     * @param type If {@code null}, queries over everything.
+     * @return Never {@code null}.
      */
     public static Query<Object> fromType(ObjectType type) {
         if (type == null) {
             return new Query<Object>(null, null);
+
         } else {
             Query<Object> query = new Query<Object>(type.getInternalName(), type.getObjectClass());
-            query.setDatabase(type.getState().getDatabase());
+
+            query.setDatabase(type.getState().getRealDatabase());
             return query;
         }
     }
@@ -307,6 +314,28 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      */
     public void setCache(boolean cache) {
         this.noCache = !cache;
+    }
+
+    /**
+     * Returns {@code true} if this query will run on the master database.
+     */
+    public boolean isMaster() {
+        return master;
+    }
+
+    /**
+     * Sets whether this query will run on the master database.
+     */
+    public void setMaster(boolean master) {
+        this.master = master;
+    }
+
+    public boolean isResolveInvisible() {
+        return resolveInvisible;
+    }
+
+    public void setResolveInvisible(boolean resolveInvisible) {
+        this.resolveInvisible = resolveInvisible;
     }
 
     public Double getTimeout() {
@@ -579,6 +608,16 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public Query<E> noCache() {
         setCache(false);
+        return this;
+    }
+
+    public Query<E> master() {
+        setMaster(true);
+        return this;
+    }
+
+    public Query<E> resolveInvisible() {
+        setResolveInvisible(true);
         return this;
     }
 
@@ -1133,12 +1172,18 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     @Override
     public Query<E> clone() {
         Query<E> clone = new Query<E>(group, objectClass);
+
         clone.setPredicate(predicate);
         clone.setSorters(sorters != null ? new ArrayList<Sorter>(sorters) : null);
+        clone.setFields(fields != null ? new ArrayList<String>(fields) : null);
         clone.setDatabase(database);
         clone.setResolveToReferenceOnly(isResolveToReferenceOnly);
+        clone.setCache(!noCache);
+        clone.setMaster(master);
+        clone.setResolveInvisible(resolveInvisible);
         clone.setTimeout(timeout);
         clone.setOptions(options != null ? new HashMap<String, Object>(options) : null);
+
         return clone;
     }
 
