@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -48,8 +49,11 @@ public class State implements Map<String, Object> {
 
     private static final int STATUS_FLAG_OFFSET = 16;
     private static final int STATUS_FLAG_MASK = -1 >>> STATUS_FLAG_OFFSET;
-    private static final int IS_ALL_RESOLVED_FLAG = 1 << 0;
-    private static final int IS_RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
+    private static final int ALL_RESOLVED_FLAG = 1 << 0;
+    private static final int RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
+    private static final int RESOLVE_WITHOUT_CACHE = 1 << 2;
+    private static final int RESOLVE_USING_MASTER = 1 << 3;
+    private static final int RESOLVE_INVISIBLE = 1 << 4;
 
     private static final ThreadLocal<List<Listener>> LISTENERS_LOCAL = new ThreadLocal<List<Listener>>();
 
@@ -107,20 +111,30 @@ public class State implements Map<String, Object> {
         }
     }
 
-    /** Returns the originating database. */
+    /**
+     * Returns the effective originating database.
+     *
+     * <p>This method will check the following:</p>
+     *
+     * <ul>
+     * <li>{@linkplain #getRealDatabase Real originating database}.</li>
+     * <li>{@linkplain Database.Static#getDefault Default database}.</li>
+     * <li>{@linkplain ObjectType#getSourceDatabase Source database}.</li>
+     * <li>
+     *
+     * @return Never {@code null}.
+     */
     public Database getDatabase() {
         if (database == null) {
-            Database defaultDatabase = Database.Static.getDefault();
-
-            setDatabase(defaultDatabase);
-
+            Database newDatabase = Database.Static.getDefault();
+            this.database = newDatabase;
             ObjectType type = getType();
 
             if (type != null) {
-                Database source = type.getSourceDatabase();
+                newDatabase = type.getSourceDatabase();
 
-                if (source != null) {
-                    setDatabase(source);
+                if (newDatabase != null) {
+                    this.database = newDatabase;
                 }
             }
         }
@@ -128,7 +142,20 @@ public class State implements Map<String, Object> {
         return database;
     }
 
-    /** Sets the originating database. */
+    /**
+     * Returns the real originating database.
+     *
+     * @return May be {@code null}.
+     */
+    public Database getRealDatabase() {
+        return database;
+    }
+
+    /**
+     * Sets the originating database.
+     *
+     * @param database May be {@code null}.
+     */
     public void setDatabase(Database database) {
         this.database = database;
     }
@@ -186,7 +213,7 @@ public class State implements Map<String, Object> {
 
                 if (value != null) {
                     byte[] typeId = UuidUtils.toBytes(getTypeId());
-                    byte[] md5 = StringUtils.md5(field + "/" + value.toString());
+                    byte[] md5 = StringUtils.md5(field + "/" + value.toString().trim().toLowerCase(Locale.ENGLISH));
 
                     for (int i = 0, length = typeId.length; i < length; ++ i) {
                         typeId[i] ^= md5[i];
@@ -268,6 +295,14 @@ public class State implements Map<String, Object> {
             setTypeId(type.getId());
             setDatabase(type.getState().getDatabase());
         }
+    }
+
+    /**
+     * Returns {@code true} if this state is visible (all visibility-indexed
+     * fields are {@code null}).
+     */
+    public boolean isVisible() {
+        return ObjectUtils.isBlank(get("dari.visibilities"));
     }
 
     public ObjectField getField(String name) {
@@ -931,14 +966,50 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveToReferenceOnly() {
-        return (flags & IS_RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
+        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
     }
 
-    public void setResolveToReferenceOnly(boolean isResolveToReferenceOnly) {
-        if (isResolveToReferenceOnly) {
-            flags |= IS_RESOLVE_TO_REFERENCE_ONLY_FLAG;
+    public void setResolveToReferenceOnly(boolean resolveToReferenceOnly) {
+        if (resolveToReferenceOnly) {
+            flags |= RESOLVE_TO_REFERENCE_ONLY_FLAG;
         } else {
-            flags &= ~IS_RESOLVE_TO_REFERENCE_ONLY_FLAG;
+            flags &= ~RESOLVE_TO_REFERENCE_ONLY_FLAG;
+        }
+    }
+
+    public boolean isResolveUsingCache() {
+        return (flags & RESOLVE_WITHOUT_CACHE) == 0;
+    }
+
+    public void setResolveUsingCache(boolean resolveUsingCache) {
+        if (resolveUsingCache) {
+            flags &= ~RESOLVE_WITHOUT_CACHE;
+        } else {
+            flags |= RESOLVE_WITHOUT_CACHE;
+        }
+    }
+
+    public boolean isResolveUsingMaster() {
+        return (flags & RESOLVE_USING_MASTER) > 0;
+    }
+
+    public void setResolveUsingMaster(boolean resolveUsingMaster) {
+        if (resolveUsingMaster) {
+            flags |= RESOLVE_USING_MASTER;
+        } else {
+            flags &= ~RESOLVE_USING_MASTER;
+        }
+    }
+
+    public boolean isResolveInvisible() {
+        return (flags & RESOLVE_INVISIBLE) > 0;
+    }
+
+    public void setResolveInvisible(boolean resolveInvisible) {
+        if (resolveInvisible) {
+            flags |= RESOLVE_INVISIBLE;
+        } else {
+            flags &= ~RESOLVE_INVISIBLE;
         }
     }
 
@@ -1147,16 +1218,16 @@ public class State implements Map<String, Object> {
      * @param field If {@code null}, resolves all references.
      */
     public void resolveReference(String field) {
-        if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+        if ((flags & ALL_RESOLVED_FLAG) > 0) {
             return;
         }
 
         synchronized (this) {
-            if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+            if ((flags & ALL_RESOLVED_FLAG) > 0) {
                 return;
             }
 
-            flags |= IS_ALL_RESOLVED_FLAG;
+            flags |= ALL_RESOLVED_FLAG;
 
             if (linkedObjects.isEmpty()) {
                 return;
@@ -1495,7 +1566,7 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
-                flags &= ~IS_ALL_RESOLVED_FLAG;
+                flags &= ~ALL_RESOLVED_FLAG;
                 return;
 
             } else {
@@ -1662,9 +1733,7 @@ public class State implements Map<String, Object> {
             throw new IllegalStateException("No type!");
         }
 
-        Query<?> query = Query.fromType(type);
-
-        query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
+        Query<?> query = Query.fromType(type).noCache();
 
         for (ObjectIndex index : type.getIndexes()) {
             if (index.isUnique()) {
