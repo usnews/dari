@@ -381,7 +381,7 @@ class MetricDatabase {
             sqlBuilder.append(" FROM (");
             sqlBuilder.append(innerSql);
             sqlBuilder.append(") x ");
-            sqlBuilder.append(" JOIN "); // This could be a left join if we want to include NULL dimension values in this query. 
+            sqlBuilder.append(" JOIN "); // This could be a left join if we want to include NULL dimension values in this query.
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_TABLE);
             sqlBuilder.append(" ");
             vendor.appendIdentifier(sqlBuilder, "d");
@@ -403,7 +403,7 @@ class MetricDatabase {
         }
 
         private static String getTimelineSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval, boolean doDecodeToBytes) {
-            
+
             SqlVendor vendor = db.getVendor();
 
             StringBuilder extraSelectSqlBuilder = new StringBuilder("MIN(");
@@ -430,7 +430,7 @@ class MetricDatabase {
         }
 
         private static String getSumTimelineSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) {
-            
+
             StringBuilder sqlBuilder = new StringBuilder();
             SqlVendor vendor = db.getVendor();
 

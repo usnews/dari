@@ -58,7 +58,7 @@ public class Metric extends Record {
     /**
      * Asynchronously (within the next few seconds) increases the metric value
      * by the given {@code amount} and associate it with the given {@code
-     * dimension} and {@code time}, . 
+     * dimension} and {@code time}, .
      *
      * @param dimension May be {@code null}.
      * @param time May be {@code null}.

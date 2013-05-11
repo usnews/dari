@@ -935,9 +935,9 @@ class SqlQuery {
         statementBuilder.append(recordIdField);
         statementBuilder.append(")");
 
-        // Metric sorters, dates, dimension specifiers, etc., don't apply; 
+        // Metric sorters, dates, dimension specifiers, etc., don't apply;
         // only the HAVING will require a metric query
-        if (! recordMetricHavingPredicates.isEmpty()) { 
+        if (! recordMetricHavingPredicates.isEmpty()) {
             statementBuilder.append(", ");
             vendor.appendIdentifier(statementBuilder, recordMetricField.getInternalName());
         }

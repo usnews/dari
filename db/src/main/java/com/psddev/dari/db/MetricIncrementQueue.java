@@ -19,7 +19,7 @@ class MetricIncrementQueue {
 
         putInMap(metricDatabase, dimensionId, amount);
 
-        // If the task is already running or has been scheduled, this won't do anything. 
+        // If the task is already running or has been scheduled, this won't do anything.
         MetricIncrementQueueTask.getInstance(queuedIncrements).schedule(withinSeconds);
 
     }
@@ -30,7 +30,7 @@ class MetricIncrementQueue {
         QueuedMetricIncrement placeholder = new QueuedMetricIncrement(metricDatabase, dimensionId, 0d);
         while (true) {
             QueuedMetricIncrement current = queuedIncrements.putIfAbsent(key, placeholder);
-            if (current == null) current = placeholder; 
+            if (current == null) current = placeholder;
             QueuedMetricIncrement next = new QueuedMetricIncrement(metricDatabase, dimensionId, current.amount + amount);
             if (queuedIncrements.replace(key, current, next)) {
                 return;
@@ -63,7 +63,7 @@ class QueuedMetricIncrement {
         if (other == null || !(other instanceof QueuedMetricIncrement)) {
             return false;
         } else {
-            if (this.amount == ((QueuedMetricIncrement) other).amount && 
+            if (this.amount == ((QueuedMetricIncrement) other).amount &&
                 this.metricDatabase.equals(((QueuedMetricIncrement) other).metricDatabase) &&
                 this.dimensionId.equals(((QueuedMetricIncrement) other).dimensionId)) {
                 return true;

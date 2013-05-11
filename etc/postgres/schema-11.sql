@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS Record (
 CREATE INDEX k_record_id ON Record (id);
 CREATE VIEW Record_d AS SELECT id, typeId, CONVERT_FROM(data, 'UTF-8') AS data FROM Record;
 
-CREATE EXTENSION postgis; 
+CREATE EXTENSION postgis;
 
 CREATE TABLE IF NOT EXISTS RecordLocation2 (
     id UUID NOT NULL,
