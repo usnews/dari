@@ -23,11 +23,11 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     private static final String PROCESSOR_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "processor/";
 
     /** Map of the MD5 hash of a processor class name to the Class object itself. */
-    private static final ConcurrentHashMap<String, Class<? extends FormProcessor2>> PROCESSOR_CLASSES =
-            new ConcurrentHashMap<String, Class<? extends FormProcessor2>>();
+    private static final ConcurrentHashMap<String, Class<? extends FormProcessor>> PROCESSOR_CLASSES =
+            new ConcurrentHashMap<String, Class<? extends FormProcessor>>();
 
     private String method;
-    private Class<? extends FormProcessor2> processorClass;
+    private Class<? extends FormProcessor> processorClass;
 
     private String varProcessor;
     private String varSuccess;
@@ -55,19 +55,19 @@ public class FormTag extends TagSupport implements DynamicAttributes {
      * Sets the name of the processor class.
      *
      * @param processor The class name must be valid, and the class must
-     * implement {@link FormProcessor2}.
+     * implement {@link FormProcessor}.
      */
     @SuppressWarnings("unchecked")
     public void setProcessor(String processor) {
         Class<?> pc = ObjectUtils.getClassByName(processor);
 
         ErrorUtils.errorIf(pc == null, processor, "isn't a valid class name!");
-        ErrorUtils.errorIf(!FormProcessor2.class.isAssignableFrom(pc), pc.getName(), "doesn't implement [" + FormProcessor2.class.getName() + "]!");
+        ErrorUtils.errorIf(!FormProcessor.class.isAssignableFrom(pc), pc.getName(), "doesn't implement [" + FormProcessor.class.getName() + "]!");
 
-        this.processorClass = (Class<? extends FormProcessor2>) pc;
+        this.processorClass = (Class<? extends FormProcessor>) pc;
     }
 
-    public Class<? extends FormProcessor2> getProcessorClass() {
+    public Class<? extends FormProcessor> getProcessorClass() {
         return this.processorClass;
     }
 
@@ -111,7 +111,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     }
 
     /** Returns the processor for this form. */
-    public FormProcessor2 getProcessorInstance() {
+    public FormProcessor getProcessorInstance() {
         return Static.getProcessorById(getFormId(), (HttpServletRequest) pageContext.getRequest());
     }
 
@@ -158,7 +158,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
         HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
 
         String formId = getFormId();
-        FormProcessor2 processor = getProcessorInstance();
+        FormProcessor processor = getProcessorInstance();
 
         if (!ObjectUtils.isBlank(varProcessor)) {
             pageContext.setAttribute(varProcessor, processor);
@@ -261,7 +261,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
 
     public static final class Static {
 
-        public static FormProcessor2 getProcessorById(String id, HttpServletRequest request) {
+        public static FormProcessor getProcessorById(String id, HttpServletRequest request) {
             if (id == null) {
                 return null;
             }
@@ -276,10 +276,10 @@ public class FormTag extends TagSupport implements DynamicAttributes {
                 processorId = id.substring(0, slashAt);
             }
 
-            FormProcessor2 processor = (FormProcessor2) request.getAttribute(PROCESSOR_ATTRIBUTE_PREFIX + id);
+            FormProcessor processor = (FormProcessor) request.getAttribute(PROCESSOR_ATTRIBUTE_PREFIX + id);
 
             if (processor == null) {
-                Class<? extends FormProcessor2> processorClass = PROCESSOR_CLASSES.get(processorId);
+                Class<? extends FormProcessor> processorClass = PROCESSOR_CLASSES.get(processorId);
                 if (processorClass != null) {
                     processor = TypeDefinition.getInstance(processorClass).newInstance();
                 }
@@ -291,7 +291,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
             return processor;
         }
 
-        private static String getProcessorId(Class<? extends FormProcessor2> processorClass) {
+        private static String getProcessorId(Class<? extends FormProcessor> processorClass) {
             String hashId = StringUtils.hex(StringUtils.md5(processorClass.getName()));
             PROCESSOR_CLASSES.putIfAbsent(hashId, processorClass);
             return hashId;

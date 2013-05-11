@@ -7,9 +7,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.psddev.dari.util.FormFilter;
-import com.psddev.dari.util.FormProcessor2;
+import com.psddev.dari.util.FormProcessor;
 
-public abstract class AbstractForm extends FormWriter implements FormProcessor2 {
+public abstract class AbstractForm extends FormWriter implements FormProcessor {
 
     public AbstractForm() {
         this(null);

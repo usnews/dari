@@ -23,8 +23,7 @@ import javax.servlet.http.HttpServletResponse;
  * <li>{@link #doProcess}</li>
  * </ul>
  */
-@SuppressWarnings("deprecation")
-public abstract class AbstractFormProcessor implements FormProcessor, FormProcessor2 {
+public abstract class AbstractFormProcessor implements FormProcessor {
 
     private HttpServletRequest request;
     private HttpServletResponse response;
@@ -71,14 +70,6 @@ public abstract class AbstractFormProcessor implements FormProcessor, FormProces
     protected abstract void doProcess();
 
     // --- FormProcessor support ---
-
-    @Override
-    public final void processRequest(HttpServletRequest request) {
-        try {
-            process(request, null);
-        } catch (IOException e) {
-        }
-    }
 
     @Override
     public final Object process(HttpServletRequest request, HttpServletResponse response) throws IOException {

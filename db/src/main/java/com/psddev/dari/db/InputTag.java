@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.ErrorUtils;
-import com.psddev.dari.util.FormProcessor2;
+import com.psddev.dari.util.FormProcessor;
 import com.psddev.dari.util.FormTag;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeDefinition;
@@ -76,7 +76,7 @@ public class InputTag extends TagSupport {
                     // grab it from parent form tag
                     FormTag formTag = getParentFormTag();
                     if (formTag != null) {
-                        FormProcessor2 processor = formTag.getProcessorInstance();
+                        FormProcessor processor = formTag.getProcessorInstance();
                         if (processor instanceof FormWriter) {
                             formWriter = (FormWriter) processor;
                         }

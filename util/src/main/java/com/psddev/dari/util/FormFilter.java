@@ -33,7 +33,7 @@ public class FormFilter extends AbstractFilter {
             FilterChain chain)
             throws IOException, ServletException {
 
-        FormProcessor2 processor = FormTag.Static.getProcessorById(request.getParameter(FormTag.ID_PARAMETER), request);
+        FormProcessor processor = FormTag.Static.getProcessorById(request.getParameter(FormTag.ID_PARAMETER), request);
 
         if (processor != null) {
             request.setAttribute(SUBMITTED_FORM_PROCESSOR_ATTRIBUTE, processor);
@@ -101,7 +101,7 @@ public class FormFilter extends AbstractFilter {
          * @param request
          * @return
          */
-        public static boolean isFormSubmitted(FormProcessor2 processor, HttpServletRequest request) {
+        public static boolean isFormSubmitted(FormProcessor processor, HttpServletRequest request) {
             return processor != null && processor == request.getAttribute(SUBMITTED_FORM_PROCESSOR_ATTRIBUTE);
         }
 
