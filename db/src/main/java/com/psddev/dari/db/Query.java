@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -687,7 +688,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                             typeIds.add(null);
 
                         } else {
-                            byte[] md5 = StringUtils.md5(index.getField() + "/" + value);
+                            byte[] md5 = StringUtils.md5(index.getField() + "/" + value.toString().trim().toLowerCase(Locale.ENGLISH));
 
                             for (ObjectType type : types) {
                                 byte[] typeId = UuidUtils.toBytes(type.getId());
