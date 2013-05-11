@@ -1,26 +1,30 @@
 package com.psddev.dari.db;
 
+import java.util.UUID;
+
 class MetricQuery {
-    private String symbol;
-    private final State state;
+    private final int symbolId;
+    private final UUID id;
+    private final UUID typeId;
     private Long startTimestamp;
     private Long endTimestamp;
 
-    public MetricQuery(String symbol, State state) {
-        this.symbol = symbol;
-        this.state = state;
+    public MetricQuery(int symbolId, UUID id, UUID typeId) {
+        this.symbolId = symbolId;
+        this.id = id;
+        this.typeId = typeId;
     }
 
-    public String getSymbol() {
-        return symbol;
+    public int getSymbolId() {
+        return symbolId;
     }
 
-    public void setSymbol(String symbol) {
-        this.symbol = symbol;
+    public UUID getId() {
+        return id;
     }
 
-    public State getState() {
-        return state;
+    public UUID getTypeId() {
+        return typeId;
     }
 
     public Long getStartTimestamp() {
@@ -37,6 +41,6 @@ class MetricQuery {
     }
 
     public String toString() {
-        return "action: " + getSymbol() + " recordId: " + getState().getId() + " date range: " + startTimestamp + " - " + endTimestamp;
+        return "symbolId: " + getSymbolId() + " id: " + getId() + " date range: " + startTimestamp + " - " + endTimestamp;
     }
 }

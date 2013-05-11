@@ -8,9 +8,9 @@ CREATE TABLE Metric (
     symbolId INT NOT NULL,
     dimensionId BINARY(16) NOT NULL,
     data BINARY(20) NOT NULL,
-    PRIMARY KEY (symbolId, typeId, id, dimensionId, data),
-    KEY k_metricAlldims (symbolId, typeId, id, data, dimensionId),
-    UNIQUE KEY k_metricUnique (symbolId, id, dimensionId, data(4))
+    PRIMARY KEY (symbolId, id, dimensionId, data(4)),
+    KEY k_metricAllDims (symbolId, typeId, id, data, dimensionId),
+    KEY k_metricData (symbolId, typeId, id, dimensionId, data)
 ) ENGINE=InnoDB DEFAULT CHARSET=binary;
 
 DROP TABLE IF EXISTS MetricDimension;
