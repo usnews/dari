@@ -29,17 +29,6 @@ public class Metric extends Record {
     }
 
     /**
-     * Sets the metric value to the given {@code amount}.
-     */
-    public void setDimension(double amount, String dimension) {
-        try {
-            metricDatabase.setMetric(dimension, amount);
-        } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.setMetric() : " + e.getLocalizedMessage());
-        }
-    }
-
-    /**
      * Increases the metric value by the given {@code amount} and associate it
      * with the given {@code dimension} and {@code time}.
      *
@@ -78,6 +67,22 @@ public class Metric extends Record {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getDimensionId() : " + e.getLocalizedMessage());
         }
         MetricIncrementQueue.queueIncrement(metricDatabase, dimensionId, amount, within);
+    }
+
+    /**
+     * Sets the metric value to the given {@code amount} and associates it with
+     * the given {@code dimension} and {@code time}.
+     *
+     * @param dimension May be {@code null}.
+     * @param time If {@code null}, right now.
+     */
+    public void setDimensionAt(double amount, String dimension, DateTime time) {
+        try {
+            metricDatabase.setEventDate(time);
+            metricDatabase.setMetric(dimension, amount);
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.setMetric() : " + e.getLocalizedMessage());
+        }
     }
 
     /** Deletes all metric values. */
