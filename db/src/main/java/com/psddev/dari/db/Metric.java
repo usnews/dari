@@ -56,17 +56,20 @@ public class Metric extends Record {
     }
 
     /**
-     * Asynchronously (within the next few seconds) increases the metric value
-     * by the given {@code amount} and associate it with the given {@code
-     * dimension} and {@code time}, .
+     * Asynchronously (within the given {@code within} seconds) increases the
+     * metric value by the given {@code amount} and associate it with the given
+     * {@code dimension} and {@code time}.
      *
      * @param dimension May be {@code null}.
      * @param time May be {@code null}.
-     * @param withinSeconds May be {@code null}, defaults to 1.0.
+     * @param within In seconds. If less than or equal to {@code 0}, uses
+     * {@code 1.0} instead.
      */
-    public void incrementDimensionEventually(double amount, String dimension, DateTime time, Double withinSeconds) {
-        if (withinSeconds == null) withinSeconds = 1.0;
-        if (withinSeconds < 0) throw new RuntimeException("withinSeconds must be a positive number.");
+    public void incrementEventually(double amount, String dimension, DateTime time, double within) {
+        if (within <= 0) {
+            within = 1.0;
+        }
+
         metricDatabase.setEventDate(time);
         UUID dimensionId;
         try {
@@ -74,7 +77,7 @@ public class Metric extends Record {
         } catch (SQLException e) {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getDimensionId() : " + e.getLocalizedMessage());
         }
-        MetricIncrementQueue.queueIncrement(metricDatabase, dimensionId, amount, withinSeconds);
+        MetricIncrementQueue.queueIncrement(metricDatabase, dimensionId, amount, within);
     }
 
     /** Deletes all metric values. */
