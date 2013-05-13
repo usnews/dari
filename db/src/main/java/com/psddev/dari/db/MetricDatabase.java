@@ -493,7 +493,7 @@ class MetricDatabase {
                 updateBuilder.append(" LIKE ");
                 updateBuilder.append(" CONCAT(");
                 vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, null);
-                updateBuilder.append(", '%')");
+                updateBuilder.append(", '%') ESCAPE ''");
             }
 
             return updateBuilder.toString();
