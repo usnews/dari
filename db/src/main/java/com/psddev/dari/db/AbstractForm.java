@@ -6,10 +6,15 @@ import java.io.Writer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.psddev.dari.util.FormFilter;
 import com.psddev.dari.util.FormProcessor;
 
 public abstract class AbstractForm extends FormWriter implements FormProcessor {
+
+    protected static final Logger LOGGER = LoggerFactory.getLogger(AbstractForm.class);
 
     public AbstractForm() {
         this(null);
@@ -35,7 +40,7 @@ public abstract class AbstractForm extends FormWriter implements FormProcessor {
                 throw e;
 
             } catch (Throwable e) {
-                e.printStackTrace(); // TODO: Remove debug statement
+                LOGGER.debug(e.getMessage(), e);
             }
         }
 
