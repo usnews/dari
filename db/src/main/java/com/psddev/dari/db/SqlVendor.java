@@ -719,7 +719,7 @@ public class SqlVendor {
                             sql.append(" LIKE ");
                                 sql.append(" CONCAT(");
                                     appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
-                                sql.append(", '%')");
+                                sql.append(", '%') ESCAPE ''");
                                 sql.append(","); // if it's the exact date, then update the amount
                                 appendBindValue(sql, adjustedAmount, parameters);
                                 sql.append(","); // if it's a date in the future, leave the date alone
@@ -752,7 +752,7 @@ public class SqlVendor {
                                     sql.append(" LIKE ");
                                         sql.append(" CONCAT(");
                                             appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
-                                        sql.append(", '%')");
+                                        sql.append(", '%') ESCAPE ''");
                                         sql.append(","); // if it's the exact date, then update the amount
                                         appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
                                         sql.append(","); // if it's a date in the future, leave the date alone
@@ -992,7 +992,7 @@ public class SqlVendor {
                             sql.append(" LIKE ");
                                 sql.append(" CONCAT(");
                                     appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
-                                sql.append(", '%')");
+                                sql.append(", '%') ESCAPE ''");
                                 sql.append(" THEN "); // if it's the exact date, then update the amount
                                 appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
                                 sql.append(" ELSE "); // if it's a date in the future, leave the date alone
