@@ -264,20 +264,20 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
             // Change the query database if it's only querying over a single
             // type that has a source database.
-            for (ObjectType groupType : defaultDatabase.getEnvironment().getTypesByGroup(getGroup())) {
+            GROUP_TYPE: for (ObjectType groupType : defaultDatabase.getEnvironment().getTypesByGroup(getGroup())) {
                 for (ObjectType type : groupType.findConcreteTypes()) {
                     Database typeSource = type.getSourceDatabase();
 
                     if (typeSource == null) {
                         source = null;
-                        break;
+                        break GROUP_TYPE;
 
                     } else if (source == null) {
                         source = typeSource;
 
                     } else if (!source.equals(typeSource)) {
                         source = null;
-                        break;
+                        break GROUP_TYPE;
                     }
                 }
             }
