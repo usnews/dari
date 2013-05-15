@@ -47,6 +47,8 @@ public class State implements Map<String, Object> {
 
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
 
+    private static final String ATOMIC_OPERATIONS_EXTRA = "dari.atomicOperations";
+
     private static final int STATUS_FLAG_OFFSET = 16;
     private static final int STATUS_FLAG_MASK = -1 >>> STATUS_FLAG_OFFSET;
     private static final int ALL_RESOLVED_FLAG = 1 << 0;
@@ -63,7 +65,6 @@ public class State implements Map<String, Object> {
     private UUID typeId;
     private final Map<String, Object> rawValues = new LinkedHashMap<String, Object>();
     private Map<String, Object> extras;
-    private List<AtomicOperation> atomicOperations;
     private Map<ObjectField, List<String>> errors;
     private volatile int flags;
 
@@ -361,12 +362,13 @@ public class State implements Map<String, Object> {
      */
     public void setStatus(StateStatus status) {
         flags &= STATUS_FLAG_MASK;
+
         if (status != null) {
             flags |= status.getFlag() << STATUS_FLAG_OFFSET;
         }
-        if (atomicOperations != null) {
-            atomicOperations.clear();
-        }
+
+        getExtras().remove(ATOMIC_OPERATIONS_EXTRA);
+
         if (errors != null) {
             errors.clear();
         }
@@ -782,19 +784,22 @@ public class State implements Map<String, Object> {
      * this record.
      */
     public List<AtomicOperation> getAtomicOperations() {
-        if (atomicOperations == null) {
-            atomicOperations = new ArrayList<AtomicOperation>();
+        Map<String, Object> extras = getExtras();
+        @SuppressWarnings("unchecked")
+        List<AtomicOperation> ops = (List<AtomicOperation>) extras.get(ATOMIC_OPERATIONS_EXTRA);
+
+        if (ops == null) {
+            ops = new ArrayList<AtomicOperation>();
+            extras.put(ATOMIC_OPERATIONS_EXTRA, ops);
         }
-        return atomicOperations;
+
+        return ops;
     }
 
     // Queues up an atomic operation and updates the internal state.
     private void queueAtomicOperation(AtomicOperation operation) {
-        if (atomicOperations == null) {
-            atomicOperations = new ArrayList<AtomicOperation>();
-        }
         operation.execute(this);
-        atomicOperations.add(operation);
+        getAtomicOperations().add(operation);
     }
 
     /**
@@ -1634,7 +1639,6 @@ public class State implements Map<String, Object> {
         sb.append(", typeId=").append(getTypeId());
         sb.append(", simpleValues=").append(getSimpleValues());
         sb.append(", extras=").append(extras);
-        sb.append(", atomicOperations=").append(atomicOperations);
         sb.append(", errors=").append(errors);
         sb.append("}");
         return sb.toString();
