@@ -221,7 +221,7 @@ public abstract class AbstractDatabase<C> implements Database {
      * {@code query}.
      */
     public C openQueryConnection(Query<?> query) {
-        return query.isMaster() ?
+        return query != null && query.isMaster() ?
                 openConnection() :
                 openReadConnection();
     }

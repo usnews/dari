@@ -238,7 +238,7 @@ public class BuildDebugServlet extends HttpServlet {
                                 writeEnd();
 
                                 for (GitCommit commit : entry.getValue()) {
-                                    writeStart("tr", "class", commit.subject.startsWith("Merge branch ") ? "merge" : null);
+                                    writeStart("tr", "class", commit.subject != null && commit.subject.startsWith("Merge branch ") ? "merge" : null);
 
                                         writeStart("td").writeHtml(commit.date).writeEnd();
 

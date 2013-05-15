@@ -3,6 +3,7 @@ package com.psddev.dari.db;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.joda.time.DateTime;
 
@@ -32,7 +33,7 @@ public class Metric extends Record {
      * with the given {@code dimension} and {@code time}.
      *
      * @param dimension May be {@code null}.
-     * @param date If {@code null}, right now.
+     * @param time If {@code null}, right now.
      */
     public void incrementDimensionAt(double amount, String dimension, DateTime time) {
         try {
@@ -40,6 +41,47 @@ public class Metric extends Record {
             metricDatabase.incrementMetric(dimension, amount);
         } catch (SQLException e) {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.incrementMetric() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Asynchronously (within the given {@code within} seconds) increases the
+     * metric value by the given {@code amount} and associate it with the given
+     * {@code dimension} and {@code time}.
+     *
+     * @param dimension May be {@code null}.
+     * @param time May be {@code null}.
+     * @param within In seconds. If less than or equal to {@code 0}, uses
+     * {@code 1.0} instead.
+     */
+    public void incrementEventually(double amount, String dimension, DateTime time, double within) {
+        if (within <= 0) {
+            within = 1.0;
+        }
+
+        metricDatabase.setEventDate(time);
+        UUID dimensionId;
+        try {
+            dimensionId = metricDatabase.getDimensionId(dimension);
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getDimensionId() : " + e.getLocalizedMessage());
+        }
+        MetricIncrementQueue.queueIncrement(metricDatabase, dimensionId, amount, within);
+    }
+
+    /**
+     * Sets the metric value to the given {@code amount} and associates it with
+     * the given {@code dimension} and {@code time}.
+     *
+     * @param dimension May be {@code null}.
+     * @param time If {@code null}, right now.
+     */
+    public void setDimensionAt(double amount, String dimension, DateTime time) {
+        try {
+            metricDatabase.setEventDate(time);
+            metricDatabase.setMetric(dimension, amount);
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.setMetric() : " + e.getLocalizedMessage());
         }
     }
 
