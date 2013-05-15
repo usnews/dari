@@ -455,7 +455,7 @@ public class QueryDebugServlet extends HttpServlet {
 
                     writeStart("li");
                         writeTag("input",
-                                "class", "hide",
+                                "class", "visibility-input",
                                 "type", "checkbox",
                                 "name", "visibilityFilters",
                                 "value", "VISIBLE",
@@ -493,7 +493,6 @@ public class QueryDebugServlet extends HttpServlet {
                             hue %= 1.0;
 
                             visibilityColors.put(index.getUniqueName() + "/" + visibilityValue, hue);
-                            System.out.println(visibilityColors);
 
                             boolean visibilityValueChecked = false;
                             if (visibilityFilters != null) {
@@ -519,7 +518,7 @@ public class QueryDebugServlet extends HttpServlet {
 
                             writeStart("li");
                                 writeTag("input",
-                                        "class", "hide",
+                                        "class", "visibility-input",
                                         "type", "checkbox",
                                         "name", "visibilityFilters",
                                         "value", index.getUniqueName() + "|" + visibilityValue,
@@ -608,7 +607,7 @@ public class QueryDebugServlet extends HttpServlet {
                     } else if (SubAction.EDIT_FIELDED.equals(subAction)) {
                         @SuppressWarnings("all")
                         FormWriter form = new FormWriter(this);
-                        form.putAllStandardInputProcessors2();
+                        form.putAllStandardInputProcessors();
 
                         if (page.isFormPost()) {
                             try {
@@ -862,10 +861,12 @@ public class QueryDebugServlet extends HttpServlet {
                     write(".edit textarea { min-height: 6em; }");
 
                     // for visibility filters
-                    write(".visibilityFilters li { display: inline-block; margin-right: 5px; cursor: pointer; }");
-                    write(".visibilityFilters input { margin-top: 4px; }");
-                    write(".visibility-label { -moz-user-select: none; -ms-user-select: none; -o-user-select: none; -webkit-user-select: none; user-select: none; }");
-                    write(".visibility-label.disabled { background: #999 !important; }");
+                    write(".visibilityFilters li { display: inline-block; }");
+                    write(".visibilityFilters input::-moz-focus-inner { border: 0; padding: 0; outline: 0; }");
+                    write(".visibilityFilters .visibility-input { margin-right: 4px; }");
+                    write(".visibilityFilters .visibility-label { margin-right: 12px; cursor: pointer }");
+                    write(".visibilityFilters .visibility-label { -moz-user-select: none; -ms-user-select: none; -o-user-select: none; -webkit-user-select: none; user-select: none; }");
+                    write(".visibilityFilters .visibility-label.disabled { background: #999 !important; }");
                 writeEnd();
 
                 includeStylesheet("/_resource/jquery/jquery.objectId.css");
@@ -880,11 +881,13 @@ public class QueryDebugServlet extends HttpServlet {
                         write("$('.objectId').objectId();");
 
                         // for visibility filters
+                        write("$(document).on('change', '.visibility-input', function(evt) {");
+                            write("var $input = $(evt.target);");
+                            write("$input.next('.visibility-label').toggleClass('disabled', !$input.prop('checked'));");
+                        write("});");
                         write("$(document).on('click', '.visibility-label', function(evt) {");
                             write("var $label = $(evt.target);");
-                            write("var $input = $label.closest('li').find('input');");
-                            write("$input.prop('checked', !$input.prop('checked'));");
-                            write("$label.toggleClass('disabled', !$input.prop('checked'))");
+                            write("$label.prev('.visibility-input').trigger('click');");
                         write("});");
                         write("$(document).on('change', 'select[name=from]', function(evt) {");
                             write("console.log('changed!', $(evt.target).val());");
