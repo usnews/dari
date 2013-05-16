@@ -325,8 +325,8 @@ class MetricDatabase {
             if (maxEventDate != null) {
                 sqlBuilder.append(" AND ");
                 vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
-                sqlBuilder.append(" <= ");
-                vendor.appendMetricEncodeTimestampSql(sqlBuilder, null, maxEventDate, 'F');
+                sqlBuilder.append(" < ");
+                vendor.appendMetricEncodeTimestampSql(sqlBuilder, null, maxEventDate, '0');
             }
 
             if (minEventDate != null) {
