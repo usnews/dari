@@ -61,6 +61,7 @@ public class ObjectType extends Record implements ObjectStruct {
 
     private List<String> labelFields;
     private String previewField;
+    private boolean deprecated;
     private boolean isAbstract;
     private boolean isEmbedded;
     private boolean denormalized;
@@ -330,6 +331,14 @@ public class ObjectType extends Record implements ObjectStruct {
      */
     public void setPreviewField(String field) {
         this.previewField = field;
+    }
+
+    public boolean isDeprecated() {
+        return deprecated;
+    }
+
+    public void setDeprecated(boolean deprecated) {
+        this.deprecated = deprecated;
     }
 
     /** Returns {@code true} if the objects of this type cannot be created. */
@@ -776,6 +785,7 @@ public class ObjectType extends Record implements ObjectStruct {
         setInternalName(objectClass.getName());
         getLabelFields().clear();
         setPreviewField(null);
+        setDeprecated(objectClass.isAnnotationPresent(Deprecated.class));
 
         // Set the abstract flag on non-Recordable classes (temporary),
         // interfaces, and abstract classes so that they cannot be saved.
