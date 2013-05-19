@@ -166,7 +166,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         } else {
             Query<Object> query = new Query<Object>(type.getInternalName(), type.getObjectClass());
 
-            query.setDatabase(type.getState().getRealDatabase());
+            // query.setDatabase(type.getState().getRealDatabase());
             return query;
         }
     }
