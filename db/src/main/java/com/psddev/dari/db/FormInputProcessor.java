@@ -182,6 +182,8 @@ public interface FormInputProcessor {
 
         private FormWriter delegateWriter;
 
+        /** Use {@link #ForRecord(FormWriter)} instead */
+        @Deprecated
         public ForRecord() {
         }
 
