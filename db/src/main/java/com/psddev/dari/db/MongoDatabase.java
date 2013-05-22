@@ -168,7 +168,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
     }
 
     public DBCursor find(Query<?> query) {
-        return openReadConnection().
+        return openQueryConnection(query).
                 find(buildMongoQuery(query)).
                 sort(buildMongoSort(query));
     }

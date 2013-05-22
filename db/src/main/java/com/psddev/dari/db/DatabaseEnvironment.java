@@ -422,6 +422,20 @@ public class DatabaseEnvironment implements ObjectStruct {
         } finally {
             temporaryTypesLocal.remove();
         }
+
+        ObjectType singletonType = getTypeByClass(Singleton.class);
+
+        if (singletonType != null) {
+            for (ObjectType type : singletonType.findConcreteTypes()) {
+                if (!Query.fromType(type).hasMoreThan(0)) {
+                    try {
+                        State.getInstance(type.createObject(null)).save();
+                    } catch (Exception error) {
+                        LOGGER.warn(String.format("Can't save [%s] singleton!", type.getLabel()), error);
+                    }
+                }
+            }
+        }
     }
 
     private static void initializeAndModify(TypesCache temporaryTypes, ObjectType type, List<Class<?>> modifications) {

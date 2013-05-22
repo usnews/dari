@@ -195,7 +195,6 @@ public class SqlVendor {
     protected void appendNearestLocation(
             StringBuilder orderbyBuilder,
             StringBuilder selectBuilder,
-            StringBuilder whereBuilder,
             Location location, String field) {
 
         StringBuilder builder = new StringBuilder();
@@ -489,6 +488,55 @@ public class SqlVendor {
         appendIdentifier(builder, SqlDatabase.DATA_COLUMN);
     }
 
+    public boolean isDuplicateKeyException(SQLException ex) {
+        return "23000".equals(ex.getSQLState());
+    }
+
+    public String convertRawToStringSql(String field) {
+        return "CONVERT(" + field + " USING utf8)";
+    }
+
+    public UUID getUuid(ResultSet result, int col) throws SQLException {
+        return UuidUtils.fromBytes(result.getBytes(col));
+    }
+
+    /* ******************* METRICS ******************* */
+    // These are all very vendor-specific.
+    public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
+        // This DOES shift the decimal place and round to 6 places.
+        // columnIdentifier is "`data`" or "MAX(`data`)" - already quoted if it needs to be
+        throw new DatabaseException(this.getDatabase(), "appendMetricUpdateDataSql: Metrics is not fully implemented for this vendor.");
+    }
+    public void appendMetricSelectAmountSql(StringBuilder str, String columnIdentifier, int position) {
+        // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic to avoid rounding errors.
+        // position is 1 or 2 (use the MetricDatabase.*_POSITION constants)
+        // columnIdentifier is "`data`" or "MAX(`data`)" - already quoted if it needs to be
+        throw new DatabaseException(this.getDatabase(), "appendMetricSelectAmountSql: Metrics is not fully implemented for this vendor.");
+    }
+    public void appendMetricSelectTimestampSql(StringBuilder str, String columnIdentifier) {
+        // This does NOT shift the decimal place - the result will need to be multiplied
+        // by MetricDatabase.DATE_DECIMAL_SHIFT to get a timestamp in milliseconds.
+        // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
+        throw new DatabaseException(this.getDatabase(), "appendMetricSelectTimestampSql: Metrics is not fully implemented for this vendor.");
+    }
+    public void appendMetricDateFormatTimestampSql(StringBuilder str, String columnIdentifier, MetricInterval metricInterval) {
+        // This DOES apply MetricDatabase.DATE_DECIMAL_SHIFT and returns SQL to provide a string formatted according to MetricInterval.getSqlTruncatedDateFormat(SqlVendor)
+        throw new DatabaseException(this.getDatabase(), "appendMetricDateFormatTimestampSql: Metrics is not fully implemented for this vendor.");
+    }
+    public void appendMetricEncodeTimestampSql(StringBuilder str, List<Object> parameters, long timestamp, Character rpadHexChar) {
+        // This accepts a normal timestamp and DOES apply MetricDatabase.DATE_DECIMAL_SHIFT
+        throw new DatabaseException(this.getDatabase(), "appendMetricEncodeTimestampSql: Metrics is not fully implemented for this vendor.");
+    }
+    public void appendBindMetricBytes(StringBuilder str, byte[] bytes, List<Object> parameters) {
+        appendBindValue(str, bytes, parameters);
+    }
+    public void appendMetricDataBytes(StringBuilder str, String columnIdentifier) {
+        // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
+        str.append(columnIdentifier);
+    }
+
+    /* ******************* METRICS ******************* */
+
     public static class H2 extends SqlVendor {
 
         @Override
@@ -514,11 +562,17 @@ public class SqlVendor {
         protected void appendColumnTypePoint(StringBuilder builder) {
             builder.append("DOUBLE NOT NULL");
         }
+
+        @Override
+        public boolean isDuplicateKeyException(SQLException ex) {
+            return "23001".equals(ex.getSQLState()) || "23505".equals(ex.getSQLState());
+        }
     }
 
     public static class MySQL extends SqlVendor {
 
         private Boolean hasUdfGetFields;
+        private Boolean hasUdfIncrementMetric;
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
@@ -614,6 +668,215 @@ public class SqlVendor {
                 appendIdentifier(builder, SqlDatabase.DATA_COLUMN);
             }
         }
+
+
+        /* ******************* METRICS ******************* */
+        @Override
+        public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
+
+            SqlDatabase database = getDatabase();
+
+            if (hasUdfIncrementMetric == null) {
+                Connection connection = database.openConnection();
+
+                try {
+                    Statement statement = connection.createStatement();
+                    try {
+                        ResultSet result = statement.executeQuery("SELECT dari_increment_metric(null, 0, 0)");
+                        try {
+                            hasUdfIncrementMetric = true;
+                        } finally {
+                            result.close();
+                        }
+                    } finally {
+                        statement.close();
+                    }
+
+                } catch (SQLException error) {
+                    if ("42000".equals(error.getSQLState())) {
+                        hasUdfIncrementMetric = false;
+                    }
+
+                } finally {
+                    database.closeConnection(connection);
+                }
+            }
+
+            if (hasUdfIncrementMetric) {
+                // dari_increment_metric() does NOT shift the decimal place for us.
+                long adjustedAmount = (long) (amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT);
+                sql.append("dari_increment_metric(");
+                sql.append(columnIdentifier);
+                sql.append(',');
+                if (increment) { // increment
+                    // cumulativeAmount should always be incremented
+                    appendBindValue(sql, adjustedAmount, parameters);
+                    sql.append(',');
+                    if (updateFuture) {
+                        // if we're updating future rows, only update the interval amount if it's the exact eventDate
+                        sql.append("IF (");
+                            appendIdentifier(sql, columnIdentifier);
+                            sql.append(" LIKE ");
+                                sql.append(" CONCAT(");
+                                    appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
+                                sql.append(", '%') ESCAPE ''");
+                                sql.append(","); // if it's the exact date, then update the amount
+                                appendBindValue(sql, adjustedAmount, parameters);
+                                sql.append(","); // if it's a date in the future, leave the date alone
+                                appendBindValue(sql, 0, parameters);
+                        sql.append(")");
+                    } else {
+                        appendBindValue(sql, adjustedAmount, parameters);
+                    }
+                } else { // only used for set, not increment
+                    appendBindValue(sql, amount, parameters);
+                    sql.append(',');
+                    appendBindValue(sql, amount, parameters);
+                }
+                sql.append(")");
+            } else {
+                sql.append(" UNHEX(");
+                    sql.append("CONCAT(");
+                        // timestamp
+                        appendHexEncodeExistingTimestampSql(sql, columnIdentifier);
+                        sql.append(',');
+                        // cumulativeAmount and amount
+                        if (increment) {
+                            // cumulativeAmount should always be incremented
+                            appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.CUMULATIVEAMOUNT_POSITION, amount);
+                            sql.append(',');
+                            if (updateFuture) {
+                                // if we're updating future rows, only update the interval amount if it's the exact eventDate
+                                sql.append("IF (");
+                                    appendIdentifier(sql, columnIdentifier);
+                                    sql.append(" LIKE ");
+                                        sql.append(" CONCAT(");
+                                            appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
+                                        sql.append(", '%') ESCAPE ''");
+                                        sql.append(","); // if it's the exact date, then update the amount
+                                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                                        sql.append(","); // if it's a date in the future, leave the date alone
+                                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
+                                sql.append(")");
+                            } else {
+                                appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                            }
+                        } else {
+                            appendHexEncodeSetAmountSql(sql, parameters, amount);
+                            sql.append(',');
+                            appendHexEncodeSetAmountSql(sql, parameters, amount);
+                        }
+                    sql.append(" )");
+                sql.append(" )");
+            }
+        }
+
+        @Override
+        public void appendMetricSelectAmountSql(StringBuilder str, String columnIdentifier, int position) {
+            str.append("CONV(");
+                str.append("HEX(");
+                    str.append("SUBSTR(");
+                        str.append(columnIdentifier);
+                        str.append(",");
+                        appendValue(str, 1+MetricDatabase.DATE_BYTE_SIZE + ((position-1)*MetricDatabase.AMOUNT_BYTE_SIZE));
+                        str.append(",");
+                        appendValue(str, MetricDatabase.AMOUNT_BYTE_SIZE);
+                    str.append(")");
+                str.append(")");
+            str.append(", 16, 10)");
+        }
+
+        @Override
+        public void appendMetricEncodeTimestampSql(StringBuilder str, List<Object> parameters, long timestamp, Character rpadHexChar) {
+            str.append("UNHEX(");
+            appendHexEncodeTimestampSql(str, parameters, timestamp, rpadHexChar);
+            str.append(")");
+        }
+
+        @Override
+        public void appendMetricSelectTimestampSql(StringBuilder str, String columnIdentifier) {
+            str.append("CONV(");
+                str.append("HEX(");
+                    str.append("SUBSTR(");
+                        str.append(columnIdentifier);
+                        str.append(",");
+                        appendValue(str, 1);
+                        str.append(",");
+                        appendValue(str, MetricDatabase.DATE_BYTE_SIZE);
+                    str.append(")");
+                str.append(")");
+            str.append(", 16, 10)");
+        }
+
+        @Override
+        public void appendMetricDateFormatTimestampSql(StringBuilder str, String columnIdentifier, MetricInterval metricInterval) {
+            str.append("DATE_FORMAT(FROM_UNIXTIME(");
+            appendMetricSelectTimestampSql(str, columnIdentifier);
+            str.append("*");
+            appendValue(str, (MetricDatabase.DATE_DECIMAL_SHIFT/1000L));
+            str.append("),");
+            appendValue(str, metricInterval.getSqlTruncatedDateFormat(this));
+            str.append(")");
+        }
+
+        private void appendHexEncodeSetAmountSql(StringBuilder str, List<Object> parameters, double amount) {
+            str.append("LPAD(");
+                str.append("HEX(");
+                    appendBindValue(str, (long) (amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
+                str.append(" )");
+            str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");
+        }
+
+        private void appendHexEncodeExistingTimestampSql(StringBuilder str, String columnIdentifier) {
+            // columnIdentifier is "data" or "max(`data`)" - already quoted
+            str.append("HEX(");
+                str.append("SUBSTR(");
+                    str.append(columnIdentifier);
+                    str.append(",");
+                    appendValue(str, 1);
+                    str.append(",");
+                    appendValue(str, MetricDatabase.DATE_BYTE_SIZE);
+                str.append(")");
+            str.append(")");
+        }
+
+        private void appendHexEncodeTimestampSql(StringBuilder str, List<Object> parameters, long timestamp, Character rpadChar) {
+            if (rpadChar != null) {
+                str.append("RPAD(");
+            }
+            str.append("LPAD(");
+                str.append("HEX(");
+                    if (parameters == null) {
+                        appendValue(str, (int) (timestamp / MetricDatabase.DATE_DECIMAL_SHIFT));
+                    } else {
+                        appendBindValue(str, (int) (timestamp / MetricDatabase.DATE_DECIMAL_SHIFT), parameters);
+                    }
+                str.append(")");
+            str.append(", "+(MetricDatabase.DATE_BYTE_SIZE*2)+", '0')");
+            if (rpadChar != null) {
+                str.append(",");
+                appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2);
+                str.append(", '");
+                str.append(rpadChar);
+                str.append("')");
+            }
+        }
+
+        private void appendHexEncodeIncrementAmountSql(StringBuilder str, List<Object> parameters, String columnIdentifier, int position, double amount) {
+            // position is 1 or 2
+            // columnIdentifier is "`data`" unless it is aliased - already quoted
+            str.append("LPAD(");
+                str.append("HEX(");
+                    // conv(hex(substr(data, 1+4, 8)), 16, 10)
+                    appendMetricSelectAmountSql(str, columnIdentifier, position);
+                    str.append("+");
+                    appendBindValue(str, (long)(amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
+                str.append(" )");
+            str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");
+        }
+
+        /* ******************* METRICS ******************* */
+
     }
 
     public static class PostgreSQL extends SqlVendor {
@@ -668,7 +931,6 @@ public class SqlVendor {
         protected void appendNearestLocation(
                 StringBuilder orderbyBuilder,
                 StringBuilder selectBuilder,
-                StringBuilder whereBuilder,
                 Location location, String field) {
 
             StringBuilder builder = new StringBuilder();
@@ -699,6 +961,163 @@ public class SqlVendor {
                 parameters.add(uuid);
             }
         }
+
+        @Override
+        public String convertRawToStringSql(String field) {
+            return "CONVERT_FROM(" + field + ", 'UTF-8')";
+        }
+
+        @Override
+        public UUID getUuid(ResultSet result, int col) throws SQLException {
+            return UuidUtils.fromString(result.getString(col));
+        }
+
+        /* ******************* METRICS ******************* */
+        @Override
+        public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
+
+            sql.append("CONCAT(");
+                // timestamp
+                appendHexEncodeExistingTimestampSql(sql, columnIdentifier);
+                sql.append(',');
+                // cumulativeAmount and amount
+                if (increment) {
+                    // cumulativeAmount should always be incremented
+                    appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.CUMULATIVEAMOUNT_POSITION, amount);
+                    sql.append(',');
+                    if (updateFuture) {
+                        // if we're updating future rows, only update the interval amount if it's the exact eventDate
+                        sql.append("CASE WHEN ");
+                            appendIdentifier(sql, columnIdentifier);
+                            sql.append(" LIKE ");
+                                sql.append(" CONCAT(");
+                                    appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
+                                sql.append(", '%') ESCAPE ''");
+                                sql.append(" THEN "); // if it's the exact date, then update the amount
+                                appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                                sql.append(" ELSE "); // if it's a date in the future, leave the date alone
+                                appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
+                        sql.append(" END ");
+                    } else {
+                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                    }
+                } else {
+                    appendHexEncodeSetAmountSql(sql, parameters, amount);
+                    sql.append(',');
+                    appendHexEncodeSetAmountSql(sql, parameters, amount);
+                }
+            sql.append(" )");
+        }
+
+        @Override
+        public void appendMetricEncodeTimestampSql(StringBuilder str, List<Object> parameters, long timestamp, Character rpadHexChar) {
+            if (rpadHexChar != null) {
+                str.append("RPAD(");
+            }
+            str.append("LPAD(");
+                str.append("TO_HEX(");
+                    if (parameters == null) {
+                        appendValue(str, (int) (timestamp / MetricDatabase.DATE_DECIMAL_SHIFT));
+                    } else {
+                        appendBindValue(str, (int) (timestamp / MetricDatabase.DATE_DECIMAL_SHIFT), parameters);
+                    }
+                str.append(")");
+            str.append(", "+(MetricDatabase.DATE_BYTE_SIZE*2)+", '0')");
+            if (rpadHexChar != null) {
+                str.append(",");
+                appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2);
+                str.append(", '");
+                str.append(rpadHexChar);
+                str.append("')");
+            }
+        }
+
+        @Override
+        public void appendMetricSelectAmountSql(StringBuilder str, String columnIdentifier, int position) {
+            str.append(" ('x'||");
+                str.append("SUBSTRING(");
+                    str.append(columnIdentifier);
+                    str.append(",");
+                    appendValue(str, 1+(MetricDatabase.DATE_BYTE_SIZE*2) + ((position-1)*MetricDatabase.AMOUNT_BYTE_SIZE*2));
+                    str.append(",");
+                    appendValue(str, MetricDatabase.AMOUNT_BYTE_SIZE*2);
+                str.append(")");
+            str.append(")::bit(");
+            str.append(MetricDatabase.AMOUNT_BYTE_SIZE*8);
+            str.append(")::bigint");
+        }
+
+        @Override
+        public void appendMetricSelectTimestampSql(StringBuilder str, String columnIdentifier) {
+            str.append(" ('x'||");
+                str.append("SUBSTRING(");
+                    str.append(columnIdentifier);
+                    str.append(",");
+                    appendValue(str, 1);
+                    str.append(",");
+                    appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2);
+                str.append(")");
+            str.append(")::bit(");
+            str.append(MetricDatabase.DATE_BYTE_SIZE*8);
+            str.append(")::bigint");
+        }
+
+        @Override
+        public void appendMetricDateFormatTimestampSql(StringBuilder str, String columnIdentifier, MetricInterval metricInterval) {
+            str.append("TO_CHAR(TO_TIMESTAMP(");
+            appendMetricSelectTimestampSql(str, columnIdentifier);
+            str.append("*");
+            appendValue(str, (MetricDatabase.DATE_DECIMAL_SHIFT/1000L));
+            str.append(")::TIMESTAMP,");
+            appendValue(str, metricInterval.getSqlTruncatedDateFormat(this));
+            str.append(")");
+        }
+
+        @Override
+        public void appendBindMetricBytes(StringBuilder str, byte[] bytes, List<Object> parameters) {
+            appendValue(str, StringUtils.hex(bytes));
+        }
+
+        @Override
+        public void appendMetricDataBytes(StringBuilder str, String columnIdentifier) {
+            str.append("DECODE(");
+            str.append(columnIdentifier);
+            str.append(", 'HEX')");
+        }
+
+        private void appendHexEncodeExistingTimestampSql(StringBuilder str, String columnIdentifier) {
+            // columnIdentifier is "data" or "max(`data`)" - already quoted
+            str.append("SUBSTRING(");
+                str.append(columnIdentifier);
+                str.append(",");
+                appendValue(str, 1);
+                str.append(",");
+                appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2);
+            str.append(")");
+        }
+
+        private void appendHexEncodeIncrementAmountSql(StringBuilder str, List<Object> parameters, String columnIdentifier, int position, double amount) {
+            // position is 1 or 2
+            // columnIdentifier is "`data`" unless it is aliased - already quoted
+            str.append("LPAD(");
+                str.append("TO_HEX(");
+                    // conv(hex(substr(data, 1+4, 8)), 16, 10)
+                    appendMetricSelectAmountSql(str, columnIdentifier, position);
+                    str.append("+");
+                    appendBindValue(str, (long)(amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
+                str.append(" )");
+            str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");
+        }
+
+        private void appendHexEncodeSetAmountSql(StringBuilder str, List<Object> parameters, double amount) {
+            str.append("LPAD(");
+                str.append("TO_HEX(");
+                    appendBindValue(str, (long) (amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
+                str.append(" )");
+            str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");
+        }
+
+        /* ******************* METRICS ******************* */
     }
 
     public static class Oracle extends SqlVendor {
@@ -729,7 +1148,6 @@ public class SqlVendor {
         protected void appendNearestLocation(
                 StringBuilder orderbyBuilder,
                 StringBuilder selectBuilder,
-                StringBuilder whereBuilder,
                 Location location, String field) {
             throw new UnsupportedIndexException(this, field);
         }

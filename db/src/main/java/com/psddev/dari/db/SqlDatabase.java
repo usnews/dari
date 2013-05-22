@@ -574,6 +574,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return new SqlQuery(this, query).groupStatement(groupFields);
     }
 
+    public String buildGroupedMetricStatement(Query<?> query, String metricFieldName, String... groupFields) {
+        return new SqlQuery(this, query).groupedMetricSql(metricFieldName, groupFields);
+    }
+
     /**
      * Builds an SQL statement that can be used to get when the objects
      * matching the given {@code query} were last updated.
@@ -722,7 +726,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     ResultSet result = null;
 
                     try {
-                        connection = openQueryConnection(query);
+                        connection = super.openQueryConnection(query);
                         statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
@@ -755,11 +759,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
+
         ResultSetMetaData meta = resultSet.getMetaData();
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
-            if (query.getExtraSourceColumns().contains(columnName)) {
-                objectState.put(columnName, resultSet.getObject(i));
+            if (query.getExtraSourceColumns().containsKey(columnName)) {
+                objectState.put(query.getExtraSourceColumns().get(columnName), resultSet.getObject(i));
             } else {
                 objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
             }
@@ -772,14 +777,29 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
-        if (type != null &&
-                (unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
-                !queryTypes.contains(type)) {
-            for (ObjectField field : type.getFields()) {
-                SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+        // Set up Metric fields
+        for (ObjectField field : getEnvironment().getFields()) {
+            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+            }
+        }
 
-                if (fieldData.isIndexTableSource()) {
-                    loadExtraFields.add(field);
+        if (type != null) {
+            for (ObjectField field : type.getFields()) {
+                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+                }
+            }
+
+            if ((unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
+                !queryTypes.contains(type)) {
+                for (ObjectField field : type.getFields()) {
+                    SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+                    MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
+
+                    if (fieldData.isIndexTableSource() && ! metricFieldData.isMetricValue()) {
+                        loadExtraFields.add(field);
+                    }
                 }
             }
         }
@@ -796,7 +816,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         extraStatement = connection.createStatement();
                         extraResult = executeQueryBeforeTimeout(
                                 extraStatement,
-                                extraSourceSelectStatementById(field, objectState.getId()),
+                                extraSourceSelectStatementById(field, objectState.getId(), objectState.getTypeId()),
                                 getQueryReadTimeout(query));
 
                         if (extraResult.next()) {
@@ -823,10 +843,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     // Creates an SQL statement to return a single row from a FieldIndexTable
     // used as a source table.
     //
-    // TODO, maybe: move this to SqlQuery and use initializeClauses() and
+    // Maybe: move this to SqlQuery and use initializeClauses() and
     // needsRecordTable=false instead of passing id to this method. Needs
     // countperformance branch to do this.
-    private String extraSourceSelectStatementById(ObjectField field, UUID id) {
+    private String extraSourceSelectStatementById(ObjectField field, UUID id, UUID typeId) {
         FieldData fieldData = field.as(FieldData.class);
         ObjectType parentType = field.getParentType();
         StringBuilder keyName = new StringBuilder(parentType.getInternalName());
@@ -864,8 +884,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             vendor.appendIdentifier(sql, indexFieldName);
             sql.append(", ");
         }
-
         sql.setLength(sql.length() - 2);
+
         sql.append(" FROM ");
         vendor.appendIdentifier(sql, sourceTableName);
         sql.append(" WHERE ");
@@ -884,7 +904,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * Executes the given read {@code statement} (created from the given
      * {@code sqlQuery}) before the given {@code timeout} (in seconds).
      */
-    private ResultSet executeQueryBeforeTimeout(
+    ResultSet executeQueryBeforeTimeout(
             Statement statement,
             String sqlQuery,
             int timeout)
@@ -997,7 +1017,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         };
     }
 
-    private class SqlIterator<T> implements Iterator<T> {
+    private class SqlIterator<T> implements java.io.Closeable, Iterator<T> {
 
         private final String sqlQuery;
         private final Query<T> query;
@@ -1013,7 +1033,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             query = initialQuery;
 
             try {
-                connection = openReadConnection();
+                connection = openQueryConnection(query);
                 statement = connection.createStatement();
                 statement.setFetchSize(
                         getVendor() instanceof SqlVendor.MySQL ? Integer.MIN_VALUE :
@@ -1176,8 +1196,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    // Opens a connection that should be used to execute the given query.
-    private Connection openQueryConnection(Query<?> query) {
+    @Override
+    public Connection openQueryConnection(Query<?> query) {
         if (query != null) {
             Connection connection = (Connection) query.getOptions().get(CONNECTION_QUERY_OPTION);
 
@@ -1186,14 +1206,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
 
             Boolean useRead = ObjectUtils.to(Boolean.class, query.getOptions().get(USE_READ_DATA_SOURCE_QUERY_OPTION));
+
             if (useRead == null) {
                 useRead = Boolean.TRUE;
             }
+
             if (!useRead) {
                 return openConnection();
             }
         }
-        return openReadConnection();
+
+        return super.openQueryConnection(query);
     }
 
     @Override
@@ -1828,12 +1851,31 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
 
-                long count = ObjectUtils.to(long.class, result.getObject(1));
                 List<Object> keys = new ArrayList<Object>();
-                for (int j = 0; j < fieldsLength; ++ j) {
-                    keys.add(result.getObject(j + 2));
+
+                SqlGrouping<T> grouping;
+                ResultSetMetaData meta = result.getMetaData();
+                String aggregateColumnName = meta.getColumnName(1);
+                if (aggregateColumnName.equals("_count")) {
+                    long count = ObjectUtils.to(long.class, result.getObject(1));
+                    for (int j = 0; j < fieldsLength; ++ j) {
+                        keys.add(result.getObject(j + 2));
+                    }
+                    grouping = new SqlGrouping<T>(keys, query, fields, count, groupings);
+                } else {
+                    Double amount = ObjectUtils.to(Double.class, result.getObject(1));
+                    for (int j = 0; j < fieldsLength; ++ j) {
+                        keys.add(result.getObject(j + 3));
+                    }
+                    long count = 0L;
+                    if (meta.getColumnName(2).equals("_count")) {
+                        count = ObjectUtils.to(long.class, result.getObject(2));
+                    }
+                    grouping = new SqlGrouping<T>(keys, query, fields, count, groupings);
+                    if (amount == null) amount = 0d;
+                    grouping.setSum(aggregateColumnName, amount);
                 }
-                groupings.add(new SqlGrouping<T>(keys, query, fields, count));
+                groupings.add(grouping);
             }
 
             int groupingsSize = groupings.size();
@@ -1878,9 +1920,90 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         private long count;
 
-        public SqlGrouping(List<Object> keys, Query<T> query, String[] fields, long count) {
+        private final Map<String,Double> metricSums = new HashMap<String,Double>();
+
+        private final List<Grouping<T>> groupings;
+
+        public SqlGrouping(List<Object> keys, Query<T> query, String[] fields, long count, List<Grouping<T>> groupings) {
             super(keys, query, fields);
             this.count = count;
+            this.groupings = groupings;
+        }
+
+        @Override
+        public double getSum(String field) {
+            Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
+            ObjectField sumField = mappedKey.getField();
+            if (sumField.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                if (! metricSums.containsKey(field)) {
+
+                    String sqlQuery = buildGroupedMetricStatement(query, field, fields);
+                    Connection connection = null;
+                    Statement statement = null;
+                    ResultSet result = null;
+                    try {
+                        connection = openQueryConnection(query);
+                        statement = connection.createStatement();
+                        result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
+
+                        if (this.getKeys().size() == 0) {
+                            // Special case for .groupby() without any fields
+                            if (this.groupings.size() != 1) throw new RuntimeException("There should only be one grouping when grouping by nothing. Something went wrong internally.");
+                            if (result.next() && result.getBytes(1) != null) {
+                                this.setSum(field, result.getDouble(1));
+                            } else {
+                                this.setSum(field, 0);
+                            }
+                        } else {
+                            // Find the ObjectFields for the specified fields
+                            List<ObjectField> objectFields = new ArrayList<ObjectField>();
+                            for (String fieldName : fields) {
+                                objectFields.add(query.mapEmbeddedKey(getEnvironment(), fieldName).getField());
+                            }
+
+                            // index the groupings by their keys
+                            Map<List<Object>, SqlGrouping<T>> groupingMap = new HashMap<List<Object>, SqlGrouping<T>>();
+                            for (Grouping<T> grouping : groupings) {
+                                if (grouping instanceof SqlGrouping) {
+                                    ((SqlGrouping<T>) grouping).setSum(field, 0);
+                                    groupingMap.put(grouping.getKeys(), (SqlGrouping<T>) grouping);
+                                }
+                            }
+
+                            // Find the sums and set them on each grouping
+                            while (result.next()) {
+                                // TODO: limit/offset
+                                List<Object> keys = new ArrayList<Object>();
+                                for (int j = 0; j < objectFields.size(); ++ j) {
+                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+3))); // 3 because _count and amount
+                                }
+                                if (groupingMap.containsKey(keys)) {
+                                    if (result.getBytes(1) != null) {
+                                        groupingMap.get(keys).setSum(field, result.getDouble(1));
+                                    } else {
+                                        groupingMap.get(keys).setSum(field, 0);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (SQLException ex) {
+                        throw createQueryException(ex, sqlQuery, query);
+                    } finally {
+                        closeResources(query, connection, statement, result);
+                    }
+                }
+                if (metricSums.containsKey(field))
+                    return metricSums.get(field);
+                else
+                    return 0;
+            } else {
+                // If it's not a MetricValue, we don't need to override it.
+                return super.getSum(field);
+            }
+       }
+
+        private void setSum(String field, double sum) {
+            metricSums.put(field, sum);
         }
 
         // --- AbstractGrouping support ---
@@ -2266,6 +2389,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static class FieldData extends Modification<ObjectField> {
 
         private String indexTable;
+        private String indexTableColumnName;
         private boolean indexTableReadOnly;
         private boolean indexTableSameColumnNames;
         private boolean indexTableSource;
@@ -2292,6 +2416,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         public void setIndexTableSameColumnNames(boolean indexTableSameColumnNames) {
             this.indexTableSameColumnNames = indexTableSameColumnNames;
+        }
+
+        public void setIndexTableColumnName(String indexTableColumnName) {
+            this.indexTableColumnName = indexTableColumnName;
+        }
+
+        public String getIndexTableColumnName() {
+            return this.indexTableColumnName;
         }
 
         public boolean isIndexTableSource() {

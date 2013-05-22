@@ -61,6 +61,7 @@ public class ObjectType extends Record implements ObjectStruct {
 
     private List<String> labelFields;
     private String previewField;
+    private boolean deprecated;
     private boolean isAbstract;
     private boolean isEmbedded;
     private boolean denormalized;
@@ -332,6 +333,14 @@ public class ObjectType extends Record implements ObjectStruct {
         this.previewField = field;
     }
 
+    public boolean isDeprecated() {
+        return deprecated;
+    }
+
+    public void setDeprecated(boolean deprecated) {
+        this.deprecated = deprecated;
+    }
+
     /** Returns {@code true} if the objects of this type cannot be created. */
     public boolean isAbstract() {
         return isAbstract;
@@ -431,7 +440,12 @@ public class ObjectType extends Record implements ObjectStruct {
         fieldsCache.invalidate();
     }
 
-    /** Returns the field with the given {@code name}. */
+    /**
+     * Returns the field associated with the given {@code name} in this type.
+     *
+     * @param name If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
     public ObjectField getField(String name) {
         if (name == null) {
             return null;
@@ -456,6 +470,27 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         return null;
+    }
+
+    /**
+     * Returns the field associated with the given {@code name} in this type
+     * or globally in all types.
+     *
+     * @param name If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public ObjectField getFieldGlobally(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        ObjectField field = getField(name);
+
+        if (field == null) {
+            field = getState().getDatabase().getEnvironment().getField(name);
+        }
+
+        return field;
     }
 
     /** Returns all fields that are indexed. */
@@ -776,6 +811,7 @@ public class ObjectType extends Record implements ObjectStruct {
         setInternalName(objectClass.getName());
         getLabelFields().clear();
         setPreviewField(null);
+        setDeprecated(objectClass.isAnnotationPresent(Deprecated.class));
 
         // Set the abstract flag on non-Recordable classes (temporary),
         // interfaces, and abstract classes so that they cannot be saved.

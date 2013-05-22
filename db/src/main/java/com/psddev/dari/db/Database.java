@@ -273,7 +273,10 @@ public interface Database extends SettingsBackedObject {
         /**
          * Returns {@code true} if the databases should ignore read-specific
          * connections.
+         *
+         * @deprecated Use {@link Query#isMaster} instead.
          */
+        @Deprecated
         public static boolean isIgnoreReadConnection() {
             return Boolean.TRUE.equals(IGNORE_READ_CONNECTION.get());
         }
@@ -281,7 +284,10 @@ public interface Database extends SettingsBackedObject {
         /**
          * Sets whether the databases should ignore read-specific
          * connections.
+         *
+         * @deprecated Use {@link Query#setMaster} or {@link Query#master} instead.
          */
+        @Deprecated
         public static void setIgnoreReadConnection(boolean isIgnoreReadConnection) {
             if (isIgnoreReadConnection) {
                 IGNORE_READ_CONNECTION.set(Boolean.TRUE);

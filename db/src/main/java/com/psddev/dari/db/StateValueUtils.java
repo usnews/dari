@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -132,21 +133,46 @@ abstract class StateValueUtils {
 
             // Fetch unresolved objects and cache them.
             if (!unresolvedIds.isEmpty()) {
-                for (Object object : Query.
+                Query<?> query = Query.
                         from(Object.class).
                         where("_id = ?", unresolvedIds).
                         using(database).
                         option(State.REFERENCE_RESOLVING_QUERY_OPTION, parent).
                         option(State.REFERENCE_FIELD_QUERY_OPTION, field).
-                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds).
-                        selectAll()) {
+                        option(State.UNRESOLVED_TYPE_IDS_QUERY_OPTION, unresolvedTypeIds);
+
+                if (parentState != null) {
+                    if (!parentState.isResolveUsingCache()) {
+                        query.setCache(false);
+                    }
+
+                    if (parentState.isResolveUsingMaster()) {
+                        query.setMaster(true);
+                    }
+                }
+
+                for (Object object : query.selectAll()) {
                     UUID id = State.getInstance(object).getId();
+
                     unresolvedIds.remove(id);
                     circularReferences.put(id, object);
                     references.put(id, object);
                 }
+
                 for (UUID id : unresolvedIds) {
                     circularReferences.put(id, null);
+                }
+            }
+
+            for (Iterator<Map.Entry<UUID, Object>> i = references.entrySet().iterator(); i.hasNext(); ) {
+                Map.Entry<UUID, Object> entry = i.next();
+                Object object = entry.getValue();
+
+                if ((parentState == null ||
+                        !parentState.isResolveInvisible()) &&
+                        object != null &&
+                        !ObjectUtils.isBlank(State.getInstance(object).get("dari.visibilities"))) {
+                    entry.setValue(null);
                 }
             }
 
@@ -213,17 +239,16 @@ abstract class StateValueUtils {
         try {
             return converter.toJavaValue(database, object, field, subType, value);
 
-        } catch (Exception ex) {
-            if (LOGGER.isDebugEnabled()) {
-                Class<?> valueClass = value != null ? value.getClass() : null;
-                LOGGER.debug(String.format(
-                        "Can't convert [%s] of [%s] to [%s]!",
-                        value, valueClass, type), ex);
+        } catch (Exception error) {
+            if (object != null) {
+                State state = State.getInstance(object);
+                String name = field.getInternalName();
+
+                state.put("dari.trash." + name, value);
+                state.put("dari.trashError." + name, error.getClass().getName());
+                state.put("dari.trashErrorMessage." + name, error.getMessage());
             }
 
-            if (object != null) {
-                State.getInstance(object).putValue("dari.trash." + field.getInternalName(), value);
-            }
             return null;
         }
     }

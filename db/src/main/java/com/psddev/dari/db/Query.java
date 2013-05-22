@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -112,7 +113,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public static final String ID_KEY = "_id";
     public static final String TYPE_KEY = "_type";
+    public static final String DIMENSION_KEY = "_dimension";
+    public static final String COUNT_KEY = "_count";
     public static final String ANY_KEY = "_any";
+    public static final String METRIC_DATE_ATTRIBUTE = "date";
+    public static final String METRIC_DIMENSION_ATTRIBUTE = "dimension";
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
 
@@ -124,9 +129,12 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private List<String> fields;
     private transient Database database;
     private boolean isResolveToReferenceOnly;
+    private boolean noCache;
+    private boolean master;
+    private boolean resolveInvisible;
     private Double timeout;
     private transient Map<String, Object> options;
-    private transient HashSet<String> extraSourceColumns = new HashSet<String>();
+    private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
@@ -147,13 +155,18 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     /**
      * Queries over objects of types that are compatible with the given
      * {@code type}.
+     *
+     * @param type If {@code null}, queries over everything.
+     * @return Never {@code null}.
      */
     public static Query<Object> fromType(ObjectType type) {
         if (type == null) {
             return new Query<Object>(null, null);
+
         } else {
             Query<Object> query = new Query<Object>(type.getInternalName(), type.getObjectClass());
-            query.setDatabase(type.getState().getDatabase());
+
+            // query.setDatabase(type.getState().getRealDatabase());
             return query;
         }
     }
@@ -251,20 +264,20 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
             // Change the query database if it's only querying over a single
             // type that has a source database.
-            for (ObjectType groupType : defaultDatabase.getEnvironment().getTypesByGroup(getGroup())) {
+            GROUP_TYPE: for (ObjectType groupType : defaultDatabase.getEnvironment().getTypesByGroup(getGroup())) {
                 for (ObjectType type : groupType.findConcreteTypes()) {
                     Database typeSource = type.getSourceDatabase();
 
                     if (typeSource == null) {
                         source = null;
-                        break;
+                        break GROUP_TYPE;
 
                     } else if (source == null) {
                         source = typeSource;
 
                     } else if (!source.equals(typeSource)) {
                         source = null;
-                        break;
+                        break GROUP_TYPE;
                     }
                 }
             }
@@ -286,6 +299,44 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public void setResolveToReferenceOnly(boolean isResolveToReferenceOnly) {
         this.isResolveToReferenceOnly = isResolveToReferenceOnly;
+    }
+
+    /**
+     * Returns {@code true} if the result of this query can be cached and it
+     * can return a cached result.
+     */
+    public boolean isCache() {
+        return !noCache;
+    }
+
+    /**
+     * Sets whether the result of this query can be cached and it can return
+     * a cached result.
+     */
+    public void setCache(boolean cache) {
+        this.noCache = !cache;
+    }
+
+    /**
+     * Returns {@code true} if this query will run on the master database.
+     */
+    public boolean isMaster() {
+        return master;
+    }
+
+    /**
+     * Sets whether this query will run on the master database.
+     */
+    public void setMaster(boolean master) {
+        this.master = master;
+    }
+
+    public boolean isResolveInvisible() {
+        return resolveInvisible;
+    }
+
+    public void setResolveInvisible(boolean resolveInvisible) {
+        this.resolveInvisible = resolveInvisible;
     }
 
     public Double getTimeout() {
@@ -556,6 +607,21 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return this;
     }
 
+    public Query<E> noCache() {
+        setCache(false);
+        return this;
+    }
+
+    public Query<E> master() {
+        setMaster(true);
+        return this;
+    }
+
+    public Query<E> resolveInvisible() {
+        setResolveInvisible(true);
+        return this;
+    }
+
     public Query<E> timeout(Double timeout) {
         setTimeout(timeout);
         return this;
@@ -622,7 +688,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                             typeIds.add(null);
 
                         } else {
-                            byte[] md5 = StringUtils.md5(index.getField() + "/" + value);
+                            byte[] md5 = StringUtils.md5(index.getField() + "/" + value.toString().trim().toLowerCase(Locale.ENGLISH));
 
                             for (ObjectType type : types) {
                                 byte[] typeId = UuidUtils.toBytes(type.getId());
@@ -665,9 +731,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         ObjectType type;
         Set<ObjectType> subQueryTypes = null;
         String subQueryKey = null;
+        String hashAttribute = null;
 
         while (hasMore) {
             int slashAt = keyRest.indexOf('/');
+            int hashAt = keyRest.indexOf('#');
 
             if (slashAt < 0) {
                 keyFirst = keyRest;
@@ -676,6 +744,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             } else {
                 keyFirst = keyRest.substring(0, slashAt);
                 keyRest = keyRest.substring(slashAt + 1);
+            }
+
+            if (hashAt >= 0) {
+                keyFirst = keyRest.substring(0, hashAt);
+                hashAttribute = keyRest.substring(hashAt + 1);
             }
 
             type = environment.getTypeByName(keyFirst);
@@ -766,6 +839,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         standardMappedKey.indexes = indexes;
         standardMappedKey.subQueryTypes = subQueryTypes;
         standardMappedKey.subQueryKey = subQueryKey;
+        standardMappedKey.hashAttribute = hashAttribute;
         return standardMappedKey;
     }
 
@@ -791,6 +865,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         public static final MappedKey ID = new SpecialMappedKey(ObjectField.UUID_TYPE);
         public static final MappedKey TYPE = new SpecialMappedKey(ObjectField.UUID_TYPE);
+        public static final MappedKey DIMENSION = new SpecialMappedKey(ObjectField.UUID_TYPE);
+        public static final MappedKey COUNT = new SpecialMappedKey(ObjectField.NUMBER_TYPE);
         public static final MappedKey ANY = new SpecialMappedKey(ObjectField.TEXT_TYPE);
 
         public String getIndexKey(ObjectIndex index);
@@ -808,12 +884,17 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         public Query<?> getSubQueryWithComparison(ComparisonPredicate comparison);
 
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index);
+
+        public String getHashAttribute();
+
     }
 
     private static final Map<String, MappedKey> SPECIAL_MAPPED_KEYS; static {
         Map<String, MappedKey> m = new HashMap<String, MappedKey>();
         m.put(ID_KEY, MappedKey.ID);
         m.put(TYPE_KEY, MappedKey.TYPE);
+        m.put(DIMENSION_KEY, MappedKey.DIMENSION);
+        m.put(COUNT_KEY, MappedKey.COUNT);
         m.put(ANY_KEY, MappedKey.ANY);
         SPECIAL_MAPPED_KEYS = m;
     }
@@ -824,6 +905,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         private Set<ObjectIndex> indexes;
         private Set<ObjectType> subQueryTypes;
         private String subQueryKey;
+        private String hashAttribute;
 
         public String getIndexKey(ObjectIndex index) {
             StringBuilder indexKeyBuilder = new StringBuilder();
@@ -930,6 +1012,12 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
             return subQuery;
         }
+
+        @Override
+        public String getHashAttribute() {
+            if (hashAttribute == null) return null;
+            return hashAttribute.toLowerCase();
+        }
     }
 
     private static class SpecialMappedKey implements MappedKey {
@@ -977,6 +1065,11 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         @Override
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index) {
+            return null;
+        }
+
+        @Override
+        public String getHashAttribute() {
             return null;
         }
     }
@@ -1080,12 +1173,18 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     @Override
     public Query<E> clone() {
         Query<E> clone = new Query<E>(group, objectClass);
+
         clone.setPredicate(predicate);
         clone.setSorters(sorters != null ? new ArrayList<Sorter>(sorters) : null);
+        clone.setFields(fields != null ? new ArrayList<String>(fields) : null);
         clone.setDatabase(database);
         clone.setResolveToReferenceOnly(isResolveToReferenceOnly);
+        clone.setCache(!noCache);
+        clone.setMaster(master);
+        clone.setResolveInvisible(resolveInvisible);
         clone.setTimeout(timeout);
         clone.setOptions(options != null ? new HashMap<String, Object>(options) : null);
+
         return clone;
     }
 
@@ -1351,6 +1450,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             m.put("*", ANY_KEY);
             m.put("id", ID_KEY);
             m.put("typeId", TYPE_KEY);
+            m.put("dimensionId", DIMENSION_KEY);
+            m.put("_count", COUNT_KEY);
             m.put("_fields", ANY_KEY);
             KEY_ALIASES = m;
         }
@@ -1419,7 +1520,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return this.facetedFields;
     }
 
-    public HashSet<String> getExtraSourceColumns() {
+    public Map<String, String> getExtraSourceColumns() {
         return this.extraSourceColumns;
     }
 

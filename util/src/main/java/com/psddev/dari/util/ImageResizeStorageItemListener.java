@@ -59,6 +59,11 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
         try {
             if (contentType != null && contentType.startsWith("image/")) {
                 BufferedImage original = ImageIO.read(data);
+
+                if (original == null) {
+                    return;
+                }
+
                 String imageType = contentType.substring(6);
 
                 List<StorageItem> dimsItems = new ArrayList<StorageItem>();

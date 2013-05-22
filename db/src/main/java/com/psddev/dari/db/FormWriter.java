@@ -11,7 +11,7 @@ import javax.servlet.http.HttpServletRequest;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.HtmlWriter;
 
-/** Writer that specializes in processing HTML forms. */
+/** Writer that specializes in processing HTML form inputs. */
 public class FormWriter extends HtmlWriter {
 
     private FormLabelRenderer labelRenderer;
@@ -81,11 +81,11 @@ public class FormWriter extends HtmlWriter {
         Map<String, FormInputProcessor> inputProcessors = getInputProcessors();
         inputProcessors.put(ObjectField.BOOLEAN_TYPE, new FormInputProcessor.ForBoolean());
         inputProcessors.put(ObjectField.DATE_TYPE, new FormInputProcessor.ForDate());
-        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForListRecord());
+        inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForListRecord(this));
         inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForListText());
         inputProcessors.put(ObjectField.NUMBER_TYPE, new FormInputProcessor.ForText());
-        inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor.ForRecord());
-        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForSetRecord());
+        inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor.ForRecord(this));
+        inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForSetRecord(this));
         inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForSetText());
         inputProcessors.put(ObjectField.TEXT_TYPE, new FormInputProcessor.ForText());
     }
@@ -161,7 +161,7 @@ public class FormWriter extends HtmlWriter {
         }
 
         write(getLabelRenderer().display(inputId, inputName, field));
-        write(processor.display(inputId, inputName, field, state.get(fieldName)));
+        write(processor.display(inputId, inputName, field, state));
     }
 
     /**
@@ -171,20 +171,27 @@ public class FormWriter extends HtmlWriter {
     public HtmlWriter inputs(State state, String... fieldNames) throws IOException {
         if (fieldNames != null) {
             ObjectType type = findType(state);
+
             for (String fieldName : fieldNames) {
                 ObjectField field = findField(type, fieldName);
+
                 writeField(state, field, findInputProcessor(field));
             }
         }
+
         return this;
     }
 
-    /** Writes all inputs in the given {@code state}. */
+    /**
+     * Writes all inputs in the given {@code state}.
+     */
     public HtmlWriter allInputs(State state) throws IOException {
         ObjectType type = findType(state);
+
         for (ObjectField field : type.getFields()) {
             writeField(state, field, findInputProcessor(field));
         }
+
         return this;
     }
 
@@ -213,8 +220,10 @@ public class FormWriter extends HtmlWriter {
 
         if (fieldNames != null) {
             ObjectType type = findType(state);
+
             for (String fieldName : fieldNames) {
                 ObjectField field = findField(type, fieldName);
+
                 updateField(state, request, field, findInputProcessor(field));
             }
         }

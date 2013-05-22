@@ -111,6 +111,18 @@ public class HtmlWriter extends Writer {
     }
 
     /**
+     * Writes the given {@code object} as a string without any escaping.
+     *
+     * @param object If {@code null}, writes nothing.
+     */
+    public HtmlWriter writeRaw(Object object) throws IOException {
+        if (object != null) {
+            write(object.toString());
+        }
+        return this;
+    }
+
+    /**
      * Writes the given {@code tag} with the given {@code attributes}.
      *
      * <p>This method doesn't keep state, so it should be used with doctype
@@ -310,8 +322,10 @@ public class HtmlWriter extends Writer {
         return this;
     }
 
-    /** Writes all grid CSS found within the given {@code context}. */
-    public HtmlWriter writeGridCss(ServletContext context, HttpServletRequest request) throws IOException {
+    /**
+     * Writes CSS common to all grids.
+     */
+    public HtmlWriter writeCommonGridCss() throws IOException {
         writeCss(".dari-grid-area",
                 "-moz-box-sizing", "content-box",
                 "-webkit-box-sizing", "content-box",
@@ -329,59 +343,118 @@ public class HtmlWriter extends Writer {
                 "overflow", "hidden",
                 "visibility", "hidden");
 
-        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context, request).entrySet()) {
-            write("\n\n");
+        writeCss(".dari-grid-mw",
+                "height", 0);
 
-            String gridSelector = gridEntry.getKey();
-            HtmlGrid grid = gridEntry.getValue();
-            String cssSuffix = "";
+        writeCss(".dari-grid-mh",
+                "width", 0);
 
-            for (int lastBraceAt = 0, braceAt;
-                    (braceAt = gridSelector.indexOf('{', lastBraceAt)) > -1;
-                    lastBraceAt = braceAt + 1) {
-                cssSuffix += '}';
-            }
+        return this;
+    }
 
-            CssUnit minWidth = grid.getMinimumWidth().getSingle();
+    /**
+     * Writes grid CSS for the given {@code selector} and {@code grid}.
+     */
+    public HtmlWriter writeGridCss(String selector, HtmlGrid grid) throws IOException {
+        String cssSuffix = "";
 
-            if (minWidth != null) {
-                writeCss(gridSelector,
-                        "min-width", minWidth);
-                write(cssSuffix);
-            }
+        for (int lastBraceAt = 0, braceAt;
+                (braceAt = selector.indexOf('{', lastBraceAt)) > -1;
+                lastBraceAt = braceAt + 1) {
+            cssSuffix += '}';
+        }
 
-            writeCss(gridSelector + " > .dari-grid-area[data-grid-area]",
-                    "display", "none");
+        CssUnit minWidth = grid.getMinimumWidth().getSingle();
+
+        if (minWidth != null) {
+            writeCss(selector,
+                    "min-width", minWidth);
+            write(cssSuffix);
+        }
+
+        writeCss(selector + " > .dari-grid-area[data-grid-area]",
+                "display", "none");
+        write(cssSuffix);
+
+        for (Area area : createAreas(grid).values()) {
+            String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
+
+            writeCss(selector + " > .dari-grid-area" + selectorSuffix,
+                    "clear", area.clear ? "left" : null,
+                    "display", "block",
+                    "padding-left", area.frPaddingLeft + "%",
+                    "width", area.frWidth + "%");
             write(cssSuffix);
 
-            for (Area area : createAreas(grid).values()) {
-                String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
+            for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
+                String unit = entry.getKey();
+                Adjustment adjustment = entry.getValue();
 
-                writeCss(gridSelector + " > .dari-grid-area" + selectorSuffix,
-                        "clear", area.clear ? "left" : null,
-                        "display", "block",
-                        "padding-left", area.frPaddingLeft + "%",
-                        "width", area.frWidth + "%");
+                writeCss(selector + " .dari-grid-adj-" + unit + selectorSuffix,
+                        "height", adjustment.height != null ? adjustment.height : "auto",
+                        "margin", adjustment.getMargin(unit),
+                        "width", adjustment.width != null ? adjustment.width : "auto");
                 write(cssSuffix);
+            }
 
-                for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
-                    String unit = entry.getKey();
-                    Adjustment adjustment = entry.getValue();
+            for (CssUnit width : area.width.getAll()) {
+                String unit = width.getUnit();
 
-                    writeCss(gridSelector + " .dari-grid-adj-" + unit + selectorSuffix,
-                            "height", adjustment.height != null ? adjustment.height : "auto",
-                            "margin", adjustment.getMargin(unit),
-                            "width", adjustment.width != null ? adjustment.width : "auto");
+                if (!"fr".equals(unit)) {
+                    writeCss(selector + " .dari-grid-mw-" + unit + selectorSuffix,
+                            "padding-left", width);
                     write(cssSuffix);
                 }
+            }
+
+            for (CssUnit height : area.height.getAll()) {
+                writeCss(selector + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
+                        "padding-top", height);
+                write(cssSuffix);
             }
         }
 
         return this;
     }
 
-    /** Writes all grid JavaScript found within the given {@code context}. */
+    /**
+     * Writes all grid CSS found within the given {@code context}.
+     *
+     * @deprecated Use {@link #writeAllGridCss} instead.
+     */
+    @Deprecated
+    public HtmlWriter writeGridCss(ServletContext context, HttpServletRequest request) throws IOException {
+        return writeAllGridCss(context, request);
+    }
+
+    /**
+     * Writes all grid CSS found within the given {@code context}.
+     */
+    public HtmlWriter writeAllGridCss(ServletContext context, HttpServletRequest request) throws IOException {
+        writeCommonGridCss();
+
+        for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context, request).entrySet()) {
+            write("\n\n");
+            writeGridCss(gridEntry.getKey(), gridEntry.getValue());
+        }
+
+        return this;
+    }
+
+    /**
+     * Writes all grid JavaScript found within the given {@code context}.
+     *
+     * @deprecated Use {@link #writeAllGridJavaScript} instead.
+     */
+    @Deprecated
     public HtmlWriter writeGridJavaScript(ServletContext context, HttpServletRequest request) throws IOException {
+        return writeAllGridJavaScript(context, request);
+    }
+
+    /**
+     * Writes all grid JavaScript found within the given {@code context}.
+     */
+    public HtmlWriter writeAllGridJavaScript(ServletContext context, HttpServletRequest request) throws IOException {
         Map<String, Map<String, HtmlGrid>> gridsByMedia = new LinkedHashMap<String, Map<String, HtmlGrid>>();
 
         for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context, request).entrySet()) {
@@ -438,15 +511,17 @@ public class HtmlWriter extends Writer {
                         HtmlGrid grid = gridEntry.getValue();
 
                         write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
-                            write("var $layout = $(this);");
+                            write("var $layout = $(this), $child, $clear;");
 
                             for (String area : grid.getAreas()) {
-                                write("$layout[0].appendChild($layout.find('> .dari-grid-area[data-grid-area=\"");
+                                write("$child = $layout.find('> .dari-grid-area[data-grid-area=\"");
                                 write(StringUtils.escapeJavaScript(area));
-                                write("\"]')[0]);");
+                                write("\"]');");
+                                write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
                             }
 
-                            write("$layout[0].appendChild($layout.find('> .dari-grid-clear')[0]);");
+                            write("$clear = $layout.find('> .dari-grid-clear');");
+                            write("if ($clear.length > 0) { $layout[0].appendChild($clear[0]); }");
                         write("});");
                     }
                     write("return;");
@@ -522,11 +597,13 @@ public class HtmlWriter extends Writer {
                     int i = 0;
 
                     for (CssUnit column : area.width.getAll()) {
-                        if (!"fr".equals(column.getUnit())) {
+                        String unit = column.getUnit();
+
+                        if (!"fr".equals(unit)) {
                             ++ i;
-                            writeStart("div", "style", cssString(
-                                    "padding-left", column,
-                                    "height", 0));
+                            writeStart("div",
+                                    "class", "dari-grid-mw dari-grid-mw-" + unit,
+                                    "data-grid-area", areaName);
                         }
                     }
 
@@ -545,9 +622,9 @@ public class HtmlWriter extends Writer {
 
                     for (CssUnit row : area.height.getAll()) {
                         ++ i;
-                        writeStart("div", "style", cssString(
-                                "padding-top", row,
-                                "width", 0));
+                        writeStart("div",
+                                "class", "dari-grid-mh dari-grid-mh-" + row.getUnit(),
+                                "data-grid-area", areaName);
                     }
 
                     for (; i > 0; -- i) {

@@ -217,6 +217,16 @@ public abstract class AbstractDatabase<C> implements Database {
     }
 
     /**
+     * Opens a connection that should be used to execute the given
+     * {@code query}.
+     */
+    public C openQueryConnection(Query<?> query) {
+        return query != null && query.isMaster() ?
+                openConnection() :
+                openReadConnection();
+    }
+
+    /**
      * Closes the given implementation-specific {@code connection}
      * to the underlying database.
      */
@@ -922,11 +932,16 @@ public abstract class AbstractDatabase<C> implements Database {
         DatabaseEnvironment environment = getEnvironment();
 
         for (State state : states) {
-            if (beforeLocks && !state.validate()) {
-                if (errors == null) {
-                    errors = new ArrayList<State>();
+            if (beforeLocks) {
+                if (!state.validate()) {
+                    if (errors == null) {
+                        errors = new ArrayList<State>();
+                    }
+                    errors.add(state);
                 }
-                errors.add(state);
+
+            } else {
+                state.clearAllErrors();
             }
 
             ObjectType type = state.getType();
@@ -1175,6 +1190,10 @@ public abstract class AbstractDatabase<C> implements Database {
         if (query != null) {
             objectState.setDatabase(query.getDatabase());
             objectState.setResolveToReferenceOnly(query.isResolveToReferenceOnly());
+            objectState.setResolveUsingCache(query.isCache());
+            objectState.setResolveUsingMaster(query.isMaster());
+            objectState.setResolveInvisible(query.isResolveInvisible());
+
             if (query.isReferenceOnly()) {
                 objectState.setStatus(StateStatus.REFERENCE_ONLY);
             }

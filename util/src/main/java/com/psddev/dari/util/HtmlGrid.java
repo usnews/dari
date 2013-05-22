@@ -18,13 +18,48 @@ import javax.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * @see <a href="http://www.w3.org/TR/css3-grid-layout/">CSS Grid Layout</a>
+ */
 public class HtmlGrid {
 
     private final List<CssUnit> columns;
     private final List<CssUnit> rows;
     private final List<List<String>> template;
 
+    /**
+     * Creates an instance based on the given {@code columns}, {@code rows},
+     * and {@code template}.
+     *
+     * @param columns Can't be blank.
+     * @param rows Can't be blank.
+     * @param template Can't be blank.
+     */
+    public HtmlGrid(List<CssUnit> columns, List<CssUnit> rows, List<List<String>> template) {
+        ErrorUtils.errorIfBlank(columns, "columns");
+        ErrorUtils.errorIfBlank(rows, "rows");
+        ErrorUtils.errorIfBlank(template, "template");
+
+        this.columns = columns;
+        this.rows = rows;
+        this.template = template;
+    }
+
+    /**
+     * Creates an instance based on the given CSS {@code columnsString}
+     * ({@code -dari-grid-definition-columns}), {@code rowsString}
+     * ({@code -dari-grid-definition-rows}), and {@code templateStrings}
+     * ({@code -dari-grid-template}).
+     *
+     * @param columnsString Can't be {@code blank}.
+     * @param rowsString Can't be {@code blank}.
+     * @param templateStrings Can't be {@code blank}.
+     */
     public HtmlGrid(String columnsString, String rowsString, String... templateStrings) {
+        ErrorUtils.errorIfBlank(columnsString, "columnsString");
+        ErrorUtils.errorIfBlank(rowsString, "rowsString");
+        ErrorUtils.errorIfBlank(templateStrings, "templateStrings");
+
         columns = createCssUnits(columnsString);
         rows = createCssUnits(rowsString);
         template = new ArrayList<List<String>>();
@@ -165,9 +200,10 @@ public class HtmlGrid {
         private static final String GRID_PATHS_ATTRIBUTE = ATTRIBUTE_PREFIX + "gridPaths";
         private static final String GRIDS_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "grids.";
 
-        private static final String TEMPLATE_PROPERTY = "grid-template";
-        private static final String COLUMNS_PROPERTY = "grid-definition-columns";
-        private static final String ROWS_PROPERTY = "grid-definition-rows";
+        private static final String DISPLAY_GRID_VALUE = "-dari-grid";
+        private static final String TEMPLATE_PROPERTY = "-dari-grid-template";
+        private static final String COLUMNS_PROPERTY = "-dari-grid-definition-columns";
+        private static final String ROWS_PROPERTY = "-dari-grid-definition-rows";
 
         public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
             return findGrids(context, findGridPaths(context));
@@ -256,7 +292,10 @@ public class HtmlGrid {
                         Map<String, HtmlGrid> grids = new LinkedHashMap<String, HtmlGrid>();
 
                         for (CssRule rule : css.getRules()) {
-                            if (!"grid".equals(rule.getValue("display"))) {
+                            String display = rule.getValue("display");
+
+                            if (!(DISPLAY_GRID_VALUE.equals(display) ||
+                                    "grid".equals(display))) {
                                 continue;
                             }
 
@@ -264,6 +303,10 @@ public class HtmlGrid {
                             LOGGER.info("Found grid matching [{}] in [{}]", selector, child);
 
                             String templateValue = rule.getValue(TEMPLATE_PROPERTY);
+
+                            if (ObjectUtils.isBlank(templateValue)) {
+                                templateValue = rule.getValue("grid-template");
+                            }
 
                             if (ObjectUtils.isBlank(templateValue)) {
                                 throw new IllegalStateException(String.format(
@@ -274,12 +317,20 @@ public class HtmlGrid {
                             String columnsValue = rule.getValue(COLUMNS_PROPERTY);
 
                             if (ObjectUtils.isBlank(columnsValue)) {
+                                columnsValue = rule.getValue("grid-definition-columns");
+                            }
+
+                            if (ObjectUtils.isBlank(columnsValue)) {
                                 throw new IllegalStateException(String.format(
                                         "Path: [%s], Selector: [%s], Missing [%s]!",
                                         child, selector, COLUMNS_PROPERTY));
                             }
 
                             String rowsValue = rule.getValue(ROWS_PROPERTY);
+
+                            if (ObjectUtils.isBlank(rowsValue)) {
+                                rowsValue = rule.getValue("grid-definition-rows");
+                            }
 
                             if (ObjectUtils.isBlank(rowsValue)) {
                                 throw new IllegalStateException(String.format(

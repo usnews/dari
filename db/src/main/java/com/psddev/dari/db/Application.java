@@ -14,8 +14,10 @@ public class Application extends Record {
     public static final String MAIN_CLASS_SETTING = "dari/mainApplicationClass";
 
     @Indexed
+    @Required
     private String name;
 
+    @Deprecated
     private String url;
 
     /** Returns the name. */
@@ -28,12 +30,22 @@ public class Application extends Record {
         this.name = name;
     }
 
-    /** Returns the URL. */
+    /**
+     * Returns the URL.
+     *
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public String getUrl() {
         return url;
     }
 
-    /** Sets the URL. */
+    /**
+     * Sets the URL.
+     *
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public void setUrl(String url) {
         this.url = url;
     }
@@ -62,14 +74,15 @@ public class Application extends Record {
                 Database database) {
 
             ObjectType type = database.getEnvironment().getTypeByClass(applicationClass);
-            T app = Query.from(applicationClass).using(database).first();
+            Query<T> query = Query.from(applicationClass).where("_type = ?", type.getId()).using(database);
+            T app = query.first();
 
             if (app == null) {
                 DistributedLock lock = DistributedLock.Static.getInstance(database, applicationClass.getName());
                 lock.lock();
 
                 try {
-                    app = Query.from(applicationClass).using(database).first();
+                    app = query.clone().noCache().first();
                     if (app == null) {
                         app = (T) type.createObject(null);
                         app.setName(type.getDisplayName());

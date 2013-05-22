@@ -401,13 +401,22 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             boolean isAscending = Sorter.ASCENDING_OPERATOR.equals(operator);
 
             if (isAscending || Sorter.DESCENDING_OPERATOR.equals(operator)) {
-                Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, (String) sorter.getOptions().get(0));
-                String internalType = mappedKey.getInternalType();
-                if (internalType != null) {
-                    solrQuery.addSortField(
-                            getSolrField(internalType).sortPrefix + mappedKey.getIndexKey(null),
-                            isAscending ? SolrQuery.ORDER.asc : SolrQuery.ORDER.desc);
+                String queryKey = (String) sorter.getOptions().get(0);
+                Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, queryKey);
+                String solrField = SPECIAL_FIELDS.get(mappedKey);
+
+                if (solrField == null) {
+                    String internalType = mappedKey.getInternalType();
+                    if (internalType != null) {
+                        solrField = getSolrField(internalType).sortPrefix + mappedKey.getIndexKey(null);
+                    }
                 }
+
+                if (solrField == null) {
+                    throw new UnsupportedIndexException(this, queryKey);
+                }
+
+                solrQuery.addSortField(solrField, isAscending ? SolrQuery.ORDER.asc : SolrQuery.ORDER.desc);
                 continue;
 
             } else if (Sorter.RELEVANT_OPERATOR.equals(operator)) {
@@ -930,7 +939,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         Profiler.Static.startThreadEvent(QUERY_PROFILER_EVENT);
 
         try {
-            return openReadConnection().query(solrQuery, SolrRequest.METHOD.POST);
+            return openQueryConnection(query).query(solrQuery, SolrRequest.METHOD.POST);
 
         } catch (SolrServerException ex) {
             throw new DatabaseException(this, String.format(
@@ -1026,6 +1035,23 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         Float maxScore = documents.getMaxScore();
         if (maxScore != null && score instanceof Number) {
             extras.put(NORMALIZED_SCORE_EXTRA, ((Number) score).floatValue() / maxScore);
+        }
+
+        // Set up Metric fields
+        for (ObjectField field : getEnvironment().getFields()) {
+            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+            }
+        }
+
+        ObjectType type = objectState.getType();
+
+        if (type != null) {
+            for (ObjectField field : type.getFields()) {
+                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+                }
+            }
         }
 
         return swapObjectType(query, object);
@@ -1341,6 +1367,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 addDocumentValues(
                         document,
                         allBuilder,
+                        true,
                         field,
                         uniqueName,
                         entry.getValue());
@@ -1382,6 +1409,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     private void addDocumentValues(
             SolrInputDocument document,
             StringBuilder allBuilder,
+            boolean includeInAny,
             ObjectField field,
             String name,
             Object value) {
@@ -1392,9 +1420,14 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         if (value instanceof List) {
             for (Object item : (List<?>) value) {
-                addDocumentValues(document, allBuilder, field, name, item);
+                addDocumentValues(document, allBuilder, includeInAny, field, name, item);
             }
             return;
+        }
+
+        if (includeInAny) {
+            includeInAny = field == null ||
+                    !field.as(FieldData.class).isExcludeFromAny();
         }
 
         if (value instanceof Recordable) {
@@ -1416,7 +1449,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
                 if (valueTypeId == null) {
                     for (Object item : valueMap.values()) {
-                        addDocumentValues(document, allBuilder, field, name, item);
+                        addDocumentValues(document, allBuilder, includeInAny, field, name, item);
                     }
                     return;
 
@@ -1424,17 +1457,22 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     UUID valueId = ObjectUtils.to(UUID.class, valueMap.get(StateValueUtils.REFERENCE_KEY));
 
                     if (valueId == null) {
-                        allBuilder.append(valueTypeId).append(' ');
+                        if (includeInAny) {
+                            allBuilder.append(valueTypeId).append(' ');
+                        }
 
                         ObjectType valueType = getEnvironment().getTypeById(valueTypeId);
+
                         if (valueType != null) {
                             for (Map.Entry<?, ?> entry : valueMap.entrySet()) {
                                 String subName = entry.getKey().toString();
                                 ObjectField subField = valueType.getField(subName);
+
                                 if (subField != null) {
                                     addDocumentValues(
                                             document,
                                             allBuilder,
+                                            includeInAny,
                                             subField,
                                             name + "/" + subName,
                                             entry.getValue());
@@ -1456,6 +1494,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                                     addDocumentValues(
                                             document,
                                             allBuilder,
+                                            includeInAny,
                                             denormField,
                                             name + "/" + denormFieldName,
                                             valueValues.get(denormFieldName));
@@ -1472,17 +1511,22 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         int uuidLast = 0;
 
         while (uuidMatcher.find()) {
-            allBuilder.append(trimmed.substring(uuidLast, uuidMatcher.start()));
-            uuidLast = uuidMatcher.end();
+            if (includeInAny) {
+                allBuilder.append(trimmed.substring(uuidLast, uuidMatcher.start()));
+            }
 
+            uuidLast = uuidMatcher.end();
             String word = uuidToWord(ObjectUtils.to(UUID.class, uuidMatcher.group(0)));
-            if (word != null) {
+
+            if (includeInAny && word != null) {
                 allBuilder.append(word);
             }
         }
 
-        allBuilder.append(trimmed.substring(uuidLast));
-        allBuilder.append(' ');
+        if (includeInAny) {
+            allBuilder.append(trimmed.substring(uuidLast));
+            allBuilder.append(' ');
+        }
 
         if (value instanceof String && schema.get().version >= 8) {
             value = ((String) value).trim().toLowerCase(Locale.ENGLISH);
@@ -1603,6 +1647,22 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
+    @Documented
+    @Inherited
+    @ObjectField.AnnotationProcessorClass(ExcludeFromAnyProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface ExcludeFromAny {
+        boolean value() default true;
+    }
+
+    private static class ExcludeFromAnyProcessor implements ObjectField.AnnotationProcessor<ExcludeFromAny> {
+        @Override
+        public void process(ObjectType type, ObjectField field, ExcludeFromAny annotation) {
+            field.as(FieldData.class).setExcludeFromAny(annotation.value());
+        }
+    }
+
     @TypeModification.FieldInternalNamePrefix("solr.")
     public static class TypeModification extends Modification<ObjectType> {
 
@@ -1629,6 +1689,20 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         public void setTypeAheadFieldsMap(Map<String, List<String>> typeAheadFieldsMap) {
             this.typeAheadFieldsMap = typeAheadFieldsMap;
+        }
+    }
+
+    @Modification.FieldInternalNamePrefix("solr.")
+    public static class FieldData extends Modification<ObjectField> {
+
+        private boolean excludeFromAny;
+
+        public boolean isExcludeFromAny() {
+            return excludeFromAny;
+        }
+
+        public void setExcludeFromAny(boolean excludeFromAny) {
+            this.excludeFromAny = excludeFromAny;
         }
     }
 

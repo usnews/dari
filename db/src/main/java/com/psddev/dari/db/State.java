@@ -14,13 +14,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.psddev.dari.util.ConversionException;
+import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
@@ -47,12 +47,15 @@ public class State implements Map<String, Object> {
 
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
+    private static final String ATOMIC_OPERATIONS_EXTRA = "dari.atomicOperations";
 
     private static final int STATUS_FLAG_OFFSET = 16;
     private static final int STATUS_FLAG_MASK = -1 >>> STATUS_FLAG_OFFSET;
-    private static final int IS_ALL_RESOLVED_FLAG = 1 << 0;
-    private static final int IS_RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
+    private static final int ALL_RESOLVED_FLAG = 1 << 0;
+    private static final int RESOLVE_TO_REFERENCE_ONLY_FLAG = 1 << 1;
+    private static final int RESOLVE_WITHOUT_CACHE = 1 << 2;
+    private static final int RESOLVE_USING_MASTER = 1 << 3;
+    private static final int RESOLVE_INVISIBLE = 1 << 4;
 
     private static final ThreadLocal<List<Listener>> LISTENERS_LOCAL = new ThreadLocal<List<Listener>>();
 
@@ -62,7 +65,6 @@ public class State implements Map<String, Object> {
     private UUID typeId;
     private final Map<String, Object> rawValues = new LinkedHashMap<String, Object>();
     private Map<String, Object> extras;
-    private List<AtomicOperation> atomicOperations;
     private Map<ObjectField, List<String>> errors;
     private volatile int flags;
 
@@ -110,20 +112,30 @@ public class State implements Map<String, Object> {
         }
     }
 
-    /** Returns the originating database. */
+    /**
+     * Returns the effective originating database.
+     *
+     * <p>This method will check the following:</p>
+     *
+     * <ul>
+     * <li>{@linkplain #getRealDatabase Real originating database}.</li>
+     * <li>{@linkplain Database.Static#getDefault Default database}.</li>
+     * <li>{@linkplain ObjectType#getSourceDatabase Source database}.</li>
+     * <li>
+     *
+     * @return Never {@code null}.
+     */
     public Database getDatabase() {
         if (database == null) {
-            Database defaultDatabase = Database.Static.getDefault();
-
-            setDatabase(defaultDatabase);
-
+            Database newDatabase = Database.Static.getDefault();
+            this.database = newDatabase;
             ObjectType type = getType();
 
             if (type != null) {
-                Database source = type.getSourceDatabase();
+                newDatabase = type.getSourceDatabase();
 
-                if (source != null) {
-                    setDatabase(source);
+                if (newDatabase != null) {
+                    this.database = newDatabase;
                 }
             }
         }
@@ -131,7 +143,20 @@ public class State implements Map<String, Object> {
         return database;
     }
 
-    /** Sets the originating database. */
+    /**
+     * Returns the real originating database.
+     *
+     * @return May be {@code null}.
+     */
+    public Database getRealDatabase() {
+        return database;
+    }
+
+    /**
+     * Sets the originating database.
+     *
+     * @param database May be {@code null}.
+     */
     public void setDatabase(Database database) {
         this.database = database;
     }
@@ -189,7 +214,7 @@ public class State implements Map<String, Object> {
 
                 if (value != null) {
                     byte[] typeId = UuidUtils.toBytes(getTypeId());
-                    byte[] md5 = StringUtils.md5(field + "/" + value.toString());
+                    byte[] md5 = StringUtils.md5(field + "/" + value.toString().trim().toLowerCase(Locale.ENGLISH));
 
                     for (int i = 0, length = typeId.length; i < length; ++ i) {
                         typeId[i] ^= md5[i];
@@ -273,6 +298,14 @@ public class State implements Map<String, Object> {
         }
     }
 
+    /**
+     * Returns {@code true} if this state is visible (all visibility-indexed
+     * fields are {@code null}).
+     */
+    public boolean isVisible() {
+        return ObjectUtils.isBlank(get("dari.visibilities"));
+    }
+
     public ObjectField getField(String name) {
         ObjectField field = getDatabase().getEnvironment().getField(name);
         if (field == null) {
@@ -329,12 +362,13 @@ public class State implements Map<String, Object> {
      */
     public void setStatus(StateStatus status) {
         flags &= STATUS_FLAG_MASK;
+
         if (status != null) {
             flags |= status.getFlag() << STATUS_FLAG_OFFSET;
         }
-        if (atomicOperations != null) {
-            atomicOperations.clear();
-        }
+
+        getExtras().remove(ATOMIC_OPERATIONS_EXTRA);
+
         if (errors != null) {
             errors.clear();
         }
@@ -360,11 +394,20 @@ public class State implements Map<String, Object> {
      */
     public Map<String, Object> getSimpleValues() {
         Map<String, Object> values = new LinkedHashMap<String, Object>();
-        for (Map.Entry<String, Object> e : getValues().entrySet()) {
-            String name = e.getKey();
+
+        for (Map.Entry<String, Object> entry : getValues().entrySet()) {
+            String name = entry.getKey();
+            Object value = entry.getValue();
             ObjectField field = getField(name);
-            values.put(name, toSimpleValue(e.getValue(), field != null && field.isEmbedded()));
+
+            if (field == null) {
+                values.put(name, toSimpleValue(value, false));
+
+            } else if (value != null && !(value instanceof Metric)) {
+                values.put(name, toSimpleValue(value, field.isEmbedded()));
+            }
         }
+
         values.put(StateValueUtils.ID_KEY, getId().toString());
         values.put(StateValueUtils.TYPE_KEY, getTypeId().toString());
         return values;
@@ -420,6 +463,9 @@ public class State implements Map<String, Object> {
 
         } else if (value instanceof Query) {
             return ((Query<?>) value).getState().getSimpleValues();
+
+        } else if (value instanceof Metric) {
+            return null;
 
         } else if (value instanceof Recordable) {
             State valueState = ((Recordable) value).getState();
@@ -569,42 +615,6 @@ public class State implements Map<String, Object> {
         }
 
         return value;
-    }
-
-    /**
-     * Evaluates the given {@code pathExpression}.
-     *
-     * @param pathExpression If {@code null}, returns {@code null}.
-     * @return May be {@code null}.
-     */
-    public String evaluatePathExpression(String pathExpression) {
-        if (pathExpression == null) {
-            return null;
-        }
-
-        StringBuilder evaluated = new StringBuilder();
-        int current = 0;
-
-        for (int start = 0, end; (start = pathExpression.indexOf("${", current)) > -1; current = end + 1) {
-            int startPath = start + 2;
-            end = pathExpression.indexOf("}", startPath);
-
-            if (end < 0) {
-                break;
-            }
-
-            evaluated.append(pathExpression.substring(current, start));
-
-            Object value = getByPath(pathExpression.substring(startPath, end));
-
-            if (value != null) {
-                evaluated.append(value);
-            }
-        }
-
-        evaluated.append(pathExpression.substring(current));
-
-        return evaluated.toString();
     }
 
     public Map<String, Object> getRawValues() {
@@ -774,19 +784,22 @@ public class State implements Map<String, Object> {
      * this record.
      */
     public List<AtomicOperation> getAtomicOperations() {
-        if (atomicOperations == null) {
-            atomicOperations = new ArrayList<AtomicOperation>();
+        Map<String, Object> extras = getExtras();
+        @SuppressWarnings("unchecked")
+        List<AtomicOperation> ops = (List<AtomicOperation>) extras.get(ATOMIC_OPERATIONS_EXTRA);
+
+        if (ops == null) {
+            ops = new ArrayList<AtomicOperation>();
+            extras.put(ATOMIC_OPERATIONS_EXTRA, ops);
         }
-        return atomicOperations;
+
+        return ops;
     }
 
     // Queues up an atomic operation and updates the internal state.
     private void queueAtomicOperation(AtomicOperation operation) {
-        if (atomicOperations == null) {
-            atomicOperations = new ArrayList<AtomicOperation>();
-        }
         operation.execute(this);
-        atomicOperations.add(operation);
+        getAtomicOperations().add(operation);
     }
 
     /**
@@ -923,6 +936,10 @@ public class State implements Map<String, Object> {
         return errors != null && errors.get(field).size() > 0;
     }
 
+    public void clearAllErrors() {
+        errors = null;
+    }
+
     /** Returns a modifiable map of all the extras values from this state. */
     public Map<String, Object> getExtras() {
         if (extras == null) {
@@ -954,14 +971,50 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveToReferenceOnly() {
-        return (flags & IS_RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
+        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
     }
 
-    public void setResolveToReferenceOnly(boolean isResolveToReferenceOnly) {
-        if (isResolveToReferenceOnly) {
-            flags |= IS_RESOLVE_TO_REFERENCE_ONLY_FLAG;
+    public void setResolveToReferenceOnly(boolean resolveToReferenceOnly) {
+        if (resolveToReferenceOnly) {
+            flags |= RESOLVE_TO_REFERENCE_ONLY_FLAG;
         } else {
-            flags &= ~IS_RESOLVE_TO_REFERENCE_ONLY_FLAG;
+            flags &= ~RESOLVE_TO_REFERENCE_ONLY_FLAG;
+        }
+    }
+
+    public boolean isResolveUsingCache() {
+        return (flags & RESOLVE_WITHOUT_CACHE) == 0;
+    }
+
+    public void setResolveUsingCache(boolean resolveUsingCache) {
+        if (resolveUsingCache) {
+            flags &= ~RESOLVE_WITHOUT_CACHE;
+        } else {
+            flags |= RESOLVE_WITHOUT_CACHE;
+        }
+    }
+
+    public boolean isResolveUsingMaster() {
+        return (flags & RESOLVE_USING_MASTER) > 0;
+    }
+
+    public void setResolveUsingMaster(boolean resolveUsingMaster) {
+        if (resolveUsingMaster) {
+            flags |= RESOLVE_USING_MASTER;
+        } else {
+            flags &= ~RESOLVE_USING_MASTER;
+        }
+    }
+
+    public boolean isResolveInvisible() {
+        return (flags & RESOLVE_INVISIBLE) > 0;
+    }
+
+    public void setResolveInvisible(boolean resolveInvisible) {
+        if (resolveInvisible) {
+            flags |= RESOLVE_INVISIBLE;
+        } else {
+            flags &= ~RESOLVE_INVISIBLE;
         }
     }
 
@@ -1170,16 +1223,16 @@ public class State implements Map<String, Object> {
      * @param field If {@code null}, resolves all references.
      */
     public void resolveReference(String field) {
-        if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+        if ((flags & ALL_RESOLVED_FLAG) > 0) {
             return;
         }
 
         synchronized (this) {
-            if ((flags & IS_ALL_RESOLVED_FLAG) > 0) {
+            if ((flags & ALL_RESOLVED_FLAG) > 0) {
                 return;
             }
 
-            flags |= IS_ALL_RESOLVED_FLAG;
+            flags |= ALL_RESOLVED_FLAG;
 
             if (linkedObjects.isEmpty()) {
                 return;
@@ -1303,6 +1356,12 @@ public class State implements Map<String, Object> {
         }
     }
 
+    private static final Converter CONVERTER; static {
+        CONVERTER = new Converter();
+        CONVERTER.putAllStandardFunctions();
+        CONVERTER.setThrowError(true);
+    }
+
     private void setJavaField(
             ObjectField field,
             Field javaField,
@@ -1316,7 +1375,7 @@ public class State implements Map<String, Object> {
 
         try {
             Type javaFieldType = javaField.getGenericType();
-            Exception fieldSetError = null;
+
             if ((!javaField.getType().isPrimitive() &&
                     !Number.class.isAssignableFrom(javaField.getType())) &&
                     (javaFieldType instanceof Class ||
@@ -1327,31 +1386,44 @@ public class State implements Map<String, Object> {
                 try {
                     javaField.set(object, value);
                     return;
-                } catch (IllegalArgumentException ex) {
-                    fieldSetError = ex;
+
+                } catch (IllegalArgumentException error) {
                 }
             }
-
-            Object converted = javaFieldType instanceof TypeVariable ? value : ObjectUtils.to(javaFieldType, value);
 
             try {
-                javaField.set(object, converted);
-            } catch (IllegalArgumentException error) {
-                converted = null;
-            }
+                if (javaFieldType instanceof TypeVariable) {
+                    javaField.set(object, value);
 
-            if (converted == null) {
-                rawValues.put("dari.trash." + key, value);
-                if (LOGGER.isDebugEnabled()) {
-                    Class<?> valueClass = value != null ? value.getClass() : null;
-                    LOGGER.debug(String.format(
-                            "Can't convert [%s] of [%s] to [%s]!",
-                            value, valueClass, javaFieldType), fieldSetError);
+                } else if (javaFieldType instanceof Class &&
+                        ((Class<?>) javaFieldType).isPrimitive()) {
+                    javaField.set(object, ObjectUtils.to(javaFieldType, value));
+
+                } else {
+                    javaField.set(object, CONVERTER.convert(javaFieldType, value));
                 }
+
+            } catch (Exception error) {
+                Throwable cause;
+
+                if (error instanceof ConversionException) {
+                    cause = error.getCause();
+
+                    if (cause == null) {
+                        cause = error;
+                    }
+
+                } else {
+                    cause = error;
+                }
+
+                rawValues.put("dari.trash." + key, value);
+                rawValues.put("dari.trashError." + key, cause.getClass().getName());
+                rawValues.put("dari.trashErrorMessage." + key, cause.getMessage());
             }
 
-        } catch (IllegalAccessException ex) {
-            throw new IllegalStateException(ex);
+        } catch (IllegalAccessException error) {
+            throw new IllegalStateException(error);
         }
     }
 
@@ -1499,7 +1571,7 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
-                flags &= ~IS_ALL_RESOLVED_FLAG;
+                flags &= ~ALL_RESOLVED_FLAG;
                 return;
 
             } else {
@@ -1567,7 +1639,6 @@ public class State implements Map<String, Object> {
         sb.append(", typeId=").append(getTypeId());
         sb.append(", simpleValues=").append(getSimpleValues());
         sb.append(", extras=").append(extras);
-        sb.append(", atomicOperations=").append(atomicOperations);
         sb.append(", errors=").append(errors);
         sb.append("}");
         return sb.toString();
@@ -1666,9 +1737,7 @@ public class State implements Map<String, Object> {
             throw new IllegalStateException("No type!");
         }
 
-        Query<?> query = Query.fromType(type);
-
-        query.as(CachingDatabase.QueryOptions.class).setDisabled(true);
+        Query<?> query = Query.fromType(type).noCache();
 
         for (ObjectIndex index : type.getIndexes()) {
             if (index.isUnique()) {
@@ -1683,7 +1752,7 @@ public class State implements Map<String, Object> {
             throw new IllegalStateException("No unique indexes!");
         }
 
-        DatabaseException lastError = null;
+        Exception lastError = null;
         boolean ignoreRead = Database.Static.isIgnoreReadConnection();
 
         try {
@@ -1701,7 +1770,7 @@ public class State implements Map<String, Object> {
                         saveImmediately();
                         return;
 
-                    } catch (DatabaseException error) {
+                    } catch (Exception error) {
                         lastError = error;
                     }
                 }
@@ -1711,7 +1780,7 @@ public class State implements Map<String, Object> {
             Database.Static.setIgnoreReadConnection(ignoreRead);
         }
 
-        throw lastError;
+        ErrorUtils.rethrow(lastError);
     }
 
     /**
