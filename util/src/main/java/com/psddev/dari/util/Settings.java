@@ -391,11 +391,9 @@ public class Settings {
                     interfaceClass.getName()));
         }
 
-        Class<?> instanceClass = null;
+        Class<?> instanceClass = ObjectUtils.getClassByName(instanceClassName);
 
-        try {
-            instanceClass = Class.forName(instanceClassName);
-        } catch (ClassNotFoundException ex) {
+        if (instanceClass == null) {
             throw new SettingsException(classKey, String.format(
                     "[%s] isn't a valid class!",
                     instanceClassName));
