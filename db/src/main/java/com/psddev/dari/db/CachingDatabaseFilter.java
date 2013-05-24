@@ -55,7 +55,7 @@ public class CachingDatabaseFilter extends AbstractFilter {
                 if (preload) {
                     Set<UUID> objectIds = idCache.getIfPresent(url);
                     if (objectIds != null) {
-                        Query.from(Record.class).using(caching).where("id = ?", objectIds).selectAll();
+                        Query.from(Object.class).using(caching).where("id = ?", objectIds).selectAll();
                     }
                 }
 
