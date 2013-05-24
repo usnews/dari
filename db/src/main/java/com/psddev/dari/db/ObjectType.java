@@ -98,16 +98,6 @@ public class ObjectType extends Record implements ObjectStruct {
             List<ObjectField> localFields,
             List<ObjectIndex> localIndexes,
             boolean hasGlobalChanges) {
-
-        Object defaultObject = null;
-        try {
-            defaultObject = definition.newInstance();
-        } catch (Exception ex) {
-            LOGGER.debug(String.format(
-                    "Can't create an instance of [%s] to get the default values!",
-                    definition.getObjectClass().getName()), ex);
-        }
-
         FieldInternalNamePrefix prefixAnnotation = definition.getObjectClass().getAnnotation(FieldInternalNamePrefix.class);
         String prefix = prefixAnnotation != null ? prefixAnnotation.value() : "";
 
@@ -174,18 +164,6 @@ public class ObjectType extends Record implements ObjectStruct {
 
             field.setJavaFieldName(javaField.getName());
             field.setJavaDeclaringClassName(declaringClass);
-
-            if (defaultObject != null &&
-                    !ObjectField.DATE_TYPE.equals(field.getInternalType())) {
-                try {
-                    field.setDefaultValue(javaField.get(defaultObject));
-                } catch (Exception ex) {
-                    LOGGER.debug(String.format(
-                            "Can't get the default value of [%s] from an instance of [%s]!",
-                            internalName, defaultObject.getClass().getName()), ex);
-                }
-            }
-
             field.setDeprecated(javaField.isAnnotationPresent(Deprecated.class));
 
             for (Annotation annotation : javaField.getAnnotations()) {
