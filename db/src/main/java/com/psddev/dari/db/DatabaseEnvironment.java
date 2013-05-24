@@ -282,7 +282,7 @@ public class DatabaseEnvironment implements ObjectStruct {
                 Map<String, Object> rootTypeOriginals = rootTypeState.getSimpleValues();
                 UUID rootTypeId = rootTypeState.getId();
                 rootTypeState.setTypeId(rootTypeId);
-                // rootTypeState.clear();
+                rootTypeState.clear();
                 rootType.setObjectClassName(ObjectType.class.getName());
                 rootType.initialize();
                 temporaryTypes.add(rootType);
@@ -323,7 +323,7 @@ public class DatabaseEnvironment implements ObjectStruct {
                             type.getState().setDatabase(database);
 
                         } else {
-                            // type.getState().clear();
+                            type.getState().clear();
                         }
 
                         type.setObjectClassName(objectClass.getName());
