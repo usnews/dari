@@ -117,7 +117,7 @@ public class RoutingFilter extends AbstractFilter {
         }
 
         public static String getApplicationPath(String application) {
-            if (application == null) {
+            if (application == null || application.length() == 0) {
                 return "";
 
             } else {
