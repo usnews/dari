@@ -931,7 +931,7 @@ public abstract class AbstractDatabase<C> implements Database {
         Map<String, State> keys = null;
         DatabaseEnvironment environment = getEnvironment();
 
-        for (State state : states) {
+        for (State state : states) RETRY_STATE: do {
             if (beforeLocks) {
                 if (!state.validate()) {
                     if (errors == null) {
@@ -1012,6 +1012,10 @@ public abstract class AbstractDatabase<C> implements Database {
                             }
                         }
 
+                        if (triggerOnDuplicate(state, index)) {
+                            continue RETRY_STATE;
+                        }
+
                         if (errors == null) {
                             errors = new ArrayList<State>();
                         }
@@ -1024,7 +1028,7 @@ public abstract class AbstractDatabase<C> implements Database {
                     }
                 }
             }
-        }
+        } while (false);
 
         if (errors != null && !errors.isEmpty()) {
             throw new ValidationException(errors);
@@ -1040,6 +1044,63 @@ public abstract class AbstractDatabase<C> implements Database {
             }
             return locks;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean triggerOnDuplicate(State state, ObjectIndex index) {
+        ObjectType type = state.getType();
+
+        if (type == null) {
+            return false;
+        }
+
+        // Global modifications.
+        for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
+            Class<?> modClass = modType.getObjectClass();
+
+            if (modClass != null &&
+                    Modification.class.isAssignableFrom(modClass) &&
+                    Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class) &&
+                    triggerOnDuplicateForModification(state, modClass, index)) {
+                return true;
+            }
+        }
+
+        // Type-specific modifications.
+        for (String modClassName : type.getModificationClassNames()) {
+            Class<?> modClass = ObjectUtils.getClassByName(modClassName);
+
+            if (modClass != null &&
+                    triggerOnDuplicateForModification(state, modClass, index)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean triggerOnDuplicateForModification(State state, Class<?> modClass, ObjectIndex index) {
+        Object modObject;
+
+        try {
+            modObject = state.as(modClass);
+
+            if (!(modObject instanceof Record)) {
+                return false;
+            }
+
+        } catch (Exception ex) {
+            return false;
+        }
+
+        Record modRecord = (Record) modObject;
+        State modState = modRecord.getState();
+
+        LOGGER.debug(
+                "Triggering onDuplicate from [{}] on [{}]",
+                new Object[] { name, modClass.getName(), modState.getId() });
+
+        return modRecord.onDuplicate(index);
     }
 
     /**

@@ -22,6 +22,17 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
     }
 
     /**
+     * Triggers when there's a duplicate value on the given unique
+     * {@code index}. Default implementation of this method doesn't do
+     * anything and always returns {@code false}.
+     *
+     * @return {@code true} if this method did anything to correct the error.
+     */
+    protected boolean onDuplicate(ObjectIndex index) {
+        return false;
+    }
+
+    /**
      * Triggers right before this record is saved to the given
      * {@code database}. Default implementation of this method
      * doesn't do anything.
