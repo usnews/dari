@@ -567,6 +567,11 @@ public class SqlVendor {
         public boolean isDuplicateKeyException(SQLException ex) {
             return "23001".equals(ex.getSQLState()) || "23505".equals(ex.getSQLState());
         }
+
+        @Override
+        public String convertRawToStringSql(String field) {
+            return "UTF8TOSTRING(" + field + ")";
+        }
     }
 
     public static class MySQL extends SqlVendor {
