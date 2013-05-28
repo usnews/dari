@@ -532,6 +532,10 @@ public class State implements Map<String, Object> {
                 path = null;
             }
 
+            if (ObjectUtils.getClassByName(key) != null) {
+                continue;
+            }
+
             if (value instanceof Recordable) {
                 value = ((Recordable) value).getState();
             }
