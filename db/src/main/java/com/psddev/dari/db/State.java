@@ -532,7 +532,8 @@ public class State implements Map<String, Object> {
                 path = null;
             }
 
-            if (ObjectUtils.getClassByName(key) != null) {
+            if (key.indexOf('.') > -1 &&
+                    ObjectUtils.getClassByName(key) != null) {
                 continue;
             }
 
