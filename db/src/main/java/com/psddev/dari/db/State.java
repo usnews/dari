@@ -518,6 +518,7 @@ public class State implements Map<String, Object> {
             return null;
         }
 
+        DatabaseEnvironment environment = getDatabase().getEnvironment();
         Object value = this;
 
         KEY: for (String key; path != null; ) {
@@ -533,7 +534,7 @@ public class State implements Map<String, Object> {
             }
 
             if (key.indexOf('.') > -1 &&
-                    ObjectUtils.getClassByName(key) != null) {
+                    environment.getTypeByName(key) != null) {
                 continue;
             }
 
