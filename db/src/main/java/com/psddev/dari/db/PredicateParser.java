@@ -432,10 +432,20 @@ public class PredicateParser {
     /**
      * Returns {@code true} if the given {@code predicate} matches
      * the given {@code object}.
+     *
+     * @throws UnsupportedOperationException If the given {@code predicate}
+     * operator isn't supported.
      */
     public boolean evaluate(Object object, Predicate predicate) {
-        Evaluator evaluator = evaluators.get(predicate.getOperator());
-        return evaluator != null ? evaluator.evaluate(this, object, predicate) : false;
+        String operator = predicate.getOperator();
+        Evaluator evaluator = evaluators.get(operator);
+
+        if (evaluator == null) {
+            throw new UnsupportedOperationException(String.format(
+                    "[%s] operator not supported!", operator));
+        }
+
+        return evaluator.evaluate(this, object, predicate);
     }
 
     public interface Evaluator {
