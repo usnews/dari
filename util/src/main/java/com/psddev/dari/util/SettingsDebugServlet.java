@@ -1,6 +1,10 @@
 package com.psddev.dari.util;
 
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -8,6 +12,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
 
 /** Debug servlet for inspecting {@linkplain Settings global settings}. */
 @DebugFilter.Path("settings")
@@ -72,6 +77,30 @@ public class SettingsDebugServlet extends HttpServlet {
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
                 collectFlattenedValues(flattened, prefix + entry.getKey(), entry.getValue());
             }
+
+        } else if (value instanceof DataSource) {
+            try {
+                Map<String, Object> map = new TreeMap<String, Object>();
+
+                for (PropertyDescriptor desc : Introspector.getBeanInfo(value.getClass()).getPropertyDescriptors()) {
+                    try {
+                        Method getter = desc.getReadMethod();
+                        Method setter = desc.getWriteMethod();
+
+                        if (getter != null && setter != null) {
+                            getter.setAccessible(true);
+                            map.put(desc.getName(), getter.invoke(value));
+                        }
+                    } catch (Exception error) {
+                    }
+                }
+
+                collectFlattenedValues(flattened, key, map);
+
+            } catch (IntrospectionException error) {
+                flattened.put(key, value);
+            }
+
         } else {
             flattened.put(key, value);
         }
