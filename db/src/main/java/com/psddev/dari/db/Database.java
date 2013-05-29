@@ -175,11 +175,13 @@ public interface Database extends SettingsBackedObject {
          * @return Never {@code null}. Mutable.
          */
         public static List<Database> getAll() {
-            Map<String, Object> names = Settings.get(new TypeReference<Map<String, Object>>() { }, SETTING_PREFIX);
+            Object databases = Settings.get(Object.class, SETTING_PREFIX);
 
-            if (names != null) {
-                for (String name : names.keySet()) {
-                    getInstance(name);
+            if (databases instanceof Map) {
+                for (Object name : ((Map<?, ?>) databases).keySet()) {
+                    if (name != null) {
+                        getInstance(name.toString());
+                    }
                 }
             }
 
