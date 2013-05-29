@@ -8,9 +8,9 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 
+import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.BlobStoreContextFactory;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.options.CreateContainerOptions;
@@ -26,7 +26,7 @@ import org.jclouds.blobstore.options.CreateContainerOptions;
  *<dependency>
  *    <groupId>org.jclouds</groupId>
  *    <artifactId>jclouds-all</artifactId>
- *    <version>1.2.1</version>
+ *    <version>1.6.0</version>
  *</dependency>}</code></pre></blockquote>
  */
 public class CloudStorageItem extends AbstractStorageItem {
@@ -124,7 +124,10 @@ public class CloudStorageItem extends AbstractStorageItem {
     }
 
     private BlobStoreContext createContext() {
-        return new BlobStoreContextFactory().createContext(getProvider(), getIdentity(), getCredential());
+        return ContextBuilder.
+                newBuilder(getProvider()).
+                credentials(getIdentity(), getCredential()).
+                buildView(BlobStoreContext.class);
     }
 
     @Override
