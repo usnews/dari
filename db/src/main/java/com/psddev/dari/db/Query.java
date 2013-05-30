@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1420,6 +1421,57 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
      */
     public boolean hasMoreThan(long count) {
         return !getDatabase().readPartial(this.clone().referenceOnly(), count, 1).getItems().isEmpty();
+    }
+
+    /**
+     * Returns a partial list of all objects matching this query filtered
+     * by the given {@code filter} within the range of the given
+     * {@code offset} and {@code limit}.
+     *
+     * @param offset Must be greater than or equal to {@code 0}.
+     * @param limit Must be greater than {@code 0}.
+     * @param filter If {@code null}, doesn't filter.
+     * @return The paginated result's count won't be absolutely accurate,
+     * but it'll be enough to allow pagination methods like
+     * {@link PaginatedResult#hasNext} to work.
+     */
+    public PaginatedResult<E> selectFiltered(long offset, int limit, QueryFilter<? super E> filter) {
+        if (filter == null) {
+            return select(offset, limit);
+        }
+
+        Iterator<E> iterator = iterable(0).iterator();
+        List<E> items = new ArrayList<E>();
+
+        try {
+            int index = 0;
+
+            while (iterator.hasNext()) {
+                E item = iterator.next();
+
+                if (item != null && filter.include(item)) {
+                    ++ index;
+
+                    if (index > offset) {
+                        items.add(item);
+
+                        if (items.size() > limit) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+        } finally {
+            if (iterator instanceof Closeable) {
+                try {
+                    ((Closeable) iterator).close();
+                } catch (IOException error) {
+                }
+            }
+        }
+
+        return new PaginatedResult<E>(offset, limit, offset + items.size(), items);
     }
 
     // --- Database.Static bridge ---
