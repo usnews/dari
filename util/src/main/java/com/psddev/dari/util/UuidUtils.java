@@ -114,6 +114,17 @@ public final class UuidUtils {
         return new UUID(msb, lsb);
     }
 
+    private static final int[] HEX_CHARACTERS;
+
+    static {
+        int length = Byte.MAX_VALUE - Byte.MIN_VALUE;
+        HEX_CHARACTERS = new int[length];
+
+        for (int i = 0; i < length; ++ i) {
+            HEX_CHARACTERS[i] = Character.digit(i, 16);
+        }
+    }
+
     /**
      * Converts the given {@code string} into an UUID.
      *
@@ -126,49 +137,39 @@ public final class UuidUtils {
             throw new UuidFormatException("Can't convert a null into an UUID!");
         }
 
-        PARSE: {
-            int length = string.length();
+        int length = string.length();
 
-            if (length == 32 || length == 36) {
-                char[] letters = string.toCharArray();
-                int letterIndex = 0;
-                char letter;
-                int letterDigit;
+        if (length == 32 || length == 36) {
+            byte[] letters = string.getBytes(StringUtils.UTF_8);
+            int read = 0;
+            int letterIndex = 0;
+            int letterDigit;
 
-                long msb = 0;
-                long lsb = 0;
+            long msb = 0;
+            long lsb = 0;
 
-                for (int i = 0; letterIndex < length && i < 16; ++ letterIndex) {
-                    letter = letters[letterIndex];
+            for (; read < 16 && letterIndex < length; ++ letterIndex) {
+                letterDigit = HEX_CHARACTERS[letters[letterIndex]];
 
-                    if (letter != '-') {
-                        letterDigit = Character.digit(letter, 16);
-
-                        if (letterDigit < 0) {
-                            break PARSE;
-                        }
-
-                        msb = (msb << 4) | letterDigit;
-                        ++ i;
-                    }
+                if (letterDigit >= 0) {
+                    msb = (msb << 4) | letterDigit;
+                    ++ read;
                 }
+            }
 
-                for (int i = 0; letterIndex < length && i < 16; ++ letterIndex) {
-                    letter = letters[letterIndex];
+            if (read == 16) {
+                for (; read < 32 && letterIndex < length; ++ letterIndex) {
+                    letterDigit = HEX_CHARACTERS[letters[letterIndex]];
 
-                    if (letter != '-') {
-                        letterDigit = Character.digit(letter, 16);
-
-                        if (letterDigit < 0) {
-                            break PARSE;
-                        }
-
+                    if (letterDigit >= 0) {
                         lsb = (lsb << 4) | letterDigit;
-                        ++ i;
+                        ++ read;
                     }
                 }
 
-                return new UUID(msb, lsb);
+                if (read == 32) {
+                    return new UUID(msb, lsb);
+                }
             }
         }
 
