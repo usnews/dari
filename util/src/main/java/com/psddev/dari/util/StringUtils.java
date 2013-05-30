@@ -1181,4 +1181,33 @@ public class StringUtils {
 
         return null;
     }
+
+    private static final int ASCII_SIZE = 256;
+    private static final char[] LOWER_CASE_ASCII;
+
+    static {
+        LOWER_CASE_ASCII = new char[ASCII_SIZE];
+
+        for (int i = 0; i < ASCII_SIZE; ++ i) {
+            LOWER_CASE_ASCII[i] = (char) Character.toLowerCase(i);
+        }
+    }
+
+    /**
+     * @param string Can't be {@code null}.
+     */
+    public static String toLowerCaseAscii(String string) {
+        char[] letters = string.toCharArray();
+        char letter;
+
+        for (int i = 0, length = letters.length; i < length; ++ i) {
+            letter = letters[i];
+
+            if (letter < ASCII_SIZE) {
+                letters[i] = LOWER_CASE_ASCII[letter];
+            }
+        }
+
+        return new String(letters);
+    }
 }
