@@ -310,6 +310,12 @@ public abstract class ObjectUtils {
         return JSON_PROCESSOR.parse(string);
     }
 
+    /**
+     * Parses the given JSON {@code bytes} into an object.
+     *
+     * @param bytes If {@code null}, returns {@code null}.
+     * @see JsonProcessor#parse(byte[])
+     */
     public static Object fromJson(byte[] bytes) {
         return JSON_PROCESSOR.parse(bytes);
     }
