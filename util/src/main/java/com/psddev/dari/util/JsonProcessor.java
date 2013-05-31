@@ -123,42 +123,22 @@ public class JsonProcessor {
         }
     }
 
-    /** Parses the given JSON {@code byte[]} into an object. */
+    /**
+     * Parses the given JSON {@code bytes} into an object.
+     *
+     * @param bytes If {@code null}, returns {@code null}.
+     */
     public Object parse(byte[] bytes) {
         try {
             return parseAny(bytes);
-        } catch (JsonParseException ex) {
-            throw new JsonParsingException(String.format(
-                    "Can't parse JSON bytes!"), ex);
-        } catch (IOException ex) {
-            throw new IllegalStateException(ex);
+        } catch (JsonParseException error) {
+            throw new JsonParsingException("Can't parse JSON bytes!", error);
+        } catch (IOException error) {
+            throw new IllegalStateException(error);
         }
     }
 
-    private Object parseAny(byte[] bytes) throws JsonParseException, IOException {
-        if (bytes != null) {
-            JsonParser parser = null;
-
-            try {
-                JsonFactory factory = getJsonFactory();
-
-                parser = factory.createJsonParser(bytes);
-
-                if (parser.nextToken() != null) {
-                    return readAny(parser);
-                }
-
-            } finally {
-                if (parser != null) {
-                    parser.close();
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /** Parses the given {@code source}. */
+    // Parses the given source.
     private Object parseAny(Object source) throws JsonParseException, IOException {
         if (source != null) {
             JsonParser parser = null;
@@ -172,6 +152,8 @@ public class JsonProcessor {
                     parser = factory.createJsonParser((Reader) source);
                 } else if (source instanceof String) {
                     parser = factory.createJsonParser(new StringReader((String) source));
+                } else if (source instanceof byte[]) {
+                    parser = factory.createJsonParser((byte[]) source);
                 } else {
                     throw new IllegalStateException();
                 }
