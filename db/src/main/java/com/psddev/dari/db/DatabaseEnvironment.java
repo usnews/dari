@@ -235,6 +235,7 @@ public class DatabaseEnvironment implements ObjectStruct {
         globals = newGlobals;
         lastGlobalsUpdate = new Date();
         fieldsCache.invalidate();
+        metricFieldsCache.invalidate();
         indexesCache.invalidate();
     }
 
@@ -555,6 +556,7 @@ public class DatabaseEnvironment implements ObjectStruct {
     public void setFields(List<ObjectField> fields) {
         getGlobals().put(GLOBAL_FIELDS_FIELD, ObjectField.Static.convertInstancesToDefinitions(fields));
         fieldsCache.invalidate();
+        metricFieldsCache.invalidate();
     }
 
     @Override

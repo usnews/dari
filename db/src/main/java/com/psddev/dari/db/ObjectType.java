@@ -435,6 +435,7 @@ public class ObjectType extends Record implements ObjectStruct {
     public void setFields(List<ObjectField> fields) {
         this.fields = ObjectField.Static.convertInstancesToDefinitions(fields);
         fieldsCache.invalidate();
+        metricFieldsCache.invalidate();
     }
 
     /**
