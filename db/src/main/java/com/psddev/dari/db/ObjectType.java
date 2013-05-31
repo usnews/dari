@@ -405,6 +405,20 @@ public class ObjectType extends Record implements ObjectStruct {
         return new ArrayList<ObjectField>(fieldsCache.get().values());
     }
 
+    private final transient PullThroughValue<Map<String, ObjectField>> fieldsCache = new PullThroughValue<Map<String, ObjectField>>() {
+        @Override
+        protected Map<String, ObjectField> produce() {
+            return ObjectField.Static.convertDefinitionsToInstances(ObjectType.this, fields);
+        }
+    };
+
+    /** Sets the list of all fields. */
+    public void setFields(List<ObjectField> fields) {
+        this.fields = ObjectField.Static.convertInstancesToDefinitions(fields);
+        fieldsCache.invalidate();
+        metricFieldsCache.invalidate();
+    }
+
     public List<ObjectField> getMetricFields() {
         return metricFieldsCache.get();
     }
@@ -423,20 +437,6 @@ public class ObjectType extends Record implements ObjectStruct {
             return metricFields;
         }
     };
-
-    private final transient PullThroughValue<Map<String, ObjectField>> fieldsCache = new PullThroughValue<Map<String, ObjectField>>() {
-        @Override
-        protected Map<String, ObjectField> produce() {
-            return ObjectField.Static.convertDefinitionsToInstances(ObjectType.this, fields);
-        }
-    };
-
-    /** Sets the list of all fields. */
-    public void setFields(List<ObjectField> fields) {
-        this.fields = ObjectField.Static.convertInstancesToDefinitions(fields);
-        fieldsCache.invalidate();
-        metricFieldsCache.invalidate();
-    }
 
     /**
      * Returns the field associated with the given {@code name} in this type.
