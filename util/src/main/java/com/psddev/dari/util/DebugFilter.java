@@ -351,6 +351,8 @@ public class DebugFilter extends AbstractFilter {
             String id = page.createId();
             String servletPath = JspUtils.getCurrentServletPath(request);
 
+            page.putAllStandardDefaults();
+
             page.writeStart("div", "id", id);
                 page.writeStart("pre", "class", "alert alert-error");
                     String noFile = null;
