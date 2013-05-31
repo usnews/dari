@@ -513,6 +513,25 @@ public class DatabaseEnvironment implements ObjectStruct {
         return new ArrayList<ObjectField>(fieldsCache.get().values());
     }
 
+    public List<ObjectField> getMetricFields() {
+        return metricFieldsCache.get();
+    }
+
+    private final transient PullThroughValue<List<ObjectField>> metricFieldsCache = new PullThroughValue<List<ObjectField>>() {
+        @Override
+        protected List<ObjectField> produce() {
+            List<ObjectField> metricFields = new ArrayList<ObjectField>();
+
+            for (ObjectField field : getFields()) {
+                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                    metricFields.add(field);
+                }
+            }
+
+            return metricFields;
+        }
+    };
+
     private final PullThroughValue<Map<String, ObjectField>> fieldsCache = new PullThroughValue<Map<String, ObjectField>>() {
         @Override
         @SuppressWarnings("unchecked")
