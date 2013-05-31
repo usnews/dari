@@ -139,77 +139,8 @@ public class DebugFilter extends AbstractFilter {
             try {
                 super.doDispatch(request, response, chain);
 
-            } catch (final Throwable ex) {
-                new PageWriter(getServletContext(), request, response) {{
-                    String id = page.createId();
-                    String servletPath = JspUtils.getCurrentServletPath(page.getRequest());
-
-                    writeStart("div", "id", id);
-                        writeStart("pre", "class", "alert alert-error");
-                            String noFile = null;
-                            if (ex instanceof ServletException) {
-                                String message = ex.getMessage();
-                                if (message != null) {
-                                    Matcher noFileMatcher = NO_FILE_PATTERN.matcher(message);
-                                    if (noFileMatcher.matches()) {
-                                        noFile = noFileMatcher.group(1);
-                                    }
-                                }
-                            }
-
-                            if (noFile != null) {
-                                writeStart("strong").writeHtml(servletPath).writeEnd().writeHtml(" doesn't exist!");
-
-                            } else {
-                                writeHtml("Can't render ");
-                                writeStart("a",
-                                        "target", "_blank",
-                                        "href", DebugFilter.Static.getServletPath(page.getRequest(), "code",
-                                                "action", "edit",
-                                                "type", "JSP",
-                                                "servletPath", servletPath));
-                                    writeHtml(servletPath);
-                                writeEnd();
-                                writeHtml("!\n\n");
-
-                                List<String> paramNames = page.paramNamesList();
-                                if (!ObjectUtils.isBlank(paramNames)) {
-                                    writeHtml("Parameters:\n");
-                                    for (String name : paramNames) {
-                                        for (String value : page.params(String.class, name)) {
-                                            writeHtml(name);
-                                            writeHtml('=');
-                                            writeHtml(value);
-                                            writeHtml('\n');
-                                        }
-                                    }
-                                    writeHtml('\n');
-                                }
-
-                                writeObject(ex);
-                            }
-                        writeEnd();
-                    writeEnd();
-
-                    writeStart("script", "type", "text/javascript");
-                        write("(function() {");
-                            write("var f = document.createElement('iframe');");
-                            write("f.frameBorder = '0';");
-                            write("var fs = f.style;");
-                            write("fs.background = 'transparent';");
-                            write("fs.border = 'none';");
-                            write("fs.overflow = 'hidden';");
-                            write("fs.width = '100%';");
-                            write("f.src = '");
-                            write(page.js(JspUtils.getAbsolutePath(page.getRequest(), "/_resource/dari/alert.html", "id", id)));
-                            write("';");
-                            write("var a = document.getElementById('");
-                            write(id);
-                            write("');");
-                            write("a.parentNode.insertBefore(f, a.nextSibling);");
-                        write("})();");
-                    writeEnd();
-                }};
+            } catch (Throwable error) {
+                Static.writeError(request, response, error);
             }
         }
     }
@@ -400,6 +331,100 @@ public class DebugFilter extends AbstractFilter {
          */
         public static String getServletPath(HttpServletRequest request, String path, Object... parameters) {
             return JspUtils.getAbsolutePath(request, getInterceptPath() + path, parameters);
+        }
+
+        /**
+         * Writes a pretty message about the given {@code error}.
+         *
+         * @param request Can't be {@code null}.
+         * @param response Can't be {@code null}.
+         * @param error Can't be {@code null}.
+         */
+        public static void writeError(
+                HttpServletRequest request,
+                HttpServletResponse response,
+                Throwable error)
+                throws IOException {
+
+            @SuppressWarnings("resource")
+            WebPageContext page = new WebPageContext((ServletContext) null, request, response);
+            String id = page.createId();
+            String servletPath = JspUtils.getCurrentServletPath(request);
+
+            page.writeStart("div", "id", id);
+                page.writeStart("pre", "class", "alert alert-error");
+                    String noFile = null;
+
+                    if (error instanceof ServletException) {
+                        String message = error.getMessage();
+
+                        if (message != null) {
+                            Matcher noFileMatcher = NO_FILE_PATTERN.matcher(message);
+
+                            if (noFileMatcher.matches()) {
+                                noFile = noFileMatcher.group(1);
+                            }
+                        }
+                    }
+
+                    if (noFile != null) {
+                        page.writeStart("strong");
+                            page.writeHtml(servletPath);
+                        page.writeEnd();
+                        page.writeHtml(" doesn't exist!");
+
+                    } else {
+                        page.writeHtml("Can't render ");
+                        page.writeStart("a",
+                                "target", "_blank",
+                                "href", DebugFilter.Static.getServletPath(request, "code",
+                                        "action", "edit",
+                                        "type", "JSP",
+                                        "servletPath", servletPath));
+                            page.writeHtml(servletPath);
+                        page.writeEnd();
+                        page.writeHtml("!\n\n");
+
+                        List<String> paramNames = page.paramNamesList();
+
+                        if (!ObjectUtils.isBlank(paramNames)) {
+                            page.writeHtml("Parameters:\n");
+
+                            for (String name : paramNames) {
+                                for (String value : page.params(String.class, name)) {
+                                    page.writeHtml(name);
+                                    page.writeHtml('=');
+                                    page.writeHtml(value);
+                                    page.writeHtml('\n');
+                                }
+                            }
+
+                            page.writeHtml('\n');
+                        }
+
+                        page.writeObject(error);
+                    }
+                page.writeEnd();
+            page.writeEnd();
+
+            page.writeStart("script", "type", "text/javascript");
+                page.writeRaw("(function() {");
+                    page.writeRaw("var f = document.createElement('iframe');");
+                    page.writeRaw("f.frameBorder = '0';");
+                    page.writeRaw("var fs = f.style;");
+                    page.writeRaw("fs.background = 'transparent';");
+                    page.writeRaw("fs.border = 'none';");
+                    page.writeRaw("fs.overflow = 'hidden';");
+                    page.writeRaw("fs.width = '100%';");
+                    page.writeRaw("f.src = '");
+                    page.writeRaw(page.js(JspUtils.getAbsolutePath(page.getRequest(), "/_resource/dari/alert.html", "id", id)));
+                    page.writeRaw("';");
+                    page.writeRaw("var a = document.getElementById('");
+                    page.writeRaw(id);
+                    page.writeRaw("');");
+                    page.writeRaw("a.parentNode.insertBefore(f, a.nextSibling);");
+                page.writeRaw("})();");
+            page.writeEnd();
         }
     }
 
