@@ -102,6 +102,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
+    public static final String EXTRA_CONNECTION_EXTRA = "sql.extraConnection";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
     private static final String SHORT_NAME = "SQL";
@@ -592,6 +593,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             } catch (SQLException ex) {
             }
         }
+
+        if (query != null) {
+            Connection extraConnection = (Connection) query.getState().getExtras().get(EXTRA_CONNECTION_EXTRA);
+
+            if (extraConnection != null) {
+                try {
+                    extraConnection.close();
+                } catch (SQLException error) {
+                }
+            }
+        }
     }
 
     private byte[] serializeState(State state) {
@@ -646,16 +658,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private final transient Cache<String, byte[]> dataCache = CacheBuilder.newBuilder().maximumSize(10000).build();
 
-    /**
-     * Creates a previously saved object using the given {@code resultSet}.
-     */
+    // Creates a previously saved object using the given resultSet.
     private <T> T createSavedObjectWithResultSet(ResultSet resultSet, Query<T> query) throws SQLException {
-        return createSavedObjectWithResultSet(null, resultSet, query);
-    }
-
-    private <T> T createSavedObjectWithResultSet(Connection connection, ResultSet resultSet, Query<T> query) throws SQLException {
-        boolean shouldCloseConnection = (connection == null);
-
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
 
@@ -688,15 +692,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     sqlQuery.append(" = ");
                     vendor.appendUuid(sqlQuery, id);
 
-                    Connection c = connection;
+                    Connection connection = (Connection) query.getState().getExtras().get(EXTRA_CONNECTION_EXTRA);
                     Statement statement = null;
                     ResultSet result = null;
 
                     try {
-                        if (c == null) {
-                            c = super.openQueryConnection(query);
+                        if (connection == null) {
+                            connection = super.openQueryConnection(query);
+                            query.getState().getExtras().put(EXTRA_CONNECTION_EXTRA, connection);
                         }
-                        statement = c.createStatement();
+
+                        statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
                         if (result.next()) {
@@ -708,7 +714,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         throw createQueryException(error, sqlQuery.toString(), query);
 
                     } finally {
-                        closeResources(null, shouldCloseConnection ? c : null, statement, result);
+                        closeResources(null, null, statement, result);
                     }
                 }
 
@@ -770,39 +776,35 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         if (loadExtraFields != null) {
-            Connection c = connection;
-            
-            if (c == null) {
-                c = openQueryConnection(query);
+            Connection connection = (Connection) query.getState().getExtras().get(EXTRA_CONNECTION_EXTRA);
+
+            if (connection == null) {
+                connection = super.openQueryConnection(query);
+                query.getState().getExtras().put(EXTRA_CONNECTION_EXTRA, connection);
             }
 
-            try {
-                for (ObjectField field : loadExtraFields) {
-                    Statement extraStatement = null;
-                    ResultSet extraResult = null;
+            for (ObjectField field : loadExtraFields) {
+                Statement extraStatement = null;
+                ResultSet extraResult = null;
 
-                    try {
-                        extraStatement = c.createStatement();
-                        extraResult = executeQueryBeforeTimeout(
-                                extraStatement,
-                                extraSourceSelectStatementById(field, objectState.getId(), objectState.getTypeId()),
-                                getQueryReadTimeout(query));
+                try {
+                    extraStatement = connection.createStatement();
+                    extraResult = executeQueryBeforeTimeout(
+                            extraStatement,
+                            extraSourceSelectStatementById(field, objectState.getId(), objectState.getTypeId()),
+                            getQueryReadTimeout(query));
 
-                        if (extraResult.next()) {
-                            meta = extraResult.getMetaData();
+                    if (extraResult.next()) {
+                        meta = extraResult.getMetaData();
 
-                            for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
-                                objectState.put(meta.getColumnLabel(i), extraResult.getObject(i));
-                            }
+                        for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
+                            objectState.put(meta.getColumnLabel(i), extraResult.getObject(i));
                         }
-
-                    } finally {
-                        closeResources(null, null, extraStatement, extraResult);
                     }
-                }
 
-            } finally {
-                closeResources(query, shouldCloseConnection ? c : null, null, null);
+                } finally {
+                    closeResources(null, null, extraStatement, extraResult);
+                }
             }
         }
 
@@ -907,23 +909,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         sqlQuery = vendor.rewriteQueryWithLimitClause(sqlQuery, 1, 0);
 
         Connection connection = null;
-        Connection extraConnection = null;
         Statement statement = null;
         ResultSet result = null;
 
         try {
             connection = openQueryConnection(query);
-            extraConnection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
-            return result.next() ? createSavedObjectWithResultSet(extraConnection, result, query) : null;
+            return result.next() ? createSavedObjectWithResultSet(result, query) : null;
 
         } catch (SQLException ex) {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
             closeResources(query, connection, statement, result);
-            closeResources(null, extraConnection, null, null);
         }
     }
 
@@ -941,7 +940,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      */
     public <T> List<T> selectListWithOptions(String sqlQuery, Query<T> query) {
         Connection connection = null;
-        Connection extraConnection = null;
         Statement statement = null;
         ResultSet result = null;
         List<T> objects = new ArrayList<T>();
@@ -949,11 +947,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         try {
             connection = openQueryConnection(query);
-            extraConnection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
             while (result.next()) {
-                objects.add(createSavedObjectWithResultSet(extraConnection, result, query));
+                objects.add(createSavedObjectWithResultSet(result, query));
             }
 
             return objects;
@@ -963,7 +960,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         } finally {
             closeResources(query, connection, statement, result);
-            closeResources(null, extraConnection, null, null);
         }
     }
 
