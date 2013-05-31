@@ -19,32 +19,42 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
     @SuppressWarnings("unchecked")
     public static boolean overridePathWithNearestSize(StorageItem item, Integer width, Integer height) {
         Map<String, Object> metadata = item.getMetadata();
+
         if (metadata == null) {
             return false;
         }
 
         List<Object> items = (List<Object>) metadata.get("resizes");
+
         if (items == null) {
             return false;
         }
 
         for (Object object : items) {
-            if (object instanceof Map) {
-                Map<String, Object> map = (Map<String, Object>)object;
+            StorageItem resizedItem;
+
+            if (object instanceof StorageItem) {
+                resizedItem = (StorageItem) object;
+
+            } else if (object instanceof Map) {
+                Map<String, Object> map = (Map<String, Object>) object;
                 String storage = ObjectUtils.to(String.class, map.get("storage"));
-                StorageItem resizedItem = StorageItem.Static.createIn(storage);
+                resizedItem = StorageItem.Static.createIn(storage);
                 new ObjectMap(resizedItem).putAll(map);
 
-                metadata = resizedItem.getMetadata();
+            } else {
+                continue;
+            }
 
-                if (metadata != null && metadata.size() != 0) {
-                    int w = ObjectUtils.to(Integer.class, metadata.get("width"));
-                    int h = ObjectUtils.to(Integer.class, metadata.get("height"));
+            metadata = resizedItem.getMetadata();
 
-                    if ((width != null && width < w) && (height != null && height < h)) {
-                        item.setPath((String) resizedItem.getPath());
-                        return true;
-                    }
+            if (metadata != null && metadata.size() != 0) {
+                int w = ObjectUtils.to(Integer.class, metadata.get("width"));
+                int h = ObjectUtils.to(Integer.class, metadata.get("height"));
+
+                if ((width != null && width < w) && (height != null && height < h)) {
+                    item.setPath((String) resizedItem.getPath());
+                    return true;
                 }
             }
         }
