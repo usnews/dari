@@ -23,25 +23,28 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
             return false;
         }
 
-        List<Map<String, Object>> items = (List<Map<String, Object>>) metadata.get("resizes");
+        List<Object> items = (List<Object>) metadata.get("resizes");
         if (items == null) {
             return false;
         }
 
-        for (Map<String, Object> map : items) {
-            String storage = ObjectUtils.to(String.class, map.get("storage"));
-            StorageItem resizedItem = StorageItem.Static.createIn(storage);
-            new ObjectMap(resizedItem).putAll(map);
+        for (Object object : items) {
+            if (object instanceof Map) {
+                Map<String, Object> map = (Map<String, Object>)object;
+                String storage = ObjectUtils.to(String.class, map.get("storage"));
+                StorageItem resizedItem = StorageItem.Static.createIn(storage);
+                new ObjectMap(resizedItem).putAll(map);
 
-            metadata = resizedItem.getMetadata();
+                metadata = resizedItem.getMetadata();
 
-            if (metadata != null && metadata.size() != 0) {
-                int w = ObjectUtils.to(Integer.class, metadata.get("width"));
-                int h = ObjectUtils.to(Integer.class, metadata.get("height"));
+                if (metadata != null && metadata.size() != 0) {
+                    int w = ObjectUtils.to(Integer.class, metadata.get("width"));
+                    int h = ObjectUtils.to(Integer.class, metadata.get("height"));
 
-                if ((width != null && width < w) && (height != null && height < h)) {
-                    item.setPath((String) resizedItem.getPath());
-                    return true;
+                    if ((width != null && width < w) && (height != null && height < h)) {
+                        item.setPath((String) resizedItem.getPath());
+                        return true;
+                    }
                 }
             }
         }
