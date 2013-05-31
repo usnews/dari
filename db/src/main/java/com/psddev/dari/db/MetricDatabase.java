@@ -44,10 +44,11 @@ class MetricDatabase {
     private static final int QUERY_TIMEOUT = 3;
     private static final int DIMENSION_CACHE_SIZE = 1000;
 
+    private final String symbol;
     private final SqlDatabase db;
-    private final MetricQuery query;
     private final UUID id;
     private final UUID typeId;
+    private MetricQuery query;
 
     private static final transient Cache<String, UUID> dimensionCache = CacheBuilder.newBuilder().maximumSize(DIMENSION_CACHE_SIZE).build();
 
@@ -58,7 +59,7 @@ class MetricDatabase {
 
     public MetricDatabase(SqlDatabase database, UUID id, UUID typeId, String symbol) {
         this.db = database;
-        this.query = new MetricQuery(db.getSymbolId(symbol), id, typeId);
+        this.symbol = symbol;
         this.id = id;
         this.typeId = typeId;
     }
@@ -128,6 +129,9 @@ class MetricDatabase {
     }
 
     private MetricQuery getQuery() {
+        if (query == null) {
+            query = new MetricQuery(db.getSymbolId(symbol), id, typeId);
+        }
         return query;
     }
 
