@@ -12,17 +12,19 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 import javax.naming.Binding;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 /** Global map of settings. */
 public class Settings {
@@ -45,13 +47,23 @@ public class Settings {
     /** Default properties file that contains all settings. */
     public static final String SETTINGS_FILE = "/settings.properties";
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
     private static final String JNDI_PREFIX = "java:comp/env";
+    private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
+    private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
     private static final String RANDOM_SECRET = UUID.randomUUID().toString();
 
-    private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
+    private static final LoadingCache<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<Class<?>, Constructor<?>>() {
 
-    private static final Cache<String, Constructor> constructorCache = CacheBuilder.newBuilder().maximumSize(250).build();
+                @Override
+                public Constructor<?> load(Class<?> instanceClass) throws NoSuchMethodException {
+                    Constructor<?> constructor = instanceClass.getDeclaredConstructor();
+
+                    constructor.setAccessible(true);
+                    return constructor;
+                }
+            });
 
     private static final PullThroughValue<Map<String, Object>> SETTINGS = new PullThroughValue<Map<String, Object>>() {
 
@@ -415,22 +427,19 @@ public class Settings {
             }
         }
 
-        Constructor<?> constructor = constructorCache.getIfPresent(instanceClassName);
+        Constructor<?> constructor = null;
 
-        if (constructor == null) {
-            try {
-                constructor = instanceClass.getDeclaredConstructor();
-                constructorCache.put(instanceClassName, constructor);
-            } catch (NoSuchMethodException ex) {
-                throw new SettingsException(classKey, String.format(
-                        "[%s] doesn't have a nullary constructor!"));
-            }
+        try {
+            constructor = CONSTRUCTOR_CACHE.get(instanceClass);
+
+        } catch (ExecutionException error) {
+            throw new SettingsException(classKey, String.format(
+                    "[%s] doesn't have a nullary constructor!"));
         }
 
         T object;
 
         try {
-            constructor.setAccessible(true);
             object = (T) constructor.newInstance();
 
         } catch (IllegalAccessException ex) {
