@@ -570,10 +570,11 @@ public class CodeUtils {
         try {
             AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
             return AGENT_CLASS;
-        } catch (ClassNotFoundException ex) {
+        } catch (ClassNotFoundException error) {
         }
 
         Class<?> vmClass = ObjectUtils.getClassByName("com.sun.tools.attach.VirtualMachine");
+
         if (vmClass == null) {
             return null;
         }
@@ -582,26 +583,32 @@ public class CodeUtils {
         RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
         String pid = runtime.getName();
         int atAt = pid.indexOf('@');
+
         if (atAt < 0) {
             LOGGER.info("Can't guess the VM PID!");
             return null;
+
         } else {
             pid = pid.substring(0, atAt);
         }
 
         Object vm = null;
+
         try {
             try {
 
                 // Hack around Mac OS X not using the correct
                 // temporary directory.
                 String newTmpdir = System.getenv("TMPDIR");
+
                 if (newTmpdir != null) {
                     String oldTmpdir = System.getProperty("java.io.tmpdir");
+
                     if (oldTmpdir != null) {
                         try {
                             System.setProperty("java.io.tmpdir", newTmpdir);
                             vm = vmClass.getMethod("attach", String.class).invoke(null, pid);
+
                         } finally {
                             System.setProperty("java.io.tmpdir", oldTmpdir);
                         }
@@ -610,39 +617,36 @@ public class CodeUtils {
 
                 // Create a temporary instrumentation agent JAR.
                 String agentName = Agent.class.getName();
-                File file = File.createTempFile(agentName, ".jar");
+                File file = new File(new File(System.getProperty("user.home"), ".dari"), agentName + ".jar");
+                Manifest manifest = new Manifest();
+                Attributes attributes = manifest.getMainAttributes();
+
+                attributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
+                attributes.putValue("Agent-Class", Agent.class.getName());
+                attributes.putValue("Can-Redefine-Classes", "true");
+                attributes.putValue("Can-Retransform-Classes", "true");
+
+                JarOutputStream jar = new JarOutputStream(new FileOutputStream(file), manifest);
+
                 try {
+                    String entryName = agentName.replace('.', '/') + ".class";
+                    InputStream originalInput = CodeUtils.class.getResourceAsStream("/" + entryName);
 
-                    Manifest manifest = new Manifest();
-                    Attributes attributes = manifest.getMainAttributes();
-                    attributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
-                    attributes.putValue("Agent-Class", Agent.class.getName());
-                    attributes.putValue("Can-Redefine-Classes", "true");
-                    attributes.putValue("Can-Retransform-Classes", "true");
-
-                    JarOutputStream jar = new JarOutputStream(new FileOutputStream(file), manifest);
                     try {
-                        String entryName = agentName.replace('.', '/') + ".class";
                         jar.putNextEntry(new JarEntry(entryName));
-                        InputStream originalInput = CodeUtils.class.getResourceAsStream("/" + entryName);
-                        try {
-                            IoUtils.copy(originalInput, jar);
-                        } finally {
-                            originalInput.close();
-                        }
+                        IoUtils.copy(originalInput, jar);
                         jar.closeEntry();
-                    } finally {
-                        jar.close();
-                    }
 
-                    vmClass.getMethod("loadAgent", String.class).invoke(vm, file.getAbsolutePath());
-                    AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
+                    } finally {
+                        originalInput.close();
+                    }
 
                 } finally {
-                    if (!file.delete()) {
-                        file.deleteOnExit();
-                    }
+                    jar.close();
                 }
+
+                vmClass.getMethod("loadAgent", String.class).invoke(vm, file.getAbsolutePath());
+                AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
 
             } finally {
                 if (vm != null) {
@@ -650,8 +654,8 @@ public class CodeUtils {
                 }
             }
 
-        } catch (Exception ex) {
-            LOGGER.info("Can't create an instrumentation instance!", ex);
+        } catch (Exception error) {
+            LOGGER.info("Can't create an instrumentation instance!", error);
         }
 
         return AGENT_CLASS;
