@@ -310,6 +310,10 @@ public abstract class ObjectUtils {
         return JSON_PROCESSOR.parse(string);
     }
 
+    public static Object fromJson(byte[] bytes) {
+        return JSON_PROCESSOR.parse(bytes);
+    }
+
     /**
      * Generates a JSON string based on the given {@code object}.
      *

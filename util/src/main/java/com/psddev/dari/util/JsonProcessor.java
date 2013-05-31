@@ -123,6 +123,41 @@ public class JsonProcessor {
         }
     }
 
+    /** Parses the given JSON {@code byte[]} into an object. */
+    public Object parse(byte[] bytes) {
+        try {
+            return parseAny(bytes);
+        } catch (JsonParseException ex) {
+            throw new JsonParsingException(String.format(
+                    "Can't parse JSON bytes!"), ex);
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    private Object parseAny(byte[] bytes) throws JsonParseException, IOException {
+        if (bytes != null) {
+            JsonParser parser = null;
+
+            try {
+                JsonFactory factory = getJsonFactory();
+
+                parser = factory.createJsonParser(bytes);
+
+                if (parser.nextToken() != null) {
+                    return readAny(parser);
+                }
+
+            } finally {
+                if (parser != null) {
+                    parser.close();
+                }
+            }
+        }
+
+        return null;
+    }
+
     /** Parses the given {@code source}. */
     private Object parseAny(Object source) throws JsonParseException, IOException {
         if (source != null) {

@@ -633,7 +633,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 dataBytes = Snappy.uncompress(dataBytes, 1, dataBytes.length - 1);
 
             } else if (format == '{') {
-                return (Map<String, Object>) ObjectUtils.fromJson(new String(dataBytes, StringUtils.UTF_8));
+                return (Map<String, Object>) ObjectUtils.fromJson(dataBytes);
 
             } else {
                 break;
