@@ -300,7 +300,7 @@ public class HtmlGrid {
                             }
 
                             String selector = rule.getSelector();
-                            LOGGER.info("Found grid matching [{}] in [{}]", selector, child);
+                            LOGGER.debug("Found grid matching [{}] in [{}]", selector, child);
 
                             String templateValue = rule.getValue(TEMPLATE_PROPERTY);
 
