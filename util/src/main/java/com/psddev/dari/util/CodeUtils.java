@@ -617,7 +617,13 @@ public class CodeUtils {
 
                 // Create a temporary instrumentation agent JAR.
                 String agentName = Agent.class.getName();
-                File file = new File(new File(System.getProperty("user.home"), ".dari"), agentName + ".jar");
+                File agentDir = new File(System.getProperty("user.home"), ".dari");
+
+                if (!agentDir.exists()) {
+                    agentDir.mkdirs();
+                }
+
+                File agentFile = new File(agentDir, agentName + ".jar");
                 Manifest manifest = new Manifest();
                 Attributes attributes = manifest.getMainAttributes();
 
@@ -626,7 +632,7 @@ public class CodeUtils {
                 attributes.putValue("Can-Redefine-Classes", "true");
                 attributes.putValue("Can-Retransform-Classes", "true");
 
-                JarOutputStream jar = new JarOutputStream(new FileOutputStream(file), manifest);
+                JarOutputStream jar = new JarOutputStream(new FileOutputStream(agentFile), manifest);
 
                 try {
                     String entryName = agentName.replace('.', '/') + ".class";
@@ -645,7 +651,7 @@ public class CodeUtils {
                     jar.close();
                 }
 
-                vmClass.getMethod("loadAgent", String.class).invoke(vm, file.getAbsolutePath());
+                vmClass.getMethod("loadAgent", String.class).invoke(vm, agentFile.getAbsolutePath());
                 AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
 
             } finally {
