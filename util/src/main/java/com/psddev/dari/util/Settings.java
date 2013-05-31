@@ -18,6 +18,9 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +50,8 @@ public class Settings {
     private static final String RANDOM_SECRET = UUID.randomUUID().toString();
 
     private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
+
+    private static final Cache<String, Constructor> constructorCache = CacheBuilder.newBuilder().maximumSize(250).build();
 
     private static final PullThroughValue<Map<String, Object>> SETTINGS = new PullThroughValue<Map<String, Object>>() {
 
@@ -410,13 +415,16 @@ public class Settings {
             }
         }
 
-        Constructor<?> constructor = null;
+        Constructor<?> constructor = constructorCache.getIfPresent(instanceClassName);
 
-        try {
-            constructor = instanceClass.getDeclaredConstructor();
-        } catch (NoSuchMethodException ex) {
-            throw new SettingsException(classKey, String.format(
-                    "[%s] doesn't have a nullary constructor!"));
+        if (constructor == null) {
+            try {
+                constructor = instanceClass.getDeclaredConstructor();
+                constructorCache.put(instanceClassName, constructor);
+            } catch (NoSuchMethodException ex) {
+                throw new SettingsException(classKey, String.format(
+                        "[%s] doesn't have a nullary constructor!"));
+            }
         }
 
         T object;
