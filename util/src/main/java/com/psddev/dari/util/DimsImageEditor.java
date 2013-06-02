@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -503,7 +504,7 @@ public class DimsImageEditor extends AbstractImageEditor {
             // command that will convert the image to JPG so the thumbnail
             // command can process it correctly.
             String imagePath = imageUrl.getPath();
-            if (imagePath.toLowerCase().endsWith(".gif")) {
+            if (imagePath.toLowerCase(Locale.ENGLISH).endsWith(".gif")) {
                 addCommand(new FormatCommand(ImageFormat.jpg));
             }
             return this;

@@ -5,6 +5,7 @@ import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -39,7 +40,7 @@ public class SettingsDebugServlet extends HttpServlet {
                 writeStart("tbody");
                     for (Map.Entry<String, Object> entry : flatten(Settings.asMap()).entrySet()) {
                         String key = entry.getKey();
-                        String keyLowered = key.toLowerCase();
+                        String keyLowered = key.toLowerCase(Locale.ENGLISH);
                         Object value = entry.getValue();
 
                         writeStart("tr");

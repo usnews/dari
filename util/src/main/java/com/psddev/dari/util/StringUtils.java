@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.MatchResult;
@@ -246,7 +247,7 @@ public final class StringUtils {
             }
 
             if (ABBREVIATIONS.contains(word)) {
-                nb.append(word.toUpperCase());
+                nb.append(word.toUpperCase(Locale.ENGLISH));
             } else {
                 nb.append(Character.toUpperCase(word.charAt(0)));
                 nb.append(word.substring(1));

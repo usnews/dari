@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -171,7 +172,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
 
             writer.writeTag("form",
                     "id", getId(),
-                    "method", method.toLowerCase(),
+                    "method", method.toLowerCase(Locale.ENGLISH),
                     "action", "",
                     attributes);
                 writer.writeTag("input",

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -80,7 +81,7 @@ public class LogCaptureFilter extends AbstractFilter {
             }
 
             if (contentType != null) {
-                contentType = contentType.toLowerCase();
+                contentType = contentType.toLowerCase(Locale.ENGLISH);
 
                 if (contentType.contains("json") ||
                         contentType.contains("javascript")) {

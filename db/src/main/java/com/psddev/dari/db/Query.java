@@ -1017,7 +1017,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         @Override
         public String getHashAttribute() {
             if (hashAttribute == null) return null;
-            return hashAttribute.toLowerCase();
+            return hashAttribute.toLowerCase(Locale.ENGLISH);
         }
     }
 

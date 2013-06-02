@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -317,7 +318,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             return false;
         } else {
             Set<String> names = tableNames.get();
-            return names != null && names.contains(name.toLowerCase());
+            return names != null && names.contains(name.toLowerCase(Locale.ENGLISH));
         }
     }
 
@@ -349,7 +350,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Set<String> loweredNames = new HashSet<String>();
 
                 for (String name : vendor.getTables(connection)) {
-                    String loweredName = name.toLowerCase();
+                    String loweredName = name.toLowerCase(Locale.ENGLISH);
 
                     loweredNames.add(loweredName);
 

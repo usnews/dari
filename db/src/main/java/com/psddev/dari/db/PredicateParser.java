@@ -253,7 +253,7 @@ public class PredicateParser {
         if (predicate != null) {
             for (String operator; (operator = tokens.peek()) != null; ) {
 
-                operator = operator.toLowerCase();
+                operator = operator.toLowerCase(Locale.ENGLISH);
                 String compoundOperator = getCompoundOperators().get(operator);
                 if (compoundOperator == null) {
                     break;
@@ -348,7 +348,7 @@ public class PredicateParser {
             throw new IllegalArgumentException(String.format(
                     "No operator after [%s] key!", key));
         } else {
-            operator = operator.toLowerCase();
+            operator = operator.toLowerCase(Locale.ENGLISH);
             if (operator.endsWith("[c]")) {
                 operator = operator.substring(0, operator.length() - 3);
                 isIgnoreCase = true;
