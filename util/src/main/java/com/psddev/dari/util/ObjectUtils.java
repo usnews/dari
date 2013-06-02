@@ -223,7 +223,14 @@ public abstract class ObjectUtils {
 
         } else if (object instanceof String) {
             String string = (String) object;
-            return string.length() == 0 || string.trim().length() == 0;
+
+            for (int i = 0, length = string.length(); i < length; ++ i) {
+                if (!Character.isWhitespace(string.charAt(i))) {
+                    return false;
+                }
+            }
+
+            return true;
 
         } else if (object instanceof Collection) {
             return ((Collection<?>) object).isEmpty();
