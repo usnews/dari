@@ -833,12 +833,12 @@ public class DimsImageEditor extends AbstractImageEditor {
                 if (option == null || option.equals("!") || option.equals("^")) {
                     return new Dimension(this.width, this.height);
 
-                } else if (option.equals(">")) { // only shrink larger images
+                } else if (">".equals(option)) { // only shrink larger images
                     return new Dimension(
                             Math.min(this.width, dimension.width),
                             Math.min(this.height, dimension.height));
 
-                } else if (option.equals("<")) { // only enlarge smaller images
+                } else if ("<".equals(option)) { // only enlarge smaller images
                     return new Dimension(
                             Math.max(this.width, dimension.width),
                             Math.max(this.height, dimension.height));
@@ -903,16 +903,16 @@ public class DimsImageEditor extends AbstractImageEditor {
                     actualWidth = actualDimension.width;
                     actualHeight = actualDimension.height;
 
-                } else if (option.equals("!")) { // ignore aspect ratio
+                } else if ("!".equals(option)) { // ignore aspect ratio
                     actualWidth = this.width != null ? this.width : original.width;
                     actualHeight = this.height != null ? this.height : original.height;
 
-                } else if (option.equals("^")) { // fill area
+                } else if ("^".equals(option)) { // fill area
                     Dimension actualDimension = getFillAreaDimension(original.width, original.height, this.width, this.height);
                     actualWidth = actualDimension.width;
                     actualHeight = actualDimension.height;
 
-                } else if (option.equals(">")) { // only shrink larger images
+                } else if (">".equals(option)) { // only shrink larger images
                     if (    (this.height == null && this.width >= original.width) ||
                             (this.width == null && this.height >= original.height) || //            -->  <-- this is an AND
                             (this.width != null && this.height != null && this.width >= original.width && this.height >= original.height)) {
@@ -926,7 +926,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                         actualHeight = actualDimension.height;
                     }
 
-                } else if (option.equals("<")) { // only enlarge smaller images
+                } else if ("<".equals(option)) { // only enlarge smaller images
                     if (    (this.height == null && this.width <= original.width) ||
                             (this.width == null && this.height <= original.height) || //             -->  <-- This is an OR
                             (this.width != null && this.height != null && (this.width <= original.width || this.height <= original.height))) {

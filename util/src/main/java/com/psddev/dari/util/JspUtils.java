@@ -561,7 +561,7 @@ public final class JspUtils {
 
             connection.connect();
 
-            if (method.equals("POST")) {
+            if ("POST".equalsIgnoreCase(method)) {
                 connectionOut = new BufferedOutputStream(connection.getOutputStream());
                 // first try to get the input stream
                 try {
