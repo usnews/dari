@@ -618,7 +618,7 @@ public class ObjectField extends Record {
         String displayName = getDisplayName();
         if (ObjectUtils.isBlank(displayName)) {
             String internalName = getInternalName();
-            int dotAt = internalName.lastIndexOf(".");
+            int dotAt = internalName.lastIndexOf('.');
             if (dotAt > -1) {
                 internalName = internalName.substring(dotAt + 1, internalName.length());
             }
@@ -654,7 +654,7 @@ public class ObjectField extends Record {
 
         // Separate internal type like list/map/text into list and map/text.
         String subType = "";
-        int slashAt = internalType.indexOf("/");
+        int slashAt = internalType.indexOf('/');
         if (slashAt > -1) {
             subType = internalType.substring(slashAt + 1);
             internalType = internalType.substring(0, slashAt);
@@ -764,7 +764,7 @@ public class ObjectField extends Record {
      */
     public String getInternalItemType() {
         String internalType = getInternalType();
-        int slashAt = internalType.lastIndexOf("/");
+        int slashAt = internalType.lastIndexOf('/');
         return slashAt > -1 ? internalType.substring(slashAt + 1) : internalType;
     }
 

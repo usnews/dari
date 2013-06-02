@@ -137,7 +137,7 @@ public class BuildDebugServlet extends HttpServlet {
                     int prefixAt = issueUrl.indexOf(prefix);
                     if (prefixAt > -1) {
                         prefixAt += prefix.length();
-                        int slashAt = issueUrl.indexOf("/", prefixAt);
+                        int slashAt = issueUrl.indexOf('/', prefixAt);
                         String jiraId = slashAt > -1 ?
                                 issueUrl.substring(prefixAt, slashAt) :
                                 issueUrl.substring(prefixAt);

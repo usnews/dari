@@ -523,7 +523,7 @@ public final class StringUtils {
 
         // Convert "path?a=b&c=d" to "&a=b&c=d".
         StringBuilder query = new StringBuilder();
-        int questionAt = uri.indexOf("?");
+        int questionAt = uri.indexOf('?');
         if (questionAt > -1) {
 
             String queryString = uri.substring(questionAt + 1);
@@ -636,7 +636,7 @@ public final class StringUtils {
         if (uri != null) {
 
             // Strip out the path before the query string.
-            int questionAt = uri.indexOf("?");
+            int questionAt = uri.indexOf('?');
             if (questionAt > -1) {
                 uri = uri.substring(questionAt + 1);
             }
@@ -647,7 +647,7 @@ public final class StringUtils {
             int prefixLength = prefix.length();
             for (int nameAt = 0; (nameAt = uri.indexOf(prefix, nameAt)) > -1;) {
                 nameAt += prefixLength;
-                int andAt = uri.indexOf("&", nameAt);
+                int andAt = uri.indexOf('&', nameAt);
                 values.add(decodeUri(andAt > -1 ?
                         uri.substring(nameAt, andAt) :
                         uri.substring(nameAt)));
