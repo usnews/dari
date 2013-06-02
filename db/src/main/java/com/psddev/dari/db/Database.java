@@ -18,7 +18,6 @@ import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsBackedObject;
 import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.TypeReference;
 
 /** Database of objects. */
 public interface Database extends SettingsBackedObject {
