@@ -24,7 +24,7 @@ import java.util.Set;
 @SuppressWarnings("unchecked")
 public class CompactMap<K, V> implements Map<K, V> {
 
-    private static int ARRAY_SIZE = 8;
+    private static final int ARRAY_SIZE = 8;
 
     private Object delegate;
     private int size;

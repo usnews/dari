@@ -497,7 +497,7 @@ public final class CodeUtils {
 
     // ---
 
-    private static Class<?> AGENT_CLASS;
+    private static Class<?> agentClass;
     private static final Instrumentation INSTRUMENTATION;
     private static final Map<String, String> JSP_SERVLET_PATHS_MAP = new HashMap<String, String>();
     private static final Map<String, String> JSP_LINE_NUMBERS_MAP = new HashMap<String, String>();
@@ -571,8 +571,8 @@ public final class CodeUtils {
      */
     private static synchronized Class<?> getAgentClass() {
         try {
-            AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
-            return AGENT_CLASS;
+            agentClass = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
+            return agentClass;
         } catch (ClassNotFoundException error) {
         }
 
@@ -655,7 +655,7 @@ public final class CodeUtils {
                 }
 
                 vmClass.getMethod("loadAgent", String.class).invoke(vm, agentFile.getAbsolutePath());
-                AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
+                agentClass = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
 
             } finally {
                 if (vm != null) {
@@ -667,7 +667,7 @@ public final class CodeUtils {
             LOGGER.info("Can't create an instrumentation instance!", error);
         }
 
-        return AGENT_CLASS;
+        return agentClass;
     }
 
     /**
@@ -680,10 +680,10 @@ public final class CodeUtils {
         private Agent() {
         }
 
-        public static Instrumentation INSTRUMENTATION;
+        public static Instrumentation instrumentation;
 
-        public static void agentmain(String agentArguments, Instrumentation instrumentation) {
-            INSTRUMENTATION = instrumentation;
+        public static void agentmain(String agentArguments, Instrumentation i) {
+            instrumentation = i;
         }
     }
 

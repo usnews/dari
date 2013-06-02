@@ -19,33 +19,33 @@ public final class UuidUtils {
     public static synchronized UUID createSequentialUuid() {
         long time = System.currentTimeMillis();
 
-        if (time < LAST_TIME) {
-            time = LAST_TIME;
+        if (time < lastTime) {
+            time = lastTime;
         }
 
-        if (time == LAST_TIME) {
-            if (SEQUENCE == 0xffff) {
+        if (time == lastTime) {
+            if (sequence == 0xffff) {
                 ++ time;
-                LAST_TIME = time;
-                SEQUENCE = 0;
+                lastTime = time;
+                sequence = 0;
 
             } else {
-                ++ SEQUENCE;
+                ++ sequence;
             }
 
         } else {
-            LAST_TIME = time;
-            SEQUENCE = 0;
+            lastTime = time;
+            sequence = 0;
         }
 
         return new UUID(
                 (time & 0xffffffffffff0000L) | NODE_HIGH,
-                (time << 16) | NODE_LOW | SEQUENCE);
+                (time << 16) | NODE_LOW | sequence);
 
     }
 
-    private static long LAST_TIME = System.currentTimeMillis();
-    private static int SEQUENCE;
+    private static long lastTime = System.currentTimeMillis();
+    private static int sequence;
 
     private static final long NODE_HIGH;
     private static final long NODE_LOW;

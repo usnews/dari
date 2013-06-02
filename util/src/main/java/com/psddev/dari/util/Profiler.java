@@ -89,7 +89,7 @@ public class Profiler {
         private Static() {
         }
 
-        private static ThreadLocal<Profiler> THREAD_PROFILER = new ThreadLocal<Profiler>();
+        private static final ThreadLocal<Profiler> THREAD_PROFILER = new ThreadLocal<Profiler>();
 
         /**
          * Returns the profiler for the current thread.

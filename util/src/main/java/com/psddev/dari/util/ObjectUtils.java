@@ -38,7 +38,7 @@ public abstract class ObjectUtils {
     }
 
     // Because Class.forName is pretty slow.
-    private static Map<ClassLoader, Map<String, Class<?>>>
+    private static final Map<ClassLoader, Map<String, Class<?>>>
             CLASSES_BY_LOADER = new PullThroughCache<ClassLoader, Map<String, Class<?>>>() {
 
         @Override
