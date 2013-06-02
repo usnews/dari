@@ -617,13 +617,13 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
         Collection<Database> delegates = getDelegates().values();
         if (!delegates.isEmpty()) {
-            sb.append("(");
+            sb.append('(');
             for (Database delegate : delegates) {
                 sb.append(delegate.getName());
                 sb.append(", ");
             }
             sb.setLength(sb.length() - 2);
-            sb.append(")");
+            sb.append(')');
         }
 
         return sb.toString();

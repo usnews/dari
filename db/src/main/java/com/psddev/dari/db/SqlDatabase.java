@@ -402,7 +402,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 vendor.appendIdentifier(insertBuilder, VALUE_COLUMN);
                 insertBuilder.append(") VALUES (");
                 vendor.appendBindValue(insertBuilder, symbol, parameters);
-                insertBuilder.append(")");
+                insertBuilder.append(')');
 
                 String insertSql = insertBuilder.toString();
                 try {
@@ -421,7 +421,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 vendor.appendIdentifier(selectBuilder, SYMBOL_TABLE);
                 selectBuilder.append(" WHERE ");
                 vendor.appendIdentifier(selectBuilder, VALUE_COLUMN);
-                selectBuilder.append("=");
+                selectBuilder.append('=');
                 vendor.appendValue(selectBuilder, symbol);
 
                 String selectSql = selectBuilder.toString();
@@ -459,7 +459,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             StringBuilder selectBuilder = new StringBuilder();
             selectBuilder.append("SELECT ");
             vendor.appendIdentifier(selectBuilder, SYMBOL_ID_COLUMN);
-            selectBuilder.append(",");
+            selectBuilder.append(',');
             vendor.appendIdentifier(selectBuilder, VALUE_COLUMN);
             selectBuilder.append(" FROM ");
             vendor.appendIdentifier(selectBuilder, SYMBOL_TABLE);
@@ -822,7 +822,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         ObjectType parentType = field.getParentType();
         StringBuilder keyName = new StringBuilder(parentType.getInternalName());
 
-        keyName.append("/");
+        keyName.append('/');
         keyName.append(field.getInternalName());
 
         Query<?> query = Query.fromType(parentType);
@@ -1879,29 +1879,29 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendIdentifier(insertBuilder, RECORD_TABLE);
                         insertBuilder.append(" (");
                         vendor.appendIdentifier(insertBuilder, ID_COLUMN);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendIdentifier(insertBuilder, TYPE_ID_COLUMN);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendIdentifier(insertBuilder, DATA_COLUMN);
 
                         if (saveInRowIndex) {
-                            insertBuilder.append(",");
+                            insertBuilder.append(',');
                             vendor.appendIdentifier(insertBuilder, IN_ROW_INDEX_COLUMN);
                         }
 
                         insertBuilder.append(") VALUES (");
                         vendor.appendBindValue(insertBuilder, id, parameters);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendBindValue(insertBuilder, typeId, parameters);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendBindValue(insertBuilder, dataBytes, parameters);
 
                         if (saveInRowIndex) {
-                            insertBuilder.append(",");
+                            insertBuilder.append(',');
                             vendor.appendBindValue(insertBuilder, inRowIndexBytes, parameters);
                         }
 
-                        insertBuilder.append(")");
+                        insertBuilder.append(')');
                         Static.executeUpdateWithList(connection, insertBuilder.toString(), parameters);
 
                     } catch (SQLException ex) {
@@ -1927,23 +1927,23 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
                         updateBuilder.append(" SET ");
                         vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, typeId, parameters);
-                        updateBuilder.append(",");
+                        updateBuilder.append(',');
 
                         if (saveInRowIndex) {
                             vendor.appendIdentifier(updateBuilder, IN_ROW_INDEX_COLUMN);
-                            updateBuilder.append("=");
+                            updateBuilder.append('=');
                             vendor.appendBindValue(updateBuilder, inRowIndexBytes, parameters);
-                            updateBuilder.append(",");
+                            updateBuilder.append(',');
                         }
 
                         vendor.appendIdentifier(updateBuilder, DATA_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, dataBytes, parameters);
                         updateBuilder.append(" WHERE ");
                         vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, id, parameters);
 
                         if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
@@ -1989,31 +1989,31 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
                         updateBuilder.append(" SET ");
                         vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, typeId, parameters);
 
                         if (saveInRowIndex) {
-                            updateBuilder.append(",");
+                            updateBuilder.append(',');
                             vendor.appendIdentifier(updateBuilder, IN_ROW_INDEX_COLUMN);
-                            updateBuilder.append("=");
+                            updateBuilder.append('=');
                             vendor.appendBindValue(updateBuilder, inRowIndexBytes, parameters);
                         }
 
-                        updateBuilder.append(",");
+                        updateBuilder.append(',');
                         vendor.appendIdentifier(updateBuilder, DATA_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, dataBytes, parameters);
                         updateBuilder.append(" WHERE ");
                         vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, id, parameters);
                         updateBuilder.append(" AND ");
                         vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, oldTypeId, parameters);
                         updateBuilder.append(" AND ");
                         vendor.appendIdentifier(updateBuilder, DATA_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, oldData, parameters);
 
                         if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
@@ -2035,17 +2035,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     vendor.appendIdentifier(insertBuilder, RECORD_UPDATE_TABLE);
                     insertBuilder.append(" (");
                     vendor.appendIdentifier(insertBuilder, ID_COLUMN);
-                    insertBuilder.append(",");
+                    insertBuilder.append(',');
                     vendor.appendIdentifier(insertBuilder, TYPE_ID_COLUMN);
-                    insertBuilder.append(",");
+                    insertBuilder.append(',');
                     vendor.appendIdentifier(insertBuilder, UPDATE_DATE_COLUMN);
                     insertBuilder.append(") VALUES (");
                     vendor.appendBindValue(insertBuilder, id, parameters);
-                    insertBuilder.append(",");
+                    insertBuilder.append(',');
                     vendor.appendBindValue(insertBuilder, typeId, parameters);
-                    insertBuilder.append(",");
+                    insertBuilder.append(',');
                     vendor.appendBindValue(insertBuilder, now, parameters);
-                    insertBuilder.append(")");
+                    insertBuilder.append(')');
 
                     try {
                         Static.executeUpdateWithList(connection, insertBuilder.toString(), parameters);
@@ -2067,15 +2067,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     vendor.appendIdentifier(updateBuilder, RECORD_UPDATE_TABLE);
                     updateBuilder.append(" SET ");
                     vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                    updateBuilder.append("=");
+                    updateBuilder.append('=');
                     vendor.appendBindValue(updateBuilder, typeId, parameters);
-                    updateBuilder.append(",");
+                    updateBuilder.append(',');
                     vendor.appendIdentifier(updateBuilder, UPDATE_DATE_COLUMN);
-                    updateBuilder.append("=");
+                    updateBuilder.append('=');
                     vendor.appendBindValue(updateBuilder, now, parameters);
                     updateBuilder.append(" WHERE ");
                     vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-                    updateBuilder.append("=");
+                    updateBuilder.append('=');
                     vendor.appendBindValue(updateBuilder, id, parameters);
 
                     if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
@@ -2105,11 +2105,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
             updateBuilder.append(" SET ");
             vendor.appendIdentifier(updateBuilder, IN_ROW_INDEX_COLUMN);
-            updateBuilder.append("=");
+            updateBuilder.append('=');
             vendor.appendValue(updateBuilder, entry.getValue());
             updateBuilder.append(" WHERE ");
             vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-            updateBuilder.append("=");
+            updateBuilder.append('=');
             vendor.appendValue(updateBuilder, entry.getKey().getId());
             Static.executeUpdateWithArray(connection, updateBuilder.toString());
         }
@@ -2147,7 +2147,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         for (State state : states) {
             vendor.appendValue(whereBuilder, state.getId());
-            whereBuilder.append(",");
+            whereBuilder.append(',');
         }
 
         whereBuilder.setCharAt(whereBuilder.length() - 1, ')');
@@ -2165,7 +2165,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         vendor.appendIdentifier(updateBuilder, RECORD_UPDATE_TABLE);
         updateBuilder.append(" SET ");
         vendor.appendIdentifier(updateBuilder, UPDATE_DATE_COLUMN);
-        updateBuilder.append("=");
+        updateBuilder.append('=');
         vendor.appendValue(updateBuilder, System.currentTimeMillis() / 1000.0);
         updateBuilder.append(whereBuilder);
         Static.executeUpdateWithArray(connection, updateBuilder.toString());
@@ -2321,7 +2321,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     errorBuilder.append(value);
                 }
             }
-            errorBuilder.append(")");
+            errorBuilder.append(')');
 
             Exception ex = bue.getNextException() != null ? bue.getNextException() : bue;
             LOGGER.error(errorBuilder.toString(), ex);
@@ -2345,7 +2345,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     errorBuilder.append(value);
                 }
             }
-            errorBuilder.append(")");
+            errorBuilder.append(')');
 
             LOGGER.error(errorBuilder.toString());
         }

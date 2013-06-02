@@ -1224,32 +1224,32 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         for (Sorter sorter : getSorters()) {
             codeBuilder.append(".sort(\"");
             codeBuilder.append(sorter.getOperator());
-            codeBuilder.append("\"");
+            codeBuilder.append('"');
             for (Object option : sorter.getOptions()) {
                 codeBuilder.append(", ");
                 if (option instanceof String) {
-                    codeBuilder.append("\"");
+                    codeBuilder.append('"');
                     codeBuilder.append(((String) option).replaceAll("\"", "\\\""));
-                    codeBuilder.append("\"");
+                    codeBuilder.append('"');
                 } else {
                     codeBuilder.append(option);
                 }
             }
-            codeBuilder.append(")");
+            codeBuilder.append(')');
         }
 
         List<String> fields = getFields();
         if (fields != null) {
             codeBuilder.append(".fields(");
             for (String field : fields) {
-                codeBuilder.append("\"");
+                codeBuilder.append('"');
                 codeBuilder.append(field);
                 codeBuilder.append("\", ");
             }
             if (!fields.isEmpty()) {
                 codeBuilder.setLength(codeBuilder.length() - 2);
             }
-            codeBuilder.append(")");
+            codeBuilder.append(')');
         }
 
         writer.writeStart("span", "class", "dari-query");
@@ -1326,7 +1326,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         stringBuilder.append(", isResolveToReferenceOnly=").append(isResolveToReferenceOnly);
         stringBuilder.append(", timeout=").append(timeout);
         stringBuilder.append(", options=").append(options);
-        stringBuilder.append("}");
+        stringBuilder.append('}');
         return stringBuilder.toString();
     }
 

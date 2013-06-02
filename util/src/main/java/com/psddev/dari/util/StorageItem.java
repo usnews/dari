@@ -377,7 +377,7 @@ public interface StorageItem extends SettingsBackedObject {
                                             }
                                         }
 
-                                        newCssBuilder.append(")");
+                                        newCssBuilder.append(')');
                                     }
 
                                     newCssBuilder.append(css.substring(previous, css.length()));

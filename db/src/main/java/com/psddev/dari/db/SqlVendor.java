@@ -94,9 +94,9 @@ public class SqlVendor {
     }
 
     public void appendIdentifier(StringBuilder builder, String identifier) {
-        builder.append("\"");
+        builder.append('"');
         builder.append(identifier.replace("\"", "\"\""));
-        builder.append("\"");
+        builder.append('"');
     }
 
     public void appendBindLocation(StringBuilder builder, Location location, List<Object> parameters) {
@@ -107,14 +107,14 @@ public class SqlVendor {
     }
 
     public void appendBindUuid(StringBuilder builder, UUID uuid, List<Object> parameters) {
-        builder.append("?");
+        builder.append('?');
         if (parameters != null) {
             parameters.add(uuid == null ? null : UuidUtils.toBytes(uuid));
         }
     }
 
     public void appendBindString(StringBuilder builder, String value, List<Object> parameters) {
-        builder.append("?");
+        builder.append('?');
         if (parameters != null) {
             parameters.add(value == null ? null : value.getBytes(StringUtils.UTF_8));
         }
@@ -131,7 +131,7 @@ public class SqlVendor {
             appendBindString(builder, (String) value, parameters);
 
         } else {
-            builder.append("?");
+            builder.append('?');
             if (parameters != null) {
                 parameters.add(value);
             }
@@ -155,7 +155,7 @@ public class SqlVendor {
             Location valueLocation = (Location) value;
             builder.append("GeomFromText('POINT(");
             builder.append(valueLocation.getX());
-            builder.append(" ");
+            builder.append(' ');
             builder.append(valueLocation.getY());
             builder.append(")')");
 
@@ -165,15 +165,15 @@ public class SqlVendor {
     }
 
     protected void appendUuid(StringBuilder builder, UUID value) {
-        builder.append("{");
+        builder.append('{');
         builder.append(value);
-        builder.append("}");
+        builder.append('}');
     }
 
     protected void appendBytes(StringBuilder builder, byte[] value) {
         builder.append("X'");
         builder.append(StringUtils.hex(value));
-        builder.append("'");
+        builder.append('\'');
     }
 
     protected void appendWhereRegion(StringBuilder builder, Region region, String field) {
@@ -189,7 +189,7 @@ public class SqlVendor {
         builder.setLength(builder.length() - 2);
         builder.append("))'), ");
         builder.append(field);
-        builder.append(")");
+        builder.append(')');
     }
 
     protected void appendNearestLocation(
@@ -201,7 +201,7 @@ public class SqlVendor {
 
         builder.append("GLENGTH(LINESTRING(GEOMFROMTEXT('POINT(");
         builder.append(location.getX());
-        builder.append(" ");
+        builder.append(' ');
         builder.append(location.getY());
         builder.append(")'), ");
         builder.append(field);
@@ -357,7 +357,7 @@ public class SqlVendor {
             String name,
             Map<String, ColumnType> columns) {
 
-        builder.append(")");
+        builder.append(')');
     }
 
     protected void appendColumn(StringBuilder builder, String name, ColumnType type) {
@@ -389,7 +389,7 @@ public class SqlVendor {
 
     protected void appendColumnPrefix(StringBuilder builder, String name) {
         appendIdentifier(builder, name);
-        builder.append(" ");
+        builder.append(' ');
     }
 
     protected void appendColumnTypeBytesLong(StringBuilder builder) {
@@ -429,7 +429,7 @@ public class SqlVendor {
             builder.append(", ");
             appendIdentifier(builder, columns.get(i));
         }
-        builder.append(")");
+        builder.append(')');
     }
 
     protected void appendIndexPrefix(
@@ -442,7 +442,7 @@ public class SqlVendor {
         nameBuilder.append("k_");
         nameBuilder.append(tableName);
         for (String column : columns) {
-            nameBuilder.append("_");
+            nameBuilder.append('_');
             nameBuilder.append(column);
         }
 
@@ -463,7 +463,7 @@ public class SqlVendor {
             List<String> columns,
             boolean isUnique) {
 
-        builder.append(")");
+        builder.append(')');
     }
 
     private void executeDdl(SqlDatabase database, StringBuilder ddlBuilder) throws SQLException {
@@ -541,9 +541,9 @@ public class SqlVendor {
 
         @Override
         protected void appendUuid(StringBuilder builder, UUID value) {
-            builder.append("'");
+            builder.append('\'');
             builder.append(value);
-            builder.append("'");
+            builder.append('\'');
         }
 
         @Override
@@ -581,9 +581,9 @@ public class SqlVendor {
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
-            builder.append("`");
+            builder.append('`');
             builder.append(identifier.replace("`", "``"));
-            builder.append("`");
+            builder.append('`');
         }
 
         @Override
@@ -666,7 +666,7 @@ public class SqlVendor {
                     appendValue(builder, field);
                 }
 
-                builder.append(")");
+                builder.append(')');
 
             } else {
                 builder.append("r.");
@@ -725,11 +725,11 @@ public class SqlVendor {
                                 sql.append(" CONCAT(");
                                     appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
                                 sql.append(", '%') ESCAPE ''");
-                                sql.append(","); // if it's the exact date, then update the amount
+                                sql.append(','); // if it's the exact date, then update the amount
                                 appendBindValue(sql, adjustedAmount, parameters);
-                                sql.append(","); // if it's a date in the future, leave the date alone
+                                sql.append(','); // if it's a date in the future, leave the date alone
                                 appendBindValue(sql, 0, parameters);
-                        sql.append(")");
+                        sql.append(')');
                     } else {
                         appendBindValue(sql, adjustedAmount, parameters);
                     }
@@ -738,7 +738,7 @@ public class SqlVendor {
                     sql.append(',');
                     appendBindValue(sql, amount, parameters);
                 }
-                sql.append(")");
+                sql.append(')');
             } else {
                 sql.append(" UNHEX(");
                     sql.append("CONCAT(");
@@ -758,11 +758,11 @@ public class SqlVendor {
                                         sql.append(" CONCAT(");
                                             appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
                                         sql.append(", '%') ESCAPE ''");
-                                        sql.append(","); // if it's the exact date, then update the amount
+                                        sql.append(','); // if it's the exact date, then update the amount
                                         appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
-                                        sql.append(","); // if it's a date in the future, leave the date alone
+                                        sql.append(','); // if it's a date in the future, leave the date alone
                                         appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
-                                sql.append(")");
+                                sql.append(')');
                             } else {
                                 appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
                             }
@@ -782,12 +782,12 @@ public class SqlVendor {
                 str.append("HEX(");
                     str.append("SUBSTR(");
                         str.append(columnIdentifier);
-                        str.append(",");
+                        str.append(',');
                         appendValue(str, 1+MetricDatabase.DATE_BYTE_SIZE + ((position-1)*MetricDatabase.AMOUNT_BYTE_SIZE));
-                        str.append(",");
+                        str.append(',');
                         appendValue(str, MetricDatabase.AMOUNT_BYTE_SIZE);
-                    str.append(")");
-                str.append(")");
+                    str.append(')');
+                str.append(')');
             str.append(", 16, 10)");
         }
 
@@ -795,7 +795,7 @@ public class SqlVendor {
         public void appendMetricEncodeTimestampSql(StringBuilder str, List<Object> parameters, long timestamp, Character rpadHexChar) {
             str.append("UNHEX(");
             appendHexEncodeTimestampSql(str, parameters, timestamp, rpadHexChar);
-            str.append(")");
+            str.append(')');
         }
 
         @Override
@@ -804,12 +804,12 @@ public class SqlVendor {
                 str.append("HEX(");
                     str.append("SUBSTR(");
                         str.append(columnIdentifier);
-                        str.append(",");
+                        str.append(',');
                         appendValue(str, 1);
-                        str.append(",");
+                        str.append(',');
                         appendValue(str, MetricDatabase.DATE_BYTE_SIZE);
-                    str.append(")");
-                str.append(")");
+                    str.append(')');
+                str.append(')');
             str.append(", 16, 10)");
         }
 
@@ -817,11 +817,11 @@ public class SqlVendor {
         public void appendMetricDateFormatTimestampSql(StringBuilder str, String columnIdentifier, MetricInterval metricInterval) {
             str.append("DATE_FORMAT(FROM_UNIXTIME(");
             appendMetricSelectTimestampSql(str, columnIdentifier);
-            str.append("*");
+            str.append('*');
             appendValue(str, (MetricDatabase.DATE_DECIMAL_SHIFT/1000L));
             str.append("),");
             appendValue(str, metricInterval.getSqlTruncatedDateFormat(this));
-            str.append(")");
+            str.append(')');
         }
 
         private void appendHexEncodeSetAmountSql(StringBuilder str, List<Object> parameters, double amount) {
@@ -837,12 +837,12 @@ public class SqlVendor {
             str.append("HEX(");
                 str.append("SUBSTR(");
                     str.append(columnIdentifier);
-                    str.append(",");
+                    str.append(',');
                     appendValue(str, 1);
-                    str.append(",");
+                    str.append(',');
                     appendValue(str, MetricDatabase.DATE_BYTE_SIZE);
-                str.append(")");
-            str.append(")");
+                str.append(')');
+            str.append(')');
         }
 
         private void appendHexEncodeTimestampSql(StringBuilder str, List<Object> parameters, long timestamp, Character rpadChar) {
@@ -856,10 +856,10 @@ public class SqlVendor {
                     } else {
                         appendBindValue(str, (int) (timestamp / MetricDatabase.DATE_DECIMAL_SHIFT), parameters);
                     }
-                str.append(")");
+                str.append(')');
             str.append(", "+(MetricDatabase.DATE_BYTE_SIZE*2)+", '0')");
             if (rpadChar != null) {
-                str.append(",");
+                str.append(',');
                 appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2);
                 str.append(", '");
                 str.append(rpadChar);
@@ -874,7 +874,7 @@ public class SqlVendor {
                 str.append("HEX(");
                     // conv(hex(substr(data, 1+4, 8)), 16, 10)
                     appendMetricSelectAmountSql(str, columnIdentifier, position);
-                    str.append("+");
+                    str.append('+');
                     appendBindValue(str, (long)(amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
                 str.append(" )");
             str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");
@@ -905,7 +905,7 @@ public class SqlVendor {
                 Location valueLocation = (Location) value;
                 builder.append("ST_GeomFromText('POINT(");
                 builder.append(valueLocation.getX());
-                builder.append(" ");
+                builder.append(' ');
                 builder.append(valueLocation.getY());
                 builder.append(")', 4326)");
 
@@ -916,9 +916,9 @@ public class SqlVendor {
 
         @Override
         protected void appendBytes(StringBuilder builder, byte[] value) {
-            builder.append("'");
+            builder.append('\'');
             builder.append(new String(value, StringUtils.UTF_8).replace("'", "''"));
-            builder.append("'");
+            builder.append('\'');
         }
 
         @Override
@@ -961,7 +961,7 @@ public class SqlVendor {
 
         @Override
         public void appendBindUuid(StringBuilder builder, UUID uuid, List<Object> parameters) {
-            builder.append("?");
+            builder.append('?');
             if (uuid != null && parameters != null) {
                 parameters.add(uuid);
             }
@@ -1026,10 +1026,10 @@ public class SqlVendor {
                     } else {
                         appendBindValue(str, (int) (timestamp / MetricDatabase.DATE_DECIMAL_SHIFT), parameters);
                     }
-                str.append(")");
+                str.append(')');
             str.append(", "+(MetricDatabase.DATE_BYTE_SIZE*2)+", '0')");
             if (rpadHexChar != null) {
-                str.append(",");
+                str.append(',');
                 appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2+MetricDatabase.AMOUNT_BYTE_SIZE*2);
                 str.append(", '");
                 str.append(rpadHexChar);
@@ -1042,11 +1042,11 @@ public class SqlVendor {
             str.append(" ('x'||");
                 str.append("SUBSTRING(");
                     str.append(columnIdentifier);
-                    str.append(",");
+                    str.append(',');
                     appendValue(str, 1+(MetricDatabase.DATE_BYTE_SIZE*2) + ((position-1)*MetricDatabase.AMOUNT_BYTE_SIZE*2));
-                    str.append(",");
+                    str.append(',');
                     appendValue(str, MetricDatabase.AMOUNT_BYTE_SIZE*2);
-                str.append(")");
+                str.append(')');
             str.append(")::bit(");
             str.append(MetricDatabase.AMOUNT_BYTE_SIZE*8);
             str.append(")::bigint");
@@ -1057,11 +1057,11 @@ public class SqlVendor {
             str.append(" ('x'||");
                 str.append("SUBSTRING(");
                     str.append(columnIdentifier);
-                    str.append(",");
+                    str.append(',');
                     appendValue(str, 1);
-                    str.append(",");
+                    str.append(',');
                     appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2);
-                str.append(")");
+                str.append(')');
             str.append(")::bit(");
             str.append(MetricDatabase.DATE_BYTE_SIZE*8);
             str.append(")::bigint");
@@ -1071,11 +1071,11 @@ public class SqlVendor {
         public void appendMetricDateFormatTimestampSql(StringBuilder str, String columnIdentifier, MetricInterval metricInterval) {
             str.append("TO_CHAR(TO_TIMESTAMP(");
             appendMetricSelectTimestampSql(str, columnIdentifier);
-            str.append("*");
+            str.append('*');
             appendValue(str, (MetricDatabase.DATE_DECIMAL_SHIFT/1000L));
             str.append(")::TIMESTAMP,");
             appendValue(str, metricInterval.getSqlTruncatedDateFormat(this));
-            str.append(")");
+            str.append(')');
         }
 
         @Override
@@ -1094,11 +1094,11 @@ public class SqlVendor {
             // columnIdentifier is "data" or "max(`data`)" - already quoted
             str.append("SUBSTRING(");
                 str.append(columnIdentifier);
-                str.append(",");
+                str.append(',');
                 appendValue(str, 1);
-                str.append(",");
+                str.append(',');
                 appendValue(str, MetricDatabase.DATE_BYTE_SIZE*2);
-            str.append(")");
+            str.append(')');
         }
 
         private void appendHexEncodeIncrementAmountSql(StringBuilder str, List<Object> parameters, String columnIdentifier, int position, double amount) {
@@ -1108,7 +1108,7 @@ public class SqlVendor {
                 str.append("TO_HEX(");
                     // conv(hex(substr(data, 1+4, 8)), 16, 10)
                     appendMetricSelectAmountSql(str, columnIdentifier, position);
-                    str.append("+");
+                    str.append('+');
                     appendBindValue(str, (long)(amount * MetricDatabase.AMOUNT_DECIMAL_SHIFT), parameters);
                 str.append(" )");
             str.append(", "+(MetricDatabase.AMOUNT_BYTE_SIZE*2)+", '0')");

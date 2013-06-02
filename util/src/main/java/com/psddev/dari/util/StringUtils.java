@@ -258,7 +258,7 @@ public final class StringUtils {
         }
 
         if (isQuestion) {
-            nb.append("?");
+            nb.append('?');
         }
 
         return nb.toString();
@@ -335,7 +335,7 @@ public final class StringUtils {
                         }
                         if(quoteCount % 2 == 1) {
                             value = escaped[++i];
-                            builder.append(",");
+                            builder.append(',');
                         }
                     } while(quoteCount % 2 == 1);
                     value = builder.toString();
@@ -354,7 +354,7 @@ public final class StringUtils {
         }
         StringBuilder builder = new StringBuilder();
         for (String string : strings) {
-            builder.append(escapeCsv(string)).append(",");
+            builder.append(escapeCsv(string)).append(',');
         }
         if (builder.length() > 0) {
             builder.setLength(builder.length()-1);
@@ -536,12 +536,12 @@ public final class StringUtils {
                 String param = queryString.substring(beginAt, ampIndex > -1 ? ampIndex : queryString.length());
 
                 if (!param.isEmpty() || ampIndex > -1) {
-                    query.append("&");
+                    query.append('&');
 
                     int equalsIndex = param.indexOf('=');
                     if (equalsIndex > -1) {
                         query.append(encodeUri(decodeUri(param.substring(0, equalsIndex))));
-                        query.append("=");
+                        query.append('=');
                         query.append(encodeUri(decodeUri(param.substring(equalsIndex+1))));
 
                     } else {
@@ -592,9 +592,9 @@ public final class StringUtils {
                 if (value != null) {
                     for (Object item : ObjectUtils.to(Iterable.class, value)) {
                         if (item != null) {
-                            query.append("&");
+                            query.append('&');
                             query.append(encodeUri(name));
-                            query.append("=");
+                            query.append('=');
                             query.append(encodeUri(item instanceof Enum ?
                                     ((Enum<?>) item).name() :
                                     item.toString()));

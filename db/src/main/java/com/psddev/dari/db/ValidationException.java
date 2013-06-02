@@ -32,9 +32,9 @@ public class ValidationException extends IllegalArgumentException {
         StringBuilder message = new StringBuilder();
         for (State state : getStates()) {
 
-            message.append("#");
+            message.append('#');
             message.append(state.getId());
-            message.append(":");
+            message.append(':');
 
             for (ObjectField field : state.getErrorFields()) {
                 String label = field.getLabel();

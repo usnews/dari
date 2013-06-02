@@ -725,11 +725,11 @@ public class State implements Map<String, Object> {
                     StringBuilder builder2 = new StringBuilder();
 
                     if (parentFieldName != null) {
-                        builder.append(parentFieldName).append("/");
-                        builder2.append(parentFieldName).append("/");
+                        builder.append(parentFieldName).append('/');
+                        builder2.append(parentFieldName).append('/');
                     }
-                    builder.append(field.getInternalName()).append("/");
-                    builder2.append(field.getInternalName()).append("/");
+                    builder.append(field.getInternalName()).append('/');
+                    builder2.append(field.getInternalName()).append('/');
                     builder.append(i.getField());
                     builder2.append(i.getUniqueName());
 
@@ -1084,7 +1084,7 @@ public class State implements Map<String, Object> {
 
                     } else if (value instanceof Iterable<?>) {
                         StringBuilder iterableLabel = new StringBuilder();
-                        iterableLabel.append("[");
+                        iterableLabel.append('[');
 
                         for (Object item : (Iterable<?>) value) {
                             if (item instanceof Recordable) {
@@ -1098,7 +1098,7 @@ public class State implements Map<String, Object> {
                         if (iterableLabel.length() > 2) {
                             iterableLabel.setLength(iterableLabel.length() - 2);
                         }
-                        iterableLabel.append("]");
+                        iterableLabel.append(']');
                         valueString = iterableLabel.toString();
 
                     } else {
@@ -1646,7 +1646,7 @@ public class State implements Map<String, Object> {
         sb.append(", simpleValues=").append(getSimpleValues());
         sb.append(", extras=").append(extras);
         sb.append(", errors=").append(errors);
-        sb.append("}");
+        sb.append('}');
         return sb.toString();
     }
 

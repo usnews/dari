@@ -596,16 +596,16 @@ public class DimsImageEditor extends AbstractImageEditor {
 
             dimsUrlBuilder.append(baseUrl);
             if(!baseUrl.endsWith("/")) {
-                dimsUrlBuilder.append("/");
+                dimsUrlBuilder.append('/');
             }
 
             StringBuilder commandsBuilder = new StringBuilder();
             for(Command command : getCommands()) {
                 commandsBuilder
                 .append(command.getName())
-                .append("/")
+                .append('/')
                 .append(command.getValue())
-                .append("/");
+                .append('/');
             }
 
             Long expireTs = null;
@@ -624,8 +624,8 @@ public class DimsImageEditor extends AbstractImageEditor {
                 String requestSig = md5Hex.substring(0, 7);
 
                 dimsUrlBuilder
-                .append(requestSig).append("/")
-                .append(expireTs).append("/");
+                .append(requestSig).append('/')
+                .append(expireTs).append('/');
             }
 
             dimsUrlBuilder.append(commandsBuilder);

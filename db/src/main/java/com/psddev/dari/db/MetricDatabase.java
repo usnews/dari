@@ -104,11 +104,11 @@ class MetricDatabase {
     public String toKeyString() {
         StringBuilder str = new StringBuilder();
         str.append(getId());
-        str.append(":");
+        str.append(':');
         str.append(getTypeId());
-        str.append(":");
+        str.append(':');
         str.append(getSymbolId());
-        str.append(":");
+        str.append(':');
         str.append(getEventDate());
         return str.toString();
     }
@@ -274,26 +274,26 @@ class MetricDatabase {
 
             StringBuilder maxDataBuilder = new StringBuilder("MAX(");
             vendor.appendIdentifier(maxDataBuilder, METRIC_DATA_FIELD);
-            maxDataBuilder.append(")");
+            maxDataBuilder.append(')');
             if (doDecodeToBytes) {
                 vendor.appendMetricDataBytes(sqlBuilder, maxDataBuilder.toString());
             } else {
                 sqlBuilder.append(maxDataBuilder);
             }
-            sqlBuilder.append(" ");
+            sqlBuilder.append(' ');
             vendor.appendIdentifier(sqlBuilder, "maxData");
 
             if (selectMinData) {
                 sqlBuilder.append(", ");
                 StringBuilder minDataBuilder = new StringBuilder("MIN(");
                 vendor.appendIdentifier(minDataBuilder, METRIC_DATA_FIELD);
-                minDataBuilder.append(")");
+                minDataBuilder.append(')');
                 if (doDecodeToBytes) {
                     vendor.appendMetricDataBytes(sqlBuilder, minDataBuilder.toString());
                 } else {
                 sqlBuilder.append(minDataBuilder);
                 }
-                sqlBuilder.append(" ");
+                sqlBuilder.append(' ');
                 vendor.appendIdentifier(sqlBuilder, "minData");
             }
 
@@ -377,7 +377,7 @@ class MetricDatabase {
             sqlBuilder.append("SELECT ");
             StringBuilder dimValField = new StringBuilder();
             vendor.appendIdentifier(dimValField, "d");
-            dimValField.append(".");
+            dimValField.append('.');
             vendor.appendIdentifier(dimValField, METRIC_DIMENSION_VALUE_FIELD);
             sqlBuilder.append(vendor.convertRawToStringSql(METRIC_DIMENSION_VALUE_FIELD));
             sqlBuilder.append(", ");
@@ -387,20 +387,20 @@ class MetricDatabase {
             sqlBuilder.append(") x ");
             sqlBuilder.append(" JOIN "); // This could be a left join if we want to include NULL dimension values in this query.
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_TABLE);
-            sqlBuilder.append(" ");
+            sqlBuilder.append(' ');
             vendor.appendIdentifier(sqlBuilder, "d");
             sqlBuilder.append(" ON (");
             vendor.appendIdentifier(sqlBuilder, "x");
-            sqlBuilder.append(".");
+            sqlBuilder.append('.');
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
             sqlBuilder.append(" = ");
             vendor.appendIdentifier(sqlBuilder, "d");
-            sqlBuilder.append(".");
+            sqlBuilder.append('.');
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
-            sqlBuilder.append(")");
+            sqlBuilder.append(')');
             sqlBuilder.append(" GROUP BY ");
             vendor.appendIdentifier(sqlBuilder, "d");
-            sqlBuilder.append(".");
+            sqlBuilder.append('.');
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_VALUE_FIELD);
 
             return sqlBuilder.toString();
@@ -414,7 +414,7 @@ class MetricDatabase {
             vendor.appendMetricSelectTimestampSql(extraSelectSqlBuilder, METRIC_DATA_FIELD);
             extraSelectSqlBuilder.append(") * ");
             vendor.appendValue(extraSelectSqlBuilder, DATE_DECIMAL_SHIFT);
-            extraSelectSqlBuilder.append(" ");
+            extraSelectSqlBuilder.append(' ');
             vendor.appendIdentifier(extraSelectSqlBuilder, "eventDate");
 
             StringBuilder extraGroupBySqlBuilder = new StringBuilder();
@@ -524,7 +524,7 @@ class MetricDatabase {
                 insertBuilder.append(", ");
             }
             vendor.appendBindMetricBytes(insertBuilder, toBytes(eventDate, cumulativeAmount, amount), parameters);
-            insertBuilder.append(")");
+            insertBuilder.append(')');
             return insertBuilder.toString();
         }
 
@@ -574,7 +574,7 @@ class MetricDatabase {
             vendor.appendBindValue(insertBuilder, dimensionId, parameters);
             insertBuilder.append(", ");
             vendor.appendBindValue(insertBuilder, dimensionValue, parameters);
-            insertBuilder.append(")");
+            insertBuilder.append(')');
             return insertBuilder.toString();
         }
 
@@ -584,7 +584,7 @@ class MetricDatabase {
 
             str.append("ROUND(");
             if (includeSum) str.append("SUM");
-            str.append("(");
+            str.append('(');
             vendor.appendMetricSelectAmountSql(str, maxDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
             str.append(" - (");
             vendor.appendMetricSelectAmountSql(str, minDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
@@ -592,10 +592,10 @@ class MetricDatabase {
             vendor.appendMetricSelectAmountSql(str, minDataColumnIdentifier, AMOUNT_POSITION);
             str.append(") ");
 
-            str.append(")");
+            str.append(')');
             str.append(" / ");
             vendor.appendValue(str, AMOUNT_DECIMAL_SHIFT);
-            str.append(",");
+            str.append(',');
             vendor.appendValue(str, AMOUNT_DECIMAL_PLACES);
             str.append(") ");
 

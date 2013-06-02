@@ -96,7 +96,7 @@ public class SparseSet implements Set<String> {
         String itemString = (String) item;
         String paddedPattern = " " + getPattern() + " ";
         StringBuilder check = new StringBuilder(itemString.length() + 3);
-        check.append("  ").append(itemString).append(" ");
+        check.append("  ").append(itemString).append(' ');
         for (int slashAt; ; ) {
 
             // Check for negative match.

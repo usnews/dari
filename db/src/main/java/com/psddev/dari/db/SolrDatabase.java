@@ -386,7 +386,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                         queryBuilder.append(" || ");
                     }
                     queryBuilder.setLength(queryBuilder.length() - 4);
-                    queryBuilder.append(")");
+                    queryBuilder.append(')');
                 }
             }
         }
@@ -428,7 +428,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 }
 
                 solrQuery.addSortField(SCORE_FIELD, SolrQuery.ORDER.desc);
-                sortBuilder.append("(");
+                sortBuilder.append('(');
                 appendPredicate(query, sortBuilder, sortPredicate);
                 sortBuilder.append(")^");
                 sortBuilder.append(boost);
@@ -454,9 +454,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     StringBuilder geoBuilder = new StringBuilder();
                     geoBuilder.append("geodist(");
                     geoBuilder.append(location.getX());
-                    geoBuilder.append(",");
+                    geoBuilder.append(',');
                     geoBuilder.append(location.getY());
-                    geoBuilder.append(")");
+                    geoBuilder.append(')');
 
                     solrQuery.setSortField(geoBuilder.toString(), closest ? SolrQuery.ORDER.asc : SolrQuery.ORDER.desc);
                     continue;
@@ -562,9 +562,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 for (Predicate child : children) {
                     queryBuilder.append(" && -(");
                     database.appendPredicate(query, queryBuilder, child);
-                    queryBuilder.append(")");
+                    queryBuilder.append(')');
                 }
-                queryBuilder.append(")");
+                queryBuilder.append(')');
             }
         });
 
@@ -595,11 +595,11 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 List<Predicate> children) {
 
             for (Predicate child : children) {
-                queryBuilder.append("(");
+                queryBuilder.append('(');
                 database.appendPredicate(query, queryBuilder, child);
                 queryBuilder.append(") ");
                 queryBuilder.append(join);
-                queryBuilder.append(" ");
+                queryBuilder.append(' ');
             }
 
             queryBuilder.setLength(queryBuilder.length() - join.length() - 2);
@@ -626,7 +626,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             @Override
             protected void addNonMissingValue(StringBuilder comparisonBuilder, String solrField, Object value) {
                 comparisonBuilder.append(escapeValue(value));
-                comparisonBuilder.append("*");
+                comparisonBuilder.append('*');
             }
         });
 
@@ -676,10 +676,10 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 queryBuilder.append(changeSolrField(solrField));
                 queryBuilder.append(":(");
                 queryBuilder.append(comparisonBuilder);
-                queryBuilder.append(")");
+                queryBuilder.append(')');
 
                 if (isNegate) {
-                    queryBuilder.append(")");
+                    queryBuilder.append(')');
                 }
 
             } else if (isAny) {
@@ -843,7 +843,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     comparisonBuilder.append(escapedValue);
 
                 } else {
-                    comparisonBuilder.append("(");
+                    comparisonBuilder.append('(');
                     comparisonBuilder.append(escapedValue);
                     comparisonBuilder.append(" || ");
                     comparisonBuilder.append(escapedValue);
@@ -877,9 +877,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             comparisonBuilder.append(prefix);
-            comparisonBuilder.append("\"");
+            comparisonBuilder.append('"');
             comparisonBuilder.append(valueString.replaceAll("([\\\\\"])", "\\\\$1"));
-            comparisonBuilder.append("\"");
+            comparisonBuilder.append('"');
             comparisonBuilder.append(suffix);
         }
     }
@@ -920,7 +920,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         } else {
             streamBody.append(value);
-            streamBody.append(" ");
+            streamBody.append(' ');
         }
     }
 

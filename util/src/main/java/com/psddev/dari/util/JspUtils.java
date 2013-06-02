@@ -118,7 +118,7 @@ public final class JspUtils {
         StringBuilder hb = new StringBuilder();
         hb.append("Basic realm=\"");
         hb.append(StringUtils.replaceAll(realm, "\"", "\\\""));
-        hb.append("\"");
+        hb.append('"');
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setHeader("WWW-Authenticate", hb.toString());

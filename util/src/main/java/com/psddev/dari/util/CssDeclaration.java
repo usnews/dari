@@ -25,10 +25,10 @@ public class CssDeclaration {
         StringBuilder css = new StringBuilder();
 
         css.append(property);
-        css.append(":");
+        css.append(':');
 
         css.append(value);
-        css.append(";");
+        css.append(';');
 
         return css.toString();
     }
