@@ -977,7 +977,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveToReferenceOnly() {
-        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
+        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) != 0;
     }
 
     public void setResolveToReferenceOnly(boolean resolveToReferenceOnly) {
@@ -1001,7 +1001,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveUsingMaster() {
-        return (flags & RESOLVE_USING_MASTER) > 0;
+        return (flags & RESOLVE_USING_MASTER) != 0;
     }
 
     public void setResolveUsingMaster(boolean resolveUsingMaster) {
@@ -1013,7 +1013,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveInvisible() {
-        return (flags & RESOLVE_INVISIBLE) > 0;
+        return (flags & RESOLVE_INVISIBLE) != 0;
     }
 
     public void setResolveInvisible(boolean resolveInvisible) {
@@ -1229,12 +1229,12 @@ public class State implements Map<String, Object> {
      * @param field If {@code null}, resolves all references.
      */
     public void resolveReference(String field) {
-        if ((flags & ALL_RESOLVED_FLAG) > 0) {
+        if ((flags & ALL_RESOLVED_FLAG) != 0) {
             return;
         }
 
         synchronized (this) {
-            if ((flags & ALL_RESOLVED_FLAG) > 0) {
+            if ((flags & ALL_RESOLVED_FLAG) != 0) {
                 return;
             }
 
