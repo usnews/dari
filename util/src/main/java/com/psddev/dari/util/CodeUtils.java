@@ -64,7 +64,10 @@ import org.objectweb.asm.ClassWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CodeUtils {
+public final class CodeUtils {
+
+    private CodeUtils() {
+    }
 
     public static final String JAVA_SOURCE_DIRECTORY_PROPERTY = "javaSourceDirectory";
     public static final String RESOURCE_DIRECTORY_PROPERTY = "resourceDirectory";
@@ -673,6 +676,9 @@ public class CodeUtils {
      * Use {@link CodeUtils#getInstrumentation} instead.
      */
     public static final class Agent {
+
+        private Agent() {
+        }
 
         public static Instrumentation INSTRUMENTATION;
 

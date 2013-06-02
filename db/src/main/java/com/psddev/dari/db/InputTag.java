@@ -149,6 +149,9 @@ public class InputTag extends TagSupport {
 
     public static final class Static {
 
+        private Static() {
+        }
+
         /**
          * Updates all the fields for {@code object} that were submitted on the
          * {@code request} using the given {@code writer}.

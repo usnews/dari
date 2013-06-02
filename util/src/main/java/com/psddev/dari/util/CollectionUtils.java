@@ -10,7 +10,10 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /** Collection utility methods. */
-public class CollectionUtils {
+public final class CollectionUtils {
+
+    private CollectionUtils() {
+    }
 
     /**
      * Returns a value from the given collection-like {@code object}

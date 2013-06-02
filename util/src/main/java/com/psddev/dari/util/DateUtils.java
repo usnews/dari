@@ -13,7 +13,10 @@ import org.joda.time.format.DateTimeFormatter;
 
 /** @deprecated Use <a href="http://joda-time.sourceforge.net/">Joda Time</a> instead. */
 @Deprecated
-public class DateUtils {
+public final class DateUtils {
+
+    private DateUtils() {
+    }
 
     private static final long DAY_MS = 1000 * 60 * 60 * 24;
 

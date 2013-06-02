@@ -27,7 +27,10 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 /** Global map of settings. */
-public class Settings {
+public final class Settings {
+
+    private Settings() {
+    }
 
     /**
      * Sub-key used to identify the implementation class for

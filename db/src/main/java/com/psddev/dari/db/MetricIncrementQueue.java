@@ -9,7 +9,10 @@ import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.Task;
 
-class MetricIncrementQueue {
+final class MetricIncrementQueue {
+
+    private MetricIncrementQueue() {
+    }
 
     // private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
 

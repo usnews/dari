@@ -261,6 +261,9 @@ public class FormTag extends TagSupport implements DynamicAttributes {
 
     public static final class Static {
 
+        private Static() {
+        }
+
         public static FormProcessor getProcessorById(String id, HttpServletRequest request) {
             if (id == null) {
                 return null;

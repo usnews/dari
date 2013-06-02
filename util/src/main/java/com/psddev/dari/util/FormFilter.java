@@ -93,6 +93,9 @@ public class FormFilter extends AbstractFilter {
 
     public static final class Static {
 
+        private Static() {
+        }
+
         /**
          * Returns true if the processor argument was used to process the form
          * that was submitted on the request.
