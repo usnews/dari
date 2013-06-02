@@ -88,7 +88,7 @@ public interface FormInputProcessor {
     /** {@link FormInputProcessor} for {@link ObjectField#LIST_TYPE}. */
     public static class ForListRecord extends AbstractFormInputProcessor {
 
-        private FormInputProcessor.ForRecord forRecord;
+        private final FormInputProcessor.ForRecord forRecord;
 
         public ForListRecord(FormWriter delegateWriter) {
             this.forRecord = new FormInputProcessor.ForRecord(delegateWriter);
@@ -180,11 +180,12 @@ public interface FormInputProcessor {
     /** {@link FormInputProcessor} for {@link ObjectField#RECORD_TYPE}. */
     public static class ForRecord extends AbstractFormInputProcessor {
 
-        private FormWriter delegateWriter;
+        private final FormWriter delegateWriter;
 
         /** Use {@link #ForRecord(FormWriter)} instead */
         @Deprecated
         public ForRecord() {
+            this.delegateWriter = null;
         }
 
         public ForRecord(FormWriter delegateWriter) {
@@ -303,7 +304,7 @@ public interface FormInputProcessor {
     /** {@link FormInputProcessor} for {@link ObjectField#SET_TYPE}. */
     public static class ForSetRecord extends AbstractFormInputProcessor {
 
-        private FormInputProcessor.ForRecord forRecord;
+        private final FormInputProcessor.ForRecord forRecord;
 
         public ForSetRecord(FormWriter delegateWriter) {
             this.forRecord = new FormInputProcessor.ForRecord(delegateWriter);

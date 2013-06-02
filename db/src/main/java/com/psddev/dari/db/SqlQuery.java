@@ -47,8 +47,8 @@ class SqlQuery {
     private String havingClause;
     private String orderByClause;
     private String extraSourceColumns;
-    private List<String> orderBySelectColumns = new ArrayList<String>();
-    private Map<String, String> groupBySelectColumnAliases = new LinkedHashMap<String, String>();
+    private final List<String> orderBySelectColumns = new ArrayList<String>();
+    private final Map<String, String> groupBySelectColumnAliases = new LinkedHashMap<String, String>();
     private final List<Join> joins = new ArrayList<Join>();
     private final Map<Query<?>, String> subQueries = new LinkedHashMap<Query<?>, String>();
     private final Map<Query<?>, SqlQuery> subSqlQueries = new HashMap<Query<?>, SqlQuery>();
@@ -67,7 +67,7 @@ class SqlQuery {
     private final List<Predicate> recordMetricParentHavingPredicates = new ArrayList<Predicate>();
     private final List<Sorter> recordMetricSorters = new ArrayList<Sorter>();
     private ObjectField recordMetricField;
-    private Map<String, String> reverseAliasSql = new HashMap<String, String>();
+    private final Map<String, String> reverseAliasSql = new HashMap<String, String>();
 
     private final List<Predicate> havingPredicates = new ArrayList<Predicate>();
     private final List<Predicate> parentHavingPredicates = new ArrayList<Predicate>();

@@ -1226,7 +1226,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     /** Solr-specific implementation of {@link Grouping}. */
     private class SolrGrouping<T> extends AbstractGrouping<T> {
 
-        private long count;
+        private final long count;
 
         public SolrGrouping(List<Object> keys, Query<T> query, String[] fields, long count) {
             super(keys, query, fields);

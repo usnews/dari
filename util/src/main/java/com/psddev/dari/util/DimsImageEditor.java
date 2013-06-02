@@ -322,7 +322,7 @@ public class DimsImageEditor extends AbstractImageEditor {
         private static final String ORIGINAL_HEIGHT_METADATA_PATH = "dims/originalHeight";
 
         private List<Command> commands;
-        private StorageItem item;
+        private final StorageItem item;
         private URL imageUrl;
 
         public void setImageUrl(URL imageUrl) {
@@ -710,9 +710,9 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class CropCommand extends AbstractResizeCommand {
-        private Integer x;
-        private Integer y;
-        private boolean useLegacy;
+        private final Integer x;
+        private final Integer y;
+        private final boolean useLegacy;
 
         public CropCommand(String value, boolean useLegacy) {
             // example crop value: 208x208+15+93 (none of the values can be empty)
@@ -777,7 +777,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class ThumbnailCommand extends AbstractResizeCommand {
         private String option;
-        private boolean useLegacy;
+        private final boolean useLegacy;
 
         public ThumbnailCommand(String value, boolean useLegacy) {
             // thumbnail value: 100x100> (width nor height can be empty, but option can be empty)
@@ -1019,7 +1019,7 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class QualityCommand implements Command {
-        private Integer quality;
+        private final Integer quality;
 
         public QualityCommand(String quality) {
             this(ObjectUtils.to(Integer.class, quality));
@@ -1041,7 +1041,7 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class StripCommand implements Command {
-        private Boolean doStripMetadata;
+        private final Boolean doStripMetadata;
 
         public StripCommand(String value) {
             this(ObjectUtils.to(Boolean.class, value));
@@ -1063,7 +1063,7 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class FormatCommand implements Command {
-        private ImageFormat format;
+        private final ImageFormat format;
 
         public FormatCommand(String value) {
             this(ObjectUtils.to(ImageFormat.class, value));
@@ -1130,7 +1130,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class FlipFlopCommand implements Command {
 
-        private String orientation;
+        private final String orientation;
 
         public FlipFlopCommand(String orientation) {
             this.orientation = orientation;
@@ -1149,7 +1149,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class GrayscaleCommand implements Command {
 
-        private Boolean grayscale;
+        private final Boolean grayscale;
 
         public GrayscaleCommand(Boolean grayscale) {
             this.grayscale = grayscale;
@@ -1172,7 +1172,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class InvertCommand implements Command {
 
-        private Boolean invert;
+        private final Boolean invert;
 
         public InvertCommand(Boolean invert) {
             this.invert = invert;
@@ -1195,7 +1195,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class RotateCommand implements ResizingCommand {
 
-        private Integer angle;
+        private final Integer angle;
 
         public RotateCommand(Integer angle) {
             this.angle = angle;
@@ -1232,7 +1232,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class SepiaCommand implements Command {
 
-        private Double threshold;
+        private final Double threshold;
 
         public SepiaCommand(Double threshold) {
             this.threshold = threshold;

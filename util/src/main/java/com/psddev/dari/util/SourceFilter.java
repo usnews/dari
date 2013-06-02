@@ -504,7 +504,7 @@ public class SourceFilter extends AbstractFilter {
     }
 
     /** Copies all resources. */
-    private PullThroughValue<Void> COPY_RESOURCES = new PullThroughValue<Void>() {
+    private final PullThroughValue<Void> COPY_RESOURCES = new PullThroughValue<Void>() {
 
         @Override
         protected boolean isExpired(Date lastProduce) {

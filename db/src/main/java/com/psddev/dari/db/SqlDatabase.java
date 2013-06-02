@@ -451,7 +451,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     // Cache of all internal symbols.
-    private transient PullThroughValue<Map<String, Integer>> symbols = new PullThroughValue<Map<String, Integer>>() {
+    private final transient PullThroughValue<Map<String, Integer>> symbols = new PullThroughValue<Map<String, Integer>>() {
 
         @Override
         protected Map<String, Integer> produce() {
@@ -1710,7 +1710,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** SQL-specific implementation of {@link Grouping}. */
     private class SqlGrouping<T> extends AbstractGrouping<T> {
 
-        private long count;
+        private final long count;
 
         private final Map<String,Double> metricSums = new HashMap<String,Double>();
 

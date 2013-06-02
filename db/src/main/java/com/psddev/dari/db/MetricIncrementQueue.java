@@ -82,7 +82,7 @@ class MetricIncrementQueueTask extends Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
     private static MetricIncrementQueueTask instance;
 
-    private transient ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
+    private final transient ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
 
     private MetricIncrementQueueTask(ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
         this.queuedIncrements = queuedIncrements;

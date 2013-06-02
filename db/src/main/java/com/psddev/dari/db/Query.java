@@ -135,7 +135,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private boolean resolveInvisible;
     private Double timeout;
     private transient Map<String, Object> options;
-    private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
+    private final transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
