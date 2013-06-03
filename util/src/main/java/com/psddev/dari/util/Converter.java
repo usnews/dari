@@ -372,7 +372,7 @@ public class Converter {
         @Override
         public Byte convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
             return object instanceof Number ?
-                    ((Number) object).byteValue() :
+                    Byte.valueOf(((Number) object).byteValue()) :
                     Byte.valueOf(object.toString().trim());
         }
     }
@@ -396,7 +396,7 @@ public class Converter {
         @Override
         public Double convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
             return object instanceof Number ?
-                    ((Number) object).doubleValue() :
+                    Double.valueOf(((Number) object).doubleValue()) :
                     Double.valueOf(object.toString().trim());
         }
     }
@@ -405,7 +405,7 @@ public class Converter {
         @Override
         public Float convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
             return object instanceof Number ?
-                    ((Number) object).floatValue() :
+                    Float.valueOf(((Number) object).floatValue()) :
                     Float.valueOf(object.toString().trim());
         }
     }
@@ -414,7 +414,7 @@ public class Converter {
         @Override
         public Integer convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
             return object instanceof Number ?
-                    ((Number) object).intValue() :
+                    Integer.valueOf(((Number) object).intValue()) :
                     Integer.valueOf(object.toString().trim());
         }
     }
@@ -423,7 +423,7 @@ public class Converter {
         @Override
         public Long convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
             return object instanceof Number ?
-                    ((Number) object).longValue() :
+                    Long.valueOf(((Number) object).longValue()) :
                     Long.valueOf(object.toString().trim());
         }
     }
@@ -432,7 +432,7 @@ public class Converter {
         @Override
         public Short convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
             return object instanceof Number ?
-                    ((Number) object).shortValue() :
+                    Short.valueOf(((Number) object).shortValue()) :
                     Short.valueOf(object.toString().trim());
         }
     }
