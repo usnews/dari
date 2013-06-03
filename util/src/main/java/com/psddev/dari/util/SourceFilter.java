@@ -949,12 +949,7 @@ public class SourceFilter extends AbstractFilter {
 
         public final String jsp;
 
-        private final ServletOutputStream output = new ServletOutputStream() {
-            @Override
-            public void write(int b) {
-            }
-        };
-
+        private final ServletOutputStream output = new IsolatingOutputStream();
         private final PrintWriter writer = new PrintWriter(output);
 
         public IsolatingResponse(HttpServletResponse response, String jsp) {
@@ -970,6 +965,13 @@ public class SourceFilter extends AbstractFilter {
         @Override
         public PrintWriter getWriter() throws IOException {
             return writer;
+        }
+    }
+
+    private static final class IsolatingOutputStream extends ServletOutputStream {
+
+        @Override
+        public void write(int b) {
         }
     }
 }

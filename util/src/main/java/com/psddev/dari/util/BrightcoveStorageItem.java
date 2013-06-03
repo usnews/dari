@@ -64,6 +64,8 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
     /** Setting key for Brightcove player ID for preview player */
     public static final String PREVIEW_PLAYER_ID_SETTING = "previewPlayerId";
 
+    private static final TypeReference<List<String>> LIST_STRING_TYPE = new TypeReference<List<String>>() { };
+
     private transient String readServiceUrl;
     private transient String writeServiceUrl;
     private transient String readToken;
@@ -786,7 +788,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("tags"))) {
-            this.tags = ObjectUtils.to(new TypeReference<List<String>>()  {}, videoJson.get("tags"));
+            this.tags = ObjectUtils.to(LIST_STRING_TYPE, videoJson.get("tags"));
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("videoStillURL"))) {

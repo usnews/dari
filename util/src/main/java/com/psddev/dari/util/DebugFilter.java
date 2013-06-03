@@ -209,12 +209,7 @@ public class DebugFilter extends AbstractFilter {
         if (!ObjectUtils.isBlank(action)) {
             ServletWrapper wrapper = debugServletWrappers.get().get(action);
             if (wrapper != null) {
-                wrapper.serviceServlet(new HttpServletRequestWrapper(request) {
-                    @Override
-                    public String getPathInfo() {
-                        return pathInfo;
-                    }
-                }, response);
+                wrapper.serviceServlet(new PathInfoOverrideRequest(request, pathInfo), response);
                 return;
             }
 
@@ -320,6 +315,21 @@ public class DebugFilter extends AbstractFilter {
                 writeEnd();
             endPage();
         }};
+    }
+
+    private static final class PathInfoOverrideRequest extends HttpServletRequestWrapper {
+
+        private final String pathInfo;
+
+        public PathInfoOverrideRequest(HttpServletRequest request, String pathInfo) {
+            super(request);
+            this.pathInfo = pathInfo;
+        }
+
+        @Override
+        public String getPathInfo() {
+            return pathInfo;
+        }
     }
 
     /** {@link DebugFilter} utility methods. */

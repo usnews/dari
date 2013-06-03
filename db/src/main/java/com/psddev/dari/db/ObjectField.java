@@ -52,6 +52,8 @@ public class ObjectField extends Record {
     public static final String URL_TYPE = "url";
     public static final String UUID_TYPE = "uuid";
 
+    private static final TypeReference<Set<String>> SET_STRING_TYPE_REF = new TypeReference<Set<String>>() { };
+
     private static final Map<Class<?>, String> COLLECTION_CLASS_TO_TYPE = new HashMap<Class<?>, String>();
     private static final Map<Class<?>, String> CLASS_TO_TYPE = new HashMap<Class<?>, String>();
     private static final Map<String, Set<Class<?>>> TYPE_TO_CLASS = new HashMap<String, Set<Class<?>>>();
@@ -216,7 +218,7 @@ public class ObjectField extends Record {
         internalName = (String) definition.remove(INTERNAL_NAME_KEY);
         internalType = (String) definition.remove(INTERNAL_TYPE_KEY);
         isDenormalized = Boolean.TRUE.equals(definition.remove(IS_DENORMALIZED_KEY));
-        denormalizedFields = ObjectUtils.to(new TypeReference<Set<String>>() { }, definition.remove(DENORMALIZED_FIELDS_KEY));
+        denormalizedFields = ObjectUtils.to(SET_STRING_TYPE_REF, definition.remove(DENORMALIZED_FIELDS_KEY));
         isEmbedded = Boolean.TRUE.equals(definition.remove(IS_EMBEDDED_KEY));
         isRequired = Boolean.TRUE.equals(definition.remove(IS_REQUIRED_KEY));
         minimum = (Number) definition.remove(MINIMUM_KEY);
