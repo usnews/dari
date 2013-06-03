@@ -1224,7 +1224,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     }
 
     /** Solr-specific implementation of {@link Grouping}. */
-    private class SolrGrouping<T> extends AbstractGrouping<T> {
+    private static class SolrGrouping<T> extends AbstractGrouping<T> {
 
         private final long count;
 

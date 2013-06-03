@@ -161,7 +161,7 @@ public abstract class AtomicOperation {
      * Thrown if the object state changes between when an atomic
      * replacement operation is requested and executed.
      */
-    public class ReplacementException extends RuntimeException {
+    public static class ReplacementException extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 
