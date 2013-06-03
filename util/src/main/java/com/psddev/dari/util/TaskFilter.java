@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 /** Cleans up after any resources opened by {@link Task}. */
 public class TaskFilter extends AbstractFilter {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(TaskFilter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TaskFilter.class);
 
     private final List<Task> tasks = new ArrayList<Task>();
 
