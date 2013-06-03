@@ -102,7 +102,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
-    public static final String EXTRA_CONNECTION_EXTRA = "sql.extraConnection";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
     private static final String SHORT_NAME = "SQL";
@@ -569,7 +568,21 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return new SqlQuery(this, query).selectStatement();
     }
 
-    /** Closes all the given SQL resources safely. */
+    private ThreadLocal<Connection> extraConnectionLocal = new ThreadLocal<Connection>();
+
+    // Opens an extra connection.
+    private Connection openExtraConnection(Query<?> query) {
+        Connection extraConnection = extraConnectionLocal.get();
+
+        if (extraConnection == null) {
+            extraConnection = super.openQueryConnection(query);
+            extraConnectionLocal.set(extraConnection);
+        }
+
+        return extraConnection;
+    }
+
+    // Closes all the given SQL resources safely.
     private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
             try {
@@ -585,19 +598,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (connection != null &&
-                (query == null ||
-                !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
-            try {
-                connection.close();
-            } catch (SQLException ex) {
+        if (connection != null) {
+            if (query == null ||
+                    !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION))) {
+                try {
+                    connection.close();
+                } catch (SQLException error) {
+                }
             }
-        }
 
-        if (query != null) {
-            Connection extraConnection = (Connection) query.getState().getExtras().get(EXTRA_CONNECTION_EXTRA);
+            Connection extraConnection = extraConnectionLocal.get();
 
             if (extraConnection != null) {
+                extraConnectionLocal.set(null);
+
                 try {
                     extraConnection.close();
                 } catch (SQLException error) {
@@ -692,16 +706,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     sqlQuery.append(" = ");
                     vendor.appendUuid(sqlQuery, id);
 
-                    Connection connection = (Connection) query.getState().getExtras().get(EXTRA_CONNECTION_EXTRA);
+                    Connection connection = null;
                     Statement statement = null;
                     ResultSet result = null;
 
                     try {
-                        if (connection == null) {
-                            connection = super.openQueryConnection(query);
-                            query.getState().getExtras().put(EXTRA_CONNECTION_EXTRA, connection);
-                        }
-
+                        connection = openExtraConnection(query);
                         statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
@@ -775,13 +785,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (loadExtraFields != null) {
-            Connection connection = (Connection) query.getState().getExtras().get(EXTRA_CONNECTION_EXTRA);
-
-            if (connection == null) {
-                connection = super.openQueryConnection(query);
-                query.getState().getExtras().put(EXTRA_CONNECTION_EXTRA, connection);
-            }
+        if (loadExtraFields != null && !loadExtraFields.isEmpty()) {
+            Connection connection = openExtraConnection(query);
 
             for (ObjectField field : loadExtraFields) {
                 Statement extraStatement = null;
