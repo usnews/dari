@@ -23,10 +23,10 @@ public class TaskFilter extends AbstractFilter {
                 tasks.add(task);
 
             } catch (IllegalAccessException error) {
-                LOGGER.warn(String.format("Can't create [%s] task!"), error);
+                LOGGER.warn(String.format("Can't create [%s] task!", taskClass.getName()), error);
 
             } catch (InstantiationException error) {
-                LOGGER.warn(String.format("Can't create [%s] task!"), error.getCause());
+                LOGGER.warn(String.format("Can't create [%s] task!", taskClass.getName()), error.getCause());
             }
         }
     }

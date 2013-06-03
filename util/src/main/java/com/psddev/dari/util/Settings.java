@@ -438,7 +438,8 @@ public final class Settings {
 
         } catch (ExecutionException error) {
             throw new SettingsException(classKey, String.format(
-                    "[%s] doesn't have a nullary constructor!"));
+                    "[%s] doesn't have a nullary constructor!",
+                    instanceClass.getName()));
         }
 
         T object;
