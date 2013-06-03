@@ -568,20 +568,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return new SqlQuery(this, query).selectStatement();
     }
 
-    private ThreadLocal<Connection> extraConnectionLocal = new ThreadLocal<Connection>();
-
-    // Opens an extra connection.
-    private Connection openExtraConnection(Query<?> query) {
-        Connection extraConnection = extraConnectionLocal.get();
-
-        if (extraConnection == null) {
-            extraConnection = super.openQueryConnection(query);
-            extraConnectionLocal.set(extraConnection);
-        }
-
-        return extraConnection;
-    }
-
     // Closes all the given SQL resources safely.
     private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
@@ -598,24 +584,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (connection != null) {
-            if (query == null ||
-                    !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION))) {
-                try {
-                    connection.close();
-                } catch (SQLException error) {
-                }
-            }
-
-            Connection extraConnection = extraConnectionLocal.get();
-
-            if (extraConnection != null) {
-                extraConnectionLocal.set(null);
-
-                try {
-                    extraConnection.close();
-                } catch (SQLException error) {
-                }
+        if (connection != null &&
+                (query == null ||
+                !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
+            try {
+                connection.close();
+            } catch (SQLException ex) {
             }
         }
     }
@@ -672,8 +646,33 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private final transient Cache<String, byte[]> dataCache = CacheBuilder.newBuilder().maximumSize(10000).build();
 
+    private class ConnectionRef {
+
+        private Connection connection;
+
+        public Connection getOrOpen(Query<?> query) {
+            if (connection == null) {
+                connection = SqlDatabase.super.openQueryConnection(query);
+            }
+            return connection;
+        }
+
+        public void close() {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException error) {
+                }
+            }
+        }
+    }
+
     // Creates a previously saved object using the given resultSet.
-    private <T> T createSavedObjectWithResultSet(ResultSet resultSet, Query<T> query) throws SQLException {
+    private <T> T createSavedObjectWithResultSet(
+            ResultSet resultSet,
+            Query<T> query,
+            ConnectionRef extraConnectionRef)
+            throws SQLException {
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
 
@@ -711,7 +710,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     ResultSet result = null;
 
                     try {
-                        connection = openExtraConnection(query);
+                        connection = extraConnectionRef.getOrOpen(query);
                         statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
@@ -786,7 +785,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         if (loadExtraFields != null && !loadExtraFields.isEmpty()) {
-            Connection connection = openExtraConnection(query);
+            Connection connection = extraConnectionRef.getOrOpen(query);
 
             for (ObjectField field : loadExtraFields) {
                 Statement extraStatement = null;
@@ -913,6 +912,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public <T> T selectFirstWithOptions(String sqlQuery, Query<T> query) {
         sqlQuery = vendor.rewriteQueryWithLimitClause(sqlQuery, 1, 0);
 
+        ConnectionRef extraConnectionRef = new ConnectionRef();
         Connection connection = null;
         Statement statement = null;
         ResultSet result = null;
@@ -921,13 +921,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
-            return result.next() ? createSavedObjectWithResultSet(result, query) : null;
+            return result.next() ? createSavedObjectWithResultSet(result, query, extraConnectionRef) : null;
 
         } catch (SQLException ex) {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
             closeResources(query, connection, statement, result);
+            extraConnectionRef.close();
         }
     }
 
@@ -944,6 +945,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * with options from the given {@code query}.
      */
     public <T> List<T> selectListWithOptions(String sqlQuery, Query<T> query) {
+        ConnectionRef extraConnectionRef = new ConnectionRef();
         Connection connection = null;
         Statement statement = null;
         ResultSet result = null;
@@ -955,7 +957,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
             while (result.next()) {
-                objects.add(createSavedObjectWithResultSet(result, query));
+                objects.add(createSavedObjectWithResultSet(result, query, extraConnectionRef));
             }
 
             return objects;
@@ -997,6 +999,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         private final String sqlQuery;
         private final Query<T> query;
+        private final ConnectionRef extraConnectionRef;
 
         private final Connection connection;
         private final Statement statement;
@@ -1007,6 +1010,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public SqlIterator(String initialSqlQuery, int fetchSize, Query<T> initialQuery) {
             sqlQuery = initialSqlQuery;
             query = initialQuery;
+            extraConnectionRef = new ConnectionRef();
 
             try {
                 connection = openQueryConnection(query);
@@ -1036,6 +1040,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public void close() {
             hasNext = false;
             closeResources(query, connection, statement, result);
+            extraConnectionRef.close();
         }
 
         @Override
@@ -1050,7 +1055,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
 
             try {
-                T object = createSavedObjectWithResultSet(result, query);
+                T object = createSavedObjectWithResultSet(result, query, extraConnectionRef);
                 moveToNext();
                 return object;
 
