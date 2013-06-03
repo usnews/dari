@@ -17,6 +17,9 @@ import java.util.regex.Pattern;
 
 import javax.tools.JavaFileObject;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** For finding classes that are compatible with an arbitrary class. */
 public class ClassFinder {
 
@@ -27,6 +30,7 @@ public class ClassFinder {
     public static final String INCLUDE_ATTRIBUTE = "Dari-ClassFinder-Include";
 
     private static final String CLASS_FILE_SUFFIX = JavaFileObject.Kind.CLASS.extension;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClassFinder.class);
 
     private Set<String> classLoaderExclusions = new HashSet<String>(Arrays.asList(
             "sun.misc.Launcher$ExtClassLoader",
@@ -67,7 +71,8 @@ public class ClassFinder {
             for (String path : StringUtils.split(classPath, Pattern.quote(File.pathSeparator))) {
                 try {
                     processUrl(classNames, new File(path).toURI().toURL());
-                } catch (MalformedURLException ex) {
+                } catch (MalformedURLException error) {
+                    // Ignore JARs in the class path that can't be found.
                 }
             }
         }
@@ -81,8 +86,12 @@ public class ClassFinder {
                     Class<? extends T> tc = (Class<? extends T>) c;
                     classes.add(tc);
                 }
-            } catch (ClassNotFoundException ex) {
-            } catch (NoClassDefFoundError ex) {
+
+            } catch (ClassNotFoundException error) {
+                // Ignore classes that can't be found by name.
+
+            } catch (NoClassDefFoundError error) {
+                // Ignore classes that can't be somehow resolved at runtime.
             }
         }
 
@@ -123,7 +132,10 @@ public class ClassFinder {
                     urlInput.close();
                 }
 
-            } catch (IOException ex) {
+            } catch (IOException error) {
+                LOGGER.debug(String.format(
+                        "Can't read [%s] to scan its classes!", url),
+                        error);
             }
 
         } else {

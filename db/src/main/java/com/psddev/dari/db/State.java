@@ -570,6 +570,7 @@ public class State implements Map<String, Object> {
                             continue KEY;
 
                         } catch (NoSuchMethodException error) {
+                            // Try to find the method in the super class.
 
                         } catch (Exception error) {
                             ErrorUtils.rethrow(error);
@@ -1394,6 +1395,7 @@ public class State implements Map<String, Object> {
                     return;
 
                 } catch (IllegalArgumentException error) {
+                    // Ignore since it will be retried below.
                 }
             }
 

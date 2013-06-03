@@ -63,13 +63,15 @@ public final class DateUtils {
         string = string.trim();
         try {
             return new Date(FORMATTERS.get(format).parseMillis(string));
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException error) {
+            // Try a different conversion or error below.
         }
 
         if (format.contains("z")) {
             try {
                 return new SimpleDateFormat(format).parse(string);
-            } catch (ParseException ex) {
+            } catch (ParseException error) {
+                // Error below.
             }
         }
 
@@ -98,13 +100,15 @@ public final class DateUtils {
 
             try {
                 return new Date(FORMATTERS.get(format).parseMillis(string));
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException error) {
+                // Try a different conversion or the next format.
             }
 
             if (format.contains("z")) {
                 try {
                     return new SimpleDateFormat(format).parse(string);
-                } catch (ParseException ex) {
+                } catch (ParseException error) {
+                    // Try the next format.
                 }
             }
         }

@@ -896,7 +896,9 @@ public class ObjectField extends Record {
             for (Type bound : javaTypeVar.getBounds()) {
                 try {
                     return translateType(environment, objectClass, bound);
-                } catch (IllegalArgumentException ex) {
+                } catch (IllegalArgumentException error) {
+                    // If the bound type can't be translated correctly,
+                    // try the next one.
                 }
             }
         }

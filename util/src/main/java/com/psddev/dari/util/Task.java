@@ -425,8 +425,14 @@ public abstract class Task implements Comparable<Task>, Runnable {
                     stop();
                     return;
                 }
-            } catch (IllegalAccessException ex) {
-            } catch (NoSuchFieldException ex) {
+
+            } catch (IllegalAccessException error) {
+                // This should never happen since #setAccessible is called
+                // on the field.
+
+            } catch (NoSuchFieldException error) {
+                // In case this code is used on future versions of Tomcat that
+                // doesn't use the field any more.
             }
         }
 

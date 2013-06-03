@@ -575,14 +575,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         if (result != null) {
             try {
                 result.close();
-            } catch (SQLException ex) {
+            } catch (SQLException error) {
+                // Not likely and probably harmless.
             }
         }
 
         if (statement != null) {
             try {
                 statement.close();
-            } catch (SQLException ex) {
+            } catch (SQLException error) {
+                // Not likely and probably harmless.
             }
         }
 
@@ -591,7 +593,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
             try {
                 connection.close();
-            } catch (SQLException ex) {
+            } catch (SQLException error) {
+                // Not likely and probably harmless.
             }
         }
 
@@ -602,6 +605,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 try {
                     extraConnection.close();
                 } catch (SQLException error) {
+                    // Not likely and probably harmless.
                 }
             }
         }
@@ -1196,7 +1200,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         if (connection != null) {
             try {
                 connection.close();
-            } catch (SQLException ex) {
+            } catch (SQLException error) {
+                // Not likely and probably harmless.
             }
         }
     }
@@ -2423,6 +2428,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 try {
                     prepared.close();
                 } catch (SQLException error) {
+                    // Not likely and probably harmless.
                 }
             }
         }
@@ -2503,7 +2509,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             } finally {
                 try {
                     statement.close();
-                } catch (SQLException ex) {
+                } catch (SQLException error) {
+                    // Not likely and probably harmless.
                 }
             }
         }

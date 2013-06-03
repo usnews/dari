@@ -224,7 +224,10 @@ public class DebugFilter extends AbstractFilter {
                     JspUtils.forward(request, response, actionJsp);
                     return;
                 }
-            } catch (MalformedURLException ex) {
+            } catch (MalformedURLException error) {
+                // If actionJsp isn't a valid URL, pretend that the action
+                // parameter wasn't provided by falling through to the code
+                // path below.
             }
         }
 

@@ -15,6 +15,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
@@ -121,6 +124,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     public static final String METRIC_DIMENSION_ATTRIBUTE = "dimension";
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Query.class);
 
     private final String group;
     private final transient Class<?> objectClass;
@@ -1467,6 +1472,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                 try {
                     ((Closeable) iterator).close();
                 } catch (IOException error) {
+                    LOGGER.debug("Can't close iterator [{}]!", iterator);
                 }
             }
         }

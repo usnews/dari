@@ -30,7 +30,8 @@ public class ResetFilter extends AbstractFilter {
         try {
             LOGGER.info("Shutting down [{}]", MultiThreadedHttpConnectionManager.class);
             MultiThreadedHttpConnectionManager.shutdownAll();
-        } catch (NoClassDefFoundError ex) {
+        } catch (NoClassDefFoundError error) {
+            // Not using the library at all.
         }
     }
 
@@ -43,33 +44,25 @@ public class ResetFilter extends AbstractFilter {
 
         // Clear all default database overrides
         try {
-            try {
-                while (true) {
-                    Database.Static.restoreDefault();
-                }
-            } catch (NoSuchElementException error) {
+            while (true) {
+                Database.Static.restoreDefault();
             }
-        } catch (Throwable ex) {
+        } catch (NoSuchElementException error) {
+            // No more defaults to restore.
         }
 
         // Make sure the databases aren't stuck in read-only mode.
-        try {
-            Database.Static.setIgnoreReadConnection(false);
-        } catch (Throwable ex) {
-        }
+        Database.Static.setIgnoreReadConnection(false);
 
         // Clear all batch writes.
-        try {
-            for (Database database : Database.Static.getAll()) {
-                try {
-                    while (true) {
-                        database.endWrites();
-                    }
-                } catch (IllegalStateException ex) {
-                    continue;
+        for (Database database : Database.Static.getAll()) {
+            try {
+                while (true) {
+                    database.endWrites();
                 }
+            } catch (IllegalStateException error) {
+                continue;
             }
-        } catch (Throwable ex) {
         }
 
         chain.doFilter(request, response);

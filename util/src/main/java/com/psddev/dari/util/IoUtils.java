@@ -60,6 +60,7 @@ public final class IoUtils {
         try {
             close(closeable, true);
         } catch (IOException error) {
+            // This should never trigger with #close(suppressError = true).
         }
     }
 
@@ -257,8 +258,8 @@ public final class IoUtils {
 
     /**
      * Reads all bytes from the given {@code url} and converts them
-     * into a string using the response content encoding. If that encoding
-     * isn't a valid Java charset, uses {@link StringUtils#UTF_8} instead.
+     * into a string using the response content encoding. If the encoding
+     * isn't provided, uses {@link StringUtils#UTF_8} instead.
      *
      * @param url Can't be {@code null}.
      * @return Never {@code null}.
@@ -268,16 +269,18 @@ public final class IoUtils {
         InputStream input = connection.getInputStream();
 
         try {
-            Charset charset = null;
+            String encoding = connection.getContentEncoding();
+            Charset charset;
 
-            try {
-                charset = Charset.forName(connection.getContentEncoding());
-            } catch (IllegalCharsetNameException error) {
-            } catch (IllegalArgumentException error) {
-            }
-
-            if (charset == null) {
+            if (encoding == null) {
                 charset = StringUtils.UTF_8;
+
+            } else {
+                try {
+                    charset = Charset.forName(encoding);
+                } catch (IllegalCharsetNameException error) {
+                    throw new IOException(error);
+                }
             }
 
             return new String(toByteArray(input), charset);

@@ -50,8 +50,10 @@ public abstract class ObjectUtils {
                     if (name != null) {
                         try {
                             return Class.forName(name, false, loader);
-                        } catch (ClassNotFoundException ex) {
-                        } catch (NoClassDefFoundError ex) {
+                        } catch (ClassNotFoundException error) {
+                            // Falls through to return null below.
+                        } catch (NoClassDefFoundError error) {
+                            // Falls through to return null below.
                         }
                     }
                     return null;
@@ -531,13 +533,15 @@ public abstract class ObjectUtils {
 
             try {
                 getter = c.getDeclaredMethod(name);
-            } catch (NoSuchMethodException ex) {
+            } catch (NoSuchMethodException error) {
+                // Try the next getter check.
             }
 
             if (getter == null) {
                 try {
                     getter = c.getDeclaredMethod("get" + capitalize(name));
-                } catch (NoSuchMethodException ex) {
+                } catch (NoSuchMethodException error) {
+                    // Getter doesn't exist. Oh well.
                 }
             }
 
@@ -562,13 +566,15 @@ public abstract class ObjectUtils {
 
                 try {
                     field = c.getDeclaredField(name);
-                } catch (NoSuchFieldException ex) {
+                } catch (NoSuchFieldException error) {
+                    // Try the next field check.
                 }
 
                 if (field == null) {
                     try {
                         field = c.getDeclaredField("_" + name);
-                    } catch (NoSuchFieldException ex) {
+                    } catch (NoSuchFieldException error) {
+                        // Field doesn't exist. Oh well.
                     }
                 }
 

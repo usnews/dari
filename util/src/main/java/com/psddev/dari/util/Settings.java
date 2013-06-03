@@ -100,7 +100,8 @@ public final class Settings {
                     // JNDI.
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
-                    } catch (Throwable error) {
+                    } catch (NamingException error) {
+                        LOGGER.warn("Can't read from JNDI!", error);
                     }
 
                     return Collections.unmodifiableMap(settings);

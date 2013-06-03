@@ -299,7 +299,10 @@ public class DimsImageEditor extends AbstractImageEditor {
                 if (overridden) {
                     try {
                         dimsUrl.setImageUrl(new URL(override.getPublicUrl()));
-                    } catch(MalformedURLException mue) {
+                    } catch (MalformedURLException error) {
+                        // If #getPublicUrl doesn't return a proper URL,
+                        // that's OK, because this will just fall through
+                        // to the non-optimized code path below.
                     }
                 }
             }
@@ -384,12 +387,9 @@ public class DimsImageEditor extends AbstractImageEditor {
             } else {
 
                 // It's a new DIMS request
-                try {
-                    // need to decode the url because DIMS expects a non encoded URL
-                    // and will take care of encoding it before it fetches the image
-                    url = URLDecoder.decode(url, "UTF-8");
-                } catch (UnsupportedEncodingException e) {
-                }
+                // need to decode the url because DIMS expects a non encoded URL
+                // and will take care of encoding it before it fetches the image
+                url = StringUtils.decodeUri(url);
                 imageUrl = new URL(url);
 
                 // Add some commands by default based on the editor's preferences

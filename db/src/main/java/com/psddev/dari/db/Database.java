@@ -309,7 +309,8 @@ public interface Database extends SettingsBackedObject {
             for (String name : getNames()) {
                 try {
                     addByClass(databases, databaseClass, getInstance(name));
-                } catch (SettingsException ex) {
+                } catch (SettingsException error) {
+                    // Ignore misconfigured databases.
                 }
             }
             return databases;

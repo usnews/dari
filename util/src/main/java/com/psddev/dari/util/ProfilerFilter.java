@@ -337,7 +337,9 @@ public class ProfilerFilter extends AbstractFilter {
                 writer.write(String.valueOf(eventIndex));
                 writer.write("\"></span>");
 
-            } catch (IOException ex) {
+            } catch (IOException error) {
+                // Writing the marker to the output isn't strictly necessary
+                // for this filter to function, so ignore the error.
             }
 
             return event;

@@ -446,7 +446,8 @@ public class Converter {
                 if (millis != null) {
                     return new Date(millis);
                 }
-            } catch (ConversionException ex) {
+            } catch (ConversionException error) {
+                // Try a different conversion below.
             }
             return DateUtils.fromString(object.toString());
         }

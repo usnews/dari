@@ -16,6 +16,11 @@ import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Throwables;
+
 /**
  * Skeletal form processor implementation. A subclass must implement:
  *
@@ -24,6 +29,8 @@ import javax.servlet.http.HttpServletResponse;
  * </ul>
  */
 public abstract class AbstractFormProcessor implements FormProcessor {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFormProcessor.class);
 
     private HttpServletRequest request;
     private HttpServletResponse response;
@@ -97,14 +104,22 @@ public abstract class AbstractFormProcessor implements FormProcessor {
                                 writeMethod.setAccessible(true);
                                 writeMethod.invoke(this, ObjectUtils.to(parameterTypes[0], request.getParameter(name)));
                                 names.add(name);
+
                             } catch (IllegalAccessException error) {
+                                throw new IllegalStateException(error);
+
                             } catch (InvocationTargetException error) {
+                                throw Throwables.propagate(error);
                             }
                         }
                     }
                 }
             }
+
         } catch (IntrospectionException error) {
+            LOGGER.warn(String.format(
+                    "Can't introspect [%s] for setters!", thisClass.getName()),
+                    error);
         }
 
         // Otherwise, try to set directly on the private fields.
@@ -117,6 +132,8 @@ public abstract class AbstractFormProcessor implements FormProcessor {
                         field.setAccessible(true);
                         field.set(this, ObjectUtils.to(field.getGenericType(), request.getParameter(name)));
                     } catch (IllegalAccessException error) {
+                        // This should never happen since #setAccessible has
+                        // been called on the field.
                     }
                 }
             }

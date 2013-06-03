@@ -192,7 +192,8 @@ public class SourceFilter extends AbstractFilter {
                 buildPropertiesInput.close();
             }
 
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            LOGGER.debug("Can't read WAR build properties!", error);
         }
     }
 
@@ -362,74 +363,71 @@ public class SourceFilter extends AbstractFilter {
             return;
         }
 
-        try {
-            new HtmlWriter(response.getWriter()) {{
-                putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
-                putDefault(Throwable.class, HtmlFormatter.THROWABLE);
+        new HtmlWriter(response.getWriter()) {{
+            putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
+            putDefault(Throwable.class, HtmlFormatter.THROWABLE);
 
-                write("<div style=\"" +
-                        "background: rgba(204, 0, 0, 0.8);" +
-                        "-moz-border-radius: 5px;" +
-                        "-webkit-border-radius: 5px;" +
-                        "border-radius: 5px;" +
-                        "color: white;" +
-                        "font-family: 'Helvetica Neue', 'Arial', sans-serif;" +
-                        "font-size: 13px;" +
-                        "line-height: 18px;" +
-                        "margin: 0;" +
-                        "max-height: 50%;" +
-                        "max-width: 350px;" +
-                        "overflow: auto;" +
-                        "padding: 5px;" +
-                        "position: fixed;" +
-                        "right: 5px;" +
-                        "top: 5px;" +
-                        "word-wrap: break-word;" +
-                        "z-index: 1000000;" +
-                        "\">");
+            write("<div style=\"" +
+                    "background: rgba(204, 0, 0, 0.8);" +
+                    "-moz-border-radius: 5px;" +
+                    "-webkit-border-radius: 5px;" +
+                    "border-radius: 5px;" +
+                    "color: white;" +
+                    "font-family: 'Helvetica Neue', 'Arial', sans-serif;" +
+                    "font-size: 13px;" +
+                    "line-height: 18px;" +
+                    "margin: 0;" +
+                    "max-height: 50%;" +
+                    "max-width: 350px;" +
+                    "overflow: auto;" +
+                    "padding: 5px;" +
+                    "position: fixed;" +
+                    "right: 5px;" +
+                    "top: 5px;" +
+                    "word-wrap: break-word;" +
+                    "z-index: 1000000;" +
+                    "\">");
 
-                    if (errors == null) {
-                        if (hasBackgroundTasks) {
-                            writeHtml("The application wasn't reloaded automatically because there are background tasks running!");
-
-                        } else {
-                            writeHtml("The application must be reloaded before the changes to these classes become visible. ");
-                            writeStart("a",
-                                    "href", JspUtils.getAbsolutePath(request, getInterceptPath(),
-                                            "action", "install",
-                                            "requestPath", JspUtils.getAbsolutePath(request, "")),
-                                    "style", "color: white; text-decoration: underline;");
-                                writeHtml("Install the reloader");
-                            writeEnd();
-                            writeHtml(" to automate this process.");
-                            writeTag("br");
-                            writeTag("br");
-
-                            for (Map.Entry<String, Date> entry : changedClasses.entrySet()) {
-                                writeHtml(entry.getKey());
-                                writeHtml(" - ");
-                                writeObject(entry.getValue());
-                                writeTag("br");
-                            }
-                        }
+                if (errors == null) {
+                    if (hasBackgroundTasks) {
+                        writeHtml("The application wasn't reloaded automatically because there are background tasks running!");
 
                     } else {
-                        writeHtml("Syntax errors!");
-                        writeStart("ol");
-                            for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
-                                if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
-                                    writeStart("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
-                                        writeHtml(diagnostic.getMessage(null));
-                                    writeEnd();
-                                }
-                            }
+                        writeHtml("The application must be reloaded before the changes to these classes become visible. ");
+                        writeStart("a",
+                                "href", JspUtils.getAbsolutePath(request, getInterceptPath(),
+                                        "action", "install",
+                                        "requestPath", JspUtils.getAbsolutePath(request, "")),
+                                "style", "color: white; text-decoration: underline;");
+                            writeHtml("Install the reloader");
                         writeEnd();
+                        writeHtml(" to automate this process.");
+                        writeTag("br");
+                        writeTag("br");
+
+                        for (Map.Entry<String, Date> entry : changedClasses.entrySet()) {
+                            writeHtml(entry.getKey());
+                            writeHtml(" - ");
+                            writeObject(entry.getValue());
+                            writeTag("br");
+                        }
                     }
 
-                write("</div>");
-            }};
-        } catch (Exception ex) {
-        }
+                } else {
+                    writeHtml("Syntax errors!");
+                    writeStart("ol");
+                        for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
+                            if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
+                                writeStart("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
+                                    writeHtml(diagnostic.getMessage(null));
+                                writeEnd();
+                            }
+                        }
+                    writeEnd();
+                }
+
+            write("</div>");
+        }};
     }
 
     /**
@@ -480,7 +478,9 @@ public class SourceFilter extends AbstractFilter {
                     pingInput.close();
                 }
 
-            } catch (IOException ex) {
+            } catch (IOException error) {
+                // If the ping fails for any reason, assume that the reloader
+                // isn't available.
             }
         }
 

@@ -99,8 +99,10 @@ public final class CodeUtils {
 
         try {
             for (Enumeration<URL> i = ObjectUtils.getCurrentClassLoader().getResources(BUILD_PROPERTIES_PATH); i.hasMoreElements(); ) {
+                URL buildUrl = i.nextElement();
+
                 try {
-                    URLConnection buildConnection = i.nextElement().openConnection();
+                    URLConnection buildConnection = buildUrl.openConnection();
                     InputStream buildInput = buildConnection.getInputStream();
                     try {
                         Properties build = new Properties();
@@ -144,10 +146,12 @@ public final class CodeUtils {
                     } finally {
                         buildInput.close();
                     }
-                } catch (IOException ex) {
+                } catch (IOException error) {
+                    LOGGER.debug(String.format("Can't read [%s]!", buildUrl), error);
                 }
             }
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            LOGGER.warn("Can't find build.properties files!", error);
         }
 
         SOURCE_DIRECTORIES = Collections.unmodifiableSet(sources);
@@ -300,6 +304,8 @@ public final class CodeUtils {
             try {
                 return new FileInputStream(source);
             } catch (FileNotFoundException error) {
+                // Falls through to using the native #getResourceAsStream
+                // method.
             }
         }
 
@@ -557,7 +563,8 @@ public final class CodeUtils {
             try {
                 instrumentation = (Instrumentation) agentClass.getField("INSTRUMENTATION").get(null);
                 instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
-            } catch (Exception ex) {
+            } catch (Exception error) {
+                LOGGER.debug("Can't initialize INSTRUMENTATION instance!", error);
             }
         }
         INSTRUMENTATION = instrumentation;
@@ -574,6 +581,7 @@ public final class CodeUtils {
             agentClass = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
             return agentClass;
         } catch (ClassNotFoundException error) {
+            // If not found, try to create it on-the-fly below.
         }
 
         Class<?> vmClass = ObjectUtils.getClassByName("com.sun.tools.attach.VirtualMachine");
@@ -821,7 +829,9 @@ public final class CodeUtils {
                 }
             }
 
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            // This should never happen since StringReader doesn't throw
+            // IOException.
         }
 
         return -1;
