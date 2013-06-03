@@ -39,7 +39,7 @@ public abstract class Task implements Comparable<Task>, Runnable {
     private volatile long progressIndex;
     private volatile long progressTotal = -1;
     private volatile Throwable lastException;
-    private volatile long runCount;
+    private final AtomicLong runCount = new AtomicLong();
 
     /**
      * Creates an instance that will run in the given
@@ -370,7 +370,7 @@ public abstract class Task implements Comparable<Task>, Runnable {
 
     /** Returns the number of times that this task ran. */
     public long getRunCount() {
-        return runCount;
+        return runCount.get();
     }
 
     // --- Comparable support ---
@@ -460,7 +460,7 @@ public abstract class Task implements Comparable<Task>, Runnable {
 
             thread = null;
             lastRunEnd = System.currentTimeMillis();
-            ++ runCount;
+            runCount.incrementAndGet();
             isRunning.set(false);
             isPauseRequested.set(false);
             isStopRequested.set(false);
@@ -522,7 +522,7 @@ public abstract class Task implements Comparable<Task>, Runnable {
     /** @deprecated Use {@link #getRunCount} instead. */
     @Deprecated
     public long getCount() {
-        return runCount;
+        return runCount.get();
     }
 
     /** @deprecated Use {@link #submit} instead. */
