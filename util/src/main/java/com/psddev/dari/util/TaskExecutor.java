@@ -44,7 +44,7 @@ public final class TaskExecutor implements ScheduledExecutorService {
      * @throws IllegalArgumentException If the given {@code name} is
      *         {@code null}.
      */
-    private TaskExecutor(String name) {
+    protected TaskExecutor(String name) {
         if (name == null) {
             throw new IllegalArgumentException("Name can't be null!");
         }
