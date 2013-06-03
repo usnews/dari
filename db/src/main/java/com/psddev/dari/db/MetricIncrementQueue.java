@@ -33,7 +33,9 @@ final class MetricIncrementQueue {
         QueuedMetricIncrement placeholder = new QueuedMetricIncrement(metricDatabase, dimensionId, 0d);
         while (true) {
             QueuedMetricIncrement current = queuedIncrements.putIfAbsent(key, placeholder);
-            if (current == null) current = placeholder;
+            if (current == null) {
+                current = placeholder;
+            }
             QueuedMetricIncrement next = new QueuedMetricIncrement(metricDatabase, dimensionId, current.amount + amount);
             if (queuedIncrements.replace(key, current, next)) {
                 return;
@@ -99,7 +101,9 @@ class MetricIncrementQueueTask extends Task {
 
         // LOGGER.info("EXECUTING MetricIncrementQueueTask");
         while (true) {
-            if (queuedIncrements.isEmpty()) break;
+            if (queuedIncrements.isEmpty()) {
+                break;
+            }
             String key = queuedIncrements.keySet().iterator().next();
             QueuedMetricIncrement queuedIncrement = queuedIncrements.remove(key);
             // LOGGER.info("Incrementing : " + queuedIncrement.metricDatabase.toKeyString() + " : " + queuedIncrement.dimensionId.toKeyString() + " += " + queuedIncrement.amount );

@@ -1670,7 +1670,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         count = ObjectUtils.to(long.class, result.getObject(2));
                     }
                     grouping = new SqlGrouping<T>(keys, query, fields, count, groupings);
-                    if (amount == null) amount = 0d;
+                    if (amount == null) {
+                        amount = 0d;
+                    }
                     grouping.setSum(aggregateColumnName, amount);
                 }
                 groupings.add(grouping);
@@ -1746,7 +1748,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         if (this.getKeys().size() == 0) {
                             // Special case for .groupby() without any fields
-                            if (this.groupings.size() != 1) throw new RuntimeException("There should only be one grouping when grouping by nothing. Something went wrong internally.");
+                            if (this.groupings.size() != 1) {
+                                throw new RuntimeException("There should only be one grouping when grouping by nothing. Something went wrong internally.");
+                            }
                             if (result.next() && result.getBytes(1) != null) {
                                 this.setSum(field, result.getDouble(1));
                             } else {
@@ -1790,10 +1794,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         closeResources(query, connection, statement, result);
                     }
                 }
-                if (metricSums.containsKey(field))
+                if (metricSums.containsKey(field)) {
                     return metricSums.get(field);
-                else
+                } else {
                     return 0;
+                }
             } else {
                 // If it's not a MetricValue, we don't need to override it.
                 return super.getSum(field);

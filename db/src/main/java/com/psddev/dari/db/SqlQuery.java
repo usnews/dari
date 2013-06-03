@@ -397,7 +397,9 @@ class SqlQuery {
             // Add columns to select.
             int fieldIndex = 0;
             for (String indexFieldName : useIndex.getFields()) {
-                if (sourceTableColumns.contains(indexFieldName)) continue;
+                if (sourceTableColumns.contains(indexFieldName)) {
+                    continue;
+                }
                 sourceTableColumns.add(indexFieldName);
                 String indexColumnName = indexTable.getValueField(database, useIndex, fieldIndex);
 
@@ -1162,10 +1164,12 @@ class SqlQuery {
             }
         }
         String[] innerGroupByFields = Arrays.copyOf(groupFields, groupFields.length+addFields);
-        if (addIdField)
+        if (addIdField) {
             innerGroupByFields[groupFields.length] = Query.ID_KEY;
-        if (addDimField)
+        }
+        if (addDimField) {
             innerGroupByFields[groupFields.length+1] = Query.DIMENSION_KEY;
+        }
         // This prepares selectClause, et al.
         groupStatement(innerGroupByFields);
         return buildGroupedMetricSql(metricFieldName, groupFields, selectClause, fromClause, whereClause, groupByClause, orderByClause);
@@ -1710,8 +1714,9 @@ class SqlQuery {
                     SqlIndex.Static.getByType(this.indexType);
 
             ObjectField joinField = null;
-            if (this.index != null)
+            if (this.index != null) {
                 joinField = this.index.getParent().getField(this.index.getField());
+            }
 
             if (Query.ID_KEY.equals(queryKey)) {
                 needsIndexTable = false;
@@ -1881,8 +1886,9 @@ class SqlQuery {
 
                 if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     String stringValue = null;
-                    if (value != null)
+                    if (value != null) {
                         stringValue = String.valueOf(value);
+                    }
                     value = MetricDatabase.getDimensionIdByValue(stringValue);
 
                 } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
@@ -1893,8 +1899,12 @@ class SqlQuery {
                             PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
                         padChar = '0';
                     }
-                    if (value instanceof DateTime) value = ((DateTime) value).getMillis();
-                    if (value instanceof Date) value = ((Date) value).getTime();
+                    if (value instanceof DateTime) {
+                        value = ((DateTime) value).getMillis();
+                    }
+                    if (value instanceof Date) {
+                        value = ((Date) value).getTime();
+                    }
                     vendor.appendMetricEncodeTimestampSql(builder, null, (Long) value, padChar);
                     // Taking care of the appending since it is raw SQL; return here so it isn't appended again
                     return;

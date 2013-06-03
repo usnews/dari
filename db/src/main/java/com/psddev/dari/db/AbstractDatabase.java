@@ -931,7 +931,7 @@ public abstract class AbstractDatabase<C> implements Database {
         Map<String, State> keys = null;
         DatabaseEnvironment environment = getEnvironment();
 
-        for (State state : states) RETRY_STATE: do {
+        for (State state : states) { RETRY_STATE: do {
             if (beforeLocks) {
                 if (!state.validate()) {
                     if (errors == null) {
@@ -1028,7 +1028,7 @@ public abstract class AbstractDatabase<C> implements Database {
                     }
                 }
             }
-        } while (false);
+        } while (false); }
 
         if (errors != null && !errors.isEmpty()) {
             throw new ValidationException(errors);
