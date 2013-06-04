@@ -281,9 +281,26 @@ public class JsonProcessor {
                 transformed instanceof CharSequence) {
             generator.writeString(transformed.toString());
 
-        } else if (transformed instanceof Boolean ||
-                transformed instanceof Number) {
-            generator.writeRawValue(transformed.toString());
+        } else if (transformed instanceof Boolean) {
+            generator.writeBoolean((Boolean) transformed);
+
+        } else if (transformed instanceof Double) {
+            generator.writeNumber((Double) transformed);
+
+        } else if (transformed instanceof Number) {
+            if (transformed instanceof Long ||
+                    transformed instanceof Integer ||
+                    transformed instanceof Short ||
+                    transformed instanceof Byte) {
+                generator.writeNumber(((Number) transformed).longValue());
+
+            } else if (transformed instanceof Double ||
+                    transformed instanceof Float) {
+                generator.writeNumber(((Number) transformed).doubleValue());
+
+            } else {
+                generator.writeString(transformed.toString());
+            }
 
         } else if (isDuplicate) {
             generator.writeNull();
