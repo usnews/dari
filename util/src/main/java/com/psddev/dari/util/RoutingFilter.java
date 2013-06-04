@@ -115,9 +115,6 @@ public class RoutingFilter extends AbstractFilter {
     /** {@link RoutingFilter} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         public static String getApplicationPath(String application) {
             if (application == null || application.length() == 0) {
                 return "";

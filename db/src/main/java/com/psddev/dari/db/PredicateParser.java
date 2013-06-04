@@ -685,9 +685,6 @@ public class PredicateParser {
     /** {@link PredicateParser} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         private static final PredicateParser DEFAULT_PARSER = new PredicateParser();
 
         /**

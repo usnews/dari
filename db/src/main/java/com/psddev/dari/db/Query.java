@@ -1516,9 +1516,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             KEY_ALIASES = m;
         }
 
-        private Static() {
-        }
-
         /** Returns the canonical form of the given {@code key}. */
         public static String getCanonicalKey(String key) {
             String canonicalKey = KEY_ALIASES.get(key);

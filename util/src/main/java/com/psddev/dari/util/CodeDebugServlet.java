@@ -596,9 +596,6 @@ public class CodeDebugServlet extends HttpServlet {
     /** {@link CodeDebugServlet} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         @SuppressWarnings("unchecked")
         public static List<Object> getInputs(ServletContext context) {
             return (List<Object>) context.getAttribute(INPUTS_ATTRIBUTE);

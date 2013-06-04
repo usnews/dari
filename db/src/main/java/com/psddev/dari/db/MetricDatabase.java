@@ -262,9 +262,6 @@ class MetricDatabase {
     /** {@link MetricDatabase} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         // Methods that generate SQL statements
 
         private static String getDataSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean selectMinData, boolean doDecodeToBytes, String extraSelectSql, String extraGroupBySql) {

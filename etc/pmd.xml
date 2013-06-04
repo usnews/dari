@@ -20,6 +20,7 @@
         <exclude name="GodClass" />
         <exclude name="NonStaticInitializer" />
         <exclude name="UncommentedEmptyMethod" />
+        <exclude name="UseSingleton" />
     </rule>
 
     <rule ref="rulesets/java/empty.xml">

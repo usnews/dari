@@ -33,9 +33,6 @@ public interface MailProvider extends SettingsBackedObject {
             }
         };
 
-        private Static() {
-        }
-
         /**
          * Returns the MailProvider instance associated with the given
          * {@code name}.

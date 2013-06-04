@@ -257,9 +257,6 @@ public class DistributedLock implements Lock {
     /** {@link DistributedLock} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         private static final Map<Database, Map<String, WeakReference<DistributedLock>>> INSTANCES = new WeakHashMap<Database, Map<String, WeakReference<DistributedLock>>>();
 
         /**

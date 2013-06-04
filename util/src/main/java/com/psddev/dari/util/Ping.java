@@ -16,9 +16,6 @@ public interface Ping {
     /** {@link Ping} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         private static final PullThroughValue<Set<Class<? extends Ping>>> PING_CLASSES = new PullThroughValue<Set<Class<? extends Ping>>>() {
             @Override
             protected Set<Class<? extends Ping>> produce() {

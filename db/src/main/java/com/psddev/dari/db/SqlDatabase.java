@@ -2298,9 +2298,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** {@link SqlDatabase} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         public static List<SqlDatabase> getAll() {
             return INSTANCES;
         }

@@ -269,13 +269,10 @@ public class ProfilerFilter extends AbstractFilter {
     }
 
     /** {@link ProfilerFilter} utility methods. */
-    public final static class Static {
+    public static final class Static {
 
         private static final String ATTRIBUTE_PREFIX = ProfilerFilter.class.getName() + ".";
         private static final String RESULT_WRITER_ATTRIBUTE = ATTRIBUTE_PREFIX + ".resultWriter";
-
-        private Static() {
-        }
 
         /**
          * Returns the HTML writer used to render the result.

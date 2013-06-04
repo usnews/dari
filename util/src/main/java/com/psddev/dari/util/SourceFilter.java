@@ -764,9 +764,6 @@ public class SourceFilter extends AbstractFilter {
     /** {@linkplain SourceFilter} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Returns the servlet path for pinging this web application to
          * make sure that it's running.

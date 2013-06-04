@@ -12,9 +12,6 @@ import java.util.NoSuchElementException;
 /** Collection utility methods. */
 public final class CollectionUtils {
 
-    private CollectionUtils() {
-    }
-
     /**
      * Returns a value from the given collection-like {@code object}
      * using the given {@code path} that identifies where the item

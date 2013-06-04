@@ -11,9 +11,6 @@ import com.psddev.dari.util.Task;
 
 final class MetricIncrementQueue {
 
-    private MetricIncrementQueue() {
-    }
-
     // private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
 
     private static final ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements = new ConcurrentHashMap<String, QueuedMetricIncrement>();;

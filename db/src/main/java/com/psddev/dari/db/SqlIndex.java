@@ -470,9 +470,6 @@ public enum SqlIndex {
     /** {@linkplain SqlIndex} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Returns the instance that should be used to index values
          * of the given field {@code type}.

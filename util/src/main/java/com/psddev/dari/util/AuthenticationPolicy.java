@@ -34,9 +34,6 @@ public interface AuthenticationPolicy extends SettingsBackedObject {
             }
         };
 
-        private Static() {
-        }
-
         /**
          * Returns the authentication policy associated with the given
          * {@code name}.

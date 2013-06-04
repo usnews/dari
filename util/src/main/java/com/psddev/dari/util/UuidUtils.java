@@ -6,9 +6,6 @@ import java.util.UUID;
 /** {@link UUID} utility methods. */
 public final class UuidUtils {
 
-    private UuidUtils() {
-    }
-
     /** Zero-filled byte array that matches the size of an UUID. */
     public static final byte[] ZERO_BYTES = new byte[16];
 

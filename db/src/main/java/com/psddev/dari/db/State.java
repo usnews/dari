@@ -1830,9 +1830,6 @@ public class State implements Map<String, Object> {
     /** {@link State} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         public static void addListener(Listener listener) {
             List<Listener> listeners = LISTENERS_LOCAL.get();
 

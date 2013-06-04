@@ -45,9 +45,6 @@ public class Sequence extends Record {
     /** {@link Sequence} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Returns the next number in the sequence with the given {@code name},
          * or the given {@code initialValue} if the sequence has never been

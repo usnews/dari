@@ -1081,9 +1081,6 @@ public class ObjectField extends Record {
     /** {@link ObjectField} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Converts all given field {@code definitions} into a map of
          * instances.

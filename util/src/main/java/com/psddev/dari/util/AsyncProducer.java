@@ -138,9 +138,6 @@ public abstract class AsyncProducer<E> extends Task {
     /** {@link AsyncProducer} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Creates an {@link AsyncProducer} instance that runs in the
          * given {@code executor} and produces items from the given

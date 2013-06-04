@@ -32,9 +32,6 @@ public interface PasswordPolicy extends SettingsBackedObject {
             }
         };
 
-        private Static() {
-        }
-
         /**
          * Returns the password policy associated with the given
          * {@code name}.

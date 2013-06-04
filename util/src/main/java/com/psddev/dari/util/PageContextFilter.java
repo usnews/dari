@@ -70,9 +70,6 @@ public class PageContextFilter extends AbstractFilter {
      */
     public static final class Static {
 
-        private Static() {
-        }
-
         private static <T> T checkResult(T result) {
             if (result != null) {
                 return result;

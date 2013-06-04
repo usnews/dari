@@ -335,9 +335,6 @@ public class DebugFilter extends AbstractFilter {
     /** {@link DebugFilter} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Returns the path to the debugging servlet described in the
          * given parameters.

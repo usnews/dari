@@ -36,9 +36,6 @@ public interface SmsProvider extends SettingsBackedObject {
             }
         };
 
-        private Static() {
-        }
-
         /**
          * Returns the SMS provider associated with the given {@code name}.
          *

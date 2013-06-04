@@ -99,9 +99,6 @@ public interface StorageItem extends SettingsBackedObject {
      */
     public static final class Static {
 
-        private Static() {
-        }
-
         /** Creates an item in the given {@code storage}. */
         public static StorageItem createIn(String storage) {
             if (UrlStorageItem.DEFAULT_STORAGE.equals(storage)) {

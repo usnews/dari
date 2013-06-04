@@ -66,9 +66,6 @@ import org.slf4j.LoggerFactory;
 
 public final class CodeUtils {
 
-    private CodeUtils() {
-    }
-
     public static final String JAVA_SOURCE_DIRECTORY_PROPERTY = "javaSourceDirectory";
     public static final String RESOURCE_DIRECTORY_PROPERTY = "resourceDirectory";
 

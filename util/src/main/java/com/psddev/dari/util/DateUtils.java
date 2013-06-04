@@ -15,9 +15,6 @@ import org.joda.time.format.DateTimeFormatter;
 @Deprecated
 public final class DateUtils {
 
-    private DateUtils() {
-    }
-
     private static final long DAY_MS = 1000 * 60 * 60 * 24;
 
     // Specified as: (optional time zone id) date format

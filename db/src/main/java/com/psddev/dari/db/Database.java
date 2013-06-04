@@ -153,7 +153,7 @@ public interface Database extends SettingsBackedObject {
     public void deleteByQuery(Query<?> query);
 
     /** {@link Database} utility methods. */
-    public final static class Static {
+    public static final class Static {
 
         private static final ThreadLocal<Deque<Database>> DEFAULT_OVERRIDES = new ThreadLocal<Deque<Database>>();
         private static final ThreadLocal<Boolean> IGNORE_READ_CONNECTION = new ThreadLocal<Boolean>();
@@ -167,9 +167,6 @@ public interface Database extends SettingsBackedObject {
                         return database;
                     }
                 });
-
-        private Static() {
-        }
 
         /**
          * Returns a list of all databases.

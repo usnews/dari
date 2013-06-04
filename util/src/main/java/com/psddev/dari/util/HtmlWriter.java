@@ -936,9 +936,6 @@ public class HtmlWriter extends Writer {
     /** {@link HtmlWriter} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /** Returns a CSS string based on the given {@code properties}. */
         public static String cssString(Object... properties) {
             StringBuilder css = new StringBuilder();

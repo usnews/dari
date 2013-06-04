@@ -422,9 +422,6 @@ public class TypeDefinition<T> {
     /** {@link TypeDefinition} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /** Invalidates all caches. */
         public static void invalidateAll() {
             INSTANCES.invalidate();

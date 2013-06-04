@@ -193,9 +193,6 @@ public class HtmlGrid {
 
     public static final class Static {
 
-        private Static() {
-        }
-
         private static final Logger LOGGER = LoggerFactory.getLogger(HtmlGrid.class);
 
         private static final String ATTRIBUTE_PREFIX = HtmlGrid.class.getName() + ".";

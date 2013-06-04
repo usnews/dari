@@ -43,9 +43,6 @@ import org.slf4j.LoggerFactory;
 /** JSP utility methods. */
 public final class JspUtils {
 
-    private JspUtils() {
-    }
-
     private static final Pattern ABSOLUTE_URI_PATTERN = Pattern.compile("(?i)[a-z][-a-z0-9+.]*:.*");
     private static final String DEFAULT_COOKIE_SECRET = UUID.randomUUID().toString();
     private static final Logger LOGGER = LoggerFactory.getLogger(JspUtils.class);

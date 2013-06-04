@@ -29,9 +29,6 @@ import com.google.common.cache.LoadingCache;
 /** Global map of settings. */
 public final class Settings {
 
-    private Settings() {
-    }
-
     /**
      * Sub-key used to identify the implementation class for
      * {@link #newInstance}.

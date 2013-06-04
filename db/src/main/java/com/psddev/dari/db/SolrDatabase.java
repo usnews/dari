@@ -1578,9 +1578,6 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         private static final Pattern ESCAPE_PATTERN = Pattern.compile("([-+&|!(){}\\[\\]^\"~*?:\\\\\\s])");
 
-        private Static() {
-        }
-
         /**
          * Escapes the given {@code value} so that it's safe to use
          * in a Solr query.

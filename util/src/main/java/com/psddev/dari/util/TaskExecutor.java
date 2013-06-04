@@ -245,9 +245,6 @@ public final class TaskExecutor implements ScheduledExecutorService {
     /** {@link TaskExecutor} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         private static final String DEFAULT_INSTANCE_NAME = "Miscellaneous Tasks";
         private static final Map<String, WeakReference<TaskExecutor>> INSTANCES = new ConcurrentHashMap<String, WeakReference<TaskExecutor>>();
 

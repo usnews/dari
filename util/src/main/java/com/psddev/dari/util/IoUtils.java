@@ -23,9 +23,6 @@ public final class IoUtils {
     private static final int BUFFER_SIZE = 0x1000;
     private static final Logger LOGGER = LoggerFactory.getLogger(IoUtils.class);
 
-    private IoUtils() {
-    }
-
     /**
      * Closes the given {@code closeable}.
      *

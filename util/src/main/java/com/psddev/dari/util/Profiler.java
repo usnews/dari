@@ -86,9 +86,6 @@ public class Profiler {
     /** {@link Profiler} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         private static final ThreadLocal<Profiler> THREAD_PROFILER = new ThreadLocal<Profiler>();
 
         /**

@@ -46,9 +46,6 @@ public abstract class ClassEnhancer extends ClassAdapter {
     /** {@linkplain ClassEnhancer Class enhancer} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Enhances the given {@code bytecode} with the instances of
          * the given {@code enhancerClasses}.

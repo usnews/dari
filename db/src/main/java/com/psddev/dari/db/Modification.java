@@ -83,9 +83,6 @@ class Bar extends Modification&lt;Object&gt; { ... }</pre></blockquote>
     /** {@linkplain Modification Modification} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Returns a set of classes that should be modified by the given
          * {@code modificationClass}.

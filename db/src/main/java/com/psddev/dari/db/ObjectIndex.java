@@ -449,9 +449,6 @@ public class ObjectIndex {
     /** {@link ObjectIndex} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Converts the given index {@code definitions} into a map of
          * instances.
