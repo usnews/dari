@@ -64,7 +64,10 @@ import org.objectweb.asm.ClassWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CodeUtils {
+public final class CodeUtils {
+
+    private CodeUtils() {
+    }
 
     public static final String JAVA_SOURCE_DIRECTORY_PROPERTY = "javaSourceDirectory";
     public static final String RESOURCE_DIRECTORY_PROPERTY = "resourceDirectory";
@@ -96,8 +99,10 @@ public class CodeUtils {
 
         try {
             for (Enumeration<URL> i = ObjectUtils.getCurrentClassLoader().getResources(BUILD_PROPERTIES_PATH); i.hasMoreElements(); ) {
+                URL buildUrl = i.nextElement();
+
                 try {
-                    URLConnection buildConnection = i.nextElement().openConnection();
+                    URLConnection buildConnection = buildUrl.openConnection();
                     InputStream buildInput = buildConnection.getInputStream();
                     try {
                         Properties build = new Properties();
@@ -141,10 +146,12 @@ public class CodeUtils {
                     } finally {
                         buildInput.close();
                     }
-                } catch (IOException ex) {
+                } catch (IOException error) {
+                    LOGGER.debug(String.format("Can't read [%s]!", buildUrl), error);
                 }
             }
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            LOGGER.warn("Can't find build.properties files!", error);
         }
 
         SOURCE_DIRECTORIES = Collections.unmodifiableSet(sources);
@@ -297,6 +304,8 @@ public class CodeUtils {
             try {
                 return new FileInputStream(source);
             } catch (FileNotFoundException error) {
+                // Falls through to using the native #getResourceAsStream
+                // method.
             }
         }
 
@@ -494,7 +503,7 @@ public class CodeUtils {
 
     // ---
 
-    private static Class<?> AGENT_CLASS;
+    private static Class<?> agentClass;
     private static final Instrumentation INSTRUMENTATION;
     private static final Map<String, String> JSP_SERVLET_PATHS_MAP = new HashMap<String, String>();
     private static final Map<String, String> JSP_LINE_NUMBERS_MAP = new HashMap<String, String>();
@@ -554,7 +563,8 @@ public class CodeUtils {
             try {
                 instrumentation = (Instrumentation) agentClass.getField("INSTRUMENTATION").get(null);
                 instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
-            } catch (Exception ex) {
+            } catch (Exception error) {
+                LOGGER.debug("Can't initialize INSTRUMENTATION instance!", error);
             }
         }
         INSTRUMENTATION = instrumentation;
@@ -568,9 +578,10 @@ public class CodeUtils {
      */
     private static synchronized Class<?> getAgentClass() {
         try {
-            AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
-            return AGENT_CLASS;
+            agentClass = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
+            return agentClass;
         } catch (ClassNotFoundException error) {
+            // If not found, try to create it on-the-fly below.
         }
 
         Class<?> vmClass = ObjectUtils.getClassByName("com.sun.tools.attach.VirtualMachine");
@@ -652,7 +663,7 @@ public class CodeUtils {
                 }
 
                 vmClass.getMethod("loadAgent", String.class).invoke(vm, agentFile.getAbsolutePath());
-                AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
+                agentClass = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
 
             } finally {
                 if (vm != null) {
@@ -664,7 +675,7 @@ public class CodeUtils {
             LOGGER.info("Can't create an instrumentation instance!", error);
         }
 
-        return AGENT_CLASS;
+        return agentClass;
     }
 
     /**
@@ -674,10 +685,13 @@ public class CodeUtils {
      */
     public static final class Agent {
 
-        public static Instrumentation INSTRUMENTATION;
+        private Agent() {
+        }
 
-        public static void agentmain(String agentArguments, Instrumentation instrumentation) {
-            INSTRUMENTATION = instrumentation;
+        public static Instrumentation instrumentation;
+
+        public static void agentmain(String agentArguments, Instrumentation i) {
+            instrumentation = i;
         }
     }
 
@@ -815,7 +829,9 @@ public class CodeUtils {
                 }
             }
 
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            // This should never happen since StringReader doesn't throw
+            // IOException.
         }
 
         return -1;

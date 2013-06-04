@@ -129,13 +129,18 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
     public boolean equals(Object object) {
         if (this == object) {
             return true;
+
         } else if (object != null) {
             try {
                 return getState().equals(State.getInstance(object));
-            } catch (RuntimeException ex) {
+
+            } catch (IllegalArgumentException error) {
+                return false;
             }
+
+        } else {
+            return false;
         }
-        return false;
     }
 
     @Override

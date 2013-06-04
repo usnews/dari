@@ -45,7 +45,7 @@ public class ValidationException extends IllegalArgumentException {
     public String getMessage() {
         StringBuilder mb = new StringBuilder();
         for (String m : _messages) {
-            mb.append(m).append("\n");
+            mb.append(m).append('\n');
         }
         return mb.toString();
     }

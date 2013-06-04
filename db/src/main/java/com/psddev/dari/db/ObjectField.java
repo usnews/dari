@@ -52,6 +52,8 @@ public class ObjectField extends Record {
     public static final String URL_TYPE = "url";
     public static final String UUID_TYPE = "uuid";
 
+    private static final TypeReference<Set<String>> SET_STRING_TYPE_REF = new TypeReference<Set<String>>() { };
+
     private static final Map<Class<?>, String> COLLECTION_CLASS_TO_TYPE = new HashMap<Class<?>, String>();
     private static final Map<Class<?>, String> CLASS_TO_TYPE = new HashMap<Class<?>, String>();
     private static final Map<String, Set<Class<?>>> TYPE_TO_CLASS = new HashMap<String, Set<Class<?>>>();
@@ -216,7 +218,7 @@ public class ObjectField extends Record {
         internalName = (String) definition.remove(INTERNAL_NAME_KEY);
         internalType = (String) definition.remove(INTERNAL_TYPE_KEY);
         isDenormalized = Boolean.TRUE.equals(definition.remove(IS_DENORMALIZED_KEY));
-        denormalizedFields = ObjectUtils.to(new TypeReference<Set<String>>() { }, definition.remove(DENORMALIZED_FIELDS_KEY));
+        denormalizedFields = ObjectUtils.to(SET_STRING_TYPE_REF, definition.remove(DENORMALIZED_FIELDS_KEY));
         isEmbedded = Boolean.TRUE.equals(definition.remove(IS_EMBEDDED_KEY));
         isRequired = Boolean.TRUE.equals(definition.remove(IS_REQUIRED_KEY));
         minimum = (Number) definition.remove(MINIMUM_KEY);
@@ -618,7 +620,7 @@ public class ObjectField extends Record {
         String displayName = getDisplayName();
         if (ObjectUtils.isBlank(displayName)) {
             String internalName = getInternalName();
-            int dotAt = internalName.lastIndexOf(".");
+            int dotAt = internalName.lastIndexOf('.');
             if (dotAt > -1) {
                 internalName = internalName.substring(dotAt + 1, internalName.length());
             }
@@ -654,7 +656,7 @@ public class ObjectField extends Record {
 
         // Separate internal type like list/map/text into list and map/text.
         String subType = "";
-        int slashAt = internalType.indexOf("/");
+        int slashAt = internalType.indexOf('/');
         if (slashAt > -1) {
             subType = internalType.substring(slashAt + 1);
             internalType = internalType.substring(0, slashAt);
@@ -764,7 +766,7 @@ public class ObjectField extends Record {
      */
     public String getInternalItemType() {
         String internalType = getInternalType();
-        int slashAt = internalType.lastIndexOf("/");
+        int slashAt = internalType.lastIndexOf('/');
         return slashAt > -1 ? internalType.substring(slashAt + 1) : internalType;
     }
 
@@ -896,7 +898,9 @@ public class ObjectField extends Record {
             for (Type bound : javaTypeVar.getBounds()) {
                 try {
                     return translateType(environment, objectClass, bound);
-                } catch (IllegalArgumentException ex) {
+                } catch (IllegalArgumentException error) {
+                    // If the bound type can't be translated correctly,
+                    // try the next one.
                 }
             }
         }

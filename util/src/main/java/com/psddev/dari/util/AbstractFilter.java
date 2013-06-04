@@ -384,6 +384,7 @@ public abstract class AbstractFilter implements Filter {
                     override = Boolean.TRUE;
                     break;
                 } catch (NoSuchMethodException error) {
+                    // Try to find the method in the super class.
                 }
             }
         }

@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -298,7 +299,10 @@ public class DimsImageEditor extends AbstractImageEditor {
                 if (overridden) {
                     try {
                         dimsUrl.setImageUrl(new URL(override.getPublicUrl()));
-                    } catch(MalformedURLException mue) {
+                    } catch (MalformedURLException error) {
+                        // If #getPublicUrl doesn't return a proper URL,
+                        // that's OK, because this will just fall through
+                        // to the non-optimized code path below.
                     }
                 }
             }
@@ -322,7 +326,7 @@ public class DimsImageEditor extends AbstractImageEditor {
         private static final String ORIGINAL_HEIGHT_METADATA_PATH = "dims/originalHeight";
 
         private List<Command> commands;
-        private StorageItem item;
+        private final StorageItem item;
         private URL imageUrl;
 
         public void setImageUrl(URL imageUrl) {
@@ -383,12 +387,9 @@ public class DimsImageEditor extends AbstractImageEditor {
             } else {
 
                 // It's a new DIMS request
-                try {
-                    // need to decode the url because DIMS expects a non encoded URL
-                    // and will take care of encoding it before it fetches the image
-                    url = URLDecoder.decode(url, "UTF-8");
-                } catch (UnsupportedEncodingException e) {
-                }
+                // need to decode the url because DIMS expects a non encoded URL
+                // and will take care of encoding it before it fetches the image
+                url = StringUtils.decodeUri(url);
                 imageUrl = new URL(url);
 
                 // Add some commands by default based on the editor's preferences
@@ -503,7 +504,7 @@ public class DimsImageEditor extends AbstractImageEditor {
             // command that will convert the image to JPG so the thumbnail
             // command can process it correctly.
             String imagePath = imageUrl.getPath();
-            if (imagePath.toLowerCase().endsWith(".gif")) {
+            if (imagePath.toLowerCase(Locale.ENGLISH).endsWith(".gif")) {
                 addCommand(new FormatCommand(ImageFormat.jpg));
             }
             return this;
@@ -596,16 +597,16 @@ public class DimsImageEditor extends AbstractImageEditor {
 
             dimsUrlBuilder.append(baseUrl);
             if(!baseUrl.endsWith("/")) {
-                dimsUrlBuilder.append("/");
+                dimsUrlBuilder.append('/');
             }
 
             StringBuilder commandsBuilder = new StringBuilder();
             for(Command command : getCommands()) {
                 commandsBuilder
                 .append(command.getName())
-                .append("/")
+                .append('/')
                 .append(command.getValue())
-                .append("/");
+                .append('/');
             }
 
             Long expireTs = null;
@@ -624,8 +625,8 @@ public class DimsImageEditor extends AbstractImageEditor {
                 String requestSig = md5Hex.substring(0, 7);
 
                 dimsUrlBuilder
-                .append(requestSig).append("/")
-                .append(expireTs).append("/");
+                .append(requestSig).append('/')
+                .append(expireTs).append('/');
             }
 
             dimsUrlBuilder.append(commandsBuilder);
@@ -710,9 +711,9 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class CropCommand extends AbstractResizeCommand {
-        private Integer x;
-        private Integer y;
-        private boolean useLegacy;
+        private final Integer x;
+        private final Integer y;
+        private final boolean useLegacy;
 
         public CropCommand(String value, boolean useLegacy) {
             // example crop value: 208x208+15+93 (none of the values can be empty)
@@ -777,7 +778,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class ThumbnailCommand extends AbstractResizeCommand {
         private String option;
-        private boolean useLegacy;
+        private final boolean useLegacy;
 
         public ThumbnailCommand(String value, boolean useLegacy) {
             // thumbnail value: 100x100> (width nor height can be empty, but option can be empty)
@@ -833,12 +834,12 @@ public class DimsImageEditor extends AbstractImageEditor {
                 if (option == null || option.equals("!") || option.equals("^")) {
                     return new Dimension(this.width, this.height);
 
-                } else if (option.equals(">")) { // only shrink larger images
+                } else if (">".equals(option)) { // only shrink larger images
                     return new Dimension(
                             Math.min(this.width, dimension.width),
                             Math.min(this.height, dimension.height));
 
-                } else if (option.equals("<")) { // only enlarge smaller images
+                } else if ("<".equals(option)) { // only enlarge smaller images
                     return new Dimension(
                             Math.max(this.width, dimension.width),
                             Math.max(this.height, dimension.height));
@@ -903,16 +904,16 @@ public class DimsImageEditor extends AbstractImageEditor {
                     actualWidth = actualDimension.width;
                     actualHeight = actualDimension.height;
 
-                } else if (option.equals("!")) { // ignore aspect ratio
+                } else if ("!".equals(option)) { // ignore aspect ratio
                     actualWidth = this.width != null ? this.width : original.width;
                     actualHeight = this.height != null ? this.height : original.height;
 
-                } else if (option.equals("^")) { // fill area
+                } else if ("^".equals(option)) { // fill area
                     Dimension actualDimension = getFillAreaDimension(original.width, original.height, this.width, this.height);
                     actualWidth = actualDimension.width;
                     actualHeight = actualDimension.height;
 
-                } else if (option.equals(">")) { // only shrink larger images
+                } else if (">".equals(option)) { // only shrink larger images
                     if (    (this.height == null && this.width >= original.width) ||
                             (this.width == null && this.height >= original.height) || //            -->  <-- this is an AND
                             (this.width != null && this.height != null && this.width >= original.width && this.height >= original.height)) {
@@ -926,7 +927,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                         actualHeight = actualDimension.height;
                     }
 
-                } else if (option.equals("<")) { // only enlarge smaller images
+                } else if ("<".equals(option)) { // only enlarge smaller images
                     if (    (this.height == null && this.width <= original.width) ||
                             (this.width == null && this.height <= original.height) || //             -->  <-- This is an OR
                             (this.width != null && this.height != null && (this.width <= original.width || this.height <= original.height))) {
@@ -1019,7 +1020,7 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class QualityCommand implements Command {
-        private Integer quality;
+        private final Integer quality;
 
         public QualityCommand(String quality) {
             this(ObjectUtils.to(Integer.class, quality));
@@ -1041,7 +1042,7 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class StripCommand implements Command {
-        private Boolean doStripMetadata;
+        private final Boolean doStripMetadata;
 
         public StripCommand(String value) {
             this(ObjectUtils.to(Boolean.class, value));
@@ -1063,7 +1064,7 @@ public class DimsImageEditor extends AbstractImageEditor {
     }
 
     private static class FormatCommand implements Command {
-        private ImageFormat format;
+        private final ImageFormat format;
 
         public FormatCommand(String value) {
             this(ObjectUtils.to(ImageFormat.class, value));
@@ -1130,7 +1131,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class FlipFlopCommand implements Command {
 
-        private String orientation;
+        private final String orientation;
 
         public FlipFlopCommand(String orientation) {
             this.orientation = orientation;
@@ -1149,7 +1150,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class GrayscaleCommand implements Command {
 
-        private Boolean grayscale;
+        private final Boolean grayscale;
 
         public GrayscaleCommand(Boolean grayscale) {
             this.grayscale = grayscale;
@@ -1172,7 +1173,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class InvertCommand implements Command {
 
-        private Boolean invert;
+        private final Boolean invert;
 
         public InvertCommand(Boolean invert) {
             this.invert = invert;
@@ -1195,7 +1196,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class RotateCommand implements ResizingCommand {
 
-        private Integer angle;
+        private final Integer angle;
 
         public RotateCommand(Integer angle) {
             this.angle = angle;
@@ -1232,7 +1233,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     private static class SepiaCommand implements Command {
 
-        private Double threshold;
+        private final Double threshold;
 
         public SepiaCommand(Double threshold) {
             this.threshold = threshold;

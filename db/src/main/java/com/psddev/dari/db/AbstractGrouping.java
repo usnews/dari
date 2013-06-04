@@ -120,7 +120,7 @@ public abstract class AbstractGrouping<T> implements Grouping<T>, HtmlObject {
         html.append("{keys=").append(keys);
         html.append(", count=").append(getCount());
         html.append(", aggregates=").append(aggregates);
-        html.append("}");
+        html.append('}');
         return html.toString();
     }
 
@@ -172,7 +172,7 @@ public abstract class AbstractGrouping<T> implements Grouping<T>, HtmlObject {
             html.append(", minimum=").append(getMinimum());
             html.append(", nonNullCount=").append(getNonNullCount());
             html.append(", sum=").append(getSum());
-            html.append("}");
+            html.append('}');
             return html.toString();
         }
     }

@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.MatchResult;
@@ -27,7 +28,10 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang.StringEscapeUtils;
 
 /** String utility methods. */
-public class StringUtils {
+public final class StringUtils {
+
+    private StringUtils() {
+    }
 
     public static final Charset US_ASCII = Charset.forName("US-ASCII");
     public static final Charset ISO_8859_1 = Charset.forName("ISO-8859-1");
@@ -243,7 +247,7 @@ public class StringUtils {
             }
 
             if (ABBREVIATIONS.contains(word)) {
-                nb.append(word.toUpperCase());
+                nb.append(word.toUpperCase(Locale.ENGLISH));
             } else {
                 nb.append(Character.toUpperCase(word.charAt(0)));
                 nb.append(word.substring(1));
@@ -255,7 +259,7 @@ public class StringUtils {
         }
 
         if (isQuestion) {
-            nb.append("?");
+            nb.append('?');
         }
 
         return nb.toString();
@@ -332,7 +336,7 @@ public class StringUtils {
                         }
                         if(quoteCount % 2 == 1) {
                             value = escaped[++i];
-                            builder.append(",");
+                            builder.append(',');
                         }
                     } while(quoteCount % 2 == 1);
                     value = builder.toString();
@@ -351,7 +355,7 @@ public class StringUtils {
         }
         StringBuilder builder = new StringBuilder();
         for (String string : strings) {
-            builder.append(escapeCsv(string)).append(",");
+            builder.append(escapeCsv(string)).append(',');
         }
         if (builder.length() > 0) {
             builder.setLength(builder.length()-1);
@@ -520,7 +524,7 @@ public class StringUtils {
 
         // Convert "path?a=b&c=d" to "&a=b&c=d".
         StringBuilder query = new StringBuilder();
-        int questionAt = uri.indexOf("?");
+        int questionAt = uri.indexOf('?');
         if (questionAt > -1) {
 
             String queryString = uri.substring(questionAt + 1);
@@ -533,12 +537,12 @@ public class StringUtils {
                 String param = queryString.substring(beginAt, ampIndex > -1 ? ampIndex : queryString.length());
 
                 if (!param.isEmpty() || ampIndex > -1) {
-                    query.append("&");
+                    query.append('&');
 
                     int equalsIndex = param.indexOf('=');
                     if (equalsIndex > -1) {
                         query.append(encodeUri(decodeUri(param.substring(0, equalsIndex))));
-                        query.append("=");
+                        query.append('=');
                         query.append(encodeUri(decodeUri(param.substring(equalsIndex+1))));
 
                     } else {
@@ -589,9 +593,9 @@ public class StringUtils {
                 if (value != null) {
                     for (Object item : ObjectUtils.to(Iterable.class, value)) {
                         if (item != null) {
-                            query.append("&");
+                            query.append('&');
                             query.append(encodeUri(name));
-                            query.append("=");
+                            query.append('=');
                             query.append(encodeUri(item instanceof Enum ?
                                     ((Enum<?>) item).name() :
                                     item.toString()));
@@ -633,7 +637,7 @@ public class StringUtils {
         if (uri != null) {
 
             // Strip out the path before the query string.
-            int questionAt = uri.indexOf("?");
+            int questionAt = uri.indexOf('?');
             if (questionAt > -1) {
                 uri = uri.substring(questionAt + 1);
             }
@@ -644,7 +648,7 @@ public class StringUtils {
             int prefixLength = prefix.length();
             for (int nameAt = 0; (nameAt = uri.indexOf(prefix, nameAt)) > -1;) {
                 nameAt += prefixLength;
-                int andAt = uri.indexOf("&", nameAt);
+                int andAt = uri.indexOf('&', nameAt);
                 values.add(decodeUri(andAt > -1 ?
                         uri.substring(nameAt, andAt) :
                         uri.substring(nameAt)));

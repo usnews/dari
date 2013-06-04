@@ -24,7 +24,7 @@ import com.psddev.dari.util.TypeDefinition;
 @SuppressWarnings("serial")
 public class InitializerServlet extends HttpServlet {
 
-    private final Map<Class<?>, Initializer> INITIALIZERS = new PullThroughCache<Class<?>, Initializer>() {
+    private static final Map<Class<?>, Initializer> INITIALIZERS = new PullThroughCache<Class<?>, Initializer>() {
 
         @Override
         protected Initializer produce(Class<?> initClass) {

@@ -106,7 +106,7 @@ public class HtmlGrid {
 
             if (templateStrings != null) {
                 for (String templateString : templateStrings) {
-                    t.append("\n");
+                    t.append('\n');
                     t.append(templateString);
                 }
             }
@@ -192,6 +192,9 @@ public class HtmlGrid {
     }
 
     public static final class Static {
+
+        private Static() {
+        }
 
         private static final Logger LOGGER = LoggerFactory.getLogger(HtmlGrid.class);
 
@@ -374,7 +377,7 @@ public class HtmlGrid {
 
                             for (String v : list) {
                                 t.append(v);
-                                t.append("\n");
+                                t.append('\n');
                             }
 
                             try {

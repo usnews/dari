@@ -56,7 +56,9 @@ public class BuildDebugServlet extends HttpServlet {
         Properties build = null;
         try {
             build = getProperties(context);
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            // If the build properties can't be read, pretend it's empty so
+            // that the default label can be returned.
         }
         if (build == null) {
             build = new Properties();
@@ -137,7 +139,7 @@ public class BuildDebugServlet extends HttpServlet {
                     int prefixAt = issueUrl.indexOf(prefix);
                     if (prefixAt > -1) {
                         prefixAt += prefix.length();
-                        int slashAt = issueUrl.indexOf("/", prefixAt);
+                        int slashAt = issueUrl.indexOf('/', prefixAt);
                         String jiraId = slashAt > -1 ?
                                 issueUrl.substring(prefixAt, slashAt) :
                                 issueUrl.substring(prefixAt);
@@ -314,7 +316,8 @@ public class BuildDebugServlet extends HttpServlet {
                     MessageDigest md5 = null;
                     try {
                         md5 = MessageDigest.getInstance("MD5");
-                    } catch (NoSuchAlgorithmException ex) {
+                    } catch (NoSuchAlgorithmException error) {
+                        throw new IllegalStateException(error);
                     }
 
                     try {
@@ -345,7 +348,8 @@ public class BuildDebugServlet extends HttpServlet {
                             }
                         }
 
-                    } catch (IOException ex) {
+                    } catch (IOException error) {
+                        writeObject(error);
                     }
 
                     writeEnd();

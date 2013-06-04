@@ -105,12 +105,7 @@ public class FrameFilter extends AbstractFilter {
 
         public final String donePath;
 
-        private final ServletOutputStream output = new ServletOutputStream() {
-            @Override
-            public void write(int b) {
-            }
-        };
-
+        private final ServletOutputStream output = new DiscardingOutputStream();
         private final PrintWriter writer = new PrintWriter(output);
 
         public DiscardingResponse(HttpServletResponse response, String donePath) {
@@ -126,6 +121,13 @@ public class FrameFilter extends AbstractFilter {
         @Override
         public PrintWriter getWriter() throws IOException {
             return writer;
+        }
+    }
+
+    private static final class DiscardingOutputStream extends ServletOutputStream {
+
+        @Override
+        public void write(int b) {
         }
     }
 }

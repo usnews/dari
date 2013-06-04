@@ -239,7 +239,7 @@ public class DistributedLock implements Lock {
         sb.append("{lockId=").append(lockId);
         sb.append(", database=").append(database);
         sb.append(", keyId=").append(keyId);
-        sb.append("}");
+        sb.append('}');
         return sb.toString();
     }
 

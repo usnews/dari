@@ -27,7 +27,7 @@ public interface SmsProvider extends SettingsBackedObject {
      */
     public static final class Static {
 
-        protected static final PullThroughCache<String, SmsProvider>
+        private static final PullThroughCache<String, SmsProvider>
                 INSTANCES = new PullThroughCache<String, SmsProvider>() {
 
             @Override

@@ -84,7 +84,8 @@ public class MultipartRequest extends HttpServletRequestWrapper {
         if (item.isFormField()) {
             try {
                 return item.getString("UTF-8");
-            } catch (UnsupportedEncodingException ex) {
+            } catch (UnsupportedEncodingException error) {
+                throw new IllegalStateException(error);
             }
         }
 

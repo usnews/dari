@@ -570,6 +570,7 @@ public class State implements Map<String, Object> {
                             continue KEY;
 
                         } catch (NoSuchMethodException error) {
+                            // Try to find the method in the super class.
 
                         } catch (Exception error) {
                             ErrorUtils.rethrow(error);
@@ -725,11 +726,11 @@ public class State implements Map<String, Object> {
                     StringBuilder builder2 = new StringBuilder();
 
                     if (parentFieldName != null) {
-                        builder.append(parentFieldName).append("/");
-                        builder2.append(parentFieldName).append("/");
+                        builder.append(parentFieldName).append('/');
+                        builder2.append(parentFieldName).append('/');
                     }
-                    builder.append(field.getInternalName()).append("/");
-                    builder2.append(field.getInternalName()).append("/");
+                    builder.append(field.getInternalName()).append('/');
+                    builder2.append(field.getInternalName()).append('/');
                     builder.append(i.getField());
                     builder2.append(i.getUniqueName());
 
@@ -977,7 +978,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveToReferenceOnly() {
-        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
+        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) != 0;
     }
 
     public void setResolveToReferenceOnly(boolean resolveToReferenceOnly) {
@@ -1001,7 +1002,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveUsingMaster() {
-        return (flags & RESOLVE_USING_MASTER) > 0;
+        return (flags & RESOLVE_USING_MASTER) != 0;
     }
 
     public void setResolveUsingMaster(boolean resolveUsingMaster) {
@@ -1013,7 +1014,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveInvisible() {
-        return (flags & RESOLVE_INVISIBLE) > 0;
+        return (flags & RESOLVE_INVISIBLE) != 0;
     }
 
     public void setResolveInvisible(boolean resolveInvisible) {
@@ -1084,7 +1085,7 @@ public class State implements Map<String, Object> {
 
                     } else if (value instanceof Iterable<?>) {
                         StringBuilder iterableLabel = new StringBuilder();
-                        iterableLabel.append("[");
+                        iterableLabel.append('[');
 
                         for (Object item : (Iterable<?>) value) {
                             if (item instanceof Recordable) {
@@ -1098,7 +1099,7 @@ public class State implements Map<String, Object> {
                         if (iterableLabel.length() > 2) {
                             iterableLabel.setLength(iterableLabel.length() - 2);
                         }
-                        iterableLabel.append("]");
+                        iterableLabel.append(']');
                         valueString = iterableLabel.toString();
 
                     } else {
@@ -1229,12 +1230,12 @@ public class State implements Map<String, Object> {
      * @param field If {@code null}, resolves all references.
      */
     public void resolveReference(String field) {
-        if ((flags & ALL_RESOLVED_FLAG) > 0) {
+        if ((flags & ALL_RESOLVED_FLAG) != 0) {
             return;
         }
 
         synchronized (this) {
-            if ((flags & ALL_RESOLVED_FLAG) > 0) {
+            if ((flags & ALL_RESOLVED_FLAG) != 0) {
                 return;
             }
 
@@ -1394,6 +1395,7 @@ public class State implements Map<String, Object> {
                     return;
 
                 } catch (IllegalArgumentException error) {
+                    // Ignore since it will be retried below.
                 }
             }
 
@@ -1646,7 +1648,7 @@ public class State implements Map<String, Object> {
         sb.append(", simpleValues=").append(getSimpleValues());
         sb.append(", extras=").append(extras);
         sb.append(", errors=").append(errors);
-        sb.append("}");
+        sb.append('}');
         return sb.toString();
     }
 

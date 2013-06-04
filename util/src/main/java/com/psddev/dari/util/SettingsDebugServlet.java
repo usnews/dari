@@ -5,6 +5,7 @@ import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -14,11 +15,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Debug servlet for inspecting {@linkplain Settings global settings}. */
 @DebugFilter.Path("settings")
 public class SettingsDebugServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SettingsDebugServlet.class);
 
     // --- HttpServlet support ---
 
@@ -39,7 +44,7 @@ public class SettingsDebugServlet extends HttpServlet {
                 writeStart("tbody");
                     for (Map.Entry<String, Object> entry : flatten(Settings.asMap()).entrySet()) {
                         String key = entry.getKey();
-                        String keyLowered = key.toLowerCase();
+                        String keyLowered = key.toLowerCase(Locale.ENGLISH);
                         Object value = entry.getValue();
 
                         writeStart("tr");
@@ -83,15 +88,21 @@ public class SettingsDebugServlet extends HttpServlet {
                 Map<String, Object> map = new TreeMap<String, Object>();
 
                 for (PropertyDescriptor desc : Introspector.getBeanInfo(value.getClass()).getPropertyDescriptors()) {
+                    String name = desc.getName();
+
                     try {
                         Method getter = desc.getReadMethod();
                         Method setter = desc.getWriteMethod();
 
                         if (getter != null && setter != null) {
                             getter.setAccessible(true);
-                            map.put(desc.getName(), getter.invoke(value));
+                            map.put(name, getter.invoke(value));
                         }
                     } catch (Exception error) {
+                        LOGGER.debug(String.format(
+                                "Can't read [%s] from an instance of [%s] stored in [%s]!",
+                                name, value.getClass(), key),
+                                error);
                     }
                 }
 

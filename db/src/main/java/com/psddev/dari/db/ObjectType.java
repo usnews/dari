@@ -40,7 +40,7 @@ public class ObjectType extends Record implements ObjectStruct {
             LOGGER = LoggerFactory.getLogger(ObjectType.class);
 
     // Cache that contains record and field annotation processors.
-    private static Map<Class<?>, Object>
+    private static final Map<Class<?>, Object>
             ANNOTATION_PROCESSORS = new PullThroughCache<Class<?>, Object>() {
 
         @Override

@@ -333,7 +333,7 @@ public interface StorageItem extends SettingsBackedObject {
                                 }
 
                                 // Look into CSS files and change all the URLs.
-                                if (contentType.equals("text/css")) {
+                                if ("text/css".equals(contentType)) {
                                     String css = new String(source, StringUtils.UTF_8);
                                     StringBuilder newCssBuilder = new StringBuilder();
                                     Matcher urlMatcher = CSS_URL_PATTERN.matcher(css);
@@ -377,7 +377,7 @@ public interface StorageItem extends SettingsBackedObject {
                                             }
                                         }
 
-                                        newCssBuilder.append(")");
+                                        newCssBuilder.append(')');
                                     }
 
                                     newCssBuilder.append(css.substring(previous, css.length()));

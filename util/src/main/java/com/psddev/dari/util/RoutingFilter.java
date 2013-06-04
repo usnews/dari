@@ -60,13 +60,15 @@ public class RoutingFilter extends AbstractFilter {
             }
         }
 
-        Collections.sort(servletWrappers, new Comparator<ServletWrapper>() {
-            @Override
-            public int compare(ServletWrapper x, ServletWrapper y) {
-                return y.getPath().length() - x.getPath().length();
-            }
-        });
+        Collections.sort(servletWrappers, PATH_LENGTH_COMPARATOR);
     }
+
+    private static final Comparator<ServletWrapper> PATH_LENGTH_COMPARATOR = new Comparator<ServletWrapper>() {
+        @Override
+        public int compare(ServletWrapper x, ServletWrapper y) {
+            return y.getPath().length() - x.getPath().length();
+        }
+    };
 
     @Override
     protected void doDestroy() {

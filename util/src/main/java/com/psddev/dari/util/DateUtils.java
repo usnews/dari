@@ -13,7 +13,10 @@ import org.joda.time.format.DateTimeFormatter;
 
 /** @deprecated Use <a href="http://joda-time.sourceforge.net/">Joda Time</a> instead. */
 @Deprecated
-public class DateUtils {
+public final class DateUtils {
+
+    private DateUtils() {
+    }
 
     private static final long DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -60,13 +63,15 @@ public class DateUtils {
         string = string.trim();
         try {
             return new Date(FORMATTERS.get(format).parseMillis(string));
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException error) {
+            // Try a different conversion or error below.
         }
 
         if (format.contains("z")) {
             try {
                 return new SimpleDateFormat(format).parse(string);
-            } catch (ParseException ex) {
+            } catch (ParseException error) {
+                // Error below.
             }
         }
 
@@ -95,13 +100,15 @@ public class DateUtils {
 
             try {
                 return new Date(FORMATTERS.get(format).parseMillis(string));
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException error) {
+                // Try a different conversion or the next format.
             }
 
             if (format.contains("z")) {
                 try {
                     return new SimpleDateFormat(format).parse(string);
-                } catch (ParseException ex) {
+                } catch (ParseException error) {
+                    // Try the next format.
                 }
             }
         }

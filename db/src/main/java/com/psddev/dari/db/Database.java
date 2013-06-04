@@ -18,7 +18,6 @@ import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsBackedObject;
 import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.TypeReference;
 
 /** Database of objects. */
 public interface Database extends SettingsBackedObject {
@@ -157,7 +156,7 @@ public interface Database extends SettingsBackedObject {
         private static final ThreadLocal<Deque<Database>> DEFAULT_OVERRIDES = new ThreadLocal<Deque<Database>>();
         private static final ThreadLocal<Boolean> IGNORE_READ_CONNECTION = new ThreadLocal<Boolean>();
 
-        protected static final PullThroughCache<String, Database> INSTANCES = new PullThroughCache<String, Database>() {
+        private static final PullThroughCache<String, Database> INSTANCES = new PullThroughCache<String, Database>() {
             @Override
             public Database produce(String name) {
                 Database database = Settings.newInstance(Database.class, SETTING_PREFIX + "/" + name);
@@ -310,7 +309,8 @@ public interface Database extends SettingsBackedObject {
             for (String name : getNames()) {
                 try {
                     addByClass(databases, databaseClass, getInstance(name));
-                } catch (SettingsException ex) {
+                } catch (SettingsException error) {
+                    // Ignore misconfigured databases.
                 }
             }
             return databases;

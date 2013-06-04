@@ -29,6 +29,9 @@ public abstract class Predicate extends Record {
     @Deprecated
     public static final class Static {
 
+        private Static() {
+        }
+
         /** @deprecated Use {@link PredicateParser.Static#parse} instead. */
         @Deprecated
         public static Predicate parse(String predicateString, Object... parameters) {

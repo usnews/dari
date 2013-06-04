@@ -27,7 +27,10 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 /** Global map of settings. */
-public class Settings {
+public final class Settings {
+
+    private Settings() {
+    }
 
     /**
      * Sub-key used to identify the implementation class for
@@ -97,7 +100,8 @@ public class Settings {
                     // JNDI.
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
-                    } catch (Throwable error) {
+                    } catch (NamingException error) {
+                        LOGGER.warn("Can't read from JNDI!", error);
                     }
 
                     return Collections.unmodifiableMap(settings);
@@ -434,7 +438,8 @@ public class Settings {
 
         } catch (ExecutionException error) {
             throw new SettingsException(classKey, String.format(
-                    "[%s] doesn't have a nullary constructor!"));
+                    "[%s] doesn't have a nullary constructor!",
+                    instanceClass.getName()));
         }
 
         T object;

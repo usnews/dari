@@ -9,7 +9,10 @@ import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.Task;
 
-class MetricIncrementQueue {
+final class MetricIncrementQueue {
+
+    private MetricIncrementQueue() {
+    }
 
     // private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
 
@@ -30,7 +33,9 @@ class MetricIncrementQueue {
         QueuedMetricIncrement placeholder = new QueuedMetricIncrement(metricDatabase, dimensionId, 0d);
         while (true) {
             QueuedMetricIncrement current = queuedIncrements.putIfAbsent(key, placeholder);
-            if (current == null) current = placeholder;
+            if (current == null) {
+                current = placeholder;
+            }
             QueuedMetricIncrement next = new QueuedMetricIncrement(metricDatabase, dimensionId, current.amount + amount);
             if (queuedIncrements.replace(key, current, next)) {
                 return;
@@ -79,7 +84,7 @@ class MetricIncrementQueueTask extends Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
     private static MetricIncrementQueueTask instance;
 
-    private transient ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
+    private final transient ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
 
     private MetricIncrementQueueTask(ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
         this.queuedIncrements = queuedIncrements;
@@ -96,7 +101,9 @@ class MetricIncrementQueueTask extends Task {
 
         // LOGGER.info("EXECUTING MetricIncrementQueueTask");
         while (true) {
-            if (queuedIncrements.isEmpty()) break;
+            if (queuedIncrements.isEmpty()) {
+                break;
+            }
             String key = queuedIncrements.keySet().iterator().next();
             QueuedMetricIncrement queuedIncrement = queuedIncrements.remove(key);
             // LOGGER.info("Incrementing : " + queuedIncrement.metricDatabase.toKeyString() + " : " + queuedIncrement.dimensionId.toKeyString() + " += " + queuedIncrement.amount );

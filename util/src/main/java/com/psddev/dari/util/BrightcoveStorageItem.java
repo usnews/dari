@@ -64,6 +64,8 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
     /** Setting key for Brightcove player ID for preview player */
     public static final String PREVIEW_PLAYER_ID_SETTING = "previewPlayerId";
 
+    private static final TypeReference<List<String>> LIST_STRING_TYPE = new TypeReference<List<String>>() { };
+
     private transient String readServiceUrl;
     private transient String writeServiceUrl;
     private transient String readToken;
@@ -549,8 +551,8 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         try {
             requestUrl.append(getReadServiceUrl());
             requestUrl.append("?command=find_video_by_id");
-            requestUrl.append("&token=" + getReadUrlToken());
-            requestUrl.append("&video_id=" + getBrightcoveId());
+            requestUrl.append("&token=").append(getReadUrlToken());
+            requestUrl.append("&video_id=").append(getBrightcoveId());
             requestUrl.append("&video_fields=FLVURL");
 
             HttpGet httpGet = new HttpGet(requestUrl.toString());
@@ -786,7 +788,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("tags"))) {
-            this.tags = ObjectUtils.to(new TypeReference<List<String>>()  {}, videoJson.get("tags"));
+            this.tags = ObjectUtils.to(LIST_STRING_TYPE, videoJson.get("tags"));
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("videoStillURL"))) {
@@ -932,20 +934,20 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         if(getBrightcoveId() != null) {
             // append "find_video_by_id" as the "command" parameter (differs significantly from the POST methods)
             requestUrl.append("?command=find_video_by_id");
-            requestUrl.append("&video_id=" + getBrightcoveId());
+            requestUrl.append("&video_id=").append(getBrightcoveId());
         } else if(getReferenceId() != null) {
             // append "find_vide_by_reference_id" as the "command" parameter
             requestUrl.append("?command=find_video_by_reference_id");
-            requestUrl.append("&reference_id=" + getReferenceId());
+            requestUrl.append("&reference_id=").append(getReferenceId());
         } else {
             throw new IllegalStateException("brightcoveId and referenceId are both null.");
         }
 
         // set readUrlToken or readToken as the "token" parameter or throw an exception if both are null.
         if(this.readUrlToken != null) {
-            requestUrl.append("&token=" + this.readUrlToken);
+            requestUrl.append("&token=").append(this.readUrlToken);
         } else if(this.readToken != null) {
-            requestUrl.append("&token=" + this.readToken);
+            requestUrl.append("&token=").append(this.readToken);
         } else {
             throw new IllegalStateException("Both readToken and readUrlToken are null.");
         }

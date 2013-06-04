@@ -28,27 +28,33 @@ public class SessionIdFilter extends AbstractFilter {
             }
         }
 
-        chain.doFilter(request, new HttpServletResponseWrapper(response) {
-
-            @Override
-            public String encodeRedirectUrl(String url) {
-                return url;
-            }
-
-            @Override
-            public String encodeRedirectURL(String url) {
-                return url;
-            }
-
-            @Override
-            public String encodeUrl(String url) {
-                return url;
-            }
-
-            @Override
-            public String encodeURL(String url) {
-                return url;
-            }
-        });
+        chain.doFilter(request, new StrippingResponse(response));
     }
+
+    private static final class StrippingResponse extends HttpServletResponseWrapper {
+
+        public StrippingResponse(HttpServletResponse response) {
+            super(response);
+        }
+
+        @Override
+        public String encodeRedirectUrl(String url) {
+            return url;
+        }
+
+        @Override
+        public String encodeRedirectURL(String url) {
+            return url;
+        }
+
+        @Override
+        public String encodeUrl(String url) {
+            return url;
+        }
+
+        @Override
+        public String encodeURL(String url) {
+            return url;
+        }
+}
 }

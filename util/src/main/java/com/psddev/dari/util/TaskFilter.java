@@ -3,8 +3,13 @@ package com.psddev.dari.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Cleans up after any resources opened by {@link Task}. */
 public class TaskFilter extends AbstractFilter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TaskFilter.class);
 
     private final List<Task> tasks = new ArrayList<Task>();
 
@@ -18,7 +23,10 @@ public class TaskFilter extends AbstractFilter {
                 tasks.add(task);
 
             } catch (IllegalAccessException error) {
+                LOGGER.warn(String.format("Can't create [%s] task!", taskClass.getName()), error);
+
             } catch (InstantiationException error) {
+                LOGGER.warn(String.format("Can't create [%s] task!", taskClass.getName()), error.getCause());
             }
         }
     }

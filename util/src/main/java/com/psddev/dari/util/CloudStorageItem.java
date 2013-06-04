@@ -161,7 +161,7 @@ public class CloudStorageItem extends AbstractStorageItem {
 
                 @SuppressWarnings("unchecked")
                 Map<String, List<String>> headers = (Map<String, List<String>>) metadata.get("http.headers");
-                if (headers != null) for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                if (headers != null) { for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
 
                     String key = entry.getKey();
                     List<String> values = entry.getValue();
@@ -198,7 +198,7 @@ public class CloudStorageItem extends AbstractStorageItem {
                             }
                         }
                     }
-                }
+                } }
 
                 // TODO: Decide which additional metadata is relevant to this StorageItem
                 /*

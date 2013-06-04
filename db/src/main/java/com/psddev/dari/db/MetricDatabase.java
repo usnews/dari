@@ -104,11 +104,11 @@ class MetricDatabase {
     public String toKeyString() {
         StringBuilder str = new StringBuilder();
         str.append(getId());
-        str.append(":");
+        str.append(':');
         str.append(getTypeId());
-        str.append(":");
+        str.append(':');
         str.append(getSymbolId());
-        str.append(":");
+        str.append(':');
         str.append(getEventDate());
         return str.toString();
     }
@@ -195,12 +195,18 @@ class MetricDatabase {
     }
 
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
-        if (amount == 0) return; // This actually causes some problems if it's not here
+        // This actually causes some problems if it's not here
+        if (amount == 0) {
+            return;
+        }
         Static.doIncrementUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), amount, getEventDate(), isImplicitEventDate);
     }
 
     public void incrementMetricByDimensionId(UUID dimensionId, Double amount) throws SQLException {
-        if (amount == 0) return; // This actually causes some problems if it's not here
+        // This actually causes some problems if it's not here
+        if (amount == 0) {
+            return;
+        }
         Static.doIncrementUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), dimensionId, amount, getEventDate(), isImplicitEventDate);
     }
 
@@ -274,26 +280,26 @@ class MetricDatabase {
 
             StringBuilder maxDataBuilder = new StringBuilder("MAX(");
             vendor.appendIdentifier(maxDataBuilder, METRIC_DATA_FIELD);
-            maxDataBuilder.append(")");
+            maxDataBuilder.append(')');
             if (doDecodeToBytes) {
                 vendor.appendMetricDataBytes(sqlBuilder, maxDataBuilder.toString());
             } else {
                 sqlBuilder.append(maxDataBuilder);
             }
-            sqlBuilder.append(" ");
+            sqlBuilder.append(' ');
             vendor.appendIdentifier(sqlBuilder, "maxData");
 
             if (selectMinData) {
                 sqlBuilder.append(", ");
                 StringBuilder minDataBuilder = new StringBuilder("MIN(");
                 vendor.appendIdentifier(minDataBuilder, METRIC_DATA_FIELD);
-                minDataBuilder.append(")");
+                minDataBuilder.append(')');
                 if (doDecodeToBytes) {
                     vendor.appendMetricDataBytes(sqlBuilder, minDataBuilder.toString());
                 } else {
                 sqlBuilder.append(minDataBuilder);
                 }
-                sqlBuilder.append(" ");
+                sqlBuilder.append(' ');
                 vendor.appendIdentifier(sqlBuilder, "minData");
             }
 
@@ -377,7 +383,7 @@ class MetricDatabase {
             sqlBuilder.append("SELECT ");
             StringBuilder dimValField = new StringBuilder();
             vendor.appendIdentifier(dimValField, "d");
-            dimValField.append(".");
+            dimValField.append('.');
             vendor.appendIdentifier(dimValField, METRIC_DIMENSION_VALUE_FIELD);
             sqlBuilder.append(vendor.convertRawToStringSql(METRIC_DIMENSION_VALUE_FIELD));
             sqlBuilder.append(", ");
@@ -387,20 +393,20 @@ class MetricDatabase {
             sqlBuilder.append(") x ");
             sqlBuilder.append(" JOIN "); // This could be a left join if we want to include NULL dimension values in this query.
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_TABLE);
-            sqlBuilder.append(" ");
+            sqlBuilder.append(' ');
             vendor.appendIdentifier(sqlBuilder, "d");
             sqlBuilder.append(" ON (");
             vendor.appendIdentifier(sqlBuilder, "x");
-            sqlBuilder.append(".");
+            sqlBuilder.append('.');
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
             sqlBuilder.append(" = ");
             vendor.appendIdentifier(sqlBuilder, "d");
-            sqlBuilder.append(".");
+            sqlBuilder.append('.');
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
-            sqlBuilder.append(")");
+            sqlBuilder.append(')');
             sqlBuilder.append(" GROUP BY ");
             vendor.appendIdentifier(sqlBuilder, "d");
-            sqlBuilder.append(".");
+            sqlBuilder.append('.');
             vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_VALUE_FIELD);
 
             return sqlBuilder.toString();
@@ -414,7 +420,7 @@ class MetricDatabase {
             vendor.appendMetricSelectTimestampSql(extraSelectSqlBuilder, METRIC_DATA_FIELD);
             extraSelectSqlBuilder.append(") * ");
             vendor.appendValue(extraSelectSqlBuilder, DATE_DECIMAL_SHIFT);
-            extraSelectSqlBuilder.append(" ");
+            extraSelectSqlBuilder.append(' ');
             vendor.appendIdentifier(extraSelectSqlBuilder, "eventDate");
 
             StringBuilder extraGroupBySqlBuilder = new StringBuilder();
@@ -524,7 +530,7 @@ class MetricDatabase {
                 insertBuilder.append(", ");
             }
             vendor.appendBindMetricBytes(insertBuilder, toBytes(eventDate, cumulativeAmount, amount), parameters);
-            insertBuilder.append(")");
+            insertBuilder.append(')');
             return insertBuilder.toString();
         }
 
@@ -574,7 +580,7 @@ class MetricDatabase {
             vendor.appendBindValue(insertBuilder, dimensionId, parameters);
             insertBuilder.append(", ");
             vendor.appendBindValue(insertBuilder, dimensionValue, parameters);
-            insertBuilder.append(")");
+            insertBuilder.append(')');
             return insertBuilder.toString();
         }
 
@@ -583,8 +589,10 @@ class MetricDatabase {
         public static void appendSelectCalculatedAmountSql(StringBuilder str, SqlVendor vendor, String minDataColumnIdentifier, String maxDataColumnIdentifier, boolean includeSum) {
 
             str.append("ROUND(");
-            if (includeSum) str.append("SUM");
-            str.append("(");
+            if (includeSum) {
+                str.append("SUM");
+            }
+            str.append('(');
             vendor.appendMetricSelectAmountSql(str, maxDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
             str.append(" - (");
             vendor.appendMetricSelectAmountSql(str, minDataColumnIdentifier, CUMULATIVEAMOUNT_POSITION);
@@ -592,10 +600,10 @@ class MetricDatabase {
             vendor.appendMetricSelectAmountSql(str, minDataColumnIdentifier, AMOUNT_POSITION);
             str.append(") ");
 
-            str.append(")");
+            str.append(')');
             str.append(" / ");
             vendor.appendValue(str, AMOUNT_DECIMAL_SHIFT);
-            str.append(",");
+            str.append(',');
             vendor.appendValue(str, AMOUNT_DECIMAL_PLACES);
             str.append(") ");
 
@@ -848,12 +856,18 @@ class MetricDatabase {
         private static Double getMetricByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate) throws SQLException {
             if (minEventDate == null) {
                 byte[] data = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate);
-                if (data == null) return null;
+                if (data == null) {
+                    return null;
+                }
                 return amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
             } else {
                 List<byte[]> datas = getMinMaxDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate);
-                if (datas.size() == 0) return null;
-                if (datas.get(0) == null) return null;
+                if (datas.size() == 0) {
+                    return null;
+                }
+                if (datas.get(0) == null) {
+                    return null;
+                }
                 double maxCumulativeAmount = amountFromBytes(datas.get(0), CUMULATIVEAMOUNT_POSITION);
                 double minCumulativeAmount = amountFromBytes(datas.get(1), CUMULATIVEAMOUNT_POSITION);
                 double minAmount = amountFromBytes(datas.get(1), AMOUNT_POSITION);

@@ -41,7 +41,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** JSP utility methods. */
-public class JspUtils {
+public final class JspUtils {
+
+    private JspUtils() {
+    }
 
     private static final Pattern ABSOLUTE_URI_PATTERN = Pattern.compile("(?i)[a-z][-a-z0-9+.]*:.*");
     private static final String DEFAULT_COOKIE_SECRET = UUID.randomUUID().toString();
@@ -97,8 +100,11 @@ public class JspUtils {
                 try {
                     byte[] decodedBytes = DatatypeConverter.parseBase64Binary(authHeader.substring(spaceAt + 1));
                     decoded = new String(decodedBytes, encoding);
-                } catch (IllegalArgumentException ex) {
-                } catch (UnsupportedEncodingException ex) {
+                } catch (IllegalArgumentException error) {
+                    // Not a valid Base64 string, so just ignore the header
+                    // value.
+                } catch (UnsupportedEncodingException error) {
+                    throw new IllegalStateException(error);
                 }
 
                 if (!ObjectUtils.isBlank(decoded)) {
@@ -115,7 +121,7 @@ public class JspUtils {
         StringBuilder hb = new StringBuilder();
         hb.append("Basic realm=\"");
         hb.append(StringUtils.replaceAll(realm, "\"", "\\\""));
-        hb.append("\"");
+        hb.append('"');
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setHeader("WWW-Authenticate", hb.toString());
@@ -558,7 +564,7 @@ public class JspUtils {
 
             connection.connect();
 
-            if (method.equals("POST")) {
+            if ("POST".equalsIgnoreCase(method)) {
                 connectionOut = new BufferedOutputStream(connection.getOutputStream());
                 // first try to get the input stream
                 try {
@@ -851,8 +857,11 @@ public class JspUtils {
                 String pathString = pathUri.toString();
                 contextPath = pathString.substring(0, pathString.length() - 1);
 
-            } catch (MalformedURLException ex) {
-            } catch (URISyntaxException ex) {
+            } catch (MalformedURLException error) {
+                // Default context path if the given path is malformed.
+
+            } catch (URISyntaxException error) {
+                // Default context path if the resolved URI is malformed.
             }
 
             if (contextPath == null) {
@@ -913,7 +922,10 @@ public class JspUtils {
                         } finally {
                             input.close();
                         }
-                    } catch (IOException ex) {
+                    } catch (IOException error) {
+                        LOGGER.warn(String.format(
+                                "Can't read [%s] settings file!", file),
+                                error);
                     }
                 }
 

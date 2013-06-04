@@ -196,7 +196,7 @@ public class CodeDebugServlet extends HttpServlet {
                 codeBuilder.append("*;\n");
             }
 
-            codeBuilder.append("\n");
+            codeBuilder.append('\n');
             codeBuilder.append("public class Code {\n");
             codeBuilder.append("    public static Object main() throws Throwable {\n");
 

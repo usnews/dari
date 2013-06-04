@@ -38,7 +38,7 @@ public abstract class ObjectUtils {
     }
 
     // Because Class.forName is pretty slow.
-    private static Map<ClassLoader, Map<String, Class<?>>>
+    private static final Map<ClassLoader, Map<String, Class<?>>>
             CLASSES_BY_LOADER = new PullThroughCache<ClassLoader, Map<String, Class<?>>>() {
 
         @Override
@@ -50,8 +50,10 @@ public abstract class ObjectUtils {
                     if (name != null) {
                         try {
                             return Class.forName(name, false, loader);
-                        } catch (ClassNotFoundException ex) {
-                        } catch (NoClassDefFoundError ex) {
+                        } catch (ClassNotFoundException error) {
+                            // Falls through to return null below.
+                        } catch (NoClassDefFoundError error) {
+                            // Falls through to return null below.
                         }
                     }
                     return null;
@@ -223,7 +225,14 @@ public abstract class ObjectUtils {
 
         } else if (object instanceof String) {
             String string = (String) object;
-            return string.length() == 0 || string.trim().length() == 0;
+
+            for (int i = 0, length = string.length(); i < length; ++ i) {
+                if (!Character.isWhitespace(string.charAt(i))) {
+                    return false;
+                }
+            }
+
+            return true;
 
         } else if (object instanceof Collection) {
             return ((Collection<?>) object).isEmpty();
@@ -524,13 +533,15 @@ public abstract class ObjectUtils {
 
             try {
                 getter = c.getDeclaredMethod(name);
-            } catch (NoSuchMethodException ex) {
+            } catch (NoSuchMethodException error) {
+                // Try the next getter check.
             }
 
             if (getter == null) {
                 try {
                     getter = c.getDeclaredMethod("get" + capitalize(name));
-                } catch (NoSuchMethodException ex) {
+                } catch (NoSuchMethodException error) {
+                    // Getter doesn't exist. Oh well.
                 }
             }
 
@@ -555,13 +566,15 @@ public abstract class ObjectUtils {
 
                 try {
                     field = c.getDeclaredField(name);
-                } catch (NoSuchFieldException ex) {
+                } catch (NoSuchFieldException error) {
+                    // Try the next field check.
                 }
 
                 if (field == null) {
                     try {
                         field = c.getDeclaredField("_" + name);
-                    } catch (NoSuchFieldException ex) {
+                    } catch (NoSuchFieldException error) {
+                        // Field doesn't exist. Oh well.
                     }
                 }
 

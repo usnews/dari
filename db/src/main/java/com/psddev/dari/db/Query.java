@@ -15,6 +15,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
@@ -122,6 +125,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Query.class);
+
     private final String group;
     private final transient Class<?> objectClass;
 
@@ -135,7 +140,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private boolean resolveInvisible;
     private Double timeout;
     private transient Map<String, Object> options;
-    private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
+    private final transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
@@ -1016,8 +1021,10 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         @Override
         public String getHashAttribute() {
-            if (hashAttribute == null) return null;
-            return hashAttribute.toLowerCase();
+            if (hashAttribute == null) {
+                return null;
+            }
+            return hashAttribute.toLowerCase(Locale.ENGLISH);
         }
     }
 
@@ -1224,32 +1231,32 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         for (Sorter sorter : getSorters()) {
             codeBuilder.append(".sort(\"");
             codeBuilder.append(sorter.getOperator());
-            codeBuilder.append("\"");
+            codeBuilder.append('"');
             for (Object option : sorter.getOptions()) {
                 codeBuilder.append(", ");
                 if (option instanceof String) {
-                    codeBuilder.append("\"");
+                    codeBuilder.append('"');
                     codeBuilder.append(((String) option).replaceAll("\"", "\\\""));
-                    codeBuilder.append("\"");
+                    codeBuilder.append('"');
                 } else {
                     codeBuilder.append(option);
                 }
             }
-            codeBuilder.append(")");
+            codeBuilder.append(')');
         }
 
         List<String> fields = getFields();
         if (fields != null) {
             codeBuilder.append(".fields(");
             for (String field : fields) {
-                codeBuilder.append("\"");
+                codeBuilder.append('"');
                 codeBuilder.append(field);
                 codeBuilder.append("\", ");
             }
             if (!fields.isEmpty()) {
                 codeBuilder.setLength(codeBuilder.length() - 2);
             }
-            codeBuilder.append(")");
+            codeBuilder.append(')');
         }
 
         writer.writeStart("span", "class", "dari-query");
@@ -1326,7 +1333,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         stringBuilder.append(", isResolveToReferenceOnly=").append(isResolveToReferenceOnly);
         stringBuilder.append(", timeout=").append(timeout);
         stringBuilder.append(", options=").append(options);
-        stringBuilder.append("}");
+        stringBuilder.append('}');
         return stringBuilder.toString();
     }
 
@@ -1467,6 +1474,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                 try {
                     ((Closeable) iterator).close();
                 } catch (IOException error) {
+                    LOGGER.debug("Can't close iterator [{}]!", iterator);
                 }
             }
         }

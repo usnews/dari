@@ -209,12 +209,7 @@ public class DebugFilter extends AbstractFilter {
         if (!ObjectUtils.isBlank(action)) {
             ServletWrapper wrapper = debugServletWrappers.get().get(action);
             if (wrapper != null) {
-                wrapper.serviceServlet(new HttpServletRequestWrapper(request) {
-                    @Override
-                    public String getPathInfo() {
-                        return pathInfo;
-                    }
-                }, response);
+                wrapper.serviceServlet(new PathInfoOverrideRequest(request, pathInfo), response);
                 return;
             }
 
@@ -224,7 +219,10 @@ public class DebugFilter extends AbstractFilter {
                     JspUtils.forward(request, response, actionJsp);
                     return;
                 }
-            } catch (MalformedURLException ex) {
+            } catch (MalformedURLException error) {
+                // If actionJsp isn't a valid URL, pretend that the action
+                // parameter wasn't provided by falling through to the code
+                // path below.
             }
         }
 
@@ -317,6 +315,21 @@ public class DebugFilter extends AbstractFilter {
                 writeEnd();
             endPage();
         }};
+    }
+
+    private static final class PathInfoOverrideRequest extends HttpServletRequestWrapper {
+
+        private final String pathInfo;
+
+        public PathInfoOverrideRequest(HttpServletRequest request, String pathInfo) {
+            super(request);
+            this.pathInfo = pathInfo;
+        }
+
+        @Override
+        public String getPathInfo() {
+            return pathInfo;
+        }
     }
 
     /** {@link DebugFilter} utility methods. */
