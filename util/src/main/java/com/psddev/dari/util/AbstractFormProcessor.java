@@ -96,7 +96,7 @@ public abstract class AbstractFormProcessor implements FormProcessor {
                 if (writeMethod != null) {
                     Type[] parameterTypes = writeMethod.getGenericParameterTypes();
 
-                    if (parameterTypes != null && parameterTypes.length == 1) {
+                    if (parameterTypes.length == 1) {
                         String name = desc.getName();
 
                         if (!names.contains(name)) {

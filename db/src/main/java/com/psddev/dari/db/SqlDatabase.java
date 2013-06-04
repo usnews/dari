@@ -788,7 +788,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (loadExtraFields != null && !loadExtraFields.isEmpty()) {
+        if (!loadExtraFields.isEmpty()) {
             Connection connection = extraConnectionRef.getOrOpen(query);
 
             for (ObjectField field : loadExtraFields) {
@@ -1590,7 +1590,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
 
             if (result.next()) {
-                Double date = result.getDouble(1);
+                Double date = ObjectUtils.to(Double.class, result.getObject(1));
                 if (date != null) {
                     return new Date((long) (date * 1000L));
                 }

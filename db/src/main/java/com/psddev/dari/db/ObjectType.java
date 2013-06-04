@@ -496,11 +496,7 @@ public class ObjectType extends Record implements ObjectStruct {
         Set<String> indexed = new HashSet<String>();
 
         for (ObjectIndex index : getIndexes()) {
-            List<String> fields = index.getFields();
-
-            if (fields != null) {
-                indexed.addAll(fields);
-            }
+            indexed.addAll(index.getFields());
         }
 
         List<ObjectField> fields = getFields();

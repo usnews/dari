@@ -163,19 +163,17 @@ class SqlQuery {
         Set<ObjectField> sourceTables = new HashSet<ObjectField>();
         Set<ObjectType> queryTypes = query.getConcreteTypes(database.getEnvironment());
 
-        if (queryTypes != null) {
-            for (ObjectType type : queryTypes) {
-                for (ObjectField field : type.getFields()) {
-                    SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
-                    if (fieldData.isIndexTableSource() &&
-                            fieldData.getIndexTable() != null &&
-                            ! metricFieldData.isMetricValue()) {
-                        // TODO/performance: if this is a count(), don't join to this table.
-                        // if this is a groupBy() and they don't want to group by
-                        // a field in this table, don't join to this table.
-                        sourceTables.add(field);
-                    }
+        for (ObjectType type : queryTypes) {
+            for (ObjectField field : type.getFields()) {
+                SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
+                MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
+                if (fieldData.isIndexTableSource() &&
+                        fieldData.getIndexTable() != null &&
+                        ! metricFieldData.isMetricValue()) {
+                    // TODO/performance: if this is a count(), don't join to this table.
+                    // if this is a groupBy() and they don't want to group by
+                    // a field in this table, don't join to this table.
+                    sourceTables.add(field);
                 }
             }
         }

@@ -184,7 +184,7 @@ public class Metric extends Record {
         try {
             metricDatabase.setQueryDateRange(start, end);
             Map<String, Double> metricValues = metricDatabase.getMetricValues();
-            return metricValues == null ? new HashMap<String, Double>() : metricValues;
+            return metricValues;
         } catch (SQLException e) {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
         }
@@ -213,7 +213,7 @@ public class Metric extends Record {
         try {
             metricDatabase.setQueryDateRange(start, end);
             Map<DateTime, Double> metricTimeline = metricDatabase.getMetricTimeline(dimension, interval);
-            return metricTimeline == null ? new HashMap<DateTime, Double>() : metricTimeline;
+            return metricTimeline;
         } catch (SQLException e) {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetricTimeline() : " + e.getLocalizedMessage());
         }
@@ -231,7 +231,7 @@ public class Metric extends Record {
         try {
             metricDatabase.setQueryDateRange(start, end);
             Map<DateTime, Double> metricTimeline = metricDatabase.getMetricSumTimeline(interval);
-            return metricTimeline == null ? new HashMap<DateTime, Double>() : metricTimeline;
+            return metricTimeline;
         } catch (SQLException e) {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
         }

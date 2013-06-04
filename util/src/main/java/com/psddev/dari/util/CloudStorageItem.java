@@ -157,12 +157,11 @@ public class CloudStorageItem extends AbstractStorageItem {
             BlobBuilder.PayloadBlobBuilder payloadBuilder = blobBuilder.payload(file);
 
             Map<String, Object> metadata = getMetadata();
-            if (metadata != null) {
+            @SuppressWarnings("unchecked")
+            Map<String, List<String>> headers = (Map<String, List<String>>) metadata.get("http.headers");
 
-                @SuppressWarnings("unchecked")
-                Map<String, List<String>> headers = (Map<String, List<String>>) metadata.get("http.headers");
-                if (headers != null) { for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
-
+            if (headers != null) {
+                for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
                     String key = entry.getKey();
                     List<String> values = entry.getValue();
 
@@ -198,7 +197,7 @@ public class CloudStorageItem extends AbstractStorageItem {
                             }
                         }
                     }
-                } }
+                }
 
                 // TODO: Decide which additional metadata is relevant to this StorageItem
                 /*

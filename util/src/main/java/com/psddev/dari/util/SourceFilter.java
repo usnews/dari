@@ -303,11 +303,10 @@ public class SourceFilter extends AbstractFilter {
         }
 
         String contentType = ObjectUtils.getContentType(servletPath);
-        if (contentType != null &&
-                (contentType.startsWith("image/") ||
+        if (contentType.startsWith("image/") ||
                 contentType.startsWith("video/") ||
                 contentType.equals("text/css") ||
-                contentType.equals("text/javascript"))) {
+                contentType.equals("text/javascript")) {
             chain.doFilter(request, response);
             return;
         }

@@ -303,7 +303,7 @@ public class Converter {
             itemType = ((GenericArrayType) returnType).getGenericComponentType();
 
         } else {
-            Class<?> objectClass = object != null ? object.getClass() : null;
+            Class<?> objectClass = object.getClass();
             @SuppressWarnings("unchecked")
             ConversionFunction<Object, Object> function = (ConversionFunction<Object, Object>) getFunction(objectClass, returnType);
 

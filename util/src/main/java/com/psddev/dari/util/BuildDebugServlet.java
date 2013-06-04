@@ -313,7 +313,8 @@ public class BuildDebugServlet extends HttpServlet {
                     writeEnd();
 
                 } else {
-                    MessageDigest md5 = null;
+                    MessageDigest md5;
+
                     try {
                         md5 = MessageDigest.getInstance("MD5");
                     } catch (NoSuchAlgorithmException error) {
@@ -322,25 +323,21 @@ public class BuildDebugServlet extends HttpServlet {
 
                     try {
                         InputStream input = getServletContext().getResourceAsStream(path);
+
                         if (input != null) {
                             try {
-
-                                if (md5 != null) {
-                                    input = new DigestInputStream(input, md5);
-                                }
-
+                                input = new DigestInputStream(input, md5);
                                 int totalBytesRead = 0;
                                 int bytesRead = 0;
                                 byte[] buffer = new byte[4096];
+
                                 while ((bytesRead = input.read(buffer)) > 0) {
                                     totalBytesRead += bytesRead;
                                 }
 
                                 writeStart("td", "class", "num").writeObject(totalBytesRead).writeEnd();
                                 writeStart("td");
-                                    if (md5 != null) {
-                                        write(StringUtils.hex(md5.digest()));
-                                    }
+                                    write(StringUtils.hex(md5.digest()));
                                 writeEnd();
 
                             } finally {
