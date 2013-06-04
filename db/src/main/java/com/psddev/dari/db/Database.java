@@ -11,10 +11,12 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsBackedObject;
 import com.psddev.dari.util.SettingsException;
@@ -156,14 +158,15 @@ public interface Database extends SettingsBackedObject {
         private static final ThreadLocal<Deque<Database>> DEFAULT_OVERRIDES = new ThreadLocal<Deque<Database>>();
         private static final ThreadLocal<Boolean> IGNORE_READ_CONNECTION = new ThreadLocal<Boolean>();
 
-        private static final PullThroughCache<String, Database> INSTANCES = new PullThroughCache<String, Database>() {
-            @Override
-            public Database produce(String name) {
-                Database database = Settings.newInstance(Database.class, SETTING_PREFIX + "/" + name);
-                database.setName(name);
-                return database;
-            }
-        };
+        private static final LoadingCache<String, Database> INSTANCES = CacheBuilder.newBuilder().
+                build(new CacheLoader<String, Database>() {
+                    @Override
+                    public Database load(String name) {
+                        Database database = Settings.newInstance(Database.class, SETTING_PREFIX + "/" + name);
+                        database.setName(name);
+                        return database;
+                    }
+                });
 
         private Static() {
         }
@@ -184,7 +187,7 @@ public interface Database extends SettingsBackedObject {
                 }
             }
 
-            return new ArrayList<Database>(INSTANCES.values());
+            return new ArrayList<Database>(INSTANCES.asMap().values());
         }
 
         /**
@@ -194,7 +197,7 @@ public interface Database extends SettingsBackedObject {
          * @return Never {@code null}.
          */
         public static Database getInstance(String name) {
-            return ObjectUtils.isBlank(name) ? getDefault() : INSTANCES.get(name);
+            return ObjectUtils.isBlank(name) ? getDefault() : INSTANCES.getUnchecked(name);
         }
 
         /**
