@@ -763,12 +763,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         // Set up Metric fields
         for (ObjectField field : getEnvironment().getMetricFields()) {
-            objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+            objectState.put(field.getInternalName(), new Metric(objectState, field));
         }
 
         if (type != null) {
             for (ObjectField field : type.getMetricFields()) {
-                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
+                objectState.put(field.getInternalName(), new Metric(objectState, field));
             }
 
             if ((unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
