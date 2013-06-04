@@ -967,6 +967,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         } finally {
             closeResources(query, connection, statement, result);
+            extraConnectionRef.close();
         }
     }
 
