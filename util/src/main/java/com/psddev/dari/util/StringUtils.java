@@ -46,24 +46,24 @@ public final class StringUtils {
             'a', 'b', 'c', 'd', 'e', 'f' };
 
     /**
-     * Converts given string into a value of given type, throwing an exception 
+     * Converts given string into a value of given type, throwing an exception
      * if conversion was unsuccessful.
-     * 
+     *
      * If the return type is an array, an array is returned.
      * <code>fromString(int[].class, "1", "2")<code> =&gt; <code>int[] {1,2}</code>
-     * 
+     *
      * If no values are provided and the return type is an array, an empty array is returned.
      * <code>fromString(int[].class)<code> =&gt; <code>int[] {}</code>
-     * 
+     *
      * If no values are provided and the return type is not an array, an exception
      * appropriate to the conversion type is thrown.
      * <code>fromString(int.class)<code> =&gt; <code>NumberFormatException</code>
-     * 
+     *
      * If the {@code strings} contains more than one value and the {@code returnType} is not
      * an array, all but the first value are ignored.
-     * 
-     * If the method cannot convert to the class specified, an IllegalArgumentException is thrown. 
-     * 
+     *
+     * If the method cannot convert to the class specified, an IllegalArgumentException is thrown.
+     *
      * @param <T>
      * @param returnType The class for the String input(s) to be converted to
      * @param strings the input(s) to be converted
@@ -131,18 +131,18 @@ public final class StringUtils {
         }
     }
 
-    
+
     /**
      * Helper method to split a string by case change or common delimiters.
-     * 
+     *
      * Multiple delimeters in a row are reduced to a single word boundry.
-     * 
-     * Leading delimeters (a space at the beginning of the string) will cause an 
+     *
+     * Leading delimeters (a space at the beginning of the string) will cause an
      * empty first word to be detected (bug?). Trailing delemeters do not cause empty
      * words to be detected.
-     * 
+     *
      * Returned words are all lowercased.
-     * 
+     *
      * @param string
      * @return the list of words detected in the string
      */
@@ -215,13 +215,13 @@ public final class StringUtils {
     }
 
     /**
-     * Converts the string to one suitable for use as "a label"? 
-     * 
+     * Converts the string to one suitable for use as "a label"?
+     *
      * Splits {@code string} into words, joining it back together "In Title Case"
-     * with known {@code ABBREVIATIONS} replaced in all caps. If the first word of 
+     * with known {@code ABBREVIATIONS} replaced in all caps. If the first word of
      * {@code string} is "is", that word is removed and a question mark is
      * added to the end of the resulting string.
-     *  
+     *
      * @param string
      */
     public static String toLabel(String string) {
@@ -264,12 +264,12 @@ public final class StringUtils {
 
     /**
      * Normalizes a string, removing or replacing non-alphanumeric characters and lowercasing
-     * 
+     *
      * - Removes all accented characters.
      * - Removes single quotes
      * - Replaces non-alphanumeric characters remaining with a dash
      * - Removes dashes
-     * 
+     *
      * Lowercases the result
      */
     public static String toNormalized(CharSequence string) {
@@ -925,7 +925,7 @@ public final class StringUtils {
     /**
      * Escapes the input string so that the resulting output can be used
      * inside a JavaScript string AND none of the characters in the output
-     * need to be HTML escaped. 
+     * need to be HTML escaped.
      * @param string
      * @return the escaped string, or null if the input was null
      * This is not the same as HTML escaping a JavaScript escaped string,

@@ -59,11 +59,11 @@ public class CssRule {
         }
 
         css.append('}');
-        
+
         for (int i = 0, count = getAtRulesCount(); i < count; ++ i) {
             css.append(" }");
         }
-        
+
         css.append('\n');
 
         return css.toString();

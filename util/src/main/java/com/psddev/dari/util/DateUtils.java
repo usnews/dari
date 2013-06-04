@@ -81,7 +81,7 @@ public final class DateUtils {
      * Converts the given formatted date string into a date object
      * Each of the predefined formats is checked to see if they can parse
      * the input using both JodaTime and, if that fails, SimpleDateFormat
-     * 
+     *
      * @throws DateFormatException
      *         If the given string is null or is not a valid date.
      */
@@ -181,7 +181,7 @@ public final class DateUtils {
     /**
      * Converts the duration between the current datetime and the provided one
      * into an easier-to-read label, such as "5 minutes ago", "1 hour ago", or
-     * "2 days ago".  
+     * "2 days ago".
      */
     public static String toSimpleElapsedTime(Date date) {
         long diff = (System.currentTimeMillis() - date.getTime()) / 1000;

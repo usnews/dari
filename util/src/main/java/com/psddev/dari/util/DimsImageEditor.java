@@ -288,7 +288,7 @@ public class DimsImageEditor extends AbstractImageEditor {
             Command lastResizeCommand = dimsUrl.getLastResizeCommand();
             if (lastResizeCommand instanceof AbstractResizeCommand) {
                 AbstractResizeCommand lastResize = (AbstractResizeCommand) lastResizeCommand;
-                 
+
                 StorageItem override = StorageItem.Static.createIn(image.getStorage());
                 new ObjectMap(override).putAll(new ObjectMap(image));
 

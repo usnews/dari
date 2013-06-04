@@ -220,7 +220,7 @@ public class CodeDebugServlet extends HttpServlet {
             List<Object> inputs = CodeDebugServlet.Static.getInputs(getServletContext());
             Object input = inputs == null || inputs.isEmpty() ? null : inputs.get(0);
             String name;
-            
+
             if (file == null) {
                 name = null;
 

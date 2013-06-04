@@ -15,7 +15,7 @@ import java.util.Set;
  * - "-a" the value "a" is not included in the set
  * - "-a/b" the value "a/b" is not included in the set
  * - "-a" any children of the value "a" are not included in the set ("a/b", "a/c", but NOT "a")
- * 
+ *
  * <p>For example, given {@code +/ -foo/ +foo/bar}, {@code foo} and
  * {@code foo/bar} would considered to be in the set, while
  * {@code foo/qux} would not.
@@ -27,7 +27,7 @@ import java.util.Set;
  * - {@code foo/bar} is not included in the set (due to the {@code -foo/bar})
  * - {@code foo/bar/ton} is included in the set (due to the {@code +foo/})
  * - {@code bar} is not included in the set (due to the {@code -/})
- * 
+ *
  * <p>Because the instances of this set can contain an infinite number
  * of items, the {@link #iterator()}, {@link #size()}, {@link #toArray},
  * methods throw an {@link UnsupportedOperationException}.

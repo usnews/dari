@@ -13,7 +13,7 @@ import java.util.Set;
 /**
  * Handles objects that depend on other objects of the same type, checking for
  * any conflicts like circular dependancies (ie a -> b -> c > a).
- * 
+ *
  *  The caller can add specify any number of items and the dependencies of those items
  *  <p><code><pre>
  *  DependencyResolver<String> resolver = new DependencyResolver<String>();
@@ -77,7 +77,7 @@ public class DependencyResolver<T> {
 
     /**
      * Resolve the dependency configuration and return the list of items that are
-     * necessary. Items that are dependants are earlier in the list than their 
+     * necessary. Items that are dependants are earlier in the list than their
      * dependers.
      * @throws IllegalStateException if there is a cyclic dependency
      */

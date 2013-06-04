@@ -41,7 +41,7 @@ public class FrameTag extends BodyTagSupport {
 
         if (classNames != null) {
             int length = classNames.length;
-            
+
             if (length > 0) {
                 for (int i = 0; i < length; ++ i) {
                     fullClassName.append(" dari-frame-");
@@ -104,7 +104,7 @@ public class FrameTag extends BodyTagSupport {
     public int doEndTag() throws JspException {
         if (bodyContent != null) {
             String body = bodyContent.getString();
-            
+
             if (body != null) {
                 HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
 

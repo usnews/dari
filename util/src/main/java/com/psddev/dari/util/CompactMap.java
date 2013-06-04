@@ -140,7 +140,7 @@ public class CompactMap<K, V> implements Map<K, V> {
                                 @Override
                                 public String toString() {
                                     StringBuilder string = new StringBuilder();
-                                    
+
                                     string.append(getKey());
                                     string.append('=');
                                     string.append(getValue());

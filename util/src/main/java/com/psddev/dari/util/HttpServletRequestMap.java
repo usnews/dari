@@ -135,7 +135,7 @@ public class HttpServletRequestMap implements Map<String, String> {
     @Override
     public String get(Object key) {
         Lazy lazy = lazies.get(key);
-        if (lazy != null) { 
+        if (lazy != null) {
             lazies.remove(key);
             String keyString = (String) key;
             Object value = lazy.resolve(keyString);

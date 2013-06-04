@@ -497,9 +497,9 @@ public final class JspUtils {
     public static boolean isIncluded(ServletRequest request) {
         return request.getAttribute("javax.servlet.include.context_path") != null;
     }
-    
+
     /**
-     * Returns {@code true} if the given {@code request} is secure. This method 
+     * Returns {@code true} if the given {@code request} is secure. This method
      * checks:
      *
      * <ul>

@@ -28,7 +28,7 @@ public class JspFactoryWrapper extends JspFactory {
     }
 
     // --- JspFactory support ---
- 
+
     @Override
     public JspEngineInfo getEngineInfo() {
         return delegate.getEngineInfo();
