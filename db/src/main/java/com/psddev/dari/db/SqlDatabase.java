@@ -1994,7 +1994,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         for (AtomicOperation operation : atomicOperations) {
                             String field = operation.getField();
-                            state.putValue(field, oldState.getValue(field));
+                            state.put(field, oldState.get(field));
                         }
 
                         for (AtomicOperation operation : atomicOperations) {

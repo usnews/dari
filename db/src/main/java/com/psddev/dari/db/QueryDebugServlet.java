@@ -138,6 +138,7 @@ public class QueryDebugServlet extends HttpServlet {
             query.using(caching);
         }
 
+        @SuppressWarnings("deprecation")
         public void render() throws IOException {
             try {
                 Database.Static.setIgnoreReadConnection(ignoreReadConnection);
@@ -475,7 +476,7 @@ public class QueryDebugServlet extends HttpServlet {
                                         writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
                                         writeStart("td").writeHtml(itemState.getLabel()).writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                            writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                         }
                                     writeEnd();
                                 }
@@ -718,7 +719,7 @@ public class QueryDebugServlet extends HttpServlet {
                                                 writeEnd();
                                             writeEnd();
                                             for (String additionalField : additionalFields) {
-                                                writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                                writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                             }
                                         writeEnd();
                                     }
@@ -787,7 +788,7 @@ public class QueryDebugServlet extends HttpServlet {
                                             writeEnd();
                                         writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                            writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                         }
                                     writeEnd();
 

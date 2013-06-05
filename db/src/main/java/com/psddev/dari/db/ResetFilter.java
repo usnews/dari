@@ -36,6 +36,7 @@ public class ResetFilter extends AbstractFilter {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     protected void doRequest(
             HttpServletRequest request,
             HttpServletResponse response,

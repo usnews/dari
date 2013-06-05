@@ -1749,7 +1749,7 @@ public class State implements Map<String, Object> {
             throw new IllegalStateException("No type!");
         }
 
-        Query<?> query = Query.fromType(type).noCache();
+        Query<?> query = Query.fromType(type).noCache().master();
 
         for (ObjectIndex index : type.getIndexes()) {
             if (index.isUnique()) {
@@ -1765,31 +1765,23 @@ public class State implements Map<String, Object> {
         }
 
         Exception lastError = null;
-        boolean ignoreRead = Database.Static.isIgnoreReadConnection();
 
-        try {
-            Database.Static.setIgnoreReadConnection(true);
+        for (int i = 0; i < 10; ++ i) {
+            Object object = query.first();
 
-            for (int i = 0; i < 10; ++ i) {
-                Object object = query.first();
+            if (object != null) {
+                setValues(State.getInstance(object).getValues());
+                return;
 
-                if (object != null) {
-                    setValues(State.getInstance(object).getValues());
+            } else {
+                try {
+                    saveImmediately();
                     return;
 
-                } else {
-                    try {
-                        saveImmediately();
-                        return;
-
-                    } catch (Exception error) {
-                        lastError = error;
-                    }
+                } catch (Exception error) {
+                    lastError = error;
                 }
             }
-
-        } finally {
-            Database.Static.setIgnoreReadConnection(ignoreRead);
         }
 
         ErrorUtils.rethrow(lastError);

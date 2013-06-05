@@ -91,21 +91,13 @@ public class DistributedLock implements Lock {
         }
 
         synchronized (holderRef) {
-            boolean oldIgnore = Database.Static.isIgnoreReadConnection();
-            State key;
-
-            try {
-                Database.Static.setIgnoreReadConnection(true);
-                key = State.getInstance(Query.
-                        from(Object.class).
-                        where("_id = ?", keyId).
-                        using(database).
-                        noCache().
-                        first());
-
-            } finally {
-                Database.Static.setIgnoreReadConnection(oldIgnore);
-            }
+            State key = State.getInstance(Query.
+                    from(Object.class).
+                    where("_id = ?", keyId).
+                    using(database).
+                    noCache().
+                    master().
+                    first());
 
             if (key == null) {
                 key = new State();
@@ -185,24 +177,16 @@ public class DistributedLock implements Lock {
             try {
                 LOGGER.debug("Releasing [{}]", this);
 
-                boolean oldIgnore = Database.Static.isIgnoreReadConnection();
-                State key;
+                State key = State.getInstance(Query.
+                        from(Object.class).
+                        where("_id = ?", keyId).
+                        using(database).
+                        noCache().
+                        master().
+                        first());
 
-                try {
-                    Database.Static.setIgnoreReadConnection(true);
-                    key = State.getInstance(Query.
-                            from(Object.class).
-                            where("_id = ?", keyId).
-                            using(database).
-                            noCache().
-                            first());
-
-                    if (key != null && lockId.equals(key.get("lockId"))) {
-                        key.deleteImmediately();
-                    }
-
-                } finally {
-                    Database.Static.setIgnoreReadConnection(oldIgnore);
+                if (key != null && lockId.equals(key.get("lockId"))) {
+                    key.deleteImmediately();
                 }
 
             } finally {

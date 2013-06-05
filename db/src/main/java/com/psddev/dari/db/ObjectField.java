@@ -632,7 +632,7 @@ public class ObjectField extends Record {
 
     /** Validates the field value in the given record. */
     public void validate(State state) {
-        Object value = state.getValue(getInternalName());
+        Object value = state.get(getInternalName());
         if (isRequired() && ObjectUtils.isBlank(value)) {
             state.addError(this, "Required!");
         } else {

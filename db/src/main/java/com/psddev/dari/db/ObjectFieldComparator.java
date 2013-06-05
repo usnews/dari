@@ -32,8 +32,8 @@ public class ObjectFieldComparator implements Comparator<Object>, Serializable {
         State xState = State.getInstance(x);
         State yState = State.getInstance(y);
 
-        Object xValue = xState != null ? filter(xState.getValue(field)) : null;
-        Object yValue = yState != null ? filter(yState.getValue(field)) : null;
+        Object xValue = xState != null ? filter(xState.getByPath(field)) : null;
+        Object yValue = yState != null ? filter(yState.getByPath(field)) : null;
 
         return ObjectUtils.compare(xValue, yValue, isNullGreatest);
     }

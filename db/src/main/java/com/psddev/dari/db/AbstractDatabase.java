@@ -198,6 +198,7 @@ public abstract class AbstractDatabase<C> implements Database {
      *
      * @return Can't be {@code null}.
      */
+    @SuppressWarnings("deprecation")
     public final C openReadConnection() {
         return Database.Static.isIgnoreReadConnection() ?
                 openConnection() :
@@ -405,7 +406,7 @@ public abstract class AbstractDatabase<C> implements Database {
             List<Object> keys = new ArrayList<Object>();
             if (fields != null) {
                 for (String field : fields) {
-                    keys.add(itemState.getValue(field));
+                    keys.add(itemState.getByPath(field));
                 }
             }
 
@@ -441,13 +442,13 @@ public abstract class AbstractDatabase<C> implements Database {
 
             ITEM: for (Object item : readIterable(aggregateQuery, 0)) {
                 State itemState = State.getInstance(item);
-                Object value = itemState.getValue(field);
+                Object value = itemState.getByPath(field);
                 if (value == null) {
                     continue;
                 }
 
                 for (int i = 0, length = fields.length; i < length; ++ i) {
-                    if (!ObjectUtils.equals(keys.get(i), itemState.getValue(fields[i]))) {
+                    if (!ObjectUtils.equals(keys.get(i), itemState.getByPath(fields[i]))) {
                         continue ITEM;
                     }
                 }
@@ -968,7 +969,9 @@ public abstract class AbstractDatabase<C> implements Database {
                                 from(Object.class).
                                 where("id != ?", state.getId()).
                                 using(state.getDatabase()).
-                                referenceOnly();
+                                referenceOnly().
+                                noCache().
+                                master();
 
                         StringBuilder keyBuilder = new StringBuilder();
                         keyBuilder.append(indexName);
@@ -981,15 +984,7 @@ public abstract class AbstractDatabase<C> implements Database {
                             duplicateQuery.and(indexPrefix + fields.get(j) + " = ?", values[j]);
                         }
 
-                        Object duplicate;
-                        boolean ignore = Database.Static.isIgnoreReadConnection();
-
-                        try {
-                            Database.Static.setIgnoreReadConnection(true);
-                            duplicate = duplicateQuery.first();
-                        } finally {
-                            Database.Static.setIgnoreReadConnection(ignore);
-                        }
+                        Object duplicate = duplicateQuery.first();
 
                         if (duplicate == null) {
                             if (!beforeLocks) {

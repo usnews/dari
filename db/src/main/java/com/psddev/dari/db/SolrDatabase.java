@@ -1327,7 +1327,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
                 if (!typeAheadFields.isEmpty()) {
                     for (String typeAheadField : typeAheadFields) {
-                        String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
+                        String value = ObjectUtils.to(String.class, state.getByPath(typeAheadField));
 
                         // Hack for a client.
                         if (!ObjectUtils.isBlank(value)) {
@@ -1341,7 +1341,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     for (Map.Entry<String, List<String>> entry : typeAheadFieldsMap.entrySet()) {
                         String typeAheadField = entry.getKey();
                         List<String> targetFields = entry.getValue();
-                        String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
+                        String value = ObjectUtils.to(String.class, state.getByPath(typeAheadField));
 
                         if (!ObjectUtils.isBlank(targetFields)) {
                             for (String targetField : targetFields) {

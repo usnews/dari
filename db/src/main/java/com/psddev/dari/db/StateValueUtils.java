@@ -13,10 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.psddev.dari.util.DateUtils;
 import com.psddev.dari.util.ObjectMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StorageItem;
@@ -42,8 +38,6 @@ abstract class StateValueUtils {
      * {@link #resolveReferences}.
      */
     private static final ThreadLocal<Map<UUID, Object>> CIRCULAR_REFERENCES = new ThreadLocal<Map<UUID, Object>>();
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(StateValueUtils.class);
 
     /** Converts the given {@code object} into an ID if it's a reference. */
     public static UUID toIdIfReference(Object object) {
@@ -286,7 +280,7 @@ abstract class StateValueUtils {
                     return new Date(((Number) value).longValue());
 
                 } else {
-                    return DateUtils.fromString(value.toString());
+                    return ObjectUtils.to(Date.class, value);
                 }
             }
         });

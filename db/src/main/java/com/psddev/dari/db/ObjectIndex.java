@@ -241,7 +241,7 @@ public class ObjectIndex {
     private Object getValue(State state, String field) {
         int index = field.indexOf('/');
         if (index != -1) {
-            Object value = state.getValue(field.substring(0, index));
+            Object value = state.get(field.substring(0, index));
 
             if (value instanceof Iterable || value instanceof Map) {
                 Iterable<?> iterable;
@@ -270,7 +270,7 @@ public class ObjectIndex {
                 return null;
             }
         } else {
-            return state.getValue(field);
+            return state.get(field);
         }
     }
 
