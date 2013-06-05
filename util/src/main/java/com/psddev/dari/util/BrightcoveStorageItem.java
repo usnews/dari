@@ -287,12 +287,6 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return accountId;
     }
 
-    /** Sets the Account ID field, used in Brightcove */
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setAccountId(String accountId) {
-        this.accountId = accountId;
-    }
-
     /** Returns the encoding to be specified when creating a video in Brightcove */
     public Encoding getEncoding() {
         return encoding;
@@ -328,37 +322,16 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return flvUrl;
     }
 
-    /** Sets the FLV URL property */
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setFlvUrl(String flvUrl) {
-        this.flvUrl = flvUrl;
-    }
-
     public Date getCreationDate() {
         return creationDate;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setCreationDate(Date creationDate) {
-        this.creationDate = creationDate;
     }
 
     public Date getPublishedDate() {
         return publishedDate;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setPublishedDate(Date publishedDate) {
-        this.publishedDate = publishedDate;
-    }
-
     public Date getLastModifiedDate() {
         return lastModifiedDate;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setLastModifiedDate(Date lastModifiedDate) {
-        this.lastModifiedDate = lastModifiedDate;
     }
 
     public ItemState getItemState() {
@@ -413,27 +386,12 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return videoStillUrl;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setVideoStillUrl(String videoStillUrl) {
-        this.videoStillUrl = videoStillUrl;
-    }
-
     public String getThumbnailUrl() {
         return thumbnailUrl;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setThumbnailUrl(String thumbnailUrl) {
-        this.thumbnailUrl = thumbnailUrl;
-    }
-
     public Long getLength() {
         return length;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setLength(Long length) {
-        this.length = length;
     }
 
     public Map<String, String> getCustomFields() {
@@ -488,18 +446,8 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return playsTotal;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setPlaysTotal(Integer playsTotal) {
-        this.playsTotal = playsTotal;
-    }
-
     public Integer getPlaysTrailingWeek() {
         return playsTrailingWeek;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setPlaysTrailingWeek(Integer playsTrailingWeek) {
-        this.playsTrailingWeek = playsTrailingWeek;
     }
 
     // --- AbstractStorageItem support ---
