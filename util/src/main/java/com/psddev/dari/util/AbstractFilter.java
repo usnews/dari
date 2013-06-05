@@ -262,7 +262,7 @@ public abstract class AbstractFilter implements Filter {
                             continue;
                         }
 
-                    } else if (JspUtils.isError((HttpServletRequest) request)) {
+                    } else if (JspUtils.isError(request)) {
                         if (!hasErrorOverride(dependencyClass)) {
                             continue;
                         }

@@ -275,8 +275,15 @@ public final class JspUtils {
      * Returns the URI that caused the error currently being handled
      * by the given {@code request}.
      */
-    public static String getErrorRequestUri(HttpServletRequest request) {
+    public static String getErrorRequestUri(ServletRequest request) {
         return (String) request.getAttribute("javax.servlet.error.request_uri");
+    }
+
+    /**
+     * Use {@link #getErrorRequestUri(ServletRequest)} instead.
+     */
+    public static String getErrorRequestUri(HttpServletRequest request) {
+        return getErrorRequestUri((ServletRequest) request);
     }
 
     /**
@@ -478,8 +485,15 @@ public final class JspUtils {
      * Returns {@code true} if the given {@code request} is currently
      * handling an error.
      */
-    public static boolean isError(HttpServletRequest request) {
+    public static boolean isError(ServletRequest request) {
         return getErrorRequestUri(request) != null;
+    }
+
+    /**
+     * Use {@link #isError(ServletRequest)} instead.
+     */
+    public static boolean isError(HttpServletRequest request) {
+        return isError((ServletRequest) request);
     }
 
     /**
