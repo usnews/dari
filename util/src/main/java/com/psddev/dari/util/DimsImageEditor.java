@@ -464,7 +464,7 @@ public class DimsImageEditor extends AbstractImageEditor {
          *  all other commands to the end of the list. */
         private void addCommand(Command command) {
             List<Command> commands = getCommands();
-            if (commands.size() > 0 && command instanceof ResizingCommand) {
+            if (!commands.isEmpty() && command instanceof ResizingCommand) {
                 int lastResizeIndex = 0;
                 for (Command cmd : commands) {
                     if (cmd instanceof ResizingCommand) {

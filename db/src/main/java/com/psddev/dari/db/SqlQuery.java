@@ -1112,7 +1112,7 @@ class SqlQuery {
 
         statementBuilder.append(havingClause);
 
-        if (orderBySelectColumns.size() > 0) {
+        if (!orderBySelectColumns.isEmpty()) {
 
             if (orderByClause.length() > 0) {
                 statementBuilder.append(orderByClause);
@@ -1256,7 +1256,7 @@ class SqlQuery {
         fromBuilder.append(innerSql);
         fromBuilder.append(" ) x ");
 
-        if (groupBySelectColumns.size() > 0) {
+        if (!groupBySelectColumns.isEmpty()) {
             groupByBuilder.append(" GROUP BY ");
             for (String field : groupBySelectColumns) {
                 if (groupByBuilder.length() > 10) {  // " GROUP BY ".length()

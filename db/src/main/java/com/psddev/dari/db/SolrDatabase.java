@@ -342,7 +342,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         Map<String, Object> facetedFields = query.getFacetedFields();
-        if (facetedFields.size() > 0) {
+        if (!facetedFields.isEmpty()) {
             boolean facet = false;
             for(String field : facetedFields.keySet()) {
                 Object value = facetedFields.get(field);

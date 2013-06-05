@@ -48,7 +48,7 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
 
             metadata = resizedItem.getMetadata();
 
-            if (metadata != null && metadata.size() != 0) {
+            if (metadata != null && !metadata.isEmpty()) {
                 int w = ObjectUtils.to(Integer.class, metadata.get("width"));
                 int h = ObjectUtils.to(Integer.class, metadata.get("height"));
 

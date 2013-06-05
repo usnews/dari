@@ -63,7 +63,7 @@ public class CachingDatabaseFilter extends AbstractFilter {
 
                 if (preload) {
                     Set<UUID> objectIds = new HashSet<UUID>(caching.getObjectCache().keySet());
-                    if (objectIds.size() > 0) {
+                    if (!objectIds.isEmpty()) {
                         idCache.put(url, objectIds);
                     }
                 }

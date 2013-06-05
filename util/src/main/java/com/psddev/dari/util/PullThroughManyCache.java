@@ -130,7 +130,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                 }
             }
 
-            if (toBeProduced.size() > 0) {
+            if (!toBeProduced.isEmpty()) {
                 LOGGER.debug("Producing {}.", toBeProduced);
                 try {
 
@@ -188,7 +188,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                 }
             }
 
-            if (toBeFetched.size() == 0) {
+            if (toBeFetched.isEmpty()) {
                 return fetched;
             }
         }

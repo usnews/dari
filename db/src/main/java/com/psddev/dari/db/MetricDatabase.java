@@ -859,7 +859,7 @@ class MetricDatabase {
                 return amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
             } else {
                 List<byte[]> datas = getMinMaxDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate);
-                if (datas.size() == 0) {
+                if (datas.isEmpty()) {
                     return null;
                 }
                 if (datas.get(0) == null) {

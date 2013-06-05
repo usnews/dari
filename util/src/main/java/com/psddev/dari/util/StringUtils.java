@@ -232,7 +232,7 @@ public final class StringUtils {
 
         boolean isQuestion = false;
         List<String> words = splitString(string);
-        if (words.size() > 0 && "is".equals(words.get(0))) {
+        if (!words.isEmpty() && "is".equals(words.get(0))) {
             isQuestion = true;
             words.remove(0);
         }

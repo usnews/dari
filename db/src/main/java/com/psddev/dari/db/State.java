@@ -876,7 +876,7 @@ public class State implements Map<String, Object> {
     public List<String> getErrors(ObjectField field) {
         if (errors != null) {
             List<String> messages = errors.get(field);
-            if (messages != null && messages.size() > 0) {
+            if (messages != null && !messages.isEmpty()) {
                 return Collections.unmodifiableList(messages);
             }
         }

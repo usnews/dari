@@ -53,13 +53,13 @@ public class MultipartRequest extends HttpServletRequestWrapper {
     /** Returns the first file item associated with the given {@code name}. */
     public FileItem getFileItem(String name) {
         List<FileItem> values = parameters.get(name);
-        return values == null || values.size() == 0 ? null : values.get(0);
+        return values == null || values.isEmpty() ? null : values.get(0);
     }
 
     /** Returns all file items associated with the given {@code name}. */
     public FileItem[] getFileItems(String name) {
         List<FileItem> items = parameters.get(name);
-        if (items == null || items.size() == 0) {
+        if (items == null || items.isEmpty()) {
             return null;
         } else {
             return items.toArray(new FileItem[items.size()]);
@@ -76,7 +76,7 @@ public class MultipartRequest extends HttpServletRequestWrapper {
         }
 
         List<FileItem> items = parameters.get(name);
-        if (items == null || items.size() == 0) {
+        if (items == null || items.isEmpty()) {
             return null;
         }
 
@@ -123,7 +123,7 @@ public class MultipartRequest extends HttpServletRequestWrapper {
         String[] values = getRequest().getParameterValues(name);
         List<FileItem> items = parameters.get(name);
 
-        if (items == null || items.size() == 0) {
+        if (items == null || items.isEmpty()) {
             return values;
         }
 

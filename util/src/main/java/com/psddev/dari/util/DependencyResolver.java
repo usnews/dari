@@ -96,7 +96,7 @@ public class DependencyResolver<T> {
             for (T dependency : edge.dependencies) {
                 incoming.add(dependency);
             }
-            if (incoming.size() == 0) {
+            if (incoming.isEmpty()) {
                 toBeChecked.add(object);
             }
         }
@@ -107,9 +107,9 @@ public class DependencyResolver<T> {
             for (Map.Entry<T, Set<T>> e : graph.entrySet()) {
                 T object = e.getKey();
                 Set<T> incoming = e.getValue();
-                if (incoming.size() > 0) {
+                if (!incoming.isEmpty()) {
                     incoming.remove(item);
-                    if (incoming.size() == 0) {
+                    if (incoming.isEmpty()) {
                         toBeChecked.add(object);
                     }
                 }
