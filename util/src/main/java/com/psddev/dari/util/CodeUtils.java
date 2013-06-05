@@ -627,9 +627,7 @@ public final class CodeUtils {
                 String agentName = Agent.class.getName();
                 File agentDir = new File(System.getProperty("user.home"), ".dari");
 
-                if (!agentDir.exists()) {
-                    agentDir.mkdirs();
-                }
+                IoUtils.createDirectories(agentDir);
 
                 File agentFile = new File(agentDir, agentName + ".jar");
                 Manifest manifest = new Manifest();

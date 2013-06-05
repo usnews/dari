@@ -97,7 +97,7 @@ public class DependencyResolver<T> {
                 incoming.add(dependency);
             }
             if (incoming.size() == 0) {
-                toBeChecked.offer(object);
+                toBeChecked.add(object);
             }
         }
 
@@ -110,7 +110,7 @@ public class DependencyResolver<T> {
                 if (incoming.size() > 0) {
                     incoming.remove(item);
                     if (incoming.size() == 0) {
-                        toBeChecked.offer(object);
+                        toBeChecked.add(object);
                     }
                 }
             }

@@ -743,10 +743,7 @@ public class SourceFilter extends AbstractFilter {
 
         if (sourceFile.exists()) {
             if (!outputFile.exists()) {
-                File outputParent = outputFile.getParentFile();
-                if (!outputParent.exists()) {
-                    outputParent.mkdirs();
-                }
+                IoUtils.createParentDirectories(outputFile);
             } else if (sourceFile.lastModified() <= outputFile.lastModified()) {
                 return;
             }
@@ -909,16 +906,15 @@ public class SourceFilter extends AbstractFilter {
                 reloaderPath = reloaderPath.substring(1, reloaderPath.length() - 1);
                 File reloaderWar = new File(webappsDirectory, reloaderPath + ".war");
 
-                reloaderWar.delete();
-                new File(catalinaBase,
+                IoUtils.delete(reloaderWar);
+                IoUtils.delete(new File(catalinaBase,
                         "conf" + File.separator +
                         "Catalina" + File.separator +
                         "localhost" + File.separator +
-                        reloaderPath + ".xml").
-                        delete();
+                        reloaderPath + ".xml"));
 
                 addProgress("Deploying it to ", "/" + reloaderPath);
-                war.renameTo(reloaderWar);
+                IoUtils.rename(war, reloaderWar);
 
                 for (int i = 0; i < 20; ++ i) {
                     if (isReloaderAvailable(request)) {
@@ -936,7 +932,7 @@ public class SourceFilter extends AbstractFilter {
                 throw new IllegalStateException("Can't deploy!");
 
             } finally {
-                war.delete();
+                IoUtils.delete(war);
             }
         }
     }

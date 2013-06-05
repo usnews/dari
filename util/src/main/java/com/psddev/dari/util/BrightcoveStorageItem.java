@@ -673,7 +673,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
                 }
 
             } finally {
-                storageFile.delete();
+                IoUtils.delete(storageFile);
             }
         } finally {
             try { client.getConnectionManager().shutdown(); } catch (Exception ignore) { }

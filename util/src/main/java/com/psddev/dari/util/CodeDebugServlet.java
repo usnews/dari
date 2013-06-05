@@ -57,7 +57,7 @@ public class CodeDebugServlet extends HttpServlet {
         }
     }
 
-    private static File getFile(WebPageContext page) {
+    private static File getFile(WebPageContext page) throws IOException {
         String file = page.param(String.class, "file");
 
         if (file == null) {
@@ -75,8 +75,7 @@ public class CodeDebugServlet extends HttpServlet {
         File fileInstance = new File(file);
 
         if (!fileInstance.exists()) {
-            File parent = fileInstance.getParentFile();
-            parent.mkdirs();
+            IoUtils.createParentDirectories(fileInstance);
         }
 
         return fileInstance;
@@ -101,7 +100,7 @@ public class CodeDebugServlet extends HttpServlet {
                             for (Object item : (Collection<?>) result) {
                                 if (item instanceof Class) {
                                     file = new File(file, ((Class<?>) item).getName().replace('.', File.separatorChar) + ".java");
-                                    file.getParentFile().mkdirs();
+                                    IoUtils.createParentDirectories(file);
                                     break CLASS_FOUND;
                                 }
                             }
@@ -110,9 +109,7 @@ public class CodeDebugServlet extends HttpServlet {
                         throw new IllegalArgumentException("Syntax error!");
                     }
 
-                if (!file.exists()) {
-                    file.createNewFile();
-                }
+                IoUtils.createFile(file);
 
                 FileOutputStream fileOutput = new FileOutputStream(file);
 
@@ -552,7 +549,7 @@ public class CodeDebugServlet extends HttpServlet {
                             draftIndex = 0;
                             draftIndexes.put(draft, draftIndex);
                         }
-                        new File(context.getRealPath(draft + draftIndex + extension)).delete();
+                        IoUtils.delete(new File(context.getRealPath(draft + draftIndex + extension)));
                         ++ draftIndex;
                         draftIndexes.put(draft, draftIndex);
                         draft = draft + draftIndex + extension;
@@ -560,7 +557,7 @@ public class CodeDebugServlet extends HttpServlet {
 
                     String realDraft = context.getRealPath(draft);
                     File realDraftFile = new File(realDraft);
-                    realDraftFile.getParentFile().mkdirs();
+                    IoUtils.createParentDirectories(realDraftFile);
                     FileOutputStream realDraftOutput = new FileOutputStream(realDraftFile);
                     try {
                         realDraftOutput.write(page.paramOrDefault(String.class, "code", "").getBytes("UTF-8"));
