@@ -721,14 +721,12 @@ public class SqlVendor {
                         // if we're updating future rows, only update the interval amount if it's the exact eventDate
                         sql.append("IF (");
                             appendIdentifier(sql, columnIdentifier);
-                            sql.append(" LIKE ");
-                                sql.append(" CONCAT(");
-                                    appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
-                                sql.append(", '%') ESCAPE ''");
-                                sql.append(','); // if it's the exact date, then update the amount
-                                appendBindValue(sql, adjustedAmount, parameters);
-                                sql.append(','); // if it's a date in the future, leave the date alone
-                                appendBindValue(sql, 0, parameters);
+                            sql.append(" <= ");
+                            appendMetricEncodeTimestampSql(sql, parameters, eventDate, 'F');
+                            sql.append(','); // if it's the exact date, then update the amount
+                            appendBindValue(sql, adjustedAmount, parameters);
+                            sql.append(','); // if it's a date in the future, leave the date alone
+                            appendBindValue(sql, 0, parameters);
                         sql.append(')');
                     } else {
                         appendBindValue(sql, adjustedAmount, parameters);
@@ -754,14 +752,12 @@ public class SqlVendor {
                                 // if we're updating future rows, only update the interval amount if it's the exact eventDate
                                 sql.append("IF (");
                                     appendIdentifier(sql, columnIdentifier);
-                                    sql.append(" LIKE ");
-                                        sql.append(" CONCAT(");
-                                            appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
-                                        sql.append(", '%') ESCAPE ''");
-                                        sql.append(','); // if it's the exact date, then update the amount
-                                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
-                                        sql.append(','); // if it's a date in the future, leave the date alone
-                                        appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
+                                    sql.append(" <= ");
+                                    appendMetricEncodeTimestampSql(sql, parameters, eventDate, 'F');
+                                    sql.append(','); // if it's the exact date, then update the amount
+                                    appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                                    sql.append(','); // if it's a date in the future, leave the date alone
+                                    appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
                                 sql.append(')');
                             } else {
                                 appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
@@ -994,14 +990,12 @@ public class SqlVendor {
                         // if we're updating future rows, only update the interval amount if it's the exact eventDate
                         sql.append("CASE WHEN ");
                             appendIdentifier(sql, columnIdentifier);
-                            sql.append(" LIKE ");
-                                sql.append(" CONCAT(");
-                                    appendMetricEncodeTimestampSql(sql, parameters, eventDate, null);
-                                sql.append(", '%') ESCAPE ''");
-                                sql.append(" THEN "); // if it's the exact date, then update the amount
-                                appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
-                                sql.append(" ELSE "); // if it's a date in the future, leave the date alone
-                                appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
+                            sql.append(" <= ");
+                            appendMetricEncodeTimestampSql(sql, parameters, eventDate, 'F');
+                            sql.append(" THEN "); // if it's the exact date, then update the amount
+                            appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
+                            sql.append(" ELSE "); // if it's a date in the future, leave the date alone
+                            appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, 0);
                         sql.append(" END ");
                     } else {
                         appendHexEncodeIncrementAmountSql(sql, parameters, columnIdentifier, MetricDatabase.AMOUNT_POSITION, amount);
