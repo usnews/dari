@@ -87,13 +87,7 @@ public final class IoUtils {
      * @return Number of bytes copied.
      */
     public static long copy(File source, File destination) throws IOException {
-        if (!destination.exists()) {
-            File parent = destination.getParentFile();
-            if (!parent.exists()) {
-                parent.mkdirs();
-            }
-            destination.createNewFile();
-        }
+        createFile(destination);
 
         FileInputStream sourceInput = new FileInputStream(source);
         long total = -1L;
@@ -284,6 +278,79 @@ public final class IoUtils {
 
         } finally {
             closeQuietly(input);
+        }
+    }
+
+    /**
+     * Creates all directories leading up to and including the given
+     * {@code directory} if any of them doesn't exist.
+     *
+     * @param directory Can't be {@code null}.
+     * @throws IOException If any of the directories couldn't be created.
+     */
+    public static void createDirectories(File directory) throws IOException {
+        if (directory.exists() && !directory.isDirectory()) {
+            throw new IOException("[" + directory + "] already exists but isn't a directory!");
+
+        } else if (!directory.mkdirs() && !directory.isDirectory()) {
+            throw new IOException("Can't create [" + directory + "] directory!");
+        }
+    }
+
+    /**
+     * Creates all the parent directories leading up to the given
+     * {@code fileOrDirectory} if any of them doesn't exist.
+     *
+     * @param fileOrDirectory Can't be {@code null}.
+     * @throws IOException If any of the parent directories couldn't be
+     * created.
+     */
+    public static void createParentDirectories(File fileOrDirectory) throws IOException {
+        createDirectories(fileOrDirectory.getParentFile());
+    }
+
+    /**
+     * Creates the given {@code file} if it doesn't exist. This method will
+     * also create all the parent directories leading up to the given
+     * {@code file} using {@link #createParentDirectories}.
+     *
+     * @param file Can't be {@code null}.
+     * @throws IOException If the given {@code file} couldn't be created.
+     */
+    public static void createFile(File file) throws IOException {
+        createParentDirectories(file);
+
+        if (!file.createNewFile() &&
+                !file.isFile()) {
+            throw new IOException("[" + file + "] already exists but isn't a file!");
+        }
+    }
+
+    /**
+     * Renames the given {@code source} to {@code destination}.
+     *
+     * @param source Can't be {@code null}.
+     * @param destination Can't be {@code null}.
+     * @throws IOException If the given {@code source} couldn't be renamed.
+     */
+    public static void rename(File source, File destination) throws IOException {
+        if (!source.renameTo(destination)) {
+            throw new IOException("[" + source + "] can't be renamed to [" + destination + "]!");
+        }
+    }
+
+    /**
+     * Deletes the given {@code fileOrDirectory} if it exists.
+     *
+     * @param fileOrDirectory If {@code null}, does nothing.
+     * @throws IOException If the given {@code file} couldn't be deleted.
+     */
+    public static void delete(File fileOrDirectory) throws IOException {
+        if (fileOrDirectory != null &&
+                fileOrDirectory.exists() &&
+                !fileOrDirectory.delete() &&
+                fileOrDirectory.exists()) {
+            throw new IOException("Can't delete [" + fileOrDirectory + "]!");
         }
     }
 }
