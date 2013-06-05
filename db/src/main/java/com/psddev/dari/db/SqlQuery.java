@@ -348,7 +348,7 @@ class SqlQuery {
             ObjectIndex useIndex = null;
 
             for (ObjectIndex index : key.getIndexes()) {
-                if (index.getFields().get(0) == field.getInternalName()) {
+                if (field.getInternalName().equals(index.getFields().get(0))) {
                     useIndex = index;
                     break;
                 }
