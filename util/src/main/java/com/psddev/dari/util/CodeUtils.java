@@ -558,7 +558,7 @@ public final class CodeUtils {
         Instrumentation instrumentation = null;
         if (agentClass != null) {
             try {
-                instrumentation = (Instrumentation) agentClass.getField("INSTRUMENTATION").get(null);
+                instrumentation = (Instrumentation) agentClass.getField("instrumentation").get(null);
                 instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
             } catch (Exception error) {
                 LOGGER.debug("Can't initialize INSTRUMENTATION instance!", error);
