@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -50,16 +51,17 @@ public class SqlVendor {
         Set<String> tableNames = new HashSet<String>();
         String catalog = connection.getCatalog();
         DatabaseMetaData meta = connection.getMetaData();
-        ResultSet result = null;
+        ResultSet result = meta.getTables(catalog, null, null, null);
 
         try {
-            result = meta.getTables(catalog, null, null, null);
             while (result.next()) {
                 String name = result.getString("TABLE_NAME");
+
                 if (name != null) {
                     tableNames.add(name);
                 }
             }
+
         } finally {
             result.close();
         }
@@ -71,17 +73,18 @@ public class SqlVendor {
         boolean newHasInRowIndex = false;
         String catalog = connection.getCatalog();
         DatabaseMetaData meta = connection.getMetaData();
-        ResultSet result = null;
+        ResultSet result = meta.getColumns(catalog, null, recordTable, null);
 
         try {
-            result = meta.getColumns(catalog, null, recordTable, null);
             while (result.next()) {
                 String name = result.getString("COLUMN_NAME");
+
                 if (name != null && name.equalsIgnoreCase(SqlDatabase.IN_ROW_INDEX_COLUMN)) {
                     newHasInRowIndex = true;
                     break;
                 }
             }
+
         } finally {
             result.close();
         }
@@ -1179,21 +1182,26 @@ public class SqlVendor {
         @Override
         public Set<String> getTables(Connection connection) throws SQLException {
             Set<String> tableNames = new HashSet<String>();
-            ResultSet result = null;
-
-            String sqlQuery = "SELECT TABLE_NAME FROM USER_TABLES";
             Statement statement = connection.createStatement();
 
             try {
-                result = statement.executeQuery(sqlQuery);
-                while (result.next()) {
-                    String name = result.getString("TABLE_NAME");
-                    if (name != null) {
-                        tableNames.add(name);
+                ResultSet result = statement.executeQuery("SELECT TABLE_NAME FROM USER_TABLES");
+
+                try {
+                    while (result.next()) {
+                        String name = result.getString("TABLE_NAME");
+
+                        if (name != null) {
+                            tableNames.add(name);
+                        }
                     }
+
+                } finally {
+                    result.close();
                 }
+
             } finally {
-                result.close();
+                statement.close();
             }
 
             return tableNames;
@@ -1201,21 +1209,26 @@ public class SqlVendor {
 
         @Override
         public boolean hasInRowIndex(Connection connection, String recordTable) throws SQLException {
-            ResultSet result = null;
-
-            String sqlQuery =
-                    "SELECT 1 FROM USER_TAB_COLS " +
-                    " WHERE TABLE_NAME = '" + recordTable + "' " +
-                    "   AND COLUMN_NAME = '" + SqlDatabase.IN_ROW_INDEX_COLUMN + "'";
-            Statement statement = connection.createStatement();
+            PreparedStatement statement = connection.prepareStatement(
+                    "SELECT 1 FROM USER_TAB_COLS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?");
 
             try {
-                result = statement.executeQuery(sqlQuery);
-                while (result.next()) {
-                    return true;
+                statement.setString(1, recordTable);
+                statement.setString(2, SqlDatabase.IN_ROW_INDEX_COLUMN);
+
+                ResultSet result = statement.executeQuery();
+
+                try {
+                    while (result.next()) {
+                        return true;
+                    }
+
+                } finally {
+                    result.close();
                 }
+
             } finally {
-                result.close();
+                statement.close();
             }
 
             return false;
