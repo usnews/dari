@@ -216,6 +216,10 @@ class MetricDatabase {
         Static.doMetricDelete(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId());
     }
 
+    public void reconstructCumulativeAmounts() throws SQLException {
+        Static.doReconstructCumulativeAmounts(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), null);
+    }
+
     public static UUID getDimensionIdByValue(String dimensionValue) {
         if (dimensionValue == null || "".equals(dimensionValue)) {
             return UuidUtils.ZERO_UUID;
@@ -351,6 +355,71 @@ class MetricDatabase {
                 sqlBuilder.append(" GROUP BY ");
                 sqlBuilder.append(extraGroupBySql);
             }
+
+            return sqlBuilder.toString();
+        }
+
+        private static String getAllDataSql(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean doDecodeToBytes) {
+            StringBuilder sqlBuilder = new StringBuilder();
+            SqlVendor vendor = db.getVendor();
+
+            sqlBuilder.append("SELECT ");
+
+            if (dimensionId == null) {
+                vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+                sqlBuilder.append(", ");
+            }
+
+            if (doDecodeToBytes) {
+                vendor.appendMetricDataBytes(sqlBuilder, METRIC_DATA_FIELD);
+            } else {
+                sqlBuilder.append(METRIC_DATA_FIELD);
+            }
+
+            sqlBuilder.append(" FROM ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
+            sqlBuilder.append(" WHERE ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_ID_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, id);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_SYMBOL_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, symbolId);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_TYPE_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendValue(sqlBuilder, typeId);
+
+            if (dimensionId != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+                sqlBuilder.append(" = ");
+                vendor.appendValue(sqlBuilder, dimensionId);
+            }
+
+            if (maxEventDate != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
+                sqlBuilder.append(" < ");
+                vendor.appendMetricEncodeTimestampSql(sqlBuilder, null, maxEventDate, '0');
+            }
+
+            if (minEventDate != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
+                sqlBuilder.append(" >= ");
+                vendor.appendMetricEncodeTimestampSql(sqlBuilder, null, minEventDate, '0');
+            }
+
+            sqlBuilder.append(" ORDER BY ");
+            if (dimensionId == null) {
+                vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+                sqlBuilder.append(", ");
+            }
+            vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
 
             return sqlBuilder.toString();
         }
@@ -499,6 +568,50 @@ class MetricDatabase {
                 vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, null);
                 updateBuilder.append(", '%') ESCAPE ''");
             }
+
+            return updateBuilder.toString();
+        }
+
+        private static String getFixDataRowSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, int symbolId, UUID dimensionId, long eventDate, double cumulativeAmount, double amount) {
+            StringBuilder updateBuilder = new StringBuilder("UPDATE ");
+            SqlVendor vendor = db.getVendor();
+            vendor.appendIdentifier(updateBuilder, METRIC_TABLE);
+            updateBuilder.append(" SET ");
+
+            vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
+            updateBuilder.append(" = ");
+
+            vendor.appendMetricFixDataSql(updateBuilder, METRIC_DATA_FIELD, parameters, eventDate, cumulativeAmount, amount);
+
+            updateBuilder.append(" WHERE ");
+            vendor.appendIdentifier(updateBuilder, METRIC_ID_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, id, parameters);
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_TYPE_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, typeId, parameters);
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_SYMBOL_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, symbolId, parameters);
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_DIMENSION_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, dimensionId, parameters);
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
+            updateBuilder.append(" >= ");
+            vendor.appendMetricEncodeTimestampSql(updateBuilder, null, eventDate, '0');
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
+            updateBuilder.append(" <= ");
+            vendor.appendMetricEncodeTimestampSql(updateBuilder, null, eventDate, 'F');
 
             return updateBuilder.toString();
         }
@@ -810,6 +923,66 @@ class MetricDatabase {
             } finally {
                 db.closeConnection(connection);
             }
+        }
+
+        static void doFixDataRow(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, long eventDate, double cumulativeAmount, double amount) throws SQLException {
+            Connection connection = db.openConnection();
+            List<Object> parameters = new ArrayList<Object>();
+            try {
+                String updateSql = getFixDataRowSql(db, parameters, id, typeId, symbolId, dimensionId, eventDate, cumulativeAmount, amount);
+                SqlDatabase.Static.executeUpdateWithList(connection, updateSql, parameters);
+            } finally {
+                db.closeConnection(connection);
+            }
+        }
+
+        static void doReconstructCumulativeAmounts(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate) throws SQLException {
+
+            // for each row, ordered by date, keep a running total of amount and update it into cumulativeAmount
+            String selectSql = getAllDataSql(db, id, typeId, symbolId, null, minEventDate, null, true);
+            Connection connection = db.openConnection();
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet result = db.executeQueryBeforeTimeout(statement, selectSql, QUERY_TIMEOUT);
+                UUID lastDimensionId = null;
+                double correctCumAmt = 0, calcAmt = 0, amt = 0, cumAmt = 0, lastCorrectCumAmt = 0;
+                long timestamp = 0;
+                while (result.next()) {
+                    UUID dimensionId = UuidUtils.fromBytes(result.getBytes(1));
+                    if (lastDimensionId == null || ! dimensionId.equals(lastDimensionId)) {
+                        // new dimension, reset the correctCumAmt. This depends 
+                        // on getAllDataSql ordering by dimensionId, data.
+                        correctCumAmt = 0;
+                        lastCorrectCumAmt = 0;
+                    }
+                    lastDimensionId = dimensionId;
+
+                    byte[] data = result.getBytes(2);
+                    amt = amountFromBytes(data, AMOUNT_POSITION);
+                    cumAmt = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
+                    timestamp = timestampFromBytes(data);
+
+                    // if this amount is not equal to this cumulative amount 
+                    // minus the previous CORRECT cumulative amount, adjust 
+                    // this cumulative amount UPWARDS OR DOWNWARDS to match it.
+                    calcAmt = cumAmt - lastCorrectCumAmt;
+                    if (calcAmt != amt) {
+                        correctCumAmt = lastCorrectCumAmt + amt;
+                    } else {
+                        correctCumAmt = cumAmt;
+                    }
+
+                    if (correctCumAmt != cumAmt) {
+                        doFixDataRow(db, id, typeId, symbolId, dimensionId, timestamp, correctCumAmt, amt);
+                    }
+
+                    lastCorrectCumAmt = correctCumAmt;
+                }
+
+            } finally {
+                db.closeConnection(connection);
+            }
+
         }
 
         // METRIC SELECT
