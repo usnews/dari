@@ -292,7 +292,7 @@ class SqlQuery {
             }
 
             for (String indexKey : join.indexKeys) {
-                joinTableAliases.put(join.getTableName().toLowerCase() + join.quoteIndexKey(indexKey), join.getAlias());
+                joinTableAliases.put(join.getTableName().toLowerCase(Locale.ENGLISH) + join.quoteIndexKey(indexKey), join.getAlias());
             }
 
             // e.g. JOIN RecordIndex AS i#
@@ -359,7 +359,7 @@ class SqlQuery {
             }
 
             int symbolId = database.getSymbolId(key.getIndexKey(useIndex));
-            String sourceTableAndSymbol = fieldData.getIndexTable().toLowerCase() + symbolId;
+            String sourceTableAndSymbol = fieldData.getIndexTable().toLowerCase(Locale.ENGLISH) + symbolId;
 
             SqlIndex useSqlIndex = SqlIndex.Static.getByIndex(useIndex);
             SqlIndex.Table indexTable = useSqlIndex.getReadTable(database, useIndex);

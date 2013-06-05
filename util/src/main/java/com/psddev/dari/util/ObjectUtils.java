@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -389,10 +390,10 @@ public abstract class ObjectUtils {
                 for (String line; (line = mimeInputReader.readLine()) != null; ) {
                     if (!line.startsWith("#")) {
                         String[] items = StringUtils.split(line.trim(), "\\s+");
-                        String contentType = items[0].toLowerCase();
+                        String contentType = items[0].toLowerCase(Locale.ENGLISH);
 
                         for (int j = 1, length = items.length; j < length; ++ j) {
-                            contentTypes.put(items[j].toLowerCase(), contentType);
+                            contentTypes.put(items[j].toLowerCase(Locale.ENGLISH), contentType);
                         }
                     }
                 }
@@ -413,7 +414,7 @@ public abstract class ObjectUtils {
         int dotAt = fileName.lastIndexOf('.');
 
         if (dotAt > -1) {
-            String type = CONTENT_TYPES.get().get(fileName.substring(dotAt + 1).toLowerCase());
+            String type = CONTENT_TYPES.get().get(fileName.substring(dotAt + 1).toLowerCase(Locale.ENGLISH));
             if (type != null) {
                 return type;
             }
@@ -597,7 +598,7 @@ public abstract class ObjectUtils {
     private static String capitalize(String string) {
         return string == null || string.length() == 0 ?
                 string :
-                string.substring(0, 1).toUpperCase() + string.substring(1);
+                string.substring(0, 1).toUpperCase(Locale.ENGLISH) + string.substring(1);
     }
 
     /** @deprecated Use {@link #findClassesFromLoader} instead. */

@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -369,7 +370,7 @@ public class TypeDefinition<T> {
                         if (nameMatcher.matches()) {
 
                             String name = ObjectUtils.isBlank(nameMatcher.group(2))
-                                    ? nameMatcher.group(3).toLowerCase() + nameMatcher.group(4)
+                                    ? nameMatcher.group(3).toLowerCase(Locale.ENGLISH) + nameMatcher.group(4)
                                     : methodName;
                             getters.put(name, method);
                         }
@@ -409,7 +410,7 @@ public class TypeDefinition<T> {
                         String methodName = method.getName();
                         Matcher nameMatcher = StringUtils.getMatcher(methodName, "^set([^a-z])(.*)$");
                         if (nameMatcher.matches()) {
-                            setters.put(nameMatcher.group(1).toLowerCase() + nameMatcher.group(2), method);
+                            setters.put(nameMatcher.group(1).toLowerCase(Locale.ENGLISH) + nameMatcher.group(2), method);
                         }
                     }
                 }

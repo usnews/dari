@@ -152,17 +152,17 @@ public final class StringUtils {
         for (int i = 0; i < l; i++) {
             char c = string.charAt(i);
             if (" -_.$".indexOf(c) > -1) {
-                words.add(string.substring(m, i).toLowerCase());
+                words.add(string.substring(m, i).toLowerCase(Locale.ENGLISH));
                 while (++i < l && " -_.$".indexOf(string.charAt(i)) > -1) {
                 }
                 m = i;
             } else if (Character.isUpperCase(c) && i > 0 && Character.isLowerCase(string.charAt(i - 1))) {
-                words.add(string.substring(m, i).toLowerCase());
+                words.add(string.substring(m, i).toLowerCase(Locale.ENGLISH));
                 m = i;
             }
         }
         if (m + 1 < l) {
-            words.add(string.substring(m).toLowerCase());
+            words.add(string.substring(m).toLowerCase(Locale.ENGLISH));
         }
         return words;
     }
@@ -280,7 +280,7 @@ public final class StringUtils {
                 "\\.", "",
                 "[^a-zA-Z0-9]+", "-",
                 "^-+|-+$", ""
-        ).toLowerCase();
+        ).toLowerCase(Locale.ENGLISH);
     }
 
     /** Splits the given string by commas, and returns each part unescaped.
