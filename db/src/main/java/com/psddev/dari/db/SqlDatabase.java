@@ -35,6 +35,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
@@ -42,6 +43,8 @@ import org.iq80.snappy.Snappy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Suppliers;
+import com.google.common.base.Supplier;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.jolbox.bonecp.BoneCPDataSource;
@@ -111,6 +114,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private static final String UPDATE_STATS_OPERATION = "Update";
     private static final String QUERY_PROFILER_EVENT = SHORT_NAME + " " + QUERY_STATS_OPERATION;
     private static final String UPDATE_PROFILER_EVENT = SHORT_NAME + " " + UPDATE_STATS_OPERATION;
+    private static final long NOW_EXPIRATION_SECONDS = 300;
 
     private final static List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
 
@@ -448,6 +452,41 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         return id;
+    }
+
+    private Supplier<Long> nowOffset = Suppliers.memoizeWithExpiration(new Supplier<Long>() {
+        public Long get() {
+            String selectSql = getVendor().getSelectTimestampMillisSql();
+            Connection connection;
+            Statement statement = null;
+            ResultSet result = null;
+            Long nowOffsetMillis = 0L;
+
+            try {
+                connection = openConnection();
+            } catch (DatabaseException error) {
+                LOGGER.debug("Can't read timestamp from the writable server!", error);
+                connection = openReadConnection();
+            }
+
+            try {
+                statement = connection.createStatement();
+                result = statement.executeQuery(selectSql);
+                if (result.next()) {
+                    nowOffsetMillis = System.currentTimeMillis() - result.getLong(1);
+                }
+            } catch (SQLException ex) {
+                throw createQueryException(ex, selectSql, null);
+            } finally {
+                closeResources(null, connection, statement, result);
+            }
+
+            return nowOffsetMillis;
+        }
+    }, NOW_EXPIRATION_SECONDS, TimeUnit.SECONDS);
+
+    public long now() {
+        return System.currentTimeMillis() - nowOffset.get();
     }
 
     // Cache of all internal symbols.

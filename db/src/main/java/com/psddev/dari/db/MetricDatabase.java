@@ -138,7 +138,7 @@ class MetricDatabase {
     // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
     public void setEventDate(DateTime eventDate) {
         if (eventDate == null) {
-            eventDate = new DateTime();
+            eventDate = new DateTime(db.now());
             isImplicitEventDate = true;
         } else {
             if (eventDate.getMillis() > new DateTime().getMillis()) {
@@ -492,15 +492,15 @@ class MetricDatabase {
 
             updateBuilder.append(" AND ");
             vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
-            if (updateFuture) {
-                // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
-                updateBuilder.append(" >= ");
-                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, '0');
-            } else {
-                updateBuilder.append(" LIKE ");
-                updateBuilder.append(" CONCAT(");
-                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, null);
-                updateBuilder.append(", '%') ESCAPE ''");
+
+            updateBuilder.append(" >= ");
+            vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, '0');
+
+            if (!updateFuture) {
+                updateBuilder.append(" AND ");
+                vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
+                updateBuilder.append(" <= ");
+                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, 'F');
             }
 
             return updateBuilder.toString();
