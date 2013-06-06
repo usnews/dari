@@ -498,10 +498,15 @@ public enum SqlIndex {
         public static SqlIndex getByIndex(ObjectIndex index) {
             List<String> fieldNames = index.getFields();
             ObjectField field = index.getParent().getField(fieldNames.get(0));
-            if (fieldNames.size() > 1 || field.as(SqlDatabase.FieldData.class).getIndexTable() != null) {
+
+            if (fieldNames.size() > 1 ||
+                    (field != null &&
+                    field.as(SqlDatabase.FieldData.class).getIndexTable() != null)) {
                 return SqlIndex.CUSTOM;
+
             } else {
                 String type = field != null ? field.getInternalItemType() : index.getType();
+
                 return getByType(type);
             }
         }

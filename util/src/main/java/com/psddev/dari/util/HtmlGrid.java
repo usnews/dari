@@ -104,11 +104,9 @@ public class HtmlGrid {
         if (templateSize != rowsSize) {
             StringBuilder t = new StringBuilder();
 
-            if (templateStrings != null) {
-                for (String templateString : templateStrings) {
-                    t.append('\n');
-                    t.append(templateString);
-                }
+            for (String templateString : templateStrings) {
+                t.append('\n');
+                t.append(templateString);
             }
 
             throw new IllegalArgumentException(String.format(
