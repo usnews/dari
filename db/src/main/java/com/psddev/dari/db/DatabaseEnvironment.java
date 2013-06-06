@@ -9,14 +9,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.CodeUtils;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.Once;
 import com.psddev.dari.util.PeriodicCache;
 import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.Task;
@@ -112,36 +111,10 @@ public class DatabaseEnvironment implements ObjectStruct {
         }
     }
 
-    private final AtomicBoolean bootstrapDone = new AtomicBoolean();
-    private final AtomicReference<Thread> bootstrapThread = new AtomicReference<Thread>();
+    private final Once bootstrapOnce = new Once() {
 
-    // Bootstraps the globals and types for the first time. Most methods
-    // in this class should call this before performing any action.
-    private void bootstrap() {
-        if (bootstrapDone.get()) {
-            return;
-        }
-
-        Thread currentThread = Thread.currentThread();
-        while (true) {
-            if (currentThread.equals(bootstrapThread.get())) {
-                return;
-            } else if (bootstrapThread.compareAndSet(null, currentThread)) {
-                break;
-            } else {
-                synchronized (bootstrapThread) {
-                    while (bootstrapThread.get() != null) {
-                        try {
-                            bootstrapThread.wait();
-                        } catch (InterruptedException ex) {
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        try {
+        @Override
+        protected void run() {
 
             // Fetch the globals, which includes a reference to the root
             // type. References to other objects can't be resolved,
@@ -174,15 +147,8 @@ public class DatabaseEnvironment implements ObjectStruct {
             refreshTypes();
 
             refresher.scheduleWithFixedDelay(5.0, 5.0);
-            bootstrapDone.set(true);
-
-        } finally {
-            bootstrapThread.set(null);
-            synchronized (bootstrapThread) {
-                bootstrapThread.notifyAll();
-            }
         }
-    }
+    };
 
     /** Task for updating the globals and the types periodically. */
     private final Task refresher = new Task(PeriodicCache.TASK_EXECUTOR_NAME, null) {
@@ -215,7 +181,7 @@ public class DatabaseEnvironment implements ObjectStruct {
 
     /** Immediately refreshes all globals using the backing database. */
     public synchronized void refreshGlobals() {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         Database database = getDatabase();
         LOGGER.info("Loading globals from [{}]", database.getName());
@@ -241,7 +207,7 @@ public class DatabaseEnvironment implements ObjectStruct {
 
     /** Immediately refreshes all types using the backing database. */
     public synchronized void refreshTypes() {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         Database database = getDatabase();
         try {
@@ -479,7 +445,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * @return May be {@code null}.
      */
     public State getGlobals() {
-        bootstrap();
+        bootstrapOnce.ensure();
         return globals;
     }
 
@@ -594,7 +560,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * usable as {@linkplain ObjectType types}.
      */
     public void initializeTypes(Iterable<Class<?>> objectClasses) {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         Set<String> classNames = new HashSet<String>();
         for (Class<?> objectClass : objectClasses) {
@@ -619,7 +585,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * @return Never {@code null}. May be modified without any side effects.
      */
     public Set<ObjectType> getTypes() {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         Set<ObjectType> types = new HashSet<ObjectType>();
 
@@ -638,7 +604,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * @return May be {@code null}.
      */
     public ObjectType getTypeById(UUID id) {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         TypesCache temporaryTypes = temporaryTypesLocal.get();
         if (temporaryTypes != null) {
@@ -656,7 +622,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * @return May be {@code null}.
      */
     public ObjectType getTypeByName(String name) {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         TypesCache temporaryTypes = temporaryTypesLocal.get();
         if (temporaryTypes != null) {
@@ -674,7 +640,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * @return Never {@code null}. May be modified without any side effects.
      */
     public Set<ObjectType> getTypesByGroup(String group) {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         TypesCache temporaryTypes = temporaryTypesLocal.get();
         Set<ObjectType> tTypes;
@@ -705,7 +671,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * @return May be {@code null}.
      */
     public ObjectType getTypeByClass(Class<?> objectClass) {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         String className = objectClass.getName();
         TypesCache temporaryTypes = temporaryTypesLocal.get();
@@ -725,7 +691,7 @@ public class DatabaseEnvironment implements ObjectStruct {
      * {@code id}.
      */
     public Object createObject(UUID typeId, UUID id) {
-        bootstrap();
+        bootstrapOnce.ensure();
 
         Class<?> objectClass = null;
         ObjectType type = null;
