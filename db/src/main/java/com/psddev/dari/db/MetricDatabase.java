@@ -138,7 +138,7 @@ class MetricDatabase {
     // This method should strip the minutes and seconds off of a timestamp, or otherwise process it
     public void setEventDate(DateTime eventDate) {
         if (eventDate == null) {
-            eventDate = new DateTime();
+            eventDate = new DateTime(db.now());
             isImplicitEventDate = true;
         } else {
             if (eventDate.getMillis() > new DateTime().getMillis()) {

@@ -500,6 +500,11 @@ public class SqlVendor {
         return UuidUtils.fromBytes(result.getBytes(col));
     }
 
+    public String getSelectTimestampMillisSql() {
+        // This should return the entire select statement, including the SELECT and FROM clauses, if necessary.
+        throw new DatabaseException(this.getDatabase(), "getTimestampSelectSql is not implemented for this vendor.");
+    }
+
     /* ******************* METRICS ******************* */
     // These are all very vendor-specific.
     public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
@@ -674,6 +679,10 @@ public class SqlVendor {
             }
         }
 
+        @Override
+        public String getSelectTimestampMillisSql() {
+            return "SELECT UNIX_TIMESTAMP()*1000";
+        }
 
         /* ******************* METRICS ******************* */
         @Override
@@ -973,6 +982,11 @@ public class SqlVendor {
             return UuidUtils.fromString(result.getString(col));
         }
 
+        @Override
+        public String getSelectTimestampMillisSql() {
+            return "SELECT ROUND(EXTRACT(EPOCH FROM NOW())*1000)";
+        }
+
         /* ******************* METRICS ******************* */
         @Override
         public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
@@ -1219,5 +1233,12 @@ public class SqlVendor {
         public boolean supportsDistinctBlob() {
             return false;
         }
+
+        // This is untested.
+        // @Override
+        // public String getSelectTimestampMillisSql() {
+        //     return "SELECT ROUND((SYSTIMESTAMP - TO_DATE('01-01-1970 00:00:00', 'DD-MM-YYYY HH24:MI:SS')) * 24 * 60 * 60 * 1000) FROM DUAL";
+        // }
+
     }
 }
