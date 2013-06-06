@@ -83,7 +83,7 @@ public class LazyLoadEnhancer extends ClassEnhancer {
             String signature,
             Object value) {
 
-        if ((access & Opcodes.ACC_TRANSIENT) > 0) {
+        if ((access & Opcodes.ACC_TRANSIENT) != 0) {
             transientFields.add(name);
 
         } else {
