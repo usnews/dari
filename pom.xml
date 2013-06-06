@@ -281,7 +281,7 @@
                 <version>2.5.2</version>
                 <configuration>
                     <effort>Max</effort>
-                    <omitVisitors>DoInsideDoPrivileged</omitVisitors>
+                    <excludeFilterFile>etc/findbugs-exclude.xml</excludeFilterFile>
                     <threshold>Exp</threshold>
                 </configuration>
             </plugin>
