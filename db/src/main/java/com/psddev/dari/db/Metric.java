@@ -236,4 +236,19 @@ public class Metric extends Record {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
         }
     }
+
+    /**
+     * Repairs the cumulativeAmount value for all rows since the beginning of 
+     * time. This method takes a long time to complete and should only be used 
+     * if something has gone wrong.
+     *
+     */
+    public void repair() {
+        try {
+            metricDatabase.reconstructCumulativeAmounts();
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
+        }
+    }
+
 }

@@ -512,8 +512,13 @@ public class SqlVendor {
     // These are all very vendor-specific.
     public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
         // This DOES shift the decimal place and round to 6 places.
-        // columnIdentifier is "`data`" or "MAX(`data`)" - already quoted if it needs to be
+        // columnIdentifier is "`data`" - already quoted if it needs to be
         throw new DatabaseException(this.getDatabase(), "appendMetricUpdateDataSql: Metrics is not fully implemented for this vendor.");
+    }
+    public void appendMetricFixDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, long eventDate, double cumulativeAmount, double amount) {
+        // This DOES shift the decimal place and round to 6 places.
+        // columnIdentifier is "`data`" - already quoted if it needs to be
+        throw new DatabaseException(this.getDatabase(), "appendMetricFixDataSql: Metrics is not fully implemented for this vendor.");
     }
     public void appendMetricSelectAmountSql(StringBuilder str, String columnIdentifier, int position) {
         // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic to avoid rounding errors.
@@ -785,6 +790,22 @@ public class SqlVendor {
         }
 
         @Override
+        public void appendMetricFixDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, long eventDate, double cumulativeAmount, double amount) {
+            sql.append(" UNHEX(");
+                sql.append("CONCAT(");
+                    // timestamp
+                    appendHexEncodeExistingTimestampSql(sql, columnIdentifier);
+                    sql.append(',');
+                    // cumulativeAmount
+                    appendHexEncodeSetAmountSql(sql, parameters, cumulativeAmount);
+                    sql.append(',');
+                    // amount
+                    appendHexEncodeSetAmountSql(sql, parameters, amount);
+                sql.append(" )");
+            sql.append(" )");
+        }
+
+        @Override
         public void appendMetricSelectAmountSql(StringBuilder str, String columnIdentifier, int position) {
             str.append("CONV(");
                 str.append("HEX(");
@@ -1022,6 +1043,20 @@ public class SqlVendor {
                     sql.append(',');
                     appendHexEncodeSetAmountSql(sql, parameters, amount);
                 }
+            sql.append(" )");
+        }
+
+        @Override
+        public void appendMetricFixDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, long eventDate, double cumulativeAmount, double amount) {
+            sql.append("CONCAT(");
+                // timestamp
+                appendHexEncodeExistingTimestampSql(sql, columnIdentifier);
+                sql.append(',');
+                // cumulativeAmount
+                appendHexEncodeSetAmountSql(sql, parameters, cumulativeAmount);
+                sql.append(',');
+                // amount
+                appendHexEncodeSetAmountSql(sql, parameters, amount);
             sql.append(" )");
         }
 
