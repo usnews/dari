@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.instrument.ClassDefinition;
@@ -942,7 +943,7 @@ public class SourceFilter extends AbstractFilter {
         public final String jsp;
 
         private final ServletOutputStream output = new IsolatingOutputStream();
-        private final PrintWriter writer = new PrintWriter(output);
+        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StringUtils.UTF_8));
 
         public IsolatingResponse(HttpServletResponse response, String jsp) {
             super(response);

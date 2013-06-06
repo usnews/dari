@@ -1,6 +1,7 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Enumeration;
 import java.util.List;
@@ -77,7 +78,9 @@ public class LogCaptureFilter extends AbstractFilter {
             try {
                 writer = response.getWriter();
             } catch (IllegalStateException ex) {
-                writer = new PrintWriter(response.getOutputStream());
+                writer = new PrintWriter(new OutputStreamWriter(
+                        response.getOutputStream(),
+                        response.getCharacterEncoding()));
             }
 
             if (contentType != null) {

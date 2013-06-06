@@ -1,6 +1,7 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
 import javax.servlet.FilterChain;
@@ -106,7 +107,7 @@ public class FrameFilter extends AbstractFilter {
         public final String donePath;
 
         private final ServletOutputStream output = new DiscardingOutputStream();
-        private final PrintWriter writer = new PrintWriter(output);
+        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StringUtils.UTF_8));
 
         public DiscardingResponse(HttpServletResponse response, String donePath) {
             super(response);
