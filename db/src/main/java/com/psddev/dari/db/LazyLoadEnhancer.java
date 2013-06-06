@@ -118,7 +118,8 @@ public class LazyLoadEnhancer extends ClassEnhancer {
             return new MethodAdapter(visitor) {
                 @Override
                 public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-                    if (!transientFields.contains(name)) {
+                    if (!transientFields.contains(name) &&
+                            !name.startsWith("this$")) {
                         if (opcode == Opcodes.GETFIELD) {
                             if (recordableFields.contains(name)) {
                                 visitInsn(Opcodes.DUP);
