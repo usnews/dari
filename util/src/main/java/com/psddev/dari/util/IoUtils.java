@@ -90,15 +90,15 @@ public final class IoUtils {
         createFile(destination);
 
         FileInputStream sourceInput = new FileInputStream(source);
-        long total = -1L;
 
         try {
             FileChannel sourceChannel = sourceInput.getChannel();
-            total = sourceChannel.size();
+            long total = sourceChannel.size();
             FileOutputStream destinationOutput = new FileOutputStream(destination);
 
             try {
                 sourceChannel.transferTo(0, total, destinationOutput.getChannel());
+                return total;
 
             } finally {
                 close(destinationOutput, true);
@@ -107,8 +107,6 @@ public final class IoUtils {
         } finally {
             closeQuietly(sourceInput);
         }
-
-        return total;
     }
 
     /**

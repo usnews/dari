@@ -245,12 +245,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
      */
     @Override
     public boolean containsKey(Object key) {
-        try {
-            K typedKey = (K) key;
-            return true;
-        } catch (ClassCastException ex) {
-        }
-        return false;
+        return true;
     }
 
     /**

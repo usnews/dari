@@ -225,10 +225,7 @@ public class SourceFilter extends AbstractFilter {
 
         IsolatingResponse isolatingResponse = (IsolatingResponse) request.getAttribute(ISOLATING_RESPONSE_ATTRIBUTE);
         if (isolatingResponse != null) {
-            if (!JspUtils.getCurrentServletPath(request).equals(isolatingResponse.jsp)) {
-                isolatingResponse = null;
-
-            } else {
+            if (JspUtils.getCurrentServletPath(request).equals(isolatingResponse.jsp)) {
                 @SuppressWarnings("all")
                 HtmlWriter html = new HtmlWriter(isolatingResponse.getResponse().getWriter());
                 html.putAllStandardDefaults();
