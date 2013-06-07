@@ -106,7 +106,7 @@ import com.psddev.dari.util.UuidUtils;
  * @see <a href="http://developer.apple.com/mac/library/documentation/Cocoa/Conceptual/Predicates/predicates.html">Cocoa Predicates</a>
  * @see <a href="http://msdn.microsoft.com/en-us/netframework/aa904594.aspx">LINQ</a>
  */
-public class Query<E> extends Record implements Cloneable, HtmlObject {
+public class Query<E> extends Record {
 
     public static final Object MISSING_VALUE = new Object() {
         @Override

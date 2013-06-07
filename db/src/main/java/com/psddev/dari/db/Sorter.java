@@ -19,7 +19,7 @@ import com.psddev.dari.util.StringUtils;
  * </ul>
  */
 @Sorter.Embedded
-public class Sorter extends Record implements Cloneable {
+public class Sorter extends Record {
 
     public static final String ASCENDING_OPERATOR = "ascending";
     public static final String DESCENDING_OPERATOR = "descending";

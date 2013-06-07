@@ -38,7 +38,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
  *    <version>4.0.1</version>
  *</dependency>}</code></pre></blockquote>
  */
-public class BrightcoveStorageItem extends AbstractStorageItem implements StorageItem {
+public class BrightcoveStorageItem extends AbstractStorageItem {
 
     /** Setting key for Brightcove read service url. */
     public static final String READ_SERVICE_URL_SETTING = "readServiceUrl";
