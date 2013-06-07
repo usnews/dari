@@ -4,6 +4,7 @@ import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Locale;
 import java.util.Map;
@@ -89,6 +90,7 @@ public class SettingsDebugServlet extends HttpServlet {
 
                 for (PropertyDescriptor desc : Introspector.getBeanInfo(value.getClass()).getPropertyDescriptors()) {
                     String name = desc.getName();
+                    Throwable error = null;
 
                     try {
                         Method getter = desc.getReadMethod();
@@ -98,7 +100,16 @@ public class SettingsDebugServlet extends HttpServlet {
                             getter.setAccessible(true);
                             map.put(name, getter.invoke(value));
                         }
-                    } catch (Exception error) {
+
+                    } catch (IllegalAccessException e) {
+                        error = e;
+                    } catch (InvocationTargetException e) {
+                        error = e.getCause();
+                    } catch (RuntimeException e) {
+                        error = e;
+                    }
+
+                    if (error != null) {
                         LOGGER.debug(String.format(
                                 "Can't read [%s] from an instance of [%s] stored in [%s]!",
                                 name, value.getClass(), key),

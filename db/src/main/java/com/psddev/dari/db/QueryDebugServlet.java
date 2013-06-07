@@ -157,7 +157,7 @@ public class QueryDebugServlet extends HttpServlet {
                     renderDefault();
                 }
 
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 writeObject(ex);
 
             } finally {
@@ -172,7 +172,7 @@ public class QueryDebugServlet extends HttpServlet {
                 }
                 writeObject(query.count());
 
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 writeHtml("Many (");
                 writeStart("a", "href", page.url("", "timeout", 0));
                     writeHtml("Force Count");
@@ -216,7 +216,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 state.setValues((Map<String, Object>) ObjectUtils.fromJson(page.param(String.class, "data")));
                                 state.save();
                                 writeStart("p", "class", "alert alert-success").writeHtml("Saved successfully at " + new Date() + "!").writeEnd();
-                            } catch (Exception error) {
+                            } catch (RuntimeException error) {
                                 writeStart("div", "class", "alert alert-error").writeObject(error).writeEnd();
                             }
                         }
@@ -242,7 +242,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 form.updateAll(state, page.getRequest());
                                 state.save();
                                 writeStart("p", "class", "alert alert-success").writeHtml("Saved successfully at " + new Date() + "!").writeEnd();
-                            } catch (Exception error) {
+                            } catch (RuntimeException error) {
                                 writeStart("div", "class", "alert alert-error").writeObject(error).writeEnd();
                             }
                         }
@@ -484,7 +484,7 @@ public class QueryDebugServlet extends HttpServlet {
                         writeEnd();
                     }
 
-                } catch (Exception ex) {
+                } catch (RuntimeException ex) {
                     writeStart("div", "class", "alert alert-error");
                         writeObject(ex);
                     writeEnd();
@@ -800,7 +800,7 @@ public class QueryDebugServlet extends HttpServlet {
                         writeEnd();
                     }
 
-                } catch (Exception ex) {
+                } catch (RuntimeException ex) {
                     writeStart("div", "class", "alert alert-error");
                         writeObject(ex);
                     writeEnd();

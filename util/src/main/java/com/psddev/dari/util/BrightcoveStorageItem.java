@@ -520,7 +520,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         } finally {
             try {
                 client.getConnectionManager().shutdown();
-            } catch (Exception ignore) {
+            } catch (RuntimeException ignore) {
                 throw new IllegalStateException("Could not close connection to Brightcove API!");
             }
         }
@@ -624,7 +624,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
                 IoUtils.delete(storageFile);
             }
         } finally {
-            try { client.getConnectionManager().shutdown(); } catch (Exception ignore) { }
+            try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
         }
     }
 
@@ -680,7 +680,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
                     return videoJson;
                 }
             } finally {
-                try { client.getConnectionManager().shutdown(); } catch (Exception ignore) { }
+                try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
             }
         } catch(IOException e) {
             return null;
@@ -758,7 +758,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         if(!ObjectUtils.isBlank(videoJson.get("economics"))) {
             try {
                 this.economics = ObjectUtils.to(Economics.class, videoJson.get("economics"));
-            } catch (Exception ignore) { }
+            } catch (RuntimeException ignore) { }
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("playsTotal"))) {
@@ -926,7 +926,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
             }
 
         } finally {
-            try { client.getConnectionManager().shutdown(); } catch (Exception ignore) { }
+            try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
         }
     }
 

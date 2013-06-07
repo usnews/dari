@@ -557,7 +557,7 @@ public class HtmlWriter extends Writer {
 
         try {
             debug = !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
-        } catch (Exception error) {
+        } catch (RuntimeException error) {
             debug = false;
         }
 

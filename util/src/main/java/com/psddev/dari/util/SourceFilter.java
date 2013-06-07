@@ -240,7 +240,7 @@ public class SourceFilter extends AbstractFilter {
                         html.writeHtml(writer.toString().trim());
                     html.writeEnd();
 
-                } catch (Exception ex) {
+                } catch (RuntimeException ex) {
                     html.writeStart("pre", "class", "alert alert-error");
                         html.writeObject(ex);
                     html.writeEnd();
@@ -832,7 +832,7 @@ public class SourceFilter extends AbstractFilter {
                             } finally {
                                 writeEnd();
                             }
-                        } catch (Exception ex) {
+                        } catch (RuntimeException ex) {
                             writeObject(ex);
                         }
                     writeEnd();

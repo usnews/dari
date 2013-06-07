@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -570,11 +571,14 @@ public class State implements Map<String, Object> {
                             value = keyMethod.invoke(value);
                             continue KEY;
 
+                        } catch (IllegalAccessException error) {
+                            throw new IllegalStateException(error);
+
+                        } catch (InvocationTargetException error) {
+                            ErrorUtils.rethrow(error.getCause());
+
                         } catch (NoSuchMethodException error) {
                             // Try to find the method in the super class.
-
-                        } catch (Exception error) {
-                            ErrorUtils.rethrow(error);
                         }
                     }
                 }
@@ -1412,7 +1416,7 @@ public class State implements Map<String, Object> {
                     javaField.set(object, CONVERTER.convert(javaFieldType, value));
                 }
 
-            } catch (Exception error) {
+            } catch (RuntimeException error) {
                 Throwable cause;
 
                 if (error instanceof ConversionException) {

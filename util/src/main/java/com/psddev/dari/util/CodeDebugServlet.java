@@ -40,7 +40,6 @@ public class CodeDebugServlet extends HttpServlet {
         WebPageContext page = new WebPageContext(this, request, response);
         String action = page.param(String.class, "action");
 
-        try {
         if ("run".equals(action)) {
             if (page.param(String.class, "isSave") != null) {
                 doSave(page);
@@ -51,9 +50,6 @@ public class CodeDebugServlet extends HttpServlet {
 
         } else {
             doEdit(page);
-        }
-        } catch (Exception ex) {
-            ex.printStackTrace();
         }
     }
 

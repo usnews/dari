@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -153,7 +154,7 @@ public class WebDatabase extends AbstractDatabase<Void> {
             post.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
             response = client.execute(post, new BasicResponseHandler());
 
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             throw new DatabaseException(this, ex);
 
         } finally {

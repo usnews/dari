@@ -616,7 +616,7 @@ public abstract class AbstractDatabase<C> implements Database {
                 if (modClass != null &&
                         Modification.class.isAssignableFrom(modClass) &&
                         Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class)) {
-                    executeForModClass(state, modClass);
+                    executeForModification(state, modClass);
                 }
             }
 
@@ -625,7 +625,7 @@ public abstract class AbstractDatabase<C> implements Database {
                 Class<?> modClass = ObjectUtils.getClassByName(modClassName);
 
                 if (modClass != null) {
-                    executeForModClass(state, modClass);
+                    executeForModification(state, modClass);
                 }
             }
 
@@ -635,7 +635,7 @@ public abstract class AbstractDatabase<C> implements Database {
             }
         }
 
-        private void executeForModClass(State state, Class<?> modClass) {
+        private void executeForModification(State state, Class<?> modClass) {
             Object modObject;
 
             try {
@@ -645,7 +645,7 @@ public abstract class AbstractDatabase<C> implements Database {
                     return;
                 }
 
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 return;
             }
 
@@ -1084,7 +1084,7 @@ public abstract class AbstractDatabase<C> implements Database {
                 return false;
             }
 
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             return false;
         }
 

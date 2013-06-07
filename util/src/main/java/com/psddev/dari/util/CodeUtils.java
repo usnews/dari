@@ -14,6 +14,7 @@ import java.io.StringReader;
 import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.lang.instrument.UnmodifiableClassException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.InvocationTargetException;
@@ -557,10 +558,21 @@ public final class CodeUtils {
         Class<?> agentClass = getAgentClass();
         Instrumentation instrumentation = null;
         if (agentClass != null) {
+            Throwable error = null;
+
             try {
                 instrumentation = (Instrumentation) agentClass.getField("instrumentation").get(null);
                 instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
-            } catch (Exception error) {
+
+            } catch (IllegalAccessException e) {
+                error = e;
+            } catch (NoSuchFieldException e) {
+                error = e;
+            } catch (RuntimeException e) {
+                error = e;
+            }
+
+            if (error != null) {
                 LOGGER.debug("Can't initialize INSTRUMENTATION instance!", error);
             }
         }
@@ -601,6 +613,7 @@ public final class CodeUtils {
         }
 
         Object vm = null;
+        Throwable error = null;
 
         try {
             try {
@@ -666,7 +679,21 @@ public final class CodeUtils {
                 }
             }
 
-        } catch (Exception error) {
+        } catch (ClassNotFoundException e) {
+            error = e;
+        } catch (IllegalAccessException e) {
+            error = e;
+        } catch (InvocationTargetException e) {
+            error = e.getCause();
+        } catch (IOException e) {
+            error = e;
+        } catch (NoSuchMethodException e) {
+            error = e;
+        } catch (RuntimeException e) {
+            error = e;
+        }
+
+        if (error != null) {
             LOGGER.info("Can't create an instrumentation instance!", error);
         }
 
@@ -749,12 +776,22 @@ public final class CodeUtils {
 
         } else {
             for (ClassDefinition definition : definitions) {
+                Throwable error = null;
+
                 try {
                     instrumentation.redefineClasses(definition);
                     Class<?> c = definition.getDefinitionClass();
                     successes.add(c);
 
-                } catch (Exception error) {
+                } catch (ClassNotFoundException e) {
+                    error = e;
+                } catch (UnmodifiableClassException e) {
+                    error = e;
+                } catch (RuntimeException e) {
+                    error = e;
+                }
+
+                if (error != null) {
                     failures.add(definition);
                 }
             }

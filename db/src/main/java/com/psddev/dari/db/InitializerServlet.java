@@ -54,22 +54,23 @@ public class InitializerServlet extends HttpServlet {
 
         Database database = Database.Static.getDefault();
         StringLogger logger = new StringLogger();
-        try {
 
-            for (Initializer initializer : initializersResolver.resolve()) {
-                logger.reset();
+        for (Initializer initializer : initializersResolver.resolve()) {
+            logger.reset();
+
+            try {
                 initializer.execute(database, logger);
 
-                writer.print("<h2>Executing ");
-                writer.print(initializer.getClass().getName());
-                writer.print("</h2><p><pre>");
-                writer.print(logger.toString());
+            } catch (Exception ex) {
+                writer.println("<p><pre>");
+                ex.printStackTrace(writer);
                 writer.println("</pre></p>");
             }
 
-        } catch (Exception ex) {
-            writer.println("<p><pre>");
-            ex.printStackTrace(writer);
+            writer.print("<h2>Executing ");
+            writer.print(initializer.getClass().getName());
+            writer.print("</h2><p><pre>");
+            writer.print(logger.toString());
             writer.println("</pre></p>");
         }
     }

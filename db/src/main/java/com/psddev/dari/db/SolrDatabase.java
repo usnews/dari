@@ -1063,6 +1063,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     }
 
     private void doCommit(SolrServer server) {
+        Throwable error = null;
+
         try {
             Stats.Timer timer = STATS.startTimer();
             Profiler.Static.startThreadEvent(COMMIT_PROFILER_EVENT);
@@ -1077,8 +1079,14 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 LOGGER.debug("Solr commit time: [{}]ms", duration);
             }
 
-        } catch (Exception ex) {
-            throw new DatabaseException(this, "Can't commit to Solr!", ex);
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
+            throw new DatabaseException(this, "Can't commit to Solr!", error);
         }
     }
 
@@ -1248,15 +1256,23 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
     @Override
     public void deleteByQuery(Query<?> query) {
+        Throwable error = null;
+
         try {
             SolrServer server = openConnection();
             server.deleteByQuery(buildQuery(query).getQuery());
             doCommit(server);
 
-        } catch (Exception ex) {
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
             throw new DatabaseException(this, String.format(
                     "Can't delete documents matching [%s] from Solr!",
-                    query), ex);
+                    query), error);
         }
     }
 
@@ -1381,6 +1397,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             return;
         }
 
+        Throwable error = null;
+
         try {
             Stats.Timer timer = STATS.startTimer();
             Profiler.Static.startThreadEvent(ADD_PROFILER_EVENT, documentsSize);
@@ -1397,10 +1415,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 LOGGER.debug("Solr add: [{}], Time: [{}]ms", documentsSize, duration);
             }
 
-        } catch (Exception ex) {
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
             throw new DatabaseException(this, String.format(
                     "Can't add [%s] documents to Solr!",
-                    documentsSize), ex);
+                    documentsSize), error);
         }
     }
 
@@ -1549,6 +1573,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         int statesSize = states.size();
+        Throwable error = null;
 
         try {
             Stats.Timer timer = STATS.startTimer();
@@ -1566,10 +1591,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 LOGGER.debug("Solr delete: [{}], Time: [{}]ms", statesSize, duration);
             }
 
-        } catch (Exception ex) {
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
             throw new DatabaseException(this, String.format(
                     "Can't delete [%s] documents from Solr!",
-                    statesSize), ex);
+                    statesSize), error);
         }
     }
 

@@ -1,9 +1,13 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.AsyncConsumer;
 import com.psddev.dari.util.AsyncQueue;
@@ -16,6 +20,8 @@ import com.psddev.dari.util.StorageItem;
 public class AsyncStorageItemWriter<E> extends AsyncConsumer<E> {
 
     public static final int DEFAULT_COMMIT_SIZE = 100;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AsyncStorageItemWriter.class);
 
     private final Database database;
     private final WriteOperation operation;
@@ -168,14 +174,23 @@ public class AsyncStorageItemWriter<E> extends AsyncConsumer<E> {
     }
 
     private StorageItem copyItem(StorageItem item, String source, String destination) {
-        try {
-            if (item.getStorage().equals(source)) {
+        if (item.getStorage().equals(source)) {
+            Throwable error = null;
+
+            try {
                 return StorageItem.Static.copy(item, destination);
-            } else {
-                return null;
+
+            } catch (IOException e) {
+                error = e;
+            } catch (RuntimeException e) {
+                error = e;
             }
-        } catch (Exception ex) {
-             return null;
+
+            if (error != null) {
+                LOGGER.info("Can't copy from [{}] to [{}]!", source, destination);
+            }
         }
+
+        return null;
     }
 }
