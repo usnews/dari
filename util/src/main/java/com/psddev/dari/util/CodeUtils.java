@@ -505,8 +505,9 @@ public final class CodeUtils {
     private static final Instrumentation INSTRUMENTATION;
     private static final Map<String, String> JSP_SERVLET_PATHS_MAP = new HashMap<String, String>();
     private static final Map<String, String> JSP_LINE_NUMBERS_MAP = new HashMap<String, String>();
+    private static final ClassFileTransformer JSP_CLASS_RECORDER = new JspTransformer();
 
-    private static final ClassFileTransformer JSP_CLASS_RECORDER = new ClassFileTransformer() {
+    private static class JspTransformer implements ClassFileTransformer {
 
         @Override
         public byte[] transform(
@@ -526,7 +527,7 @@ public final class CodeUtils {
 
             return null;
         }
-    };
+    }
 
     private static class SmapAdapter extends ClassAdapter {
 
