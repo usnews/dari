@@ -175,7 +175,7 @@ public class AsyncStorageItemWriter<E> extends AsyncConsumer<E> {
 
     private StorageItem copyItem(StorageItem item, String source, String destination) {
         if (item.getStorage().equals(source)) {
-            Throwable error = null;
+            Throwable error;
 
             try {
                 return StorageItem.Static.copy(item, destination);
@@ -186,9 +186,9 @@ public class AsyncStorageItemWriter<E> extends AsyncConsumer<E> {
                 error = e;
             }
 
-            if (error != null) {
-                LOGGER.info("Can't copy from [{}] to [{}]!", source, destination);
-            }
+            LOGGER.info(String.format(
+                    "Can't copy from [%s] to [%s]!", source, destination),
+                    error);
         }
 
         return null;
