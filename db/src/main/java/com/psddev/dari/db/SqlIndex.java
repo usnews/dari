@@ -654,8 +654,9 @@ public enum SqlIndex {
                 }
             }
 
-            for (String name : insertQueries.keySet()) {
-                String sqlQuery = insertQueries.get(name);
+            for (Map.Entry<String, String> entry : insertQueries.entrySet()) {
+                String name = entry.getKey();
+                String sqlQuery = entry.getValue();
                 List<List<Object>> parameters = insertParameters.get(name);
                 try {
                     if (!parameters.isEmpty()) {

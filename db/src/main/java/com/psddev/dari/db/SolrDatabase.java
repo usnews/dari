@@ -344,8 +344,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         Map<String, Object> facetedFields = query.getFacetedFields();
         if (!facetedFields.isEmpty()) {
             boolean facet = false;
-            for(String field : facetedFields.keySet()) {
-                Object value = facetedFields.get(field);
+            for (Map.Entry<String, Object> entry : facetedFields.entrySet()) {
+                String field = entry.getKey();
+                Object value = entry.getValue();
                 if (value != null) {
                     Predicate p = new ComparisonPredicate(PredicateParser.EQUALS_ANY_OPERATOR, false, field, ObjectUtils.to(Iterable.class, value));
                     StringBuilder filter = new StringBuilder();
