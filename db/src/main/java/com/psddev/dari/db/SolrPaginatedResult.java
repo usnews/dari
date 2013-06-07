@@ -136,7 +136,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
         }
 
         public Long getCount() {
-            return new Long(_field.getValueCount());
+            return Long.valueOf(_field.getValueCount());
         }
 
         public <T> List<T> getObjects() {
@@ -157,7 +157,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
                 for (Object o : objects) {
                     Record record = (Record)o;
                     FacetField.Count c = index.get(record.getId().toString());
-                    record.getState().getExtras().put("count", new Long(c.getCount()));
+                    record.getState().getExtras().put("count", Long.valueOf(c.getCount()));
                 }
             }
 
