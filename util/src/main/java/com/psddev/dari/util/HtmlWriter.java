@@ -117,8 +117,14 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter writeRaw(Object object) throws IOException {
         if (object != null) {
-            write(object.toString());
+            if (object instanceof CharSequence) {
+                append((CharSequence) object);
+
+            } else {
+                write(object.toString());
+            }
         }
+
         return this;
     }
 
@@ -356,12 +362,12 @@ public class HtmlWriter extends Writer {
      * Writes grid CSS for the given {@code selector} and {@code grid}.
      */
     public HtmlWriter writeGridCss(String selector, HtmlGrid grid) throws IOException {
-        String cssSuffix = "";
+        StringBuilder cssSuffix = new StringBuilder();
 
         for (int lastBraceAt = 0, braceAt;
                 (braceAt = selector.indexOf('{', lastBraceAt)) > -1;
                 lastBraceAt = braceAt + 1) {
-            cssSuffix += '}';
+            cssSuffix.append('}');
         }
 
         CssUnit minWidth = grid.getMinimumWidth().getSingle();
@@ -369,12 +375,12 @@ public class HtmlWriter extends Writer {
         if (minWidth != null) {
             writeCss(selector,
                     "min-width", minWidth);
-            write(cssSuffix);
+            writeRaw(cssSuffix);
         }
 
         writeCss(selector + " > .dari-grid-area[data-grid-area]",
                 "display", "none");
-        write(cssSuffix);
+        writeRaw(cssSuffix);
 
         for (Area area : createAreas(grid).values()) {
             String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
@@ -384,7 +390,7 @@ public class HtmlWriter extends Writer {
                     "display", "block",
                     "padding-left", area.frPaddingLeft + "%",
                     "width", area.frWidth + "%");
-            write(cssSuffix);
+            writeRaw(cssSuffix);
 
             for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
                 String unit = entry.getKey();
@@ -394,7 +400,7 @@ public class HtmlWriter extends Writer {
                         "height", adjustment.height != null ? adjustment.height : "auto",
                         "margin", adjustment.getMargin(unit),
                         "width", adjustment.width != null ? adjustment.width : "auto");
-                write(cssSuffix);
+                writeRaw(cssSuffix);
             }
 
             for (CssUnit width : area.width.getAll()) {
@@ -403,14 +409,14 @@ public class HtmlWriter extends Writer {
                 if (!"fr".equals(unit)) {
                     writeCss(selector + " .dari-grid-mw-" + unit + selectorSuffix,
                             "padding-left", width);
-                    write(cssSuffix);
+                    writeRaw(cssSuffix);
                 }
             }
 
             for (CssUnit height : area.height.getAll()) {
                 writeCss(selector + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
                         "padding-top", height);
-                write(cssSuffix);
+                writeRaw(cssSuffix);
             }
         }
 

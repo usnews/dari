@@ -266,12 +266,16 @@ public final class CodeUtils {
 
             if (children != null) {
                 for (String child : children) {
-                    String childPath = path + child;
+                    StringBuilder childPath = new StringBuilder();
+
+                    childPath.append(path);
+                    childPath.append(child);
 
                     if (new File(source, child).isDirectory()) {
-                        childPath += "/";
+                        childPath.append('/');
                     }
-                    paths.add(childPath);
+
+                    paths.add(childPath.toString());
                 }
             }
 

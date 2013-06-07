@@ -549,14 +549,16 @@ public class ObjectType extends Record implements ObjectStruct {
         ObjectIndex index = indexesCache.get().get(name);
         if (index == null && name.indexOf('/') != -1) {
             DatabaseEnvironment environment = getState().getDatabase().getEnvironment();
-            String field = "";
+            StringBuilder fieldBuilder = new StringBuilder();
             for (String part : name.split("/")) {
                 if (environment.getTypeByName(part) == null) {
-                    field += part + "/";
+                    fieldBuilder.append(part);
+                    fieldBuilder.append('/');
                 }
             }
-            field = field.substring(0, field.length() - 1);
+            fieldBuilder.setLength(fieldBuilder.length() - 1);
 
+            String field = fieldBuilder.toString();
             index = getEmbeddedIndex(field, this);
             if (index != null) {
                 // create a new index with the current type info

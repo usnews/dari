@@ -606,9 +606,14 @@ public enum SqlIndex {
                     ObjectIndex index = indexValue.getIndex();
 
                     if (database.hasInRowIndex() && index.isShortConstant()) {
-                        String inRowIndex = inRowIndexes.get(state);
-                        if (inRowIndex == null) {
-                            inRowIndex = ";";
+                        StringBuilder inRowIndex = new StringBuilder();
+                        String current = inRowIndexes.get(state);
+
+                        if (current != null) {
+                            inRowIndex.append(current);
+
+                        } else {
+                            inRowIndex.append(';');
                         }
 
                         int nameId = database.getSymbolId(index.getUniqueName());
@@ -619,12 +624,12 @@ public enum SqlIndex {
                             tokenBuilder.append(database.getSymbolId(values[0].toString()));
                             tokenBuilder.append(";");
                             String token = tokenBuilder.toString();
-                            if (!inRowIndex.contains(";" + token)) {
-                                inRowIndex += token;
+                            if (inRowIndex.indexOf(";" + token) < 0) {
+                                inRowIndex.append(token);
                             }
                         }
 
-                        inRowIndexes.put(state, inRowIndex);
+                        inRowIndexes.put(state, inRowIndex.toString());
                         continue;
                     }
 
