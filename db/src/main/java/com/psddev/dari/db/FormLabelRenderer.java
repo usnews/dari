@@ -25,6 +25,6 @@ public interface FormLabelRenderer {
 
     /** @deprecated Use {@link AbstractFormLabelRenderer} instead. */
     @Deprecated
-    public static abstract class Abstract extends AbstractFormLabelRenderer {
+    public abstract static class Abstract extends AbstractFormLabelRenderer {
     }
 }
