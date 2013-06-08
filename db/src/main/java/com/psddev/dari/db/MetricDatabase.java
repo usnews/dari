@@ -304,7 +304,7 @@ class MetricDatabase {
                 vendor.appendIdentifier(sqlBuilder, "minData");
             }
 
-            if (extraSelectSql != null && ! "".equals(extraSelectSql)) {
+            if (extraSelectSql != null && !"".equals(extraSelectSql)) {
                 sqlBuilder.append(", ");
                 sqlBuilder.append(extraSelectSql);
             }
@@ -350,11 +350,11 @@ class MetricDatabase {
             if (dimensionId == null) {
                 sqlBuilder.append(" GROUP BY ");
                 vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
-                if (extraGroupBySql != null && ! "".equals(extraGroupBySql)) {
+                if (extraGroupBySql != null && !"".equals(extraGroupBySql)) {
                     sqlBuilder.append(", ");
                     sqlBuilder.append(extraGroupBySql);
                 }
-            } else if (extraGroupBySql != null && ! "".equals(extraGroupBySql)) {
+            } else if (extraGroupBySql != null && !"".equals(extraGroupBySql)) {
                 sqlBuilder.append(" GROUP BY ");
                 sqlBuilder.append(extraGroupBySql);
             }
@@ -728,26 +728,26 @@ class MetricDatabase {
             Integer eventDateInt = (int) (eventDate / DATE_DECIMAL_SHIFT);
 
             int size, offset = 0;
-            byte[] bytes = new byte[DATE_BYTE_SIZE+AMOUNT_BYTE_SIZE+AMOUNT_BYTE_SIZE];
+            byte[] bytes = new byte[DATE_BYTE_SIZE + AMOUNT_BYTE_SIZE + AMOUNT_BYTE_SIZE];
 
             // first 4 bytes: timestamp
             size = DATE_BYTE_SIZE;
             for (int i = 0; i < size; ++i) {
-                bytes[i+offset] = (byte) (eventDateInt >> (size - i - 1 << 3));
+                bytes[i + offset] = (byte) (eventDateInt >> (size - i - 1 << 3));
             }
             offset += size;
 
             // second 8 bytes: cumulativeAmount
             size = AMOUNT_BYTE_SIZE;
             for (int i = 0; i < size; ++i) {
-                bytes[i+offset] = (byte) (cumulativeAmountLong >> (size - i - 1 << 3));
+                bytes[i + offset] = (byte) (cumulativeAmountLong >> (size - i - 1 << 3));
             }
             offset += size;
 
             // last 8 bytes: amount
             size = AMOUNT_BYTE_SIZE;
             for (int i = 0; i < 8; ++i) {
-                bytes[i+offset] = (byte) (amountLong >> (size - i - 1 << 3));
+                bytes[i + offset] = (byte) (amountLong >> (size - i - 1 << 3));
             }
 
             return bytes;
@@ -756,10 +756,10 @@ class MetricDatabase {
         private static double amountFromBytes(byte[] bytes, int position) {
             long amountLong = 0;
 
-            int offset = DATE_BYTE_SIZE + ((position-1)*AMOUNT_BYTE_SIZE);
+            int offset = DATE_BYTE_SIZE + ((position - 1) * AMOUNT_BYTE_SIZE);
 
             for (int i = 0; i < AMOUNT_BYTE_SIZE; ++i) {
-                amountLong = (amountLong << 8) | (bytes[i+offset] & 0xff);
+                amountLong = (amountLong << 8) | (bytes[i + offset] & 0xff);
             }
 
             return (double) amountLong / AMOUNT_DECIMAL_SHIFT;
@@ -812,7 +812,7 @@ class MetricDatabase {
                         }
                         // Try to insert, if that fails then try the update again
                         List<Object> insertParameters = new ArrayList<Object>();
-                        String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbolId, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
+                        String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbolId, dimensionId, incrementAmount, previousCumulativeAmount + incrementAmount, eventDate);
                         tryInsertThenUpdate(db, connection, insertSql, insertParameters, updateSql, updateParameters);
                     }
 
@@ -829,7 +829,7 @@ class MetricDatabase {
                         }
 
                         List<Object> insertParameters = new ArrayList<Object>();
-                        String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbolId, dimensionId, incrementAmount, previousCumulativeAmount+incrementAmount, eventDate);
+                        String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbolId, dimensionId, incrementAmount, previousCumulativeAmount + incrementAmount, eventDate);
 
                         List<Object> updateParameters = new ArrayList<Object>();
                         String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbolId, dimensionId, incrementAmount, eventDate, true, false);
@@ -860,7 +860,7 @@ class MetricDatabase {
                         // Now update all the future rows.
                         List<Object> updateParameters = new ArrayList<Object>();
                         String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbolId, dimensionId, incrementAmount, eventDate, true, true);
-                        SqlDatabase.Static.executeUpdateWithList( connection, updateSql, updateParameters);
+                        SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
                     }
                 }
 
@@ -948,42 +948,49 @@ class MetricDatabase {
             Connection connection = db.openConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, selectSql, QUERY_TIMEOUT);
-                UUID lastDimensionId = null;
-                double correctCumAmt = 0, calcAmt = 0, amt = 0, cumAmt = 0, lastCorrectCumAmt = 0;
-                long timestamp = 0;
-                while (result.next()) {
-                    UUID dimensionId = UuidUtils.fromBytes(result.getBytes(1));
-                    if (lastDimensionId == null || ! dimensionId.equals(lastDimensionId)) {
-                        // new dimension, reset the correctCumAmt. This depends 
-                        // on getAllDataSql ordering by dimensionId, data.
-                        correctCumAmt = 0;
-                        lastCorrectCumAmt = 0;
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, selectSql, QUERY_TIMEOUT);
+                    try {
+                        UUID lastDimensionId = null;
+                        double correctCumAmt = 0, calcAmt = 0, amt = 0, cumAmt = 0, lastCorrectCumAmt = 0;
+                        long timestamp = 0;
+                        while (result.next()) {
+                            UUID dimensionId = UuidUtils.fromBytes(result.getBytes(1));
+                            if (lastDimensionId == null || !dimensionId.equals(lastDimensionId)) {
+                                // new dimension, reset the correctCumAmt. This depends
+                                // on getAllDataSql ordering by dimensionId, data.
+                                correctCumAmt = 0;
+                                lastCorrectCumAmt = 0;
+                            }
+                            lastDimensionId = dimensionId;
+
+                            byte[] data = result.getBytes(2);
+                            amt = amountFromBytes(data, AMOUNT_POSITION);
+                            cumAmt = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
+                            timestamp = timestampFromBytes(data);
+
+                            // if this amount is not equal to this cumulative amount
+                            // minus the previous CORRECT cumulative amount, adjust
+                            // this cumulative amount UPWARDS OR DOWNWARDS to match it.
+                            calcAmt = cumAmt - lastCorrectCumAmt;
+                            if (calcAmt != amt) {
+                                correctCumAmt = lastCorrectCumAmt + amt;
+                            } else {
+                                correctCumAmt = cumAmt;
+                            }
+
+                            if (correctCumAmt != cumAmt) {
+                                doFixDataRow(db, id, typeId, symbolId, dimensionId, timestamp, correctCumAmt, amt);
+                            }
+
+                            lastCorrectCumAmt = correctCumAmt;
+                        }
+                    } finally {
+                        result.close();
                     }
-                    lastDimensionId = dimensionId;
-
-                    byte[] data = result.getBytes(2);
-                    amt = amountFromBytes(data, AMOUNT_POSITION);
-                    cumAmt = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
-                    timestamp = timestampFromBytes(data);
-
-                    // if this amount is not equal to this cumulative amount 
-                    // minus the previous CORRECT cumulative amount, adjust 
-                    // this cumulative amount UPWARDS OR DOWNWARDS to match it.
-                    calcAmt = cumAmt - lastCorrectCumAmt;
-                    if (calcAmt != amt) {
-                        correctCumAmt = lastCorrectCumAmt + amt;
-                    } else {
-                        correctCumAmt = cumAmt;
-                    }
-
-                    if (correctCumAmt != cumAmt) {
-                        doFixDataRow(db, id, typeId, symbolId, dimensionId, timestamp, correctCumAmt, amt);
-                    }
-
-                    lastCorrectCumAmt = correctCumAmt;
+                } finally {
+                    statement.close();
                 }
-
             } finally {
                 db.closeConnection(connection);
             }
@@ -997,9 +1004,17 @@ class MetricDatabase {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                if (result.next()) {
-                    amount = result.getDouble(1);
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                    try {
+                        if (result.next()) {
+                            amount = result.getDouble(1);
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
                 }
             } finally {
                 db.closeConnection(connection);
@@ -1013,9 +1028,17 @@ class MetricDatabase {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                while (result.next()) {
-                    values.put(result.getString(1), result.getDouble(2));
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                    try {
+                        while (result.next()) {
+                            values.put(result.getString(1), result.getDouble(2));
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
                 }
             } finally {
                 db.closeConnection(connection);
@@ -1051,17 +1074,25 @@ class MetricDatabase {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                while (result.next()) {
-                    byte[] maxData = result.getBytes(1);
-                    byte[] minData = result.getBytes(2);
-                    long timestamp = result.getLong(3);
-                    timestamp = metricInterval.process(new DateTime(timestamp));
-                    double maxCumulativeAmount = amountFromBytes(maxData, CUMULATIVEAMOUNT_POSITION);
-                    double minCumulativeAmount = amountFromBytes(minData, CUMULATIVEAMOUNT_POSITION);
-                    double minAmount = amountFromBytes(minData, AMOUNT_POSITION);
-                    double intervalAmount = maxCumulativeAmount - (minCumulativeAmount - minAmount);
-                    values.put(new DateTime(timestamp), intervalAmount);
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                    try {
+                        while (result.next()) {
+                            byte[] maxData = result.getBytes(1);
+                            byte[] minData = result.getBytes(2);
+                            long timestamp = result.getLong(3);
+                            timestamp = metricInterval.process(new DateTime(timestamp));
+                            double maxCumulativeAmount = amountFromBytes(maxData, CUMULATIVEAMOUNT_POSITION);
+                            double minCumulativeAmount = amountFromBytes(minData, CUMULATIVEAMOUNT_POSITION);
+                            double minAmount = amountFromBytes(minData, AMOUNT_POSITION);
+                            double intervalAmount = maxCumulativeAmount - (minCumulativeAmount - minAmount);
+                            values.put(new DateTime(timestamp), intervalAmount);
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
                 }
             } finally {
                 db.closeConnection(connection);
@@ -1075,12 +1106,20 @@ class MetricDatabase {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                while (result.next()) {
-                    double intervalAmount = result.getLong(1);
-                    long timestamp = result.getLong(2);
-                    timestamp = metricInterval.process(new DateTime(timestamp));
-                    values.put(new DateTime(timestamp), intervalAmount);
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                    try {
+                        while (result.next()) {
+                            double intervalAmount = result.getLong(1);
+                            long timestamp = result.getLong(2);
+                            timestamp = metricInterval.process(new DateTime(timestamp));
+                            values.put(new DateTime(timestamp), intervalAmount);
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
                 }
             } finally {
                 db.closeConnection(connection);
@@ -1102,9 +1141,17 @@ class MetricDatabase {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                if (result.next()) {
-                    data = result.getBytes(1);
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                    try {
+                        if (result.next()) {
+                            data = result.getBytes(1);
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
                 }
             } finally {
                 db.closeConnection(connection);
@@ -1118,10 +1165,18 @@ class MetricDatabase {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                if (result.next()) {
-                    datas.add(result.getBytes(1));
-                    datas.add(result.getBytes(2));
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                    try {
+                        if (result.next()) {
+                            datas.add(result.getBytes(1));
+                            datas.add(result.getBytes(2));
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
                 }
             } finally {
                 db.closeConnection(connection);
@@ -1134,9 +1189,17 @@ class MetricDatabase {
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
-                ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
-                if (result.next()) {
-                    return db.getVendor().getUuid(result, 1);
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                    try {
+                        if (result.next()) {
+                            return db.getVendor().getUuid(result, 1);
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
                 }
             } finally {
                 db.closeConnection(connection);
