@@ -116,7 +116,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private static final String UPDATE_PROFILER_EVENT = SHORT_NAME + " " + UPDATE_STATS_OPERATION;
     private static final long NOW_EXPIRATION_SECONDS = 300;
 
-    private final static List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
+    private static final List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
 
     {
         INSTANCES.add(this);
@@ -705,6 +705,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 try {
                     connection.close();
                 } catch (SQLException error) {
+                    // Not likely and probably harmless.
                 }
             }
         }
@@ -820,7 +821,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                     MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
 
-                    if (fieldData.isIndexTableSource() && ! metricFieldData.isMetricValue()) {
+                    if (fieldData.isIndexTableSource() && !metricFieldData.isMetricValue()) {
                         loadExtraFields.add(field);
                     }
                 }
@@ -1769,7 +1770,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         private final long count;
 
-        private final Map<String,Double> metricSums = new HashMap<String,Double>();
+        private final Map<String, Double> metricSums = new HashMap<String, Double>();
 
         private final List<Grouping<T>> groupings;
 
@@ -1784,7 +1785,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
             if (sumField.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                if (! metricSums.containsKey(field)) {
+                if (!metricSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedMetricStatement(query, field, fields);
                     Connection connection = null;
@@ -1826,7 +1827,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                                 // TODO: limit/offset
                                 List<Object> keys = new ArrayList<Object>();
                                 for (int j = 0; j < objectFields.size(); ++ j) {
-                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+3))); // 3 because _count and amount
+                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j + 3))); // 3 because _count and amount
                                 }
                                 if (groupingMap.containsKey(keys)) {
                                     if (result.getBytes(1) != null) {
@@ -2458,7 +2459,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Profiler.Static.startThreadEvent(UPDATE_PROFILER_EVENT);
 
                 try {
-                    return (affected = prepared.executeBatch());
+                    affected = prepared.executeBatch();
+
+                    return affected;
 
                 } finally {
                     double time = timer.stop(UPDATE_STATS_OPERATION);
@@ -2542,9 +2545,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Profiler.Static.startThreadEvent(UPDATE_PROFILER_EVENT);
 
                 try {
-                    return (affected = hasParameters ?
+                    affected = hasParameters ?
                             prepared.executeUpdate() :
-                            statement.executeUpdate(sqlQuery));
+                            statement.executeUpdate(sqlQuery);
+
+                    return affected;
 
                 } finally {
                     double time = timer.stop(UPDATE_STATS_OPERATION);
