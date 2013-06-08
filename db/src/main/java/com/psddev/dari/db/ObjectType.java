@@ -602,7 +602,7 @@ public class ObjectType extends Record implements ObjectStruct {
             for (ObjectType valueType : field.findConcreteTypes()) {
                 if (field.isEmbedded() || valueType.isEmbedded()) {
                     index = getEmbeddedIndex(fullName.substring(
-                            slashIndex+1), valueType);
+                            slashIndex + 1), valueType);
                     if (index != null) {
                         break;
                     }
@@ -614,9 +614,9 @@ public class ObjectType extends Record implements ObjectStruct {
 
     /** Returns name of the class used to create objects of this type. */
     public String getObjectClassName() {
-        return "com.psddev.dari.db.RecordType".equals(objectClassName)
-                ? ObjectType.class.getName()
-                : objectClassName;
+        return "com.psddev.dari.db.RecordType".equals(objectClassName) ?
+                ObjectType.class.getName() :
+                objectClassName;
     }
 
     /** Sets name of the class used to create objects of this type. */
@@ -811,9 +811,9 @@ public class ObjectType extends Record implements ObjectStruct {
 
         // Set the abstract flag on non-Recordable classes (temporary),
         // interfaces, and abstract classes so that they cannot be saved.
-        setAbstract(!Recordable.class.isAssignableFrom(objectClass)
-                || objectClass.isInterface()
-                || Modifier.isAbstract(objectClass.getModifiers()));
+        setAbstract(!Recordable.class.isAssignableFrom(objectClass) ||
+                objectClass.isInterface() ||
+                Modifier.isAbstract(objectClass.getModifiers()));
 
         setEmbedded(false);
 
@@ -918,9 +918,9 @@ public class ObjectType extends Record implements ObjectStruct {
             ObjectField field = i.next();
             String declaringClassName = field.getJavaDeclaringClassName();
             if (!ObjectUtils.isBlank(declaringClassName)) {
-                if ((((isModification && modificationClass.getName().equals(declaringClassName)))
-                        || (!isModification && assignableClassNames.contains(declaringClassName)))
-                        && !fieldInternalNames.contains(field.getInternalName())) {
+                if ((((isModification && modificationClass.getName().equals(declaringClassName))) ||
+                        (!isModification && assignableClassNames.contains(declaringClassName))) &&
+                        !fieldInternalNames.contains(field.getInternalName())) {
                     i.remove();
                 }
             }
@@ -930,9 +930,9 @@ public class ObjectType extends Record implements ObjectStruct {
             ObjectIndex index = i.next();
             String declaringClassName = index.getJavaDeclaringClassName();
             if (!ObjectUtils.isBlank(declaringClassName)) {
-                if ((((isModification && modificationClass.getName().equals(declaringClassName)))
-                        || (!isModification && assignableClassNames.contains(declaringClassName)))
-                        && !fieldInternalNames.contains(index.getField())) {
+                if ((((isModification && modificationClass.getName().equals(declaringClassName))) ||
+                        (!isModification && assignableClassNames.contains(declaringClassName))) &&
+                        !fieldInternalNames.contains(index.getField())) {
                     i.remove();
                 }
             }
