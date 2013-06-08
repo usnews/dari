@@ -259,7 +259,7 @@ public class PredicateParser {
                     break;
                 }
 
-                tokens.poll();
+                tokens.remove();
                 predicate = CompoundPredicate.combine(
                         compoundOperator,
                         predicate,
@@ -276,7 +276,7 @@ public class PredicateParser {
         String nextToken = tokens.peek();
 
         if ("(".equals(nextToken)) {
-            tokens.poll();
+            tokens.remove();
             predicate = readPredicate(tokens, parameters);
             if (predicate == null) {
                 throw new IllegalArgumentException("Empty group!");
@@ -287,7 +287,7 @@ public class PredicateParser {
 
         } else if ("not".equals(nextToken) ||
                 NOT_OPERATOR.equals(nextToken)) {
-            tokens.poll();
+            tokens.remove();
             predicate = new CompoundPredicate(
                     NOT_OPERATOR,
                     Arrays.asList(readGroup(tokens, parameters)));
@@ -309,7 +309,7 @@ public class PredicateParser {
             List<Object> values = new ArrayList<Object>();
             while (true) {
                 if ("]".equals(tokens.peek())) {
-                    tokens.poll();
+                    tokens.remove();
                     break;
                 }
 
