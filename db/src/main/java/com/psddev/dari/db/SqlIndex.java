@@ -177,7 +177,7 @@ public enum SqlIndex {
                 List<List<Object>> parameters) throws SQLException;
     }
 
-    private static abstract class AbstractTable implements Table {
+    private abstract static class AbstractTable implements Table {
 
         private final int version;
         private final String idField;
@@ -408,7 +408,7 @@ public enum SqlIndex {
         }
     }
 
-    public static class IndexValue {
+    public static final class IndexValue {
 
         private final ObjectField[] prefixes;
         private final ObjectIndex index;
