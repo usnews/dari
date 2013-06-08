@@ -37,7 +37,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
     private volatile Database defaultDelegate;
     private volatile Database defaultReadDelegate;
-    public final Map<Database, Set<String>> delegateGroupsMap = new LinkedHashMap<Database, Set<String>>();
+    private final Map<Database, Set<String>> delegateGroupsMap = new LinkedHashMap<Database, Set<String>>();
     private volatile Map<String, Database> delegates;
     private volatile Map<String, Database> readDelegates;
 
@@ -66,9 +66,9 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
     /** Returns the unmodifiable map of all delegate databases. */
     public Map<String, Database> getDelegates() {
-        return delegates != null
-                ? delegates
-                : Collections.<String, Database>emptyMap();
+        return delegates == null ?
+                Collections.<String, Database>emptyMap() :
+                delegates;
     }
 
     /**
@@ -108,9 +108,9 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
     /** Returns the unmodifiable map of all delegate databases used for reading. */
     public Map<String, Database> getReadDelegates() {
-        return readDelegates != null
-                ? readDelegates
-                : Collections.<String, Database>emptyMap();
+        return readDelegates == null ?
+                Collections.<String, Database>emptyMap() :
+                readDelegates;
     }
 
     /** Sets the map of all delegate databases used for reading. */
@@ -408,7 +408,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     }
 
     /** Common logic for all read operations. */
-    private static abstract class ReadOperation {
+    private abstract static class ReadOperation {
 
         protected abstract Object read(Database delegate, Query<?> query, Object... arguments);
 
@@ -514,7 +514,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     };
 
     /** Common logic for all batch operations. */
-    private static abstract class BatchOperation {
+    private abstract static class BatchOperation {
 
         protected abstract boolean batch(Database delegate);
 
@@ -573,7 +573,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     };
 
     /** Common logic for all write operations. */
-    private static abstract class WriteOperation {
+    private abstract static class WriteOperation {
 
         protected abstract void write(Database delegate, State state);
 
