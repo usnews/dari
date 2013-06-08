@@ -473,9 +473,9 @@ public class State implements Map<String, Object> {
             State valueState = ((Recordable) value).getState();
             if (valueState.isNew()) {
                 ObjectType type;
-                if (isEmbedded
-                        || ((type = valueState.getType()) != null
-                        && type.isEmbedded())) {
+                if (isEmbedded ||
+                        ((type = valueState.getType()) != null &&
+                        type.isEmbedded())) {
                     return valueState.getSimpleValues();
                 }
             }
@@ -485,17 +485,17 @@ public class State implements Map<String, Object> {
             map.put(StateValueUtils.TYPE_KEY, valueState.getTypeId().toString());
             return map;
 
-        } else if (value instanceof Boolean
-                || value instanceof Number
-                || value instanceof String) {
+        } else if (value instanceof Boolean ||
+                value instanceof Number ||
+                value instanceof String) {
             return value;
 
-        } else if (value instanceof Character
-                || value instanceof CharSequence
-                || value instanceof String
-                || value instanceof URI
-                || value instanceof URL
-                || value instanceof UUID) {
+        } else if (value instanceof Character ||
+                value instanceof CharSequence ||
+                value instanceof String ||
+                value instanceof URI ||
+                value instanceof URL ||
+                value instanceof UUID) {
             return value.toString();
 
         } else if (value instanceof Date) {
@@ -768,7 +768,7 @@ public class State implements Map<String, Object> {
                 if (parentFieldName == null) {
                     parentFieldName = field.getInternalName();
                 } else {
-                    parentFieldName += "/"+field.getInternalName();
+                    parentFieldName += "/" + field.getInternalName();
                 }
                 Map<String, Object> values = state.getValues();
 
@@ -785,7 +785,7 @@ public class State implements Map<String, Object> {
                 getEmbeddedIndexes(indexes, parentFieldName, field, entry.getValue());
             }
         } else if (fieldValue instanceof Iterable) {
-            for (Object listItem : (Iterable<?>)fieldValue) {
+            for (Object listItem : (Iterable<?>) fieldValue) {
                 getEmbeddedIndexes(indexes, parentFieldName, field, listItem);
             }
         }
@@ -868,9 +868,9 @@ public class State implements Map<String, Object> {
 
     /** Returns all the fields with validation errors from this record. */
     public Set<ObjectField> getErrorFields() {
-        return errors != null
-                ? Collections.unmodifiableSet(errors.keySet())
-                : Collections.<ObjectField>emptySet();
+        return errors != null ?
+                Collections.unmodifiableSet(errors.keySet()) :
+                Collections.<ObjectField>emptySet();
     }
 
     /**
@@ -1822,7 +1822,7 @@ public class State implements Map<String, Object> {
         }
     }
 
-    public static abstract class Listener {
+    public abstract static class Listener {
         public void beforeFieldGet(State state, String name) {
         }
     }
