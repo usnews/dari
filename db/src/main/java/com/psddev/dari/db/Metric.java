@@ -1,7 +1,6 @@
 package com.psddev.dari.db;
 
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -10,7 +9,7 @@ import org.joda.time.DateTime;
 @Metric.Embedded
 public class Metric extends Record {
 
-    private transient final MetricDatabase metricDatabase;
+    private final transient MetricDatabase metricDatabase;
 
     /**
      * @param state Can't be {@code null}.
@@ -238,8 +237,8 @@ public class Metric extends Record {
     }
 
     /**
-     * Repairs the cumulativeAmount value for all rows since the beginning of 
-     * time. This method takes a long time to complete and should only be used 
+     * Repairs the cumulativeAmount value for all rows since the beginning of
+     * time. This method takes a long time to complete and should only be used
      * if something has gone wrong.
      *
      */
