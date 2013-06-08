@@ -93,7 +93,7 @@ class Bar extends Modification&lt;Object&gt; { ... }</pre></blockquote>
 
             if (classes != null) {
                 for (Class<?> c : classes.value()) {
-                    if (c!= null) {
+                    if (c != null) {
                         modified.add(c);
                     }
                 }
