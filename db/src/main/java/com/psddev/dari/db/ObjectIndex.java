@@ -254,7 +254,7 @@ public class ObjectIndex {
                 List<Object> values = new ArrayList<Object>();
                 for (Object object : iterable) {
                     if (object instanceof Recordable) {
-                        value = getValue(((Recordable)object).getState(),
+                        value = getValue(((Recordable) object).getState(),
                                 field.substring(index + 1));
                         if (value != null) {
                             values.add(value);
@@ -264,7 +264,7 @@ public class ObjectIndex {
                 return values;
 
             } else if (value instanceof Recordable) {
-                return getValue(((Recordable)value).getState(),
+                return getValue(((Recordable) value).getState(),
                         field.substring(index + 1));
             } else {
                 return null;
