@@ -2,7 +2,9 @@
     <Match>
         <Or>
             <Bug code="DP" />
+            <Bug code="Se" />
             <Bug pattern="SE_NO_SERIALVERSIONID" />
+            <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD" />
         </Or>
     </Match>
 
