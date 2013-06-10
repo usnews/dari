@@ -787,8 +787,7 @@ public class WebPageContext extends HtmlWriter {
             if (len > 0) {
                 for (int i = 0; i < len; i ++) {
                     String value = values[i];
-                    values[i] = value == null
-                            || value.length() == 0 ? defaultValue : value;
+                    values[i] = value == null || value.length() == 0 ? defaultValue : value;
                 }
                 return values;
             }
