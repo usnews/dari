@@ -50,7 +50,7 @@ public final class UuidUtils {
     static {
         SecureRandom random = new SecureRandom();
         NODE_HIGH = 0xd000L | (random.nextLong() & 0xfff);
-        NODE_LOW = 0xa000000000000000L| (random.nextLong() & 0x0fffffff00000000L);
+        NODE_LOW = 0xa000000000000000L | (random.nextLong() & 0x0fffffff00000000L);
     }
 
     /**
@@ -93,8 +93,7 @@ public final class UuidUtils {
 
         if (bytes.length != 16) {
             throw new UuidFormatException(
-                    "Can't convert the byte array into an UUID because"
-                    + " its length is not 16!");
+                    "Can't convert the byte array into an UUID because its length is not 16!");
         }
 
         long msb = 0;
