@@ -355,6 +355,29 @@ public class HtmlWriter extends Writer {
         writeCss(".dari-grid-mh",
                 "width", 0);
 
+        if (isGridDebug()) {
+            writeCss(".dari-grid-debug",
+                    "outline", "solid 1px rgba(0, 0, 0, 0.3)");
+
+            writeCss(".dari-grid-debug:before",
+                    "background-color", "rgba(0, 0, 0, 0.3)",
+                    "color", "black",
+                    "content", "attr(data-grid-selector) ' / ' attr(data-grid-area)",
+                    "display", "block",
+                    "font-family", "'Andale Mono', 'Lucida Console', monospace",
+                    "font-size", "14px",
+                    "line-height", "25px",
+                    "padding", "0 5px");
+
+            writeCss(".dari-grid-debug:hover",
+                    "outline-color", "rgba(0, 0, 0, 0.7)",
+                    "outline-width", "5px");
+
+            writeCss(".dari-grid-debug:hover:before",
+                    "background-color", "rgba(0, 0, 0, 0.7)",
+                    "color", "white");
+        }
+
         return this;
     }
 
@@ -457,6 +480,24 @@ public class HtmlWriter extends Writer {
         return writeAllGridJavaScript(context, request);
     }
 
+    // Returns true if in grid debugging mode.
+    private boolean isGridDebug() {
+        try {
+            return !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
+        } catch (IllegalStateException error) {
+            return false;
+        }
+    }
+
+    // Writes JavaScript console logging message.
+    private void logJavaScript(String message) throws IOException {
+        if (isGridDebug()) {
+            write("console.log('[GRID] ' + ");
+            write(message);
+            write(");");
+        }
+    }
+
     /**
      * Writes all grid JavaScript found within the given {@code context}.
      */
@@ -499,53 +540,62 @@ public class HtmlWriter extends Writer {
             write("if (!window.matchMedia) return;");
 
             write("reorder = function() {");
+                Map<String, Map<String, Collection<String>>> gridsByMediaJson = new CompactMap<String, Map<String, Collection<String>>>();
+
                 for (Map.Entry<String, Map<String, HtmlGrid>> entry : gridsByMedia.entrySet()) {
                     String media = entry.getKey();
-                    Map<String, HtmlGrid> grids = entry.getValue();
+                    Map<String, Collection<String>> gridsJson = new CompactMap<String, Collection<String>>();
 
-                    if (media == null) {
-                        write("if (true) {");
+                    gridsByMediaJson.put(media == null ? "DEFAULT" : media, gridsJson);
 
-                    } else {
-                        write("if (window.matchMedia('");
-                        write(StringUtils.escapeJavaScript(media));
-                        write("').matches) {");
+                    for (Map.Entry<String, HtmlGrid> gridEntry : entry.getValue().entrySet()) {
+                        gridsJson.put(gridEntry.getKey(), gridEntry.getValue().getAreas());
                     }
-
-                    for (Map.Entry<String, HtmlGrid> gridEntry : grids.entrySet()) {
-                        String selector = gridEntry.getKey();
-                        HtmlGrid grid = gridEntry.getValue();
-
-                        write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
-                            write("var $layout = $(this), $child, $clear;");
-
-                            for (String area : grid.getAreas()) {
-                                write("$child = $layout.find('> .dari-grid-area[data-grid-area=\"");
-                                write(StringUtils.escapeJavaScript(area));
-                                write("\"]');");
-                                write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
-                            }
-
-                            write("$clear = $layout.find('> .dari-grid-clear');");
-                            write("if ($clear.length > 0) { $layout[0].appendChild($clear[0]); }");
-                        write("});");
-                    }
-                    write("return;");
-
-                    write("}");
                 }
+
+                write("$.each(");
+                write(ObjectUtils.toJson(gridsByMediaJson));
+                write(", function(media, grids) {");
+                    write("if (media === 'DEFAULT' || window.matchMedia(media).matches) {");
+                        logJavaScript("'Matched [' + media + ']'");
+
+                        write("$.each(grids, function(selector, areas) {");
+                            write("$(selector).each(function() {");
+                                write("var $layout = $(this),");
+                                        write("$children = $layout.find('> .dari-grid-area'),");
+                                        write("expected = areas.join(', '),");
+                                        write("current = $.map($children, function(area) { return $(area).attr('data-grid-area'); }).join(', '),");
+                                        write("$clear;");
+
+                                write("if (expected === current) { return; }");
+
+                                logJavaScript("'Rearranging [' + selector + '] from [' + current + '] to [' + expected + ']'");
+
+                                write("$.each(areas, function(index, area) {");
+                                    write("var $child = $children.filter('[data-grid-area=\"' + area + '\"]');");
+                                    write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
+                                write("});");
+
+                                write("$clear = $layout.find('> .dari-grid-clear');");
+                                write("if ($clear.length > 0) { $layout[0].appendChild($clear[0]); }");
+                            write("});");
+                        write("});");
+
+                        write("return false;");
+                    write("}");
+                write("});");
             write("};");
 
             write("$(reorder);");
 
-            /*write("$(win).resize(function() {");
+            write("$(win).resize(function() {");
                 write("if (!reorderTimer) {");
                     write("reorderTimer = setTimeout(function() {");
                         write("reorder();");
                         write("reorderTimer = null;");
                     write("}, 100);");
                 write("}");
-            write("});");*/
+            write("});");
         write("})(jQuery, window);");
 
         return this;
@@ -559,13 +609,7 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter writeGrid(Object object, HtmlGrid grid) throws IOException {
         Map<String, Area> areas = createAreas(grid);
-        boolean debug;
-
-        try {
-            debug = !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
-        } catch (RuntimeException error) {
-            debug = false;
-        }
+        boolean debug = isGridDebug();
 
         if (object == null) {
             object = areas;
@@ -593,9 +637,10 @@ public class HtmlWriter extends Writer {
                 }
 
                 if (debug) {
-                    writeStart("div", "style", cssString(
-                            "border", "3px dashed red",
-                            "padding", "3px"));
+                    writeStart("div",
+                            "class", "dari-grid-debug",
+                            "data-grid-selector", grid.getSelector(),
+                            "data-grid-area", areaName);
                 }
 
                 // Minimum width with multiple units.

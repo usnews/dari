@@ -19,7 +19,7 @@ p { font-family: inherit; font-size: inherit; }
         var documentElement = document.documentElement;
 
         body.innerHTML = alertMessage.innerHTML;
-        alertMessage.parentNode.removeChild(alertMessage);
+        alertMessage.style.display = 'none';
         window.frameElement.style.height = Math.max(
                 Math.max(body.scrollHeight, documentElement.scrollHeight),
                 Math.max(body.offsetHeight, documentElement.offsetHeight),
