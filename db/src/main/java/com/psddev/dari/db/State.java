@@ -1663,7 +1663,7 @@ public class State implements Map<String, Object> {
 
     public Map<String, Object> getAs() {
         if (modifications == null) {
-            modifications = Collections.<String, Object>unmodifiableMap(CacheBuilder.
+            Map<String, Object> m = CacheBuilder.
                     newBuilder().
                     build(new CacheLoader<String, Object>() {
                         @Override
@@ -1677,8 +1677,11 @@ public class State implements Map<String, Object> {
                             }
                         }
                     }).
-                    asMap());
+                    asMap();
+
+            modifications = Collections.unmodifiableMap(m);
         }
+
         return modifications;
     }
 
