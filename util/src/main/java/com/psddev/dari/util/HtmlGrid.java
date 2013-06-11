@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
  */
 public class HtmlGrid {
 
+    private String selector;
     private final List<CssUnit> columns;
     private final List<CssUnit> rows;
     private final List<List<String>> template;
@@ -127,6 +128,10 @@ public class HtmlGrid {
         }
 
         return instances;
+    }
+
+    protected String getSelector() {
+        return selector;
     }
 
     public List<CssUnit> getColumns() {
@@ -378,10 +383,13 @@ public class HtmlGrid {
                             }
 
                             try {
-                                grids.put(selector, new HtmlGrid(
+                                HtmlGrid grid = new HtmlGrid(
                                         columnsValue,
                                         rowsValue,
-                                        t.toString()));
+                                        t.toString());
+
+                                grid.selector = selector;
+                                grids.put(selector, grid);
 
                             } catch (IllegalArgumentException error) {
                                 throw new IllegalArgumentException(String.format(

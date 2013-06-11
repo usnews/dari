@@ -349,6 +349,29 @@ public class HtmlWriter extends Writer {
         writeCss(".dari-grid-mh",
                 "width", 0);
 
+        if (isGridDebug()) {
+            writeCss(".dari-grid-debug",
+                    "outline", "solid 1px rgba(0, 0, 0, 0.3)");
+
+            writeCss(".dari-grid-debug:before",
+                    "background-color", "rgba(0, 0, 0, 0.3)",
+                    "color", "black",
+                    "content", "attr(data-grid-selector) ' / ' attr(data-grid-area)",
+                    "display", "block",
+                    "font-family", "'Andale Mono', 'Lucida Console', monospace",
+                    "font-size", "14px",
+                    "line-height", "25px",
+                    "padding", "0 5px");
+
+            writeCss(".dari-grid-debug:hover",
+                    "outline-color", "rgba(0, 0, 0, 0.7)",
+                    "outline-width", "5px");
+
+            writeCss(".dari-grid-debug:hover:before",
+                    "background-color", "rgba(0, 0, 0, 0.7)",
+                    "color", "white");
+        }
+
         return this;
     }
 
@@ -608,9 +631,10 @@ public class HtmlWriter extends Writer {
                 }
 
                 if (debug) {
-                    writeStart("div", "style", cssString(
-                            "border", "3px dashed red",
-                            "padding", "3px"));
+                    writeStart("div",
+                            "class", "dari-grid-debug",
+                            "data-grid-selector", grid.getSelector(),
+                            "data-grid-area", areaName);
                 }
 
                 // Minimum width with multiple units.
