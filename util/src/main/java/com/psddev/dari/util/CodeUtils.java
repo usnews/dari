@@ -17,6 +17,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -562,11 +563,21 @@ public final class CodeUtils {
     static {
         Class<?> agentClass = getAgentClass();
         Instrumentation instrumentation = null;
+
         if (agentClass != null) {
             Throwable error = null;
 
             try {
-                instrumentation = (Instrumentation) agentClass.getField("instrumentation").get(null);
+                Field instrumentationField;
+
+                try {
+                    instrumentationField = agentClass.getField("instrumentation");
+                } catch (NoSuchFieldException e) {
+                    instrumentationField = agentClass.getField("INSTRUMENTATION");
+                }
+
+                instrumentationField.setAccessible(true);
+                instrumentation = (Instrumentation) instrumentationField.get(null);
                 instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
 
             } catch (IllegalAccessException e) {
@@ -578,9 +589,10 @@ public final class CodeUtils {
             }
 
             if (error != null) {
-                LOGGER.debug("Can't initialize INSTRUMENTATION instance!", error);
+                LOGGER.info("Can't get instrumentation instance from agent!", error);
             }
         }
+
         INSTRUMENTATION = instrumentation;
     }
 
@@ -715,7 +727,11 @@ public final class CodeUtils {
         private Agent() {
         }
 
-        public static Instrumentation instrumentation;
+        private static Instrumentation instrumentation;
+
+        public static Instrumentation getInstrumentation() {
+            return instrumentation;
+        }
 
         public static void agentmain(String agentArguments, Instrumentation i) {
             instrumentation = i;
