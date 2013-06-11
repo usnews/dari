@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.ConversionException;
 import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
@@ -1663,7 +1664,7 @@ public class State implements Map<String, Object> {
 
     public Map<String, Object> getAs() {
         if (modifications == null) {
-            Map<String, Object> m = CacheBuilder.
+            LoadingCache<String, Object> c = CacheBuilder.
                     newBuilder().
                     build(new CacheLoader<String, Object>() {
                         @Override
@@ -1676,9 +1677,9 @@ public class State implements Map<String, Object> {
                                         "[%s] isn't a valid class name!", modificationClassName));
                             }
                         }
-                    }).
-                    asMap();
+                    });
 
+            Map<String, Object> m = c.asMap();
             modifications = Collections.unmodifiableMap(m);
         }
 
