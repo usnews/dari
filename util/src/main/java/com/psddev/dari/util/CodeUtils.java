@@ -571,9 +571,9 @@ public final class CodeUtils {
                 Field instrumentationField;
 
                 try {
-                    instrumentationField = agentClass.getField("instrumentation");
+                    instrumentationField = agentClass.getDeclaredField("instrumentation");
                 } catch (NoSuchFieldException e) {
-                    instrumentationField = agentClass.getField("INSTRUMENTATION");
+                    instrumentationField = agentClass.getDeclaredField("INSTRUMENTATION");
                 }
 
                 instrumentationField.setAccessible(true);
