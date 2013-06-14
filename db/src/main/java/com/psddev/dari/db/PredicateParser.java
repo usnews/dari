@@ -171,8 +171,16 @@ public class PredicateParser {
     /**
      * Parses the given {@code predicateString} along with the given
      * {@code parameters}.
+     *
+     * @param predicateString If {@code null}, returns {@code null}.
+     * @param parameters May be {@code null}.
+     * @return May be {@code null}.
      */
     public Predicate parse(String predicateString, Object... parameters) {
+        if (predicateString == null) {
+            return null;
+        }
+
         Queue<String> tokens = new LinkedList<String>();
 
         char[] predicateChars = predicateString.toCharArray();
