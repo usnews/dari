@@ -20,14 +20,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.ConversionException;
 import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
@@ -1664,23 +1662,21 @@ public class State implements Map<String, Object> {
 
     public Map<String, Object> getAs() {
         if (modifications == null) {
-            LoadingCache<String, Object> c = CacheBuilder.
-                    newBuilder().
-                    build(new CacheLoader<String, Object>() {
-                        @Override
-                        public Object load(String modificationClassName) {
-                            Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
-                            if (modificationClass != null) {
-                                return as(modificationClass);
-                            } else {
-                                throw new IllegalArgumentException(String.format(
-                                        "[%s] isn't a valid class name!", modificationClassName));
-                            }
-                        }
-                    });
+            modifications = new PullThroughCache<String, Object>() {
 
-            Map<String, Object> m = c.asMap();
-            modifications = Collections.unmodifiableMap(m);
+                @Override
+                protected Object produce(String modificationClassName) {
+                    Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
+
+                    if (modificationClass != null) {
+                        return as(modificationClass);
+
+                    } else {
+                        throw new IllegalArgumentException(String.format(
+                                "[%s] isn't a valid class name!", modificationClassName));
+                    }
+                }
+            };
         }
 
         return modifications;
