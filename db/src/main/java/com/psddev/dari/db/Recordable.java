@@ -506,7 +506,9 @@ class AbstractProcessor implements ObjectType.AnnotationProcessor<Recordable.Abs
 class BeanPropertyProcessor implements ObjectType.AnnotationProcessor<Recordable.BeanProperty> {
     @Override
     public void process(ObjectType type, Recordable.BeanProperty annotation) {
-        type.setJavaBeanProperty(annotation.value());
+        if (type.getGroups().contains(Modification.class.getName())) {
+            type.setJavaBeanProperty(annotation.value());
+        }
     }
 }
 
