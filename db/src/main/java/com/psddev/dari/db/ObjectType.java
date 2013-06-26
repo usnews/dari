@@ -72,6 +72,7 @@ public class ObjectType extends Record implements ObjectStruct {
 
     private String sourceDatabaseClassName;
     private String sourceDatabaseName;
+    private String javaBeanProperty;
 
     @DisplayName("Java Object Class")
     @Indexed(unique = true)
@@ -671,6 +672,14 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         return null;
+    }
+
+    public String getJavaBeanProperty() {
+        return javaBeanProperty;
+    }
+
+    public void setJavaBeanProperty(String javaBeanProperty) {
+        this.javaBeanProperty = javaBeanProperty;
     }
 
     /** Returns the set of modification class names. */

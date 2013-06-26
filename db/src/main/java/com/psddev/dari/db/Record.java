@@ -1,5 +1,11 @@
 package com.psddev.dari.db;
 
+import java.awt.Image;
+import java.beans.BeanDescriptor;
+import java.beans.BeanInfo;
+import java.beans.EventSetDescriptor;
+import java.beans.MethodDescriptor;
+import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -11,7 +17,7 @@ import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
 
 /** Represents a generic record. */
-public class Record implements Cloneable, Comparable<Record>, HtmlObject, Recordable {
+public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObject, Recordable {
 
     /**
      * Creates a blank instance. This method is protected so that the class
@@ -49,6 +55,94 @@ public class Record implements Cloneable, Comparable<Record>, HtmlObject, Record
     protected void beforeDelete() {
         beforeDelete(getState().getDatabase());
     }
+
+    // --- BeanInfo support ---
+
+    @Override
+    public BeanInfo[] getAdditionalBeanInfo() {
+        State state = getState();
+        return state.getDatabase().getEnvironment().getAdditionalBeanInfoByType(state.getType());
+    }
+
+    @Override
+    public BeanDescriptor getBeanDescriptor() {
+        return null;
+    }
+
+    @Override
+    public int getDefaultEventIndex() {
+        return -1;
+    }
+
+    @Override
+    public int getDefaultPropertyIndex() {
+        return -1;
+    }
+
+    @Override
+    public EventSetDescriptor[] getEventSetDescriptors() {
+        return null;
+    }
+
+    @Override
+    public Image getIcon(int iconKind) {
+        return null;
+    }
+
+    @Override
+    public MethodDescriptor[] getMethodDescriptors() {
+        return null;
+    }
+
+    @Override
+    public PropertyDescriptor[] getPropertyDescriptors() {
+        return null;
+    }
+
+    private Object getDynamicProperty(int index) {
+        ObjectType type = getState().getDatabase().getEnvironment().getTypeByDynamicPropertyIndex(index);
+
+        if (type != null) {
+            Class<?> objectClass = type.getObjectClass();
+
+            if (objectClass != null) {
+                return as(objectClass);
+            }
+        }
+
+        return null;
+    }
+
+    @SuppressWarnings("unused") private Object getDynamicProperty0() { return getDynamicProperty(0); }
+    @SuppressWarnings("unused") private Object getDynamicProperty1() { return getDynamicProperty(1); }
+    @SuppressWarnings("unused") private Object getDynamicProperty2() { return getDynamicProperty(2); }
+    @SuppressWarnings("unused") private Object getDynamicProperty3() { return getDynamicProperty(3); }
+    @SuppressWarnings("unused") private Object getDynamicProperty4() { return getDynamicProperty(4); }
+    @SuppressWarnings("unused") private Object getDynamicProperty5() { return getDynamicProperty(5); }
+    @SuppressWarnings("unused") private Object getDynamicProperty6() { return getDynamicProperty(6); }
+    @SuppressWarnings("unused") private Object getDynamicProperty7() { return getDynamicProperty(7); }
+    @SuppressWarnings("unused") private Object getDynamicProperty8() { return getDynamicProperty(8); }
+    @SuppressWarnings("unused") private Object getDynamicProperty9() { return getDynamicProperty(9); }
+    @SuppressWarnings("unused") private Object getDynamicProperty10() { return getDynamicProperty(10); }
+    @SuppressWarnings("unused") private Object getDynamicProperty11() { return getDynamicProperty(11); }
+    @SuppressWarnings("unused") private Object getDynamicProperty12() { return getDynamicProperty(12); }
+    @SuppressWarnings("unused") private Object getDynamicProperty13() { return getDynamicProperty(13); }
+    @SuppressWarnings("unused") private Object getDynamicProperty14() { return getDynamicProperty(14); }
+    @SuppressWarnings("unused") private Object getDynamicProperty15() { return getDynamicProperty(15); }
+    @SuppressWarnings("unused") private Object getDynamicProperty16() { return getDynamicProperty(16); }
+    @SuppressWarnings("unused") private Object getDynamicProperty17() { return getDynamicProperty(17); }
+    @SuppressWarnings("unused") private Object getDynamicProperty18() { return getDynamicProperty(18); }
+    @SuppressWarnings("unused") private Object getDynamicProperty19() { return getDynamicProperty(19); }
+    @SuppressWarnings("unused") private Object getDynamicProperty20() { return getDynamicProperty(20); }
+    @SuppressWarnings("unused") private Object getDynamicProperty21() { return getDynamicProperty(21); }
+    @SuppressWarnings("unused") private Object getDynamicProperty22() { return getDynamicProperty(22); }
+    @SuppressWarnings("unused") private Object getDynamicProperty23() { return getDynamicProperty(23); }
+    @SuppressWarnings("unused") private Object getDynamicProperty24() { return getDynamicProperty(24); }
+    @SuppressWarnings("unused") private Object getDynamicProperty25() { return getDynamicProperty(25); }
+    @SuppressWarnings("unused") private Object getDynamicProperty26() { return getDynamicProperty(26); }
+    @SuppressWarnings("unused") private Object getDynamicProperty27() { return getDynamicProperty(27); }
+    @SuppressWarnings("unused") private Object getDynamicProperty28() { return getDynamicProperty(28); }
+    @SuppressWarnings("unused") private Object getDynamicProperty29() { return getDynamicProperty(29); }
 
     // --- Cloneable support ---
 

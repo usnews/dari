@@ -47,6 +47,38 @@ public interface Recordable {
         boolean value() default true;
     }
 
+    /**
+     * Specifies the JavaBeans property name that can be used to access an
+     * instance of the target type as a modification.
+     *
+     * <p>For example, given the following modification:</p>
+     *
+     * <blockquote><pre><code data-type="java">
+     *@Modification.BeanProperty("css")
+     *class CustomCss extends Modification&lt;Object&gt; {
+     *    public String getBodyClass() {
+     *        return getOriginalObject().getClass().getName().replace('.', '_');
+     *    }
+     *}
+     * </code></pre></blockquote>
+     *
+     *
+     * <p>The following becomes valid and will invoke the {@code getBodyClass}
+     * above, even if the {@code content} object doesn't define a
+     * {@code getCss} method.</p>
+     *
+     * <blockquote><pre><code data-type="jsp">
+     *${content.css.bodyClass}
+     * </code></pre></blockquote>
+     */
+    @Documented
+    @ObjectType.AnnotationProcessorClass(BeanPropertyProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BeanProperty {
+        String value();
+    }
+
     /** Specifies the maximum number of items allowed in the target field. */
     @Documented
     @ObjectField.AnnotationProcessorClass(CollectionMaximumProcessor.class)
@@ -468,6 +500,13 @@ class AbstractProcessor implements ObjectType.AnnotationProcessor<Recordable.Abs
     @Override
     public void process(ObjectType type, Recordable.Abstract annotation) {
         type.setAbstract(annotation.value());
+    }
+}
+
+class BeanPropertyProcessor implements ObjectType.AnnotationProcessor<Recordable.BeanProperty> {
+    @Override
+    public void process(ObjectType type, Recordable.BeanProperty annotation) {
+        type.setJavaBeanProperty(annotation.value());
     }
 }
 

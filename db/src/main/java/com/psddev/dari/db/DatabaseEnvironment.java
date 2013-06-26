@@ -1,5 +1,9 @@
 package com.psddev.dari.db;
 
+import java.beans.BeanInfo;
+import java.beans.PropertyDescriptor;
+import java.beans.SimpleBeanInfo;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -13,7 +17,9 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.psddev.dari.util.CodeUtils;
+import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Once;
 import com.psddev.dari.util.PeriodicCache;
@@ -39,6 +45,7 @@ public class DatabaseEnvironment implements ObjectStruct {
                     if (Recordable.class.isAssignableFrom(c)) {
                         TypeDefinition.Static.invalidateAll();
                         refreshTypes();
+                        dynamicProperties.reset();
                         break;
                     }
                 }
@@ -742,6 +749,115 @@ public class DatabaseEnvironment implements ObjectStruct {
         }
 
         return object;
+    }
+
+    private final transient Lazy<List<DynamicProperty>> dynamicProperties = new Lazy<List<DynamicProperty>>() {
+
+        @Override
+        protected List<DynamicProperty> create() {
+            List<DynamicProperty> properties = new ArrayList<DynamicProperty>();
+            int index = 0;
+
+            for (ObjectType type : getTypes()) {
+                String beanProperty = type.getJavaBeanProperty();
+
+                if (ObjectUtils.isBlank(beanProperty)) {
+                    continue;
+
+                } else if (index >= 29) {
+                    throw new IllegalStateException("Can't create more than 30 dynamic properties!");
+                }
+
+                try {
+
+                    properties.add(new DynamicProperty(type, beanProperty, index));
+                    ++ index;
+                } catch (Exception error) {
+                }
+            }
+
+            return ImmutableList.copyOf(properties);
+        }
+    };
+
+    private static class DynamicProperty extends SimpleBeanInfo {
+
+        public final ObjectType type;
+        public final int index;
+        private final PropertyDescriptor descriptor;
+
+        public DynamicProperty(ObjectType type, String name, int index) throws Exception {
+            Method readMethod = Record.class.getDeclaredMethod("getDynamicProperty" + index);
+
+            readMethod.setAccessible(true);
+
+            this.type = type;
+            this.index = index;
+            this.descriptor = new PropertyDescriptor(name, readMethod, null);
+        }
+
+        @Override
+        public PropertyDescriptor[] getPropertyDescriptors() {
+            return new PropertyDescriptor[] { descriptor };
+        }
+    }
+
+    /**
+     * Returns all additional {@link BeanInfo} instances appropriate for the
+     * class represented by the given {@code type}.
+     *
+     * @param type If {@code null}, returns global {@link BeanInfo} instances.
+     * @return May be {@code null}.
+     */
+    @SuppressWarnings("unchecked")
+    public BeanInfo[] getAdditionalBeanInfoByType(ObjectType type) {
+        List<BeanInfo> beanInfos = null;
+
+        for (DynamicProperty property : dynamicProperties.get()) {
+            boolean add = false;
+
+            if (type != null &&
+                    type.getModificationClassNames().contains(property.type.getObjectClassName())) {
+                add = true;
+
+            } else {
+                Class<?> modClass = property.type.getObjectClass();
+
+                if (modClass != null &&
+                        Modification.class.isAssignableFrom(modClass) &&
+                        Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class)) {
+                    add = true;
+                }
+            }
+
+            if (add) {
+                if (beanInfos == null) {
+                    beanInfos = new ArrayList<BeanInfo>();
+                }
+
+                beanInfos.add(property);
+            }
+        }
+
+        return beanInfos != null ?
+                beanInfos.toArray(new BeanInfo[beanInfos.size()]) :
+                null;
+    }
+
+    /**
+     * Returns the type that's bound to the given dynamic property
+     * {@code index}.
+     *
+     * @return May be {@code null}.
+     */
+    public ObjectType getTypeByDynamicPropertyIndex(int index) {
+        for (DynamicProperty property : dynamicProperties.get()) {
+            if (property.index == index) {
+                return property.type;
+            }
+        }
+
+        return null;
     }
 
     // --- Deprecated ---
