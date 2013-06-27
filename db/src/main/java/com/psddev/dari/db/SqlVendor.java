@@ -277,7 +277,6 @@ public class SqlVendor {
         Map<String, ColumnType> columns = new LinkedHashMap<String, ColumnType>();
         columns.put(SqlDatabase.ID_COLUMN, ColumnType.UUID);
         columns.put(SqlDatabase.TYPE_ID_COLUMN, ColumnType.UUID);
-        columns.put(SqlDatabase.IN_ROW_INDEX_COLUMN, ColumnType.BYTES_SHORT);
         columns.put(SqlDatabase.DATA_COLUMN, ColumnType.BYTES_LONG);
 
         createTable(database, RECORD_TABLE_NAME, columns, Arrays.asList(SqlDatabase.TYPE_ID_COLUMN, SqlDatabase.ID_COLUMN));
