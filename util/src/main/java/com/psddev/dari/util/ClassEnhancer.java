@@ -84,7 +84,7 @@ public abstract class ClassEnhancer extends ClassAdapter {
          * found in the current class loader.
          */
         public static void main(String[] paths) throws IOException {
-            Set<Class<? extends ClassEnhancer>> enhancerClasses = ObjectUtils.findClasses(ClassEnhancer.class);
+            Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
             System.out.println("Enhancers: " + enhancerClasses);
 
             int count = 0;

@@ -65,7 +65,7 @@ public class DebugFilter extends AbstractFilter {
         protected Map<String, ServletWrapper> produce() {
             Map<String, ServletWrapper> wrappers = new TreeMap<String, ServletWrapper>();
 
-            for (Class<?> servletClass : ObjectUtils.findClasses(Servlet.class)) {
+            for (Class<?> servletClass : ClassFinder.Static.findClasses(Servlet.class)) {
                 try {
                     if (Modifier.isAbstract(servletClass.getModifiers())) {
                         continue;

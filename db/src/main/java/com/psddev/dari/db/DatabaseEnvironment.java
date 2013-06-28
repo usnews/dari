@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
+import com.psddev.dari.util.ClassFinder;
 import com.psddev.dari.util.CodeUtils;
 import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
@@ -275,7 +276,7 @@ public class DatabaseEnvironment implements ObjectStruct {
                         temporaryTypes.changed.add(rootTypeId);
                     }
 
-                    Set<Class<? extends Recordable>> objectClasses = ObjectUtils.findClasses(Recordable.class);
+                    Set<Class<? extends Recordable>> objectClasses = ClassFinder.Static.findClasses(Recordable.class);
                     for (Iterator<Class<? extends Recordable>> i = objectClasses.iterator(); i.hasNext(); ) {
                         Class<? extends Recordable> objectClass = i.next();
                         if (objectClass.isAnonymousClass()) {

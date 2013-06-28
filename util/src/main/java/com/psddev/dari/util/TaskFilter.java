@@ -15,7 +15,7 @@ public class TaskFilter extends AbstractFilter {
 
     @Override
     protected void doInit() {
-        for (Class<? extends RepeatingTask> taskClass : ObjectUtils.findClasses(RepeatingTask.class)) {
+        for (Class<? extends RepeatingTask> taskClass : ClassFinder.Static.findClasses(RepeatingTask.class)) {
             try {
                 RepeatingTask task = taskClass.newInstance();
 

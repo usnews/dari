@@ -16,13 +16,6 @@ public interface Ping {
     /** {@link Ping} utility methods. */
     public static final class Static {
 
-        private static final PullThroughValue<Set<Class<? extends Ping>>> PING_CLASSES = new PullThroughValue<Set<Class<? extends Ping>>>() {
-            @Override
-            protected Set<Class<? extends Ping>> produce() {
-                return ObjectUtils.findClasses(Ping.class);
-            }
-        };
-
         /**
          * Pings a service using an instance of the given {@code pingClass}.
          *
@@ -44,9 +37,11 @@ public interface Ping {
          */
         public static Map<Class<?>, Throwable> pingAll() {
             Map<Class<?>, Throwable> errors = new HashMap<Class<?>, Throwable>();
-            for (Class<? extends Ping> pingClass : PING_CLASSES.get()) {
+
+            for (Class<? extends Ping> pingClass : ClassFinder.Static.findClasses(Ping.class)) {
                 errors.put(pingClass, ping(pingClass));
             }
+
             return errors;
         }
     }

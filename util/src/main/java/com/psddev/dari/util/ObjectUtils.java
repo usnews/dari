@@ -25,7 +25,6 @@ import java.util.UUID;
 /** Object utility methods. */
 public abstract class ObjectUtils {
 
-    private static final ClassFinder CLASS_FINDER = new ClassFinder();
     private static final JsonProcessor JSON_PROCESSOR = new JsonProcessor();
 
     private static final Map<String, Class<?>> PRIMITIVE_CLASSES; static {
@@ -255,21 +254,30 @@ public abstract class ObjectUtils {
     // --- ClassFinder bridge ---
 
     /**
-     * {@linkplain ClassFinder#find Finds all classes} that are
-     * compatible with the given {@code baseClass} within the given
-     * class {@code loader}.
+     * Finds all classes that are compatible with the given {@code baseClass}
+     * within the given class {@code loader}.
+     *
+     * @param loader If {@code null}, uses the current class loader.
+     * @param baseClass Can't be {@code null}.
+     * @return Never {@code null}.
+     * @deprecated Use {@link ClassFinder.Static#findClassesFromLoader} instead.
      */
+    @Deprecated
     public static <T> Set<Class<? extends T>> findClassesFromLoader(ClassLoader loader, Class<T> baseClass) {
-        return CLASS_FINDER.find(loader, baseClass);
+        return ClassFinder.Static.findClassesFromLoader(loader, baseClass);
     }
 
     /**
-     * {@linkplain ClassFinder#find Finds all classes} that are
-     * compatible with the given {@code baseClass} within the
-     * {@linkplain #getCurrentClassLoader current class loader}.
+     * Finds all classes that are compatible with the given {@code baseClass}
+     * within the current class loader.
+     *
+     * @param baseClass Can't be {@code null}.
+     * @return Never {@code null}.
+     * @deprecated Use {@link ClassFinder.Static#findClasses} instead.
      */
+    @Deprecated
     public static <T> Set<Class<? extends T>> findClasses(Class<T> baseClass) {
-        return findClassesFromLoader(getCurrentClassLoader(), baseClass);
+        return ClassFinder.Static.findClasses(baseClass);
     }
 
     // --- Converter bridge ---

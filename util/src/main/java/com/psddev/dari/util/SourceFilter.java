@@ -626,7 +626,7 @@ public class SourceFilter extends AbstractFilter {
                         return diagnostics;
 
                     } else {
-                        Set<Class<? extends ClassEnhancer>> enhancerClasses = ObjectUtils.findClasses(ClassEnhancer.class);
+                        Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
 
                         for (JavaFileObject outputFile : fileManager.list(
                                 StandardLocation.CLASS_OUTPUT,
