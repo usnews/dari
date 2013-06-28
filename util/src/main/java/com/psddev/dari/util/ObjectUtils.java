@@ -378,18 +378,18 @@ public abstract class ObjectUtils {
 
     // --- Content type ---
 
-    /** Default content type for {@link #getContentType}. */
+    /**
+     * The default content type returned by {@link #getContentType} when
+     * a file extension isn't mapped to a known content type.
+     */
     public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
-    /**
-     * File name extensions to content types cache from:
-     * <a href="http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types"
-     * >http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types</a>
-     */
-    private static final PullThroughValue<Map<String, String>> CONTENT_TYPES = new PullThroughValue<Map<String, String>>() {
+    // File name extensions to content types cache from:
+    // http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
+    private static final Lazy<Map<String, String>> CONTENT_TYPES = new Lazy<Map<String, String>>() {
 
         @Override
-        protected Map<String, String> produce() throws IOException {
+        protected Map<String, String> create() throws IOException {
             Map<String, String> contentTypes = new HashMap<String, String>();
             InputStream mimeInput = getClass().getResourceAsStream("mime.types");
             BufferedReader mimeInputReader = new BufferedReader(new InputStreamReader(mimeInput, StringUtils.UTF_8));
@@ -417,12 +417,16 @@ public abstract class ObjectUtils {
     /**
      * Returns the content type associated with the given {@code fileName}
      * extension, or {@value DEFAULT_CONTENT_TYPE} if not found.
+     *
+     * @param fileName If {@code null}, returns {@value DEFAULT_CONTENT_TYPE}.
+     * @return Never {@code null}.
      */
     public static String getContentType(String fileName) {
         int dotAt = fileName.lastIndexOf('.');
 
         if (dotAt > -1) {
             String type = CONTENT_TYPES.get().get(fileName.substring(dotAt + 1).toLowerCase(Locale.ENGLISH));
+
             if (type != null) {
                 return type;
             }
