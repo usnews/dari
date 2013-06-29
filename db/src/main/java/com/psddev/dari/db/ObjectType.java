@@ -23,9 +23,11 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
 
@@ -39,15 +41,16 @@ public class ObjectType extends Record implements ObjectStruct {
     private static final Logger
             LOGGER = LoggerFactory.getLogger(ObjectType.class);
 
-    // Cache that contains record and field annotation processors.
-    private static final Map<Class<?>, Object>
-            ANNOTATION_PROCESSORS = new PullThroughCache<Class<?>, Object>() {
+    // Cache that contains type and field annotation processors.
+    private static final LoadingCache<Class<?>, Object> ANNOTATION_PROCESSORS = CacheBuilder.newBuilder().
+            weakKeys().
+            build(new CacheLoader<Class<?>, Object>() {
 
-        @Override
-        protected Object produce(Class<?> processorClass) {
-            return TypeDefinition.getInstance(processorClass).newInstance();
-        }
-    };
+                @Override
+                public Object load(Class<?> processorClass) {
+                    return TypeDefinition.getInstance(processorClass).newInstance();
+                }
+            });
 
     @DisplayName("Display Name")
     @Indexed
@@ -171,7 +174,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 ObjectField.AnnotationProcessorClass processorClass = annotation.annotationType().getAnnotation(ObjectField.AnnotationProcessorClass.class);
                 if (processorClass != null) {
                     @SuppressWarnings("unchecked")
-                    ObjectField.AnnotationProcessor<Annotation> processor = (ObjectField.AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.get(processorClass.value());
+                    ObjectField.AnnotationProcessor<Annotation> processor = (ObjectField.AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.getUnchecked(processorClass.value());
                     processor.process(type, field, annotation);
                 }
             }
@@ -406,9 +409,10 @@ public class ObjectType extends Record implements ObjectStruct {
         return new ArrayList<ObjectField>(fieldsCache.get().values());
     }
 
-    private final transient PullThroughValue<Map<String, ObjectField>> fieldsCache = new PullThroughValue<Map<String, ObjectField>>() {
+    private final transient Lazy<Map<String, ObjectField>> fieldsCache = new Lazy<Map<String, ObjectField>>() {
+
         @Override
-        protected Map<String, ObjectField> produce() {
+        protected Map<String, ObjectField> create() {
             return ObjectField.Static.convertDefinitionsToInstances(ObjectType.this, fields);
         }
     };
@@ -416,17 +420,17 @@ public class ObjectType extends Record implements ObjectStruct {
     /** Sets the list of all fields. */
     public void setFields(List<ObjectField> fields) {
         this.fields = ObjectField.Static.convertInstancesToDefinitions(fields);
-        fieldsCache.invalidate();
-        metricFieldsCache.invalidate();
+        fieldsCache.reset();
+        metricFieldsCache.reset();
     }
 
     public List<ObjectField> getMetricFields() {
         return metricFieldsCache.get();
     }
 
-    private final transient PullThroughValue<List<ObjectField>> metricFieldsCache = new PullThroughValue<List<ObjectField>>() {
+    private final transient Lazy<List<ObjectField>> metricFieldsCache = new Lazy<List<ObjectField>>() {
         @Override
-        protected List<ObjectField> produce() {
+        protected List<ObjectField> create() {
             List<ObjectField> metricFields = new ArrayList<ObjectField>();
 
             for (ObjectField field : getFields()) {
@@ -532,9 +536,10 @@ public class ObjectType extends Record implements ObjectStruct {
         return null;
     }
 
-    private final transient PullThroughValue<Map<String, ObjectIndex>> indexesCache = new PullThroughValue<Map<String, ObjectIndex>>() {
+    private final transient Lazy<Map<String, ObjectIndex>> indexesCache = new Lazy<Map<String, ObjectIndex>>() {
+
         @Override
-        protected Map<String, ObjectIndex> produce() {
+        protected Map<String, ObjectIndex> create() {
             return ObjectIndex.Static.convertDefinitionsToInstances(ObjectType.this, indexes);
         }
     };
@@ -542,7 +547,7 @@ public class ObjectType extends Record implements ObjectStruct {
     /** Sets the list of all indexes. */
     public void setIndexes(List<ObjectIndex> indexes) {
         this.indexes = ObjectIndex.Static.convertInstancesToDefinitions(indexes);
-        indexesCache.invalidate();
+        indexesCache.reset();
     }
 
     /** Returns the index with the given {@code name}. */
@@ -954,7 +959,7 @@ public class ObjectType extends Record implements ObjectStruct {
             AnnotationProcessorClass processorClass = annotation.annotationType().getAnnotation(AnnotationProcessorClass.class);
             if (processorClass != null) {
                 @SuppressWarnings("unchecked")
-                AnnotationProcessor<Annotation> processor = (AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.get(processorClass.value());
+                AnnotationProcessor<Annotation> processor = (AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.getUnchecked(processorClass.value());
                 processor.process(this, annotation);
             }
         }
