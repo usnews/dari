@@ -24,7 +24,6 @@ import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Once;
 import com.psddev.dari.util.PeriodicCache;
-import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.Task;
 import com.psddev.dari.util.TypeDefinition;
 
@@ -208,9 +207,9 @@ public class DatabaseEnvironment implements ObjectStruct {
 
         globals = newGlobals;
         lastGlobalsUpdate = new Date();
-        fieldsCache.invalidate();
-        metricFieldsCache.invalidate();
-        indexesCache.invalidate();
+        fieldsCache.reset();
+        metricFieldsCache.reset();
+        indexesCache.reset();
     }
 
     /** Immediately refreshes all types using the backing database. */
@@ -488,12 +487,14 @@ public class DatabaseEnvironment implements ObjectStruct {
         return new ArrayList<ObjectField>(fieldsCache.get().values());
     }
 
-    private final PullThroughValue<Map<String, ObjectField>> fieldsCache = new PullThroughValue<Map<String, ObjectField>>() {
+    private final transient Lazy<Map<String, ObjectField>> fieldsCache = new Lazy<Map<String, ObjectField>>() {
+
         @Override
         @SuppressWarnings("unchecked")
-        protected Map<String, ObjectField> produce() {
+        protected Map<String, ObjectField> create() {
             State globals = getGlobals();
             Object definitions = globals != null ? globals.get(GLOBAL_FIELDS_FIELD) : null;
+
             return ObjectField.Static.convertDefinitionsToInstances(
                     DatabaseEnvironment.this,
                     definitions instanceof List ?
@@ -510,17 +511,18 @@ public class DatabaseEnvironment implements ObjectStruct {
     @Override
     public void setFields(List<ObjectField> fields) {
         getGlobals().put(GLOBAL_FIELDS_FIELD, ObjectField.Static.convertInstancesToDefinitions(fields));
-        fieldsCache.invalidate();
-        metricFieldsCache.invalidate();
+        fieldsCache.reset();
+        metricFieldsCache.reset();
     }
 
     public List<ObjectField> getMetricFields() {
         return metricFieldsCache.get();
     }
 
-    private final transient PullThroughValue<List<ObjectField>> metricFieldsCache = new PullThroughValue<List<ObjectField>>() {
+    private final transient Lazy<List<ObjectField>> metricFieldsCache = new Lazy<List<ObjectField>>() {
+
         @Override
-        protected List<ObjectField> produce() {
+        protected List<ObjectField> create() {
             List<ObjectField> metricFields = new ArrayList<ObjectField>();
 
             for (ObjectField field : getFields()) {
@@ -538,12 +540,14 @@ public class DatabaseEnvironment implements ObjectStruct {
         return new ArrayList<ObjectIndex>(indexesCache.get().values());
     }
 
-    private final PullThroughValue<Map<String, ObjectIndex>> indexesCache = new PullThroughValue<Map<String, ObjectIndex>>() {
+    private final transient Lazy<Map<String, ObjectIndex>> indexesCache = new Lazy<Map<String, ObjectIndex>>() {
+
         @Override
         @SuppressWarnings("unchecked")
-        protected Map<String, ObjectIndex> produce() {
+        protected Map<String, ObjectIndex> create() {
             State globals = getGlobals();
             Object definitions = globals != null ? globals.get(GLOBAL_INDEXES_FIELD) : null;
+
             return ObjectIndex.Static.convertDefinitionsToInstances(
                     DatabaseEnvironment.this,
                     definitions instanceof List ?
@@ -560,7 +564,7 @@ public class DatabaseEnvironment implements ObjectStruct {
     @Override
     public void setIndexes(List<ObjectIndex> indexes) {
         getGlobals().put(GLOBAL_INDEXES_FIELD, ObjectIndex.Static.convertInstancesToDefinitions(indexes));
-        indexesCache.invalidate();
+        indexesCache.reset();
     }
 
     /**
