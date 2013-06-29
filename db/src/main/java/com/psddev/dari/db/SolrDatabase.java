@@ -38,10 +38,10 @@ import org.apache.solr.common.params.MoreLikeThisParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsException;
 import com.psddev.dari.util.Stats;
@@ -104,7 +104,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     /** Sets the underlying Solr server. */
     public void setServer(SolrServer server) {
         this.server = server;
-        schema.invalidate();
+        schema.reset();
     }
 
     /** Returns the underlying Solr read server. */
@@ -115,7 +115,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     /** Sets the underlying Solr read server. */
     public void setReadServer(SolrServer readServer) {
         this.readServer = readServer;
-        schema.invalidate();
+        schema.reset();
     }
 
     public Double getCommitWithin() {
@@ -217,18 +217,21 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
-    private final transient PullThroughValue<SolrSchema> schema = new PullThroughValue<SolrSchema>() {
+    private final transient Lazy<SolrSchema> schema = new Lazy<SolrSchema>() {
 
         @Override
-        protected SolrSchema produce() {
+        protected SolrSchema create() {
             Exception error = query("*:*");
+
             if (error != null) {
                 throw new IllegalStateException("Solr server isn't available!", error);
             }
 
             SolrSchema schema;
+
             if (query("_e_test:1") == null) {
                 schema = new SolrSchema(10);
+
                 schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -238,6 +241,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else if (query("_query_:\"{!geofilt pt=0.0,0.0 sfield=_g_test d=1}\"") == null) {
                 schema = new SolrSchema(9);
+
                 schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -247,6 +251,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else if (query("_sl_test:1") == null) {
                 schema = new SolrSchema(8);
+
                 schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -255,6 +260,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else if (query("_ss_test:1") == null) {
                 schema = new SolrSchema(7);
+
                 schema.setDefaultField(new SolrField("_s_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -263,6 +269,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else {
                 schema = new SolrSchema(6);
+
                 schema.setDefaultField(new SolrField("_s_", "_t_", "_s_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_b_", true), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_d_", true), ObjectField.NUMBER_TYPE);
@@ -277,12 +284,15 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         private Exception query(String query) {
             SolrServer server = openReadConnection();
             SolrQuery solrQuery = new SolrQuery(query);
+
             solrQuery.setRows(0);
+
             try {
                 server.query(solrQuery);
                 return null;
-            } catch (SolrServerException ex) {
-                return ex;
+
+            } catch (SolrServerException error) {
+                return error;
             }
         }
     };
