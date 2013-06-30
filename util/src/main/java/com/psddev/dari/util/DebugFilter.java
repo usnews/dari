@@ -58,14 +58,27 @@ public class DebugFilter extends AbstractFilter {
 
     public static final String WEB_INF_DEBUG = "/WEB-INF/_debug/";
 
-    private final PullThroughValue<Map<String, ServletWrapper>>
-            debugServletWrappers = new PullThroughValue<Map<String, ServletWrapper>>() {
+    private final transient Lazy<Map<String, ServletWrapper>> debugServletWrappers = new Lazy<Map<String, ServletWrapper>>() {
+
+        {
+            CodeUtils.addRedefineClassesListener(new CodeUtils.RedefineClassesListener() {
+                @Override
+                public void redefined(Set<Class<?>> classes) {
+                    for (Class<?> c : classes) {
+                        if (Servlet.class.isAssignableFrom(c)) {
+                            reset();
+                            break;
+                        }
+                    }
+                }
+            });
+        }
 
         @Override
-        protected Map<String, ServletWrapper> produce() {
+        protected Map<String, ServletWrapper> create() {
             Map<String, ServletWrapper> wrappers = new TreeMap<String, ServletWrapper>();
 
-            for (Class<?> servletClass : ClassFinder.Static.findClasses(Servlet.class)) {
+            for (Class<? extends Servlet> servletClass : ClassFinder.Static.findClasses(Servlet.class)) {
                 try {
                     if (Modifier.isAbstract(servletClass.getModifiers())) {
                         continue;
@@ -73,12 +86,14 @@ public class DebugFilter extends AbstractFilter {
 
                     String path = null;
                     Path pathAnnotation = servletClass.getAnnotation(Path.class);
+
                     if (pathAnnotation != null) {
                         path = pathAnnotation.value();
                     }
 
                     if (ObjectUtils.isBlank(path)) {
                         Name nameAnnotation = servletClass.getAnnotation(Name.class);
+
                         if (nameAnnotation != null) {
                             path = nameAnnotation.value();
                         }
@@ -88,9 +103,7 @@ public class DebugFilter extends AbstractFilter {
                         continue;
                     }
 
-                    @SuppressWarnings("unchecked")
-                    ServletWrapper wrapper = new ServletWrapper((Class<? extends Servlet>) servletClass);
-                    wrappers.put(path, wrapper);
+                    wrappers.put(path, new ServletWrapper(servletClass));
 
                 } catch (Throwable ex) {
                     LOGGER.warn(String.format(
@@ -101,6 +114,13 @@ public class DebugFilter extends AbstractFilter {
 
             LOGGER.info("Found debug servlets: {}", wrappers.keySet());
             return wrappers;
+        }
+
+        @Override
+        protected void destroy(Map<String, ServletWrapper> wrappers) {
+            for (ServletWrapper wrapper : wrappers.values()) {
+                wrapper.destroyServlet();
+            }
         }
     };
 
@@ -118,11 +138,7 @@ public class DebugFilter extends AbstractFilter {
 
     @Override
     protected void doDestroy() {
-        if (debugServletWrappers.isProduced()) {
-            for (ServletWrapper wrapper : debugServletWrappers.get().values()) {
-                wrapper.destroyServlet();
-            }
-        }
+        debugServletWrappers.reset();
     }
 
     @Override
