@@ -916,7 +916,7 @@ public class SqlVendor {
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
-            builder.append(identifier);
+            builder.append("\"" + identifier + "\"");
         }
 
         @Override
@@ -1086,7 +1086,7 @@ public class SqlVendor {
         public void appendMetricSelectAmountSql(StringBuilder str, String columnIdentifier, int position) {
             str.append(" ('x'||");
                 str.append("SUBSTRING(");
-                    str.append(columnIdentifier);
+                    appendIdentifier(str, columnIdentifier);
                     str.append(',');
                     appendValue(str, 1+(MetricDatabase.DATE_BYTE_SIZE*2) + ((position-1)*MetricDatabase.AMOUNT_BYTE_SIZE*2));
                     str.append(',');
@@ -1101,7 +1101,7 @@ public class SqlVendor {
         public void appendMetricSelectTimestampSql(StringBuilder str, String columnIdentifier) {
             str.append(" ('x'||");
                 str.append("SUBSTRING(");
-                    str.append(columnIdentifier);
+                    appendIdentifier(str, columnIdentifier);
                     str.append(',');
                     appendValue(str, 1);
                     str.append(',');
@@ -1138,7 +1138,7 @@ public class SqlVendor {
         private void appendHexEncodeExistingTimestampSql(StringBuilder str, String columnIdentifier) {
             // columnIdentifier is "data" or "max(`data`)" - already quoted
             str.append("SUBSTRING(");
-                str.append(columnIdentifier);
+                appendIdentifier(str, columnIdentifier);
                 str.append(',');
                 appendValue(str, 1);
                 str.append(',');
