@@ -18,6 +18,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.SQLTimeoutException;
+import java.sql.Savepoint;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2543,15 +2544,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Integer affected = null;
                 Stats.Timer timer = STATS.startTimer();
                 Profiler.Static.startThreadEvent(UPDATE_PROFILER_EVENT);
+                Savepoint savePoint = null;
 
                 try {
+                    if (!connection.getAutoCommit()) {
+                        savePoint = connection.setSavepoint();
+                    }
+
                     affected = hasParameters ?
                             prepared.executeUpdate() :
                             statement.executeUpdate(sqlQuery);
 
                     return affected;
+                } catch(SQLException sqlEx) {
+                    if (savePoint != null) {
+                        connection.rollback(savePoint);
+                    }
+
+                    throw sqlEx;
 
                 } finally {
+                    if (savePoint != null) {
+                        connection.releaseSavepoint(savePoint);
+                    }
+
                     double time = timer.stop(UPDATE_STATS_OPERATION);
                     Profiler.Static.stopThreadEvent(sqlQuery);
 
