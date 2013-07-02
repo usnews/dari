@@ -1682,6 +1682,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
 
             int groupingsSize = groupings.size();
+            List<Integer> removes = new ArrayList<Integer>();
 
             for (int i = 0; i < fieldsLength; ++ i) {
                 ObjectField field = query.mapEmbeddedKey(getEnvironment(), fields[i]).getField();
@@ -1701,14 +1702,28 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         }
                     }
 
+                    Map<String, Object> rawKeysCopy = new HashMap<String, Object>(rawKeys);
                     Map<?, ?> convertedKeys = (Map<?, ?>) StateValueUtils.toJavaValue(query.getDatabase(), null, field, "map/" + itemType, rawKeys);
+
                     for (int j = 0; j < groupingsSize; ++ j) {
-                        groupings.get(j).getKeys().set(i, convertedKeys.get(String.valueOf(j)));
+                        String jString = String.valueOf(j);
+                        Object convertedKey = convertedKeys.get(jString);
+
+                        if (convertedKey == null &&
+                                rawKeysCopy.get(jString) != null) {
+                            removes.add(j - removes.size());
+                        }
+
+                        groupings.get(j).getKeys().set(i, convertedKey);
                     }
                 }
             }
 
-            return new PaginatedResult<Grouping<T>>(offset, limit, groupingsCount, groupings);
+            for (Integer i : removes) {
+                groupings.remove((int) i);
+            }
+
+            return new PaginatedResult<Grouping<T>>(offset, limit, groupingsCount - removes.size(), groupings);
 
         } catch (SQLException ex) {
             throw createQueryException(ex, sqlQuery, query);
