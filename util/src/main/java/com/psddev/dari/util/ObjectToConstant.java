@@ -41,11 +41,9 @@ public class ObjectToConstant<T> implements ConversionFunction<Object, T> {
      * Creates a instance that will convert any object into the given
      * {@code constant}.
      *
-     * @param constant Can't be {@code null}.
+     * @param constant May be {@code null}.
      */
     protected ObjectToConstant(T constant) {
-        ErrorUtils.errorIfNull(constant, "constant");
-
         this.constant = constant;
     }
 
