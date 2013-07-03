@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 
@@ -92,20 +91,17 @@ public final class IoUtils {
         FileInputStream sourceInput = new FileInputStream(source);
 
         try {
-            FileChannel sourceChannel = sourceInput.getChannel();
-            long total = sourceChannel.size();
             FileOutputStream destinationOutput = new FileOutputStream(destination);
 
             try {
-                sourceChannel.transferTo(0, total, destinationOutput.getChannel());
-                return total;
+                return copy(sourceInput, destinationOutput);
 
             } finally {
-                close(destinationOutput, true);
+                destinationOutput.close();
             }
 
         } finally {
-            closeQuietly(sourceInput);
+            sourceInput.close();
         }
     }
 
