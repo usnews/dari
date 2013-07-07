@@ -1,6 +1,7 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
@@ -114,7 +115,17 @@ public class WebPageContext extends HtmlWriter {
 
         } else {
             try {
-                setDelegate(getResponse().getWriter());
+                HttpServletResponse response = getResponse();
+                Writer writer;
+
+                try {
+                    writer = response.getWriter();
+
+                } catch (IllegalStateException error) {
+                    writer = new OutputStreamWriter(response.getOutputStream(), StringUtils.UTF_8);
+                }
+
+                setDelegate(writer);
                 return super.getDelegate();
 
             } catch (IOException error) {
