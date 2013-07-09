@@ -588,6 +588,7 @@ public class SourceFilter extends AbstractFilter {
                         (outputModified == 0 &&
                                 ((outputModified = sourceModifieds.get(outputFile)) == null ||
                                 sourceModified > outputModified)))) {
+                    IoUtils.delete(new File(outputFile.toUri().getPath()));
                     newSourceFiles.add(sourceFile);
                     expectedOutputFiles.put(outputFile, className);
                     sourceModifieds.put(outputFile, sourceModified);
