@@ -97,7 +97,6 @@ public class SourceFilter extends AbstractFilter {
     public static final String RELOADER_CONTEXT_PATH_PARAMETER = "contextPath";
     public static final String RELOADER_REQUEST_PATH_PARAMETER = "requestPath";
 
-    private static final JavaCompiler COMPILER = ToolProvider.getSystemJavaCompiler();
     private static final Logger LOGGER = LoggerFactory.getLogger(SourceFilter.class);
 
     private static final String CLASSES_PATH = "/WEB-INF/classes/";
@@ -115,15 +114,15 @@ public class SourceFilter extends AbstractFilter {
 
     private File classOutput;
     private final Set<File> javaSourcesSet = new HashSet<File>();
+    private Map<JavaFileObject, Long> javaSourceFileModifieds;
     private final Map<String, File> webappSourcesMap = new HashMap<String, File>();
-    private final Map<JavaFileObject, Long> sourceModifieds = new HashMap<JavaFileObject, Long>();
-    private final Map<String, Date> changedClasses = new TreeMap<String, Date>();
+    private final Map<String, Date> changedClassTimes = new TreeMap<String, Date>();
 
     // --- AbstractFilter support ---
 
     @Override
     protected void doInit() {
-        if (COMPILER == null) {
+        if (ToolProvider.getSystemJavaCompiler() == null) {
             LOGGER.info("Java compiler not available!");
             return;
         }
@@ -202,9 +201,9 @@ public class SourceFilter extends AbstractFilter {
     protected void doDestroy() {
         classOutput = null;
         javaSourcesSet.clear();
+        javaSourceFileModifieds = null;
         webappSourcesMap.clear();
-        sourceModifieds.clear();
-        changedClasses.clear();
+        changedClassTimes.clear();
     }
 
     @Override
@@ -265,7 +264,7 @@ public class SourceFilter extends AbstractFilter {
         // Intercept special actions.
         if (!ObjectUtils.isBlank(request.getParameter("_reload")) &&
                 isReloaderAvailable(request)) {
-            compileJavaSources();
+            compileJavaSourceFiles();
             response.sendRedirect(StringUtils.addQueryParameters(
                     getReloaderPath(),
                     RELOADER_CONTEXT_PATH_PARAMETER, request.getContextPath(),
@@ -309,17 +308,17 @@ public class SourceFilter extends AbstractFilter {
             return;
         }
 
-        final DiagnosticCollector<JavaFileObject> errors = compileJavaSources();
+        final DiagnosticCollector<JavaFileObject> errors = compileJavaSourceFiles();
         final boolean hasBackgroundTasks;
         if (errors == null &&
-                !changedClasses.isEmpty() &&
+                !changedClassTimes.isEmpty() &&
                 !JspUtils.isAjaxRequest(request)) {
 
             if (hasBackgroundTasks()) {
                 hasBackgroundTasks = true;
 
             } else if (isReloaderAvailable(request)) {
-                changedClasses.clear();
+                changedClassTimes.clear();
                 response.sendRedirect(StringUtils.addQueryParameters(
                         getReloaderPath(),
                         RELOADER_CONTEXT_PATH_PARAMETER, request.getContextPath(),
@@ -346,7 +345,7 @@ public class SourceFilter extends AbstractFilter {
 
         chain.doFilter(request, response);
         if (errors == null && (
-                changedClasses.isEmpty() ||
+                changedClassTimes.isEmpty() ||
                 JspUtils.isAjaxRequest(request) ||
                 isolatingResponse != null)) {
             return;
@@ -402,7 +401,7 @@ public class SourceFilter extends AbstractFilter {
                         writeTag("br");
                         writeTag("br");
 
-                        for (Map.Entry<String, Date> entry : changedClasses.entrySet()) {
+                        for (Map.Entry<String, Date> entry : changedClassTimes.entrySet()) {
                             writeHtml(entry.getKey());
                             writeHtml(" - ");
                             writeObject(entry.getValue());
@@ -539,59 +538,52 @@ public class SourceFilter extends AbstractFilter {
         }
     };
 
-    /**
-     * Compile any Java source files that's changed and redefine them
-     * in place if possible.
-     */
-    private DiagnosticCollector<JavaFileObject> compileJavaSources() throws IOException {
+    // Compile any Java source files that's changed and redefine them
+    // in place if possible.
+    private synchronized DiagnosticCollector<JavaFileObject> compileJavaSourceFiles() throws IOException {
         if (javaSourcesSet.isEmpty()) {
             return null;
         }
 
-        StandardJavaFileManager fileManager = COMPILER.getStandardFileManager(null, null, null);
+        boolean firstRun;
+
+        if (javaSourceFileModifieds == null) {
+            firstRun = true;
+            javaSourceFileModifieds = new HashMap<JavaFileObject, Long>();
+
+        } else {
+            firstRun = false;
+        }
+
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
         Set<JavaFileObject> newSourceFiles = new HashSet<JavaFileObject>();
-        Map<JavaFileObject, String> expectedOutputFiles = new HashMap<JavaFileObject, String>();
-        Map<String, Date> notRedefinedClasses = new HashMap<String, Date>();
+        Map<String, Date> newChangedClassTimes = new HashMap<String, Date>();
         List<ClassDefinition> toBeRedefined = new ArrayList<ClassDefinition>();
 
         try {
             fileManager.setLocation(StandardLocation.SOURCE_PATH, javaSourcesSet);
             fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(classOutput));
 
+            // Find all source files that's changed.
             for (JavaFileObject sourceFile : fileManager.list(
                     StandardLocation.SOURCE_PATH,
                     "",
                     Collections.singleton(JavaFileObject.Kind.SOURCE),
                     true)) {
 
-                String className = fileManager.inferBinaryName(StandardLocation.SOURCE_PATH, sourceFile);
-                JavaFileObject outputFile = fileManager.getJavaFileForOutput(
-                        StandardLocation.CLASS_OUTPUT,
-                        className,
-                        JavaFileObject.Kind.CLASS,
-                        null);
+                // On first run, assume nothing has changed.
+                if (firstRun) {
+                    javaSourceFileModifieds.put(sourceFile, sourceFile.getLastModified());
 
-                // Did the source file originate from a JAR?
-                Long jarModified = null;
-                String sourcePath = sourceFile.toUri().getPath();
-                for (File javaSources : javaSourcesSet) {
-                    if (sourcePath.startsWith(javaSources.getPath())) {
-                        jarModified = CodeUtils.getJarLastModified(javaSources);
-                        break;
+                } else {
+                    Long oldModified = javaSourceFileModifieds.get(sourceFile);
+                    long newModified = sourceFile.getLastModified();
+
+                    if (oldModified == null || oldModified != newModified) {
+                        javaSourceFileModifieds.put(sourceFile, newModified);
+                        newSourceFiles.add(sourceFile);
                     }
-                }
-
-                long sourceModified = sourceFile.getLastModified();
-                Long outputModified = outputFile.getLastModified();
-                if ((jarModified == null || sourceModified > jarModified) &&
-                        ((outputModified != 0 && sourceModified > outputModified) ||
-                        (outputModified == 0 &&
-                                ((outputModified = sourceModifieds.get(outputFile)) == null ||
-                                sourceModified > outputModified)))) {
-                    IoUtils.delete(new File(outputFile.toUri().getPath()));
-                    newSourceFiles.add(sourceFile);
-                    expectedOutputFiles.put(outputFile, className);
-                    sourceModifieds.put(outputFile, sourceModified);
                 }
             }
 
@@ -601,12 +593,14 @@ public class SourceFilter extends AbstractFilter {
                 // Compiler can't use the current class loader so try to
                 // guess all of its class paths.
                 Set<File> classPaths = new LinkedHashSet<File>();
+
                 for (ClassLoader loader = ObjectUtils.getCurrentClassLoader();
                         loader != null;
                         loader = loader.getParent()) {
                     if (loader instanceof URLClassLoader) {
                         for (URL url : ((URLClassLoader) loader).getURLs()) {
                             File file = IoUtils.toFile(url, StringUtils.UTF_8);
+
                             if (file != null) {
                                 classPaths.add(file);
                             }
@@ -615,76 +609,97 @@ public class SourceFilter extends AbstractFilter {
                 }
 
                 fileManager.setLocation(StandardLocation.CLASS_PATH, classPaths);
+
+                // Remember the current class file modified times for later
+                // when we need to figure out what changed.
+                Map<JavaFileObject, Long> outputFileModifieds = new HashMap<JavaFileObject, Long>();
+
+                for (JavaFileObject outputFile : fileManager.list(
+                        StandardLocation.CLASS_OUTPUT,
+                        "",
+                        Collections.singleton(JavaFileObject.Kind.CLASS),
+                        true)) {
+                    outputFileModifieds.put(outputFile, outputFile.getLastModified());
+                }
+
                 DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
 
-                // Compiler can't process multiple tasks at the same time.
-                synchronized (COMPILER) {
+                if (!compiler.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles).call()) {
+                    return diagnostics;
 
-                    // File systems can't usually handle microsecond resolution.
-                    long compileStart = System.currentTimeMillis() / 1000 * 1000;
+                } else {
+                    Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
 
-                    if (!COMPILER.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles).call()) {
-                        return diagnostics;
+                    // Process any class files that's changed.
+                    for (JavaFileObject outputFile : fileManager.list(
+                            StandardLocation.CLASS_OUTPUT,
+                            "",
+                            Collections.singleton(JavaFileObject.Kind.CLASS),
+                            true)) {
+                        Long oldModified = outputFileModifieds.get(outputFile);
+                        long newModified = outputFile.getLastModified();
 
-                    } else {
-                        Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
-
-                        for (JavaFileObject outputFile : fileManager.list(
-                                StandardLocation.CLASS_OUTPUT,
-                                "",
-                                Collections.singleton(JavaFileObject.Kind.CLASS),
-                                true)) {
-                            if (outputFile.getLastModified() < compileStart) {
-                                continue;
-                            }
-
-                            InputStream input = outputFile.openInputStream();
-                            byte[] bytecode;
-                            try {
-                                bytecode = IoUtils.toByteArray(input);
-                            } finally {
-                                input.close();
-                            }
-
-                            byte[] enhancedBytecode = ClassEnhancer.Static.enhance(bytecode, enhancerClasses);
-                            if (enhancedBytecode != null) {
-                                bytecode = enhancedBytecode;
-                            }
-
-                            OutputStream output = outputFile.openOutputStream();
-                            try {
-                                output.write(bytecode);
-                            } finally {
-                                output.close();
-                            }
-
-                            String outputClassName = fileManager.inferBinaryName(StandardLocation.CLASS_OUTPUT, outputFile);
-                            notRedefinedClasses.put(outputClassName, new Date(outputFile.getLastModified()));
-
-                            Class<?> outputClass = ObjectUtils.getClassByName(outputClassName);
-                            if (outputClass != null) {
-                                toBeRedefined.add(new ClassDefinition(outputClass, bytecode));
-                            }
+                        if (oldModified != null && oldModified == newModified) {
+                            continue;
                         }
 
-                        // Try to redefine the classes in place.
-                        List<ClassDefinition> failures = CodeUtils.redefineClasses(toBeRedefined);
-                        toBeRedefined.removeAll(failures);
+                        // Enhance the bytecode.
+                        InputStream input = outputFile.openInputStream();
+                        byte[] bytecode;
 
-                        for (ClassDefinition success : toBeRedefined) {
-                            notRedefinedClasses.remove(success.getDefinitionClass().getName());
+                        try {
+                            bytecode = IoUtils.toByteArray(input);
+
+                        } finally {
+                            input.close();
                         }
 
-                        if (!failures.isEmpty() && LOGGER.isInfoEnabled()) {
-                            StringBuilder messageBuilder = new StringBuilder();
-                            messageBuilder.append("Can't redefine [");
-                            for (ClassDefinition failure : failures) {
-                                messageBuilder.append(failure.getDefinitionClass().getName());
-                                messageBuilder.append(", ");
-                            }
-                            messageBuilder.setLength(messageBuilder.length() - 2);
-                            messageBuilder.append("]!");
+                        byte[] enhancedBytecode = ClassEnhancer.Static.enhance(bytecode, enhancerClasses);
+
+                        if (enhancedBytecode != null) {
+                            bytecode = enhancedBytecode;
                         }
+
+                        OutputStream output = outputFile.openOutputStream();
+
+                        try {
+                            output.write(bytecode);
+
+                        } finally {
+                            output.close();
+                        }
+
+                        String outputClassName = fileManager.inferBinaryName(StandardLocation.CLASS_OUTPUT, outputFile);
+                        Class<?> outputClass = ObjectUtils.getClassByName(outputClassName);
+
+                        newChangedClassTimes.put(outputClassName, new Date(newModified));
+
+                        if (outputClass != null) {
+                            toBeRedefined.add(new ClassDefinition(outputClass, bytecode));
+                        }
+                    }
+
+                    // Try to redefine the classes in place.
+                    List<ClassDefinition> failures = CodeUtils.redefineClasses(toBeRedefined);
+
+                    toBeRedefined.removeAll(failures);
+
+                    for (ClassDefinition success : toBeRedefined) {
+                        newChangedClassTimes.remove(success.getDefinitionClass().getName());
+                    }
+
+                    if (!failures.isEmpty() && LOGGER.isInfoEnabled()) {
+                        StringBuilder messageBuilder = new StringBuilder();
+
+                        messageBuilder.append("Can't redefine [");
+
+                        for (ClassDefinition failure : failures) {
+                            messageBuilder.append(failure.getDefinitionClass().getName());
+                            messageBuilder.append(", ");
+                        }
+
+                        messageBuilder.setLength(messageBuilder.length() - 2);
+                        messageBuilder.append("]!");
                     }
                 }
             }
@@ -694,7 +709,7 @@ public class SourceFilter extends AbstractFilter {
         }
 
         // Remember all classes that's changed but not yet redefined.
-        changedClasses.putAll(notRedefinedClasses);
+        changedClassTimes.putAll(newChangedClassTimes);
         return null;
     }
 
