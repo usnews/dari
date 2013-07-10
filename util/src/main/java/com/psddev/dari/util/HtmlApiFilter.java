@@ -56,12 +56,9 @@ public class HtmlApiFilter extends AbstractFilter {
             response.getWriter().write(ObjectUtils.toJson(jsonResponse));
 
         } else if("jsonp".equals(format)) {
-
             String callback = request.getParameter("callback");
 
-            if(ObjectUtils.isBlank(callback)) {
-                throw new IllegalArgumentException("The \"jsonp\" API response format requires a \"callback\" parameter");
-            }
+            ErrorUtils.errorIfBlank(callback, "callback");
 
             CapturingResponse capturing = new CapturingResponse(response);
             Map<String, Object> jsonResponse = new CompactMap<String, Object>();
@@ -79,11 +76,13 @@ public class HtmlApiFilter extends AbstractFilter {
                 jsonResponse.put("errorMessage", error.getMessage());
             }
 
+            PrintWriter writer = response.getWriter();
+
             response.setContentType("application/javascript");
-            response.getWriter().write(callback);
-            response.getWriter().write("(");
-            response.getWriter().write(ObjectUtils.toJson(jsonResponse));
-            response.getWriter().write(");");
+            writer.write(callback);
+            writer.write("(");
+            writer.write(ObjectUtils.toJson(jsonResponse));
+            writer.write(");");
 
         } else {
             throw new IllegalArgumentException(String.format(
