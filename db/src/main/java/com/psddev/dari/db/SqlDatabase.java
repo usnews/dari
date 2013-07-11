@@ -777,7 +777,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
 
             if (data != null) {
-                objectState.putAll(unserializeData(data));
+                objectState.setValues(unserializeData(data));
                 Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
                 if (returnOriginal == null) {
                     returnOriginal = Boolean.FALSE;

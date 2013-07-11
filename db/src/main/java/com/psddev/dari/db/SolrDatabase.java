@@ -1029,13 +1029,13 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             if (ObjectUtils.isBlank(data)) {
                 Object original = objectState.getDatabase().readFirst(Query.from(Object.class).where("_id = ?", objectState.getId()));
                 if (original != null) {
-                    objectState.putAll(State.getInstance(original).getValues());
+                    objectState.setValues(State.getInstance(original).getValues());
                 }
 
             } else {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> values = (Map<String, Object>) ObjectUtils.fromJson(data);
-                objectState.putAll(values);
+                objectState.setValues(values);
             }
         }
 
