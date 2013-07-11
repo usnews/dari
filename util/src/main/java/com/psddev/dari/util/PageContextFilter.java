@@ -22,13 +22,17 @@ public class PageContextFilter extends AbstractFilter {
     private static final String RESPONSE_ATTRIBUTE = ATTRIBUTE_PREFIX + "response";
     private static final String SERVLET_CONTEXT_ATTRIBUTE = ATTRIBUTE_PREFIX + "servletContext";
 
-    /** @deprecated Use {@link Static#getRequest} instead. */
+    /**
+     * @deprecated Use {@link Static#getRequestOrNull} instead.
+     */
     @Deprecated
     public static HttpServletRequest getRequest() {
         return REQUEST.get();
     }
 
-    /** @deprecated Use {@link Static#getResponse} instead. */
+    /**
+     * @deprecated Use {@link Static#getResponseOrNull} instead.
+     */
     @Deprecated
     public static HttpServletResponse getResponse() {
         return RESPONSE.get();
@@ -63,16 +67,14 @@ public class PageContextFilter extends AbstractFilter {
     }
 
     /**
-     * {@link PageContextFilter} utility methods. All methods in this class
-     * may throw an {@link IllegalStateException} if the
-     * {@link PageContextFilter} isn't configured in the {@code web.xml}
-     * deployment descriptor file.
+     * {@link PageContextFilter} utility methods.
      */
     public static final class Static {
 
         private static <T> T checkResult(T result) {
             if (result != null) {
                 return result;
+
             } else {
                 throw new IllegalStateException(String.format(
                         "[%s] not in web.xml filter chain!",
@@ -80,14 +82,48 @@ public class PageContextFilter extends AbstractFilter {
             }
         }
 
-        /** Returns the HTTP request associated with the current thread. */
-        public static HttpServletRequest getRequest() {
-            return checkResult(REQUEST.get());
+        /**
+         * Returns the HTTP request associated with the current thread.
+         *
+         * @return May be {@code null}.
+         */
+        public static HttpServletRequest getRequestOrNull() {
+            return REQUEST.get();
         }
 
-        /** Returns the HTTP response associated with the current thread. */
+        /**
+         * Returns the HTTP request associated with the current thread.
+         *
+         * @return Never {@code null}.
+         * @throws IllegalStateException If no HTTP request is associated
+         * with the current thread. Typically, this happens when
+         * {@link PageContextFilter} isn't configured in the {@code web.xml}
+         * deployment descriptor file.
+         */
+        public static HttpServletRequest getRequest() {
+            return checkResult(getRequestOrNull());
+        }
+
+        /**
+         * Returns the HTTP response associated with the current thread.
+         *
+         * @return May be {@code null}.
+         */
+        public static HttpServletResponse getResponseOrNull() {
+            return RESPONSE.get();
+        }
+
+        /**
+         * Returns the HTTP response associated with the current thread.
+         *
+         * @return Never {@code null}.
+         * @throws IllegalStateException If no HTTP response is associated
+         * with the current thread. Typically, this happens when
+         * {@link PageContextFilter} isn't configured in the {@code web.xml}
+         * deployment descriptor file.
+         */
         public static HttpServletResponse getResponse() {
-            return checkResult(RESPONSE.get());
+            return checkResult(getResponseOrNull());
         }
 
         /**
