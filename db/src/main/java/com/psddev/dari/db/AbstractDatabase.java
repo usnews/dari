@@ -584,10 +584,32 @@ public abstract class AbstractDatabase<C> implements Database {
             }
         },
 
+        AFTER_SAVE("afterSave") {
+            @Override
+            protected void doExecute(Record record) {
+                try {
+                    record.afterSave();
+                } catch (RuntimeException error) {
+                    LOGGER.warn("Couldn't run afterSave on [{}]", record.getId());
+                }
+            }
+        },
+
         BEFORE_DELETE("beforeDelete") {
             @Override
             protected void doExecute(Record record) {
                 record.beforeDelete();
+            }
+        },
+
+        AFTER_DELETE("afterDelete") {
+            @Override
+            protected void doExecute(Record record) {
+                try {
+                    record.afterDelete();
+                } catch (RuntimeException error) {
+                    LOGGER.warn("Couldn't run afterDelete on [{}]", record.getId());
+                }
             }
         };
 
@@ -912,11 +934,14 @@ public abstract class AbstractDatabase<C> implements Database {
         if (hasSaves) {
             for (State state : saves) {
                 state.setStatus(StateStatus.SAVED);
+                Trigger.AFTER_SAVE.execute(state);
             }
         }
+
         if (hasDeletes) {
             for (State state : deletes) {
                 state.setStatus(StateStatus.DELETED);
+                Trigger.AFTER_DELETE.execute(state);
             }
         }
     }

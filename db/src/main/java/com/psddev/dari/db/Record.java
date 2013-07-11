@@ -48,12 +48,30 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
     }
 
     /**
+     * Triggers right after this record is saved to the given
+     * {@code database}. Default implementation of this method
+     * doesn't do anything.
+     */
+    protected void afterSave() {
+        afterSave(getState().getDatabase());
+    }
+
+    /**
      * Triggers right before this record is deleted in the given
      * {@code database}. Default implementation of this method
      * doesn't do anything.
      */
     protected void beforeDelete() {
         beforeDelete(getState().getDatabase());
+    }
+
+    /**
+     * Triggers right after this record is deleted in the given
+     * {@code database}. Default implementation of this method
+     * doesn't do anything.
+     */
+    protected void afterDelete() {
+        afterDelete(getState().getDatabase());
     }
 
     // --- BeanInfo support ---
@@ -341,7 +359,7 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
     protected void beforeSave(Database database) {
     }
 
-    /** @deprecated No replacement. */
+    /** @deprecated Use {@link #afterSave} instead. */
     @Deprecated
     protected void afterSave(Database database) {
     }
@@ -351,7 +369,7 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
     protected void beforeDelete(Database database) {
     }
 
-    /** @deprecated No replacement. */
+    /** @deprecated Use {@link #afterDelete} instead. */
     @Deprecated
     protected void afterDelete(Database database) {
     }
