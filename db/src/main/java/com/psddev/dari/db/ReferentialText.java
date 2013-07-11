@@ -9,8 +9,8 @@ import java.util.UUID;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
+import org.jsoup.nodes.TextNode;
 import org.jsoup.parser.Tag;
-import org.jsoup.select.Elements;
 
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectUtils;
@@ -141,9 +141,32 @@ public class ReferentialText extends AbstractList<Object> {
         // Convert 'text<br><br>' to '<p>text</p>'.
         Element body = Jsoup.parseBodyFragment(html.toString()).body();
 
-        for (Elements brs; !(brs = body.select("br + br")).isEmpty(); ) {
-            Element br = brs.get(0);
-            Element previousBr = br.previousElementSibling();
+        for (Element br : body.getElementsByTag("br")) {
+            Element previousBr = null;
+
+            // Find the closest previous <br> without any intervening content.
+            for (Node previousNode = br;
+                    (previousNode = previousNode.previousSibling()) != null;
+                    ) {
+                if (previousNode instanceof Element) {
+                    Element previousElement = (Element) previousNode;
+
+                    if (BR_TAG.equals(previousElement.tag())) {
+                        previousBr = previousElement;
+                    }
+
+                    break;
+
+                } if (previousNode instanceof TextNode &&
+                        !ObjectUtils.isBlank(((TextNode) previousNode).text())) {
+                    break;
+                }
+            }
+
+            if (previousBr == null) {
+                continue;
+            }
+
             List<Node> paragraphChildren = new ArrayList<Node>();
 
             for (Node previous = previousBr;
