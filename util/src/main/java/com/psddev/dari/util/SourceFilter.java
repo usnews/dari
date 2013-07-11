@@ -116,6 +116,7 @@ public class SourceFilter extends AbstractFilter {
     private final Set<File> javaSourcesSet = new HashSet<File>();
     private Map<JavaFileObject, Long> javaSourceFileModifieds;
     private final Map<String, File> webappSourcesMap = new HashMap<String, File>();
+    private final Map<File, Long> webappSourceFileModifieds = new HashMap<File, Long>();
     private final Map<String, Date> changedClassTimes = new TreeMap<String, Date>();
 
     // --- AbstractFilter support ---
@@ -203,6 +204,7 @@ public class SourceFilter extends AbstractFilter {
         javaSourcesSet.clear();
         javaSourceFileModifieds = null;
         webappSourcesMap.clear();
+        webappSourceFileModifieds.clear();
         changedClassTimes.clear();
     }
 
@@ -713,43 +715,46 @@ public class SourceFilter extends AbstractFilter {
         return null;
     }
 
-    /**
-     * Copies the webapp source associated with the given {@code request}.
-     *
-     * @param request Can't be {@code null}.
-     */
+    // Copies the webapp source associated with the given request.
     private void copyWebappSource(HttpServletRequest request) throws IOException {
         ServletContext context = getServletContext();
         String path = JspUtils.getCurrentServletPath(request);
+
         if (path.startsWith("/WEB-INF/_draft/")) {
             return;
         }
 
         String contextPath = JspUtils.getEmbeddedContextPath(context, path);
         File webappSources = webappSourcesMap.get(contextPath);
+
         if (webappSources == null) {
             return;
         }
 
         String outputFileString = context.getRealPath(path);
+
         if (outputFileString == null) {
             return;
         }
 
         @SuppressWarnings("unchecked")
         Set<String> copied = (Set<String>) request.getAttribute(COPIED_ATTRIBUTE);
+
         if (copied == null) {
             copied = new HashSet<String>();
             request.setAttribute(COPIED_ATTRIBUTE, copied);
         }
+
         if (copied.contains(outputFileString)) {
             return;
+
         } else {
             copied.add(outputFileString);
         }
 
         File sourceFile = new File(webappSources, path.substring(contextPath.length()).replace('/', File.separatorChar));
         File outputFile = new File(outputFileString);
+
         if (sourceFile.isDirectory() ||
                 outputFile.isDirectory()) {
             return;
@@ -758,8 +763,21 @@ public class SourceFilter extends AbstractFilter {
         if (sourceFile.exists()) {
             if (!outputFile.exists()) {
                 IoUtils.createParentDirectories(outputFile);
-            } else if (sourceFile.lastModified() <= outputFile.lastModified()) {
-                return;
+
+            } else {
+                Long oldModified = webappSourceFileModifieds.get(sourceFile);
+                long newModified = sourceFile.lastModified();
+
+                if (oldModified == null) {
+                    webappSourceFileModifieds.put(sourceFile, newModified);
+                    return;
+
+                } else if (oldModified != newModified) {
+                    webappSourceFileModifieds.put(sourceFile, newModified);
+
+                } else if (newModified <= outputFile.lastModified()) {
+                    return;
+                }
             }
 
             IoUtils.copy(sourceFile, outputFile);
