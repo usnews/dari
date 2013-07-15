@@ -939,7 +939,7 @@ class SqlQuery {
         // only the HAVING will require a metric query
         if (! recordMetricHavingPredicates.isEmpty()) {
             statementBuilder.append(", ");
-            vendor.appendIdentifier(statementBuilder, recordMetricField.getInternalName());
+            vendor.appendAlias(statementBuilder, recordMetricField.getInternalName());
         }
 
         statementBuilder.append(" \nFROM ");
@@ -1226,7 +1226,7 @@ class SqlQuery {
         selectBuilder.append(amountBuilder);
         reverseAliasSql.put(metricField.getInternalName(), amountBuilder.toString());
 
-        vendor.appendIdentifier(selectBuilder, metricField.getInternalName());
+        vendor.appendAlias(selectBuilder, metricField.getInternalName());
 
         selectBuilder.append(", COUNT(");
         vendor.appendIdentifier(selectBuilder, "id");
@@ -1318,7 +1318,7 @@ class SqlQuery {
         sql.append(", ");
         MetricDatabase.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
         sql.append(' ');
-        vendor.appendIdentifier(sql, metricField.getInternalName());
+        vendor.appendAlias(sql, metricField.getInternalName());
         sql.append(" FROM ");
         vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
         sql.append(' ');
@@ -1416,7 +1416,7 @@ class SqlQuery {
 
         if (hasAnyDeferredMetricPredicates()) {
             statementBuilder.append(", ");
-            vendor.appendIdentifier(statementBuilder, recordMetricField.getInternalName());
+            vendor.appendAlias(statementBuilder, recordMetricField.getInternalName());
             statementBuilder.append(' ');
             query.getExtraSourceColumns().put(recordMetricField.getInternalName(), recordMetricField.getInternalName());
         }
@@ -1820,7 +1820,7 @@ class SqlQuery {
                 } else {
                     // for metricField, use internalName
                     StringBuilder fieldBuilder = new StringBuilder();
-                    vendor.appendIdentifier(fieldBuilder, joinField.getInternalName());
+                    vendor.appendAlias(fieldBuilder, joinField.getInternalName());
                     valueField = fieldBuilder.toString();
                     isHaving = true;
                 }

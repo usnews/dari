@@ -102,6 +102,10 @@ public class SqlVendor {
         builder.append('"');
     }
 
+    public void appendAlias(StringBuilder builder, String alias) {
+        appendIdentifier(builder, alias);
+    }
+
     public void appendBindLocation(StringBuilder builder, Location location, List<Object> parameters) {
         builder.append("GeomFromText(?)");
         if (parameters != null) {
@@ -916,7 +920,12 @@ public class SqlVendor {
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
-            builder.append("\"" + identifier + "\"");
+            builder.append(identifier.toLowerCase());
+        }
+
+        @Override
+        public void appendAlias(StringBuilder builder, String alias) {
+            builder.append("\"" + alias + "\"");
         }
 
         @Override
