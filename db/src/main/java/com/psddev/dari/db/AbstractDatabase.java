@@ -590,7 +590,9 @@ public abstract class AbstractDatabase<C> implements Database {
                 try {
                     record.afterSave();
                 } catch (RuntimeException error) {
-                    LOGGER.warn("Couldn't run afterSave on [{}]", record.getId());
+                    LOGGER.warn(
+                            String.format("Couldn't run afterSave on [%s]", record.getId()),
+                            error);
                 }
             }
         },
