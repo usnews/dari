@@ -1459,7 +1459,12 @@ class SqlQuery {
         }
 
         if (hasAnyDeferredMetricPredicates()) {
-            statementBuilder.append(" \nJOIN (");
+            // Left joins if we're only sorting, not filtering. 
+            if (recordMetricHavingPredicates.isEmpty()) {
+                statementBuilder.append(" \nLEFT OUTER JOIN (");
+            } else {
+                statementBuilder.append(" \nJOIN (");
+            }
             appendSubqueryMetricSql(statementBuilder, recordMetricField);
             statementBuilder.append(") m \nON (");
             appendSimpleOnClause(statementBuilder, vendor, "r", "id", "=", "m", "id");
