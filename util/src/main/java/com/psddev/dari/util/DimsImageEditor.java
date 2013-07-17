@@ -395,6 +395,13 @@ public class DimsImageEditor extends AbstractImageEditor {
                 if (DimsImageEditor.this.isPreserveMetadata()) {
                     addCommand(new StripCommand(false));
                 }
+
+                String imagePath = imageUrl.getPath();
+                if (imagePath.toLowerCase(Locale.ENGLISH).endsWith(".tif") ||
+                    imagePath.toLowerCase(Locale.ENGLISH).endsWith(".tiff")) {
+                    addCommand(new FormatCommand(ImageFormat.png));
+                }
+                
                 Integer quality = DimsImageEditor.this.getQuality();
                 if (quality != null) {
                     addCommand(new QualityCommand(quality));
