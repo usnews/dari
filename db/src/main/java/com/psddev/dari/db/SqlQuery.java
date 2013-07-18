@@ -1191,12 +1191,6 @@ class SqlQuery {
         whereBuilder.append(" AND r."+MetricDatabase.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
-        // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
-        if (recordMetricDimensionPredicates.isEmpty()) {
-            whereBuilder.append(" AND ");
-            appendSimpleWhereClause(whereBuilder, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
-        }
-
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
             whereBuilder.append(" AND ");
@@ -1330,12 +1324,6 @@ class SqlQuery {
 
         sql.append(" AND ");
         appendSimpleWhereClause(sql, vendor, "r", MetricDatabase.METRIC_SYMBOL_FIELD, "=", database.getSymbolId(actionSymbol));
-
-        // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
-        if (recordMetricDimensionPredicates.isEmpty()) {
-            sql.append(" AND ");
-            appendSimpleWhereClause(sql, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
-        }
 
         // Apply deferred WHERE predicates (eventDates and metric Dimensions)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
