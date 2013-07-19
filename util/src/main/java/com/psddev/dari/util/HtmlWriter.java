@@ -426,11 +426,17 @@ public class HtmlWriter extends Writer {
                 writeRaw(cssSuffix);
             }
 
+            Map<String, CssUnit> widths = new HashMap<String, CssUnit>();
+
             for (CssUnit width : area.width.getAll()) {
-                String unit = width.getUnit();
+                widths.put(width.getUnit(), width);
+            }
+
+            for (String unit : new String[] { "em", "fr", "pt", "px", "%" }) {
+                CssUnit width = widths.get(unit);
 
                 writeCss(selector + " .dari-grid-mw-" + unit + selectorSuffix,
-                        "padding-left", "fr".equals(unit) ? 0 : width);
+                        "padding-left", width != null ? width : 0);
                 writeRaw(cssSuffix);
             }
 
