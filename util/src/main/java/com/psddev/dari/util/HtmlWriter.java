@@ -429,11 +429,9 @@ public class HtmlWriter extends Writer {
             for (CssUnit width : area.width.getAll()) {
                 String unit = width.getUnit();
 
-                if (!"fr".equals(unit)) {
-                    writeCss(selector + " .dari-grid-mw-" + unit + selectorSuffix,
-                            "padding-left", width);
-                    writeRaw(cssSuffix);
-                }
+                writeCss(selector + " .dari-grid-mw-" + unit + selectorSuffix,
+                        "padding-left", "fr".equals(unit) ? 0 : width);
+                writeRaw(cssSuffix);
             }
 
             for (CssUnit height : area.height.getAll()) {
