@@ -311,22 +311,24 @@ public abstract class AbstractDatabase<C> implements Database {
 
     @Override
     public <T> Iterable<T> readIterable(Query<T> query, int fetchSize) {
-        return new ByIdIterable<T>(query, fetchSize);
+        return new PaginatedIterable<T>(query, fetchSize);
     }
 
-    private static class ByIdIterable<T> implements Iterable<T> {
+    private static class PaginatedIterable<T> implements Iterable<T> {
 
         private final Query<T> query;
         private final int fetchSize;
 
-        public ByIdIterable(Query<T> initialQuery, int initialFetchSize) {
-            query = initialQuery;
-            fetchSize = initialFetchSize;
+        public PaginatedIterable(Query<T> query, int fetchSize) {
+            this.query = query;
+            this.fetchSize = fetchSize;
         }
 
         @Override
         public Iterator<T> iterator() {
-            return new ByIdIterator<T>(query, fetchSize);
+            return query.getSorters().isEmpty() ?
+                    new ByIdIterator<T>(query, fetchSize) :
+                    new PaginatedIterator<T>(query, fetchSize);
         }
     }
 
@@ -339,10 +341,6 @@ public abstract class AbstractDatabase<C> implements Database {
         private int index;
 
         public ByIdIterator(Query<T> query, int fetchSize) {
-            if (!query.getSorters().isEmpty()) {
-                throw new IllegalArgumentException("Can't iterate over a query that has sorters!");
-            }
-
             this.query = query.clone().sortAscending("_id");
             this.fetchSize = fetchSize > 0 ? fetchSize : 200;
         }
@@ -372,6 +370,63 @@ public abstract class AbstractDatabase<C> implements Database {
                 }
 
                 lastObjectId = State.getInstance(items.get(size - 1)).getId();
+                index = 0;
+            }
+
+            return true;
+        }
+
+        @Override
+        public T next() {
+            if (hasNext()) {
+                T object = result.getItems().get(index);
+                ++ index;
+                return object;
+
+            } else {
+                throw new NoSuchElementException();
+            }
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class PaginatedIterator<T> implements Iterator<T> {
+
+        private final Query<T> query;
+        private PaginatedResult<T> result;
+        private long offset;
+        private final int limit;
+        private int index;
+
+        public PaginatedIterator(Query<T> query, int limit) {
+            this.query = query;
+            this.limit = limit > 0 ? limit : 200;
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (result != null && index >= result.getItems().size()) {
+                if (result.hasNext()) {
+                    result = null;
+                } else {
+                    return false;
+                }
+            }
+
+            if (result == null) {
+                result = query.select(offset, limit);
+                List<T> items = result.getItems();
+
+                int size = items.size();
+                if (size < 1) {
+                    return false;
+                }
+
+                offset += limit;
                 index = 0;
             }
 
