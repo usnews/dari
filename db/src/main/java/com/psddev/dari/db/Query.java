@@ -767,14 +767,13 @@ public class Query<E> extends Record {
                 if (field == null) {
                     for (ObjectType fieldType : fieldTypes) {
                         field = fieldType.getField(keyFirst);
-                        if (field != null) {
-                            fieldTypes = field.getTypes();
-                            break;
-                        }
+                        break;
                     }
                 }
 
                 if (field != null) {
+                    fieldTypes = field.getTypes();
+
                     if (hasMore && ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
                         boolean isEmbedded = field.isEmbedded();
 
