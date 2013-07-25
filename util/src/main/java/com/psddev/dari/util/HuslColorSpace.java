@@ -1,5 +1,6 @@
 package com.psddev.dari.util;
 
+import java.awt.Color;
 import java.awt.color.ColorSpace;
 
 /**
@@ -385,6 +386,17 @@ public class HuslColorSpace extends ColorSpace {
         public static int[] fromRGBtoHUSL(int red, int green, int blue) {
             float[] husl = LCH_HUSL(LUV_LCH(XYZ_LUV(RGB_XYZ(new float[] { red / 255.0f, green / 255.0f, blue / 255.0f }))));
             return new int[] { (int) husl[0], (int) husl[1], (int) husl[2] };
+        }
+
+        /**
+         * Transforms the given {@code color} to HUSL.
+         *
+         * @param color Can't be {@code null}.
+         * @return Never {@code null} and always contains 3 items. First item
+         * between 0 and 359 (inclusive). Others between 0 and 100 (inclusive).
+         */
+        public static int[] toHUSL(Color color) {
+            return fromRGBtoHUSL(color.getRed(), color.getGreen(), color.getBlue());
         }
     }
 }
