@@ -96,14 +96,114 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         public void addToSaves(State state) {
+            saveJunctions(state, state.getDatabase().getEnvironment());
+
+            ObjectType type = state.getType();
+
+            if (type != null) {
+                saveJunctions(state, type);
+            }
+
             for (Iterator<State> i = saves.iterator(); i.hasNext(); ) {
                 State s = i.next();
+
                 if (s.equals(state)) {
                     i.remove();
                     state.getAtomicOperations().addAll(0, s.getAtomicOperations());
                 }
             }
+
             saves.add(state);
+        }
+
+        private void saveJunctions(State state, ObjectStruct struct) {
+            for (ObjectField field : struct.getFields()) {
+                String junctionField = field.getJunctionField();
+
+                if (!ObjectUtils.isBlank(junctionField)) {
+                    String fieldName = field.getInternalName();
+                    List<Object> oldItems = field.findJunctionItems(state);
+                    Iterable<?> newItems = ObjectUtils.to(Iterable.class, state.get(fieldName));
+
+                    if (newItems != null) {
+                        Iterator<?> i = newItems.iterator();
+
+                        if (i.hasNext()) {
+                            Double lastPosition = null;
+                            String positionField = field.getJunctionPositionField();
+
+                            for (Object item = i.next(), next = null; item != null; item = next) {
+                                next = i.hasNext() ? i.next() : null;
+                                State itemState = State.getInstance(item);
+                                Object junction = itemState.get(junctionField);
+                                double position;
+                                boolean save = false;
+
+                                oldItems.remove(item);
+
+                                if (junction == null ||
+                                        !State.getInstance(junction).equals(state)) {
+                                    save = true;
+
+                                    itemState.put(junctionField, state.getOriginalObject());
+                                }
+
+                                if (!ObjectUtils.isBlank(positionField)) {
+                                    position = ObjectUtils.to(double.class, itemState.get(positionField));
+
+                                    if (position == 0.0) {
+                                        position = 0.1;
+                                        save = true;
+                                    }
+
+                                    if (lastPosition == null) {
+                                        if (next != null) {
+                                            double nextPosition = ObjectUtils.to(double.class, State.getInstance(next).get(positionField));
+
+                                            if (nextPosition <= position) {
+                                                position = nextPosition - 1.0;
+                                                save = true;
+                                            }
+                                        }
+
+                                    } else if (lastPosition >= position) {
+                                        if (next == null) {
+                                            position = lastPosition + 1.0;
+
+                                        } else {
+                                            double nextPosition = ObjectUtils.to(double.class, State.getInstance(next).get(positionField));
+                                            position = (lastPosition + nextPosition) / 2.0;
+
+                                            if (lastPosition >= position) {
+                                                position = lastPosition + 1.0;
+                                            }
+                                        }
+
+                                        save = true;
+                                    }
+
+                                    lastPosition = position;
+
+                                    if (save) {
+                                        itemState.put(positionField, position);
+                                    }
+                                }
+
+                                if (save) {
+                                    addToSaves(itemState);
+                                }
+                            }
+                        }
+                    }
+
+                    for (Object item : oldItems) {
+                        State itemState = State.getInstance(item);
+
+                        itemState.remove(junctionField);
+                        addToSaves(itemState);
+                    }
+                }
+            }
         }
 
         public void addToIndexes(State state) {
@@ -785,6 +885,7 @@ public abstract class AbstractDatabase<C> implements Database {
         checkState(state);
 
         ObjectType type = state.getType();
+
         if (type != null && !type.isConcrete()) {
             throw new IllegalStateException(String.format(
                     "Can't save a non-concrete object! (%s)",
@@ -794,13 +895,17 @@ public abstract class AbstractDatabase<C> implements Database {
         Trigger.BEFORE_SAVE.execute(state);
 
         Writes writes = getCurrentWrites();
+
         if (writes != null) {
             writes.addToValidates(state);
             writes.addToSaves(state);
 
         } else {
-            List<State> wrapped = Arrays.asList(state);
-            write(wrapped, wrapped, null, null, true);
+            writes = new Writes();
+
+            writes.addToValidates(state);
+            writes.addToSaves(state);
+            write(writes.validates, writes.saves, null, null, true);
         }
     }
 
@@ -1365,6 +1470,12 @@ public abstract class AbstractDatabase<C> implements Database {
             }
         }
 
+        populateJunctions(state, environment);
+
+        if (type != null) {
+            populateJunctions(state, type);
+        }
+
         if (object instanceof ObjectType) {
             ObjectType asType = environment.getTypeById(((ObjectType) object).getId());
 
@@ -1374,6 +1485,16 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         return object;
+    }
+
+    private void populateJunctions(State state, ObjectStruct struct) {
+        for (ObjectField field : struct.getFields()) {
+            String junctionField = field.getJunctionField();
+
+            if (!ObjectUtils.isBlank(junctionField)) {
+                state.put(field.getInternalName(), new JunctionList(state, field));
+            }
+        }
     }
 
     // --- Object support ---

@@ -114,6 +114,8 @@ public class ObjectField extends Record {
     private static final String DENORMALIZED_FIELDS_KEY = "denormalizedFields";
     private static final String IS_EMBEDDED_KEY = "isEmbedded";
     private static final String IS_REQUIRED_KEY = "isRequired";
+    private static final String JUNCTION_FIELD_KEY = "junctionField";
+    private static final String JUNCTION_POSITION_FIELD_KEY = "junctionPositionField";
     private static final String MINIMUM_KEY = "minimum";
     private static final String STEP_KEY = "step";
     private static final String MAXIMUM_KEY = "maximum";
@@ -145,6 +147,8 @@ public class ObjectField extends Record {
     private Set<String> denormalizedFields;
     private boolean isEmbedded;
     private boolean isRequired;
+    private String junctionField;
+    private String junctionPositionField;
     private Number minimum;
     private Number step;
     private Number maximum;
@@ -178,6 +182,8 @@ public class ObjectField extends Record {
         isDenormalized = field.isDenormalized;
         isEmbedded = field.isEmbedded;
         isRequired = field.isRequired;
+        junctionField = field.junctionField;
+        junctionPositionField = field.junctionPositionField;
         minimum = field.minimum;
         step = field.step;
         maximum = field.maximum;
@@ -221,6 +227,8 @@ public class ObjectField extends Record {
         denormalizedFields = ObjectUtils.to(SET_STRING_TYPE_REF, definition.remove(DENORMALIZED_FIELDS_KEY));
         isEmbedded = Boolean.TRUE.equals(definition.remove(IS_EMBEDDED_KEY));
         isRequired = Boolean.TRUE.equals(definition.remove(IS_REQUIRED_KEY));
+        junctionField = (String) definition.remove(JUNCTION_FIELD_KEY);
+        junctionPositionField = (String) definition.remove(JUNCTION_POSITION_FIELD_KEY);
         minimum = (Number) definition.remove(MINIMUM_KEY);
         step = (Number) definition.remove(STEP_KEY);
         maximum = (Number) definition.remove(MAXIMUM_KEY);
@@ -290,6 +298,8 @@ public class ObjectField extends Record {
         definition.put(DENORMALIZED_FIELDS_KEY, denormalizedFields);
         definition.put(IS_EMBEDDED_KEY, isEmbedded);
         definition.put(IS_REQUIRED_KEY, isRequired);
+        definition.put(JUNCTION_FIELD_KEY, junctionField);
+        definition.put(JUNCTION_POSITION_FIELD_KEY, junctionPositionField);
         definition.put(MINIMUM_KEY, minimum);
         definition.put(STEP_KEY, step);
         definition.put(MAXIMUM_KEY, maximum);
@@ -482,6 +492,43 @@ public class ObjectField extends Record {
     /** Sets whether the field value is required. */
     public void setRequired(boolean isRequired) {
         this.isRequired = isRequired;
+    }
+
+    public String getJunctionField() {
+        return junctionField;
+    }
+
+    public void setJunctionField(String junctionField) {
+        this.junctionField = junctionField;
+    }
+
+    public String getJunctionPositionField() {
+        return junctionPositionField;
+    }
+
+    public void setJunctionPositionField(String junctionPositionField) {
+        this.junctionPositionField = junctionPositionField;
+    }
+
+    public List<Object> findJunctionItems(State state) {
+        Set<ObjectType> types = getTypes();
+
+        if (types.isEmpty()) {
+            return new ArrayList<Object>();
+
+        } else {
+            Query<Object> query = Query.
+                    fromType(types.iterator().next()).
+                    where(getJunctionField() + " = ?", state.getId());
+
+            String junctionPositionField = getJunctionPositionField();
+
+            if (!ObjectUtils.isBlank(junctionPositionField)) {
+                query.sortAscending(junctionPositionField);
+            }
+
+            return query.selectAll();
+        }
     }
 
     public Number getMinimum() {

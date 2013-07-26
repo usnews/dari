@@ -179,6 +179,30 @@ public interface Recordable {
     }
 
     /**
+     * Specifies the name of the field in the junction query that should be
+     * used to populate the target field.
+     */
+    @Documented
+    @ObjectField.AnnotationProcessorClass(JunctionFieldProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface JunctionField {
+        String value();
+    }
+
+    /**
+     * Specifies the name of the position field in the junction query that
+     * should be used to order the collection in the target field.
+     */
+    @Documented
+    @ObjectField.AnnotationProcessorClass(JunctionPositionFieldProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface JunctionPositionField {
+        String value();
+    }
+
+    /**
      * Specifies the field names that are used to retrieve the
      * labels of the objects represented by the target type.
      */
@@ -617,6 +641,22 @@ class InternalNameProcessor implements ObjectType.AnnotationProcessor<Recordable
     @Override
     public void process(ObjectType type, Recordable.InternalName annotation) {
         type.setInternalName(annotation.value());
+    }
+}
+
+class JunctionFieldProcessor implements ObjectField.AnnotationProcessor<Recordable.JunctionField> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.JunctionField annotation) {
+        field.setJunctionField(annotation.value());
+    }
+}
+
+class JunctionPositionFieldProcessor implements ObjectField.AnnotationProcessor<Recordable.JunctionPositionField> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.JunctionPositionField annotation) {
+        field.setJunctionPositionField(annotation.value());
     }
 }
 
