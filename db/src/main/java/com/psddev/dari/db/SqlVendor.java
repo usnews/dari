@@ -27,6 +27,7 @@ public class SqlVendor {
         DOUBLE,
         INTEGER,
         POINT,
+        POLYGON,
         SERIAL,
         UUID;
     }
@@ -113,6 +114,25 @@ public class SqlVendor {
         }
     }
 
+    public void appendBindRegion(StringBuilder builder, Region region, List<Object> parameters) {
+        builder.append("GeomFromText(?)");
+        if (parameters != null) {
+            StringBuilder b = new StringBuilder();
+
+            b.append("POLYGON((");
+            for (Location location : region.getLocations()) {
+                b.append(SqlDatabase.quoteValue(location.getX()));
+                b.append(' ');
+                b.append(SqlDatabase.quoteValue(location.getY()));
+                b.append(", ");
+            }
+            b.setLength(b.length() - 2);
+            b.append("))");
+
+            parameters.add(b.toString());
+        }
+    }
+
     public void appendBindUuid(StringBuilder builder, UUID uuid, List<Object> parameters) {
         builder.append('?');
         if (parameters != null) {
@@ -130,6 +150,8 @@ public class SqlVendor {
     public void appendBindValue(StringBuilder builder, Object value, List<Object> parameters) {
         if (value instanceof Location) {
             appendBindLocation(builder, (Location) value, parameters);
+        } else if (value instanceof Region) {
+            appendBindRegion(builder, (Region) value, parameters);
 
         } else if (value instanceof UUID) {
             appendBindUuid(builder, (UUID) value, parameters);
@@ -166,6 +188,18 @@ public class SqlVendor {
             builder.append(valueLocation.getY());
             builder.append(")')");
 
+        } else if (value instanceof Region) {
+            Region valueRegion = (Region) value;
+
+            builder.append("GEOMFROMTEXT('POLYGON((");
+            for (Location location : valueRegion.getLocations()) {
+                builder.append(SqlDatabase.quoteValue(location.getX()));
+                builder.append(' ');
+                builder.append(SqlDatabase.quoteValue(location.getY()));
+                builder.append(", ");
+            }
+            builder.append("))')");
+
         } else {
             appendBytes(builder, value.toString().getBytes(StringUtils.UTF_8));
         }
@@ -197,6 +231,16 @@ public class SqlVendor {
         builder.append("))'), ");
         builder.append(field);
         builder.append(')');
+    }
+
+    protected void appendWhereLocation(StringBuilder builder, Location location, String field) {
+        builder.append("MBRCONTAINS(");
+        builder.append(field);
+        builder.append(", GEOMFROMTEXT('POINT(");
+        builder.append(SqlDatabase.quoteValue(location.getX()));
+        builder.append(' ');
+        builder.append(SqlDatabase.quoteValue(location.getY()));
+        builder.append(")'))");
     }
 
     protected void appendNearestLocation(
@@ -290,6 +334,7 @@ public class SqlVendor {
     private static final Map<SqlIndex, ColumnType> INDEX_TYPES; static {
         Map<SqlIndex, ColumnType> m = new HashMap<SqlIndex, ColumnType>();
         m.put(SqlIndex.LOCATION, ColumnType.POINT);
+        m.put(SqlIndex.REGION, ColumnType.POLYGON);
         m.put(SqlIndex.NUMBER, ColumnType.DOUBLE);
         m.put(SqlIndex.STRING, ColumnType.BYTES_SHORT);
         m.put(SqlIndex.UUID, ColumnType.UUID);
@@ -384,6 +429,9 @@ public class SqlVendor {
             case POINT :
                 appendColumnTypePoint(builder);
                 break;
+            case POLYGON :
+                appendColumnTypePolygon(builder);
+                break;
             case SERIAL :
                 appendColumnTypeSerial(builder);
                 break;
@@ -418,6 +466,10 @@ public class SqlVendor {
 
     protected void appendColumnTypePoint(StringBuilder builder) {
         builder.append("POINT NOT NULL");
+    }
+
+    protected void appendColumnTypePolygon(StringBuilder builder) {
+        builder.append("POLYGON NOT NULL");
     }
 
     protected void appendColumnTypeSerial(StringBuilder builder) {
@@ -576,6 +628,11 @@ public class SqlVendor {
 
         @Override
         protected void appendColumnTypePoint(StringBuilder builder) {
+            builder.append("DOUBLE NOT NULL");
+        }
+
+        @Override
+        protected void appendColumnTypePolygon(StringBuilder builder) {
             builder.append("DOUBLE NOT NULL");
         }
 

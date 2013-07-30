@@ -42,6 +42,7 @@ public class ObjectField extends Record {
     public static final String FILE_TYPE = "file";
     public static final String LIST_TYPE = "list";
     public static final String LOCATION_TYPE = "location";
+    public static final String REGION_TYPE = "region";
     public static final String MAP_TYPE = "map";
     public static final String NUMBER_TYPE = "number";
     public static final String RECORD_TYPE = "record";
@@ -85,6 +86,7 @@ public class ObjectField extends Record {
         CLASS_TO_TYPE.put(Date.class, DATE_TYPE);
         CLASS_TO_TYPE.put(StorageItem.class, FILE_TYPE);
         CLASS_TO_TYPE.put(Location.class, LOCATION_TYPE);
+        CLASS_TO_TYPE.put(Region.class, REGION_TYPE);
         CLASS_TO_TYPE.put(Recordable.class, RECORD_TYPE);
         CLASS_TO_TYPE.put(ReferentialText.class, REFERENTIAL_TEXT_TYPE);
         CLASS_TO_TYPE.put(String.class, TEXT_TYPE);

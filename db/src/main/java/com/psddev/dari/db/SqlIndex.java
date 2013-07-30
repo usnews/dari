@@ -66,6 +66,10 @@ public enum SqlIndex {
         new SymbolIdSingleValueTable(2, "RecordLocation2")
     ),
 
+    REGION(
+        new SymbolIdSingleValueTable(1, "RecordRegion")
+    ),
+
     NUMBER(
         new NameSingleValueTable(1, "RecordNumber"),
         new SymbolIdSingleValueTable(2, "RecordNumber2")
@@ -250,7 +254,8 @@ public enum SqlIndex {
 
             if (ObjectField.DATE_TYPE.equals(type) ||
                     ObjectField.NUMBER_TYPE.equals(type) ||
-                    ObjectField.LOCATION_TYPE.equals(type)) {
+                    ObjectField.LOCATION_TYPE.equals(type) ||
+                    ObjectField.REGION_TYPE.equals(type)) {
                 return value;
 
             } else if (value instanceof UUID) {
@@ -314,6 +319,8 @@ public enum SqlIndex {
 
                 if (SqlIndex.Static.getByIndex(index) == SqlIndex.LOCATION) {
                     vendor.appendBindLocation(insertBuilder, null, null);
+                } else if (SqlIndex.Static.getByIndex(index) == SqlIndex.REGION) {
+                    vendor.appendBindRegion(insertBuilder, null, null); 
                 } else {
                     insertBuilder.append("?");
                 }
@@ -481,6 +488,9 @@ public enum SqlIndex {
 
             } else if (ObjectField.LOCATION_TYPE.equals(type)) {
                 return SqlIndex.LOCATION;
+
+            } else if (ObjectField.REGION_TYPE.equals(type)) {
+                return SqlIndex.REGION;
 
             } else if (ObjectField.RECORD_TYPE.equals(type) ||
                     ObjectField.UUID_TYPE.equals(type)) {

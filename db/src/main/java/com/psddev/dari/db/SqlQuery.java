@@ -749,6 +749,19 @@ class SqlQuery {
                         if (value == null) {
                             comparisonBuilder.append("0 = 1");
 
+                        } else if (value instanceof Location) {
+                            ++ subClauseCount;
+
+                            if (isNotEqualsAll) {
+                                comparisonBuilder.append("NOT ");
+                            }
+
+                            try {
+                                vendor.appendWhereLocation(comparisonBuilder, (Location) value, joinValueField);
+                            } catch (UnsupportedIndexException uie) {
+                                throw new UnsupportedIndexException(vendor, queryKey);
+                            }
+
                         } else if (value == Query.MISSING_VALUE) {
                             hasMissing = true;
 
