@@ -82,6 +82,7 @@ public class HtmlApiFilter extends AbstractFilter {
             @SuppressWarnings("resource")
             HtmlWriter html = new HtmlWriter(writer);
 
+            response.setContentType("text/html");
             html.writeTag("!doctype html");
             html.writeStart("html");
                 html.writeStart("head");
