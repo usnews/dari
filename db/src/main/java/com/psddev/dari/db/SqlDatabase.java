@@ -2378,26 +2378,32 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
          */
         static void logBatchUpdateException(BatchUpdateException bue, String sqlQuery, List<? extends List<?>> parameters) {
             int i = 0;
-            int failureOffset = bue.getUpdateCounts().length;
-            List<?> rowData = parameters.get(failureOffset);
 
             StringBuilder errorBuilder = new StringBuilder();
-            errorBuilder.append("Batch update failed with query '");
-            errorBuilder.append(sqlQuery);
-            errorBuilder.append("' with values (");
-            for (Object value : rowData) {
-                if (i++ != 0) {
-                    errorBuilder.append(", ");
+            for (int code : bue.getUpdateCounts()) {
+                if (code == Statement.EXECUTE_FAILED) {
+                    List<?> rowData = parameters.get(i);
+
+                    errorBuilder.append("Batch update failed with query '");
+                    errorBuilder.append(sqlQuery);
+                    errorBuilder.append("' with values (");
+                    for (Object value : rowData) {
+                        if (i++ != 0) {
+                            errorBuilder.append(", ");
+                        }
+
+                        if (value instanceof byte[]) {
+                            errorBuilder.append(StringUtils.hex((byte[]) value));
+                        } else {
+                            errorBuilder.append(value);
+                        }
+                    }
+                    errorBuilder.append(')');
                 }
 
-                if (value instanceof byte[]) {
-                    errorBuilder.append(StringUtils.hex((byte[]) value));
-                } else {
-                    errorBuilder.append(value);
-                }
+                i++;
             }
-            errorBuilder.append(')');
-
+        
             Exception ex = bue.getNextException() != null ? bue.getNextException() : bue;
             LOGGER.error(errorBuilder.toString(), ex);
         }
