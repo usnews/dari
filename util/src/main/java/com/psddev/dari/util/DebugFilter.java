@@ -377,6 +377,7 @@ public class DebugFilter extends AbstractFilter {
             String id = page.createId();
             String servletPath = JspUtils.getCurrentServletPath(request);
 
+            response.setContentType("text/html");
             page.putAllStandardDefaults();
 
             page.writeStart("div", "id", id);
