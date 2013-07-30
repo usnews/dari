@@ -140,6 +140,24 @@ public class HtmlApiFilter extends AbstractFilter {
             writeJson(request, writer, output);
             writer.write(");");
 
+        } else if ("oembed".equals(format)) {
+            response.setContentType("application/json+oembed");
+
+            Map<String, Object> json = new CompactMap<String, Object>();
+            StringWriter string = new StringWriter();
+            @SuppressWarnings("resource")
+            HtmlWriter html = new HtmlWriter(string);
+
+            html.writeStart("script",
+                    "type", "text/javascript",
+                    "src", JspUtils.getAbsoluteUrl(request, "", "_format", "js"));
+            html.writeEnd();
+
+            json.put("version", "1.0");
+            json.put("type", "rich");
+            json.put("html", string.toString());
+            writer.write(ObjectUtils.toJson(json));
+
         } else {
             throw new IllegalArgumentException(String.format(
                     "[%s] isn't a valid API response format!", format));
