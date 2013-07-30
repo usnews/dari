@@ -21,6 +21,7 @@ import javax.servlet.http.HttpServletResponseWrapper;
  * <p>You can use it on any paths with the following query parameters:</p>
  *
  * <ul>
+ * <li>{@code ?_format=js}</li>
  * <li>{@code ?_format=json}</li>
  * <li>{@code ?_format=json&amp;_result=html}</li>
  * <li>{@code ?_format=jsonp&amp;_callback=}</li>
@@ -45,6 +46,74 @@ public class HtmlApiFilter extends AbstractFilter {
             return;
         }
 
+        Writer writer = response.getWriter();
+
+        if ("js".equals(format)) {
+            response.setContentType("text/javascript");
+
+            writer.write("(function(window, undefined) {");
+                writer.write("var d = window.document,");
+                writer.write("ss = d.getElementsByTagName('SCRIPT'),");
+                writer.write("s = ss[ss.length - 1],");
+                writer.write("f = d.createElement('IFRAME'),");
+                writer.write("h;");
+
+                writer.write("f.scrolling = 'no';");
+                writer.write("f.style.border = 'none';");
+                writer.write("f.style.width = '100%';");
+                writer.write("f.src = '");
+                writer.write(StringUtils.escapeJavaScript(JspUtils.getAbsoluteUrl(request, "", "_format", "_frame")));
+                writer.write("';");
+
+                writer.write("s.parentNode.insertBefore(f);");
+
+                writer.write("window.addEventListener('message', function(event) {");
+                    writer.write("var nh = parseInt(event.data, 10);");
+
+                    writer.write("if (h !== nh) {");
+                        writer.write("f.style.height = nh + 'px';");
+                        writer.write("h = nh;");
+                    writer.write("}");
+                writer.write("}, false);");
+            writer.write("})(window);");
+            return;
+
+        } else if ("_frame".equals(format)) {
+            @SuppressWarnings("resource")
+            HtmlWriter html = new HtmlWriter(writer);
+
+            html.writeTag("!doctype html");
+            html.writeStart("html");
+                html.writeStart("head");
+                html.writeEnd();
+
+                html.writeStart("body", "style", html.cssString(
+                        "margin", 0,
+                        "padding", 0));
+                    html.writeStart("iframe",
+                            "scrolling", "no",
+                            "src", JspUtils.getAbsoluteUrl(request, "", "_format", null),
+                            "style", html.cssString(
+                                    "border", "none",
+                                    "width", "100%"));
+                    html.writeEnd();
+
+                    html.writeStart("script", "type", "text/javascript");
+                        html.writeRaw("(function(window, undefined) {");
+                            html.writeRaw("setInterval(function() {");
+                                html.writeRaw("var f = document.getElementsByTagName('iframe')[0], h = f.contentDocument.body.scrollHeight;");
+
+                                html.writeRaw("f.height = h + 'px';");
+                                html.writeRaw("window.parent.postMessage('' + h, '*');");
+                            html.writeRaw("}, 500);");
+                        html.writeRaw("})(window);");
+                    html.writeEnd();
+                html.writeEnd();
+            html.writeEnd();
+
+            return;
+        }
+
         CapturingResponse capturing = new CapturingResponse(response);
         Object output;
 
@@ -56,13 +125,11 @@ public class HtmlApiFilter extends AbstractFilter {
             output = error;
         }
 
-        Writer writer = response.getWriter();
-
         if ("json".equals(format)) {
             response.setContentType("application/json");
             writeJson(request, writer, output);
 
-        } else if("jsonp".equals(format)) {
+        } else if ("jsonp".equals(format)) {
             String callback = request.getParameter("_callback");
 
             ErrorUtils.errorIfBlank(callback, "_callback");
