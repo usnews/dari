@@ -130,9 +130,9 @@ public class HtmlApiFilter extends AbstractFilter {
             writeJson(request, writer, output);
 
         } else if ("jsonp".equals(format)) {
-            String callback = request.getParameter("_callback");
+            String callback = request.getParameter("callback");
 
-            ErrorUtils.errorIfBlank(callback, "_callback");
+            ErrorUtils.errorIfBlank(callback, "callback");
 
             response.setContentType("application/javascript");
             writer.write(callback);
