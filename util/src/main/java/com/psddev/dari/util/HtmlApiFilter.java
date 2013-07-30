@@ -18,6 +18,15 @@ import javax.servlet.http.HttpServletResponseWrapper;
  * Filter that automatically captures the HTML output from the response
  * and formats it so that it's suitable for use as an API.
  *
+ * <p>You can use it on any paths with the following query parameters:</p>
+ *
+ * <ul>
+ * <li>{@code ?_format=json}</li>
+ * <li>{@code ?_format=json&amp;_result=html}</li>
+ * <li>{@code ?_format=jsonp&amp;_callback=}</li>
+ * <li>{@code ?_format=jsonp&amp;_callback=&amp;_result=html}</li>
+ * </ul>
+ *
  * @see HtmlMicrodata
  */
 public class HtmlApiFilter extends AbstractFilter {
