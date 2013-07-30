@@ -18,6 +18,16 @@ CREATE TABLE IF NOT EXISTS RecordLocation2 (
 ) ENGINE= MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
 CREATE VIEW RecordLocation2_d AS SELECT hex(id) AS id, symbolId, VALUE FROM RecordLocation2;
 
+CREATE TABLE `RecordRegion` (
+  `id` binary(16) NOT NULL,
+  `symbolId` int(11) NOT NULL,
+  `value` polygon NOT NULL,
+  PRIMARY KEY (`symbolId`,`value`(25),`id`),
+  KEY `k_id` (`id`),
+  SPATIAL KEY `k_value` (`value`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+CREATE VIEW RecordRegion_d AS SELECT hex(id) AS id, symbolId, VALUE FROM RecordRegion;
+
 CREATE TABLE IF NOT EXISTS RecordNumber2 (
     id BINARY(16) NOT NULL,
     symbolId INT NOT NULL,
