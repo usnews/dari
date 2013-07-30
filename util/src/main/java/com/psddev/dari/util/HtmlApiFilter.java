@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.net.URL;
 import java.util.Map;
 
@@ -35,59 +36,62 @@ public class HtmlApiFilter extends AbstractFilter {
             return;
         }
 
+        CapturingResponse capturing = new CapturingResponse(response);
+        Object output;
+
+        try {
+            chain.doFilter(request, capturing);
+            output = capturing.getOutput();
+
+        } catch (RuntimeException error) {
+            output = error;
+        }
+
+        Writer writer = response.getWriter();
+
         if ("json".equals(format)) {
-            CapturingResponse capturing = new CapturingResponse(response);
-            Map<String, Object> jsonResponse = new CompactMap<String, Object>();
-
-            try {
-                chain.doFilter(request, capturing);
-                jsonResponse.put("status", "ok");
-                jsonResponse.put("result", HtmlMicrodata.Static.parseString(
-                        new URL(JspUtils.getAbsoluteUrl(request, "")),
-                        capturing.getOutput()));
-
-            } catch (RuntimeException error) {
-                jsonResponse.put("status", "error");
-                jsonResponse.put("errorClass", error.getClass().getName());
-                jsonResponse.put("errorMessage", error.getMessage());
-            }
-
             response.setContentType("application/json");
-            response.getWriter().write(ObjectUtils.toJson(jsonResponse));
+            writeJson(request, writer, output);
 
         } else if("jsonp".equals(format)) {
-            String callback = request.getParameter("callback");
+            String callback = request.getParameter("_callback");
 
-            ErrorUtils.errorIfBlank(callback, "callback");
-
-            CapturingResponse capturing = new CapturingResponse(response);
-            Map<String, Object> jsonResponse = new CompactMap<String, Object>();
-
-            try {
-                chain.doFilter(request, capturing);
-                jsonResponse.put("status", "ok");
-                jsonResponse.put("result", HtmlMicrodata.Static.parseString(
-                        new URL(JspUtils.getAbsoluteUrl(request, "")),
-                        capturing.getOutput()));
-
-            } catch (RuntimeException error) {
-                jsonResponse.put("status", "error");
-                jsonResponse.put("errorClass", error.getClass().getName());
-                jsonResponse.put("errorMessage", error.getMessage());
-            }
-
-            PrintWriter writer = response.getWriter();
+            ErrorUtils.errorIfBlank(callback, "_callback");
 
             response.setContentType("application/javascript");
             writer.write(callback);
             writer.write("(");
-            writer.write(ObjectUtils.toJson(jsonResponse));
+            writeJson(request, writer, output);
             writer.write(");");
 
         } else {
             throw new IllegalArgumentException(String.format(
                     "[%s] isn't a valid API response format!", format));
         }
+    }
+
+    private static void writeJson(HttpServletRequest request, Writer writer, Object output) throws IOException {
+        Map<String, Object> json = new CompactMap<String, Object>();
+
+        if (output instanceof Throwable) {
+            Throwable error = (Throwable) output;
+
+            json.put("status", "error");
+            json.put("errorClass", error.getClass().getName());
+            json.put("errorMessage", error.getMessage());
+
+        } else {
+            if (!"html".equals(request.getParameter("_result"))) {
+                output = HtmlMicrodata.Static.parseString(
+                        new URL(JspUtils.getAbsoluteUrl(request, "")),
+                        (String) output);
+            }
+
+            json.put("status", "ok");
+            json.put("result", output);
+        }
+
+        writer.write(ObjectUtils.toJson(json));
     }
 
     private final static class CapturingResponse extends HttpServletResponseWrapper {
