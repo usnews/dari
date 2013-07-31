@@ -9,7 +9,7 @@ public class Region {
     public static final int EARTH_RADIUS_IN_MILES = 3959;
     public static final int EARTH_RADIUS_IN_KILOMETERS = 6371;
 
-    private final List<Location> locations;
+    private List<List<Location>> shapes;
     private Double x;
     private Double y;
     private Double radius;
@@ -50,11 +50,13 @@ public class Region {
         return new Region(x, y, radius, locationsLatLon(x, y, radius));
     }
 
-    protected Region(Double x, Double y, Double radius, List<Location> locations) {
+    private Region(Double x, Double y, Double radius, List<Location> locations) {
         this.x = x;
         this.y = y;
         this.radius = radius;
-        this.locations = locations;
+        this.shapes = new ArrayList<List<Location>>(); 
+
+        shapes.add(locations);
     }
 
     /**
@@ -63,7 +65,7 @@ public class Region {
      */
     @Deprecated
     public Region() {
-        this(null, null, null, Collections.<Location>emptyList());
+        this.shapes = new ArrayList<List<Location>>(); 
     }
 
     /**
@@ -112,7 +114,11 @@ public class Region {
 
     /** Returns an unmodifiable list of locations. */
     public List<Location> getLocations() {
-        return locations;
+        if (shapes.size() > 0) {
+            return Collections.unmodifiableList(shapes.get(0));
+        }
+
+        return null;
     }
 
     public Double getX() {
@@ -125,6 +131,14 @@ public class Region {
 
     public Double getRadius() {
         return radius;
+    }
+
+    public void addShape(List<Location> shape) {
+        shapes.add(shape);
+    }
+
+    public List<List<Location>> getShapes() {
+        return shapes;
     }
 
     /** Returns {@code true} if this region is a circle. */

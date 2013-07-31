@@ -119,15 +119,20 @@ public class SqlVendor {
         if (parameters != null) {
             StringBuilder b = new StringBuilder();
 
-            b.append("POLYGON((");
-            for (Location location : region.getLocations()) {
-                b.append(SqlDatabase.quoteValue(location.getX()));
-                b.append(' ');
-                b.append(SqlDatabase.quoteValue(location.getY()));
-                b.append(", ");
+            b.append("MULTIPOLYGON(");
+            for (List<Location> shape : region.getShapes()) {
+                b.append("((");
+                for (Location location : shape) {
+                    b.append(SqlDatabase.quoteValue(location.getX()));
+                    b.append(' ');
+                    b.append(SqlDatabase.quoteValue(location.getY()));
+                    b.append(", ");
+                }
+                b.setLength(b.length() - 2);
+                b.append(")), ");
             }
             b.setLength(b.length() - 2);
-            b.append("))");
+            b.append(")");
 
             parameters.add(b.toString());
         }

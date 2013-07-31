@@ -372,13 +372,15 @@ abstract class StateValueUtils {
 
                 } else if (value instanceof Map) {
                     Map<?, ?> map = (Map<?, ?>) value;
-                    Double x = ObjectUtils.to(Double.class, map.get("x"));
-                    Double y = ObjectUtils.to(Double.class, map.get("y"));
-                    Double radius = ObjectUtils.to(Double.class, map.get("radius"));
-                    List locations = ObjectUtils.to(List.class, map.get("locations"));
-                    if (x != null && y != null) {
-                        return new Region(x, y, radius, locations);
+                    List<List<Location>> shapes = (List<List<Location>>) ObjectUtils.to(List.class, map.get("shapes"));
+
+
+                    Region region = Region.empty();
+                    for (List<Location> shape : shapes) {
+                        region.addShape(shape);
                     }
+
+                    return region;
                 }
 
                 throw new IllegalArgumentException();
