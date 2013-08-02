@@ -329,11 +329,18 @@ public class Region {
 
         List<Map<String, Object>> features = (List<Map<String, Object>>) geoJSON.get("features");
         if (features == null) {
-            return;
+            features = (List<Map<String, Object>>) geoJSON.get("geometries");
+            if (features == null) {
+                return;
+            }
         }
 
         for (Map<String, Object> feature : features) {
             Map<String, Object> geometry = (Map<String, Object>) feature.get("geometry");
+            if (geometry == null) {
+                geometry = feature;
+            }
+
             String type = (String) geometry.get("type");
 
             if ("Circle".equals(type)) {
