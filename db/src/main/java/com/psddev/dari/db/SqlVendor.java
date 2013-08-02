@@ -829,9 +829,9 @@ public class SqlVendor {
             builder.append(getGeometryContainsMethod() + "(");
             builder.append(field);
             builder.append(", GEOMFROMTEXT('POINT(");
-            builder.append(SqlDatabase.quoteValue(location.getY()));
-            builder.append(' ');
             builder.append(SqlDatabase.quoteValue(location.getX()));
+            builder.append(' ');
+            builder.append(SqlDatabase.quoteValue(location.getY()));
             builder.append(")'))");
         }
 
