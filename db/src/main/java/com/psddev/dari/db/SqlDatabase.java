@@ -610,7 +610,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     // Closes all the given SQL resources safely.
-    private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
+    protected void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
             try {
                 result.close();

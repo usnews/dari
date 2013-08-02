@@ -108,34 +108,11 @@ public class SqlVendor {
     }
 
     public void appendBindLocation(StringBuilder builder, Location location, List<Object> parameters) {
-        builder.append("GeomFromText(?)");
-        if (parameters != null) {
-            parameters.add(location == null ? null : "POINT(" + location.getX() + " " + location.getY() + ")");
-        }
+        throw new UnsupportedOperationException("Location support is not implemented.");
     }
 
     public void appendBindRegion(StringBuilder builder, Region region, List<Object> parameters) {
-        builder.append("GeomFromText(?)");
-        if (parameters != null) {
-            StringBuilder b = new StringBuilder();
-
-            b.append("MULTIPOLYGON(");
-            for (List<Location> shape : region.getShapes()) {
-                b.append("((");
-                for (Location location : shape) {
-                    b.append(SqlDatabase.quoteValue(location.getX()));
-                    b.append(' ');
-                    b.append(SqlDatabase.quoteValue(location.getY()));
-                    b.append(", ");
-                }
-                b.setLength(b.length() - 2);
-                b.append(")), ");
-            }
-            b.setLength(b.length() - 2);
-            b.append(")");
-
-            parameters.add(b.toString());
-        }
+        throw new UnsupportedOperationException("Region support is not implemented.");
     }
 
     public void appendBindUuid(StringBuilder builder, UUID uuid, List<Object> parameters) {
@@ -196,15 +173,38 @@ public class SqlVendor {
         } else if (value instanceof Region) {
             Region valueRegion = (Region) value;
 
-            builder.append("GEOMFROMTEXT('POLYGON((");
-            for (Location location : valueRegion.getLocations()) {
-                builder.append(SqlDatabase.quoteValue(location.getX()));
-                builder.append(' ');
-                builder.append(SqlDatabase.quoteValue(location.getY()));
-                builder.append(", ");
+            builder.append("GEOMFROMTEXT('MULTIPOLYGON((");
+            for (Region.Polygon polygon : valueRegion.getPolygons()) {
+                for (Region.LinearRing ring : polygon) {
+                    builder.append("((");
+                    for (Region.Coordinate coordinate : ring) {
+                        builder.append(SqlDatabase.quoteValue(coordinate.getLatitude())); // Latitude
+                        builder.append(' ');
+                        builder.append(SqlDatabase.quoteValue(coordinate.getLongitude())); // Longitude
+                        builder.append(", ");
+                    }
+                    builder.setLength(builder.length() - 2);
+                    builder.append(")), ");
+                }
             }
-            builder.append("))')");
 
+            for (Region.Circle circles : valueRegion.getCircles()) {
+                for (Region.Polygon polygon : circles.getPolygons()) {
+                    for (Region.LinearRing ring : polygon) {
+                        builder.append("((");
+                        for (Region.Coordinate coordinate : ring) {
+                            builder.append(SqlDatabase.quoteValue(coordinate.getLatitude())); // Latitude
+                            builder.append(' ');
+                            builder.append(SqlDatabase.quoteValue(coordinate.getLongitude())); // Longitude
+                            builder.append(", ");
+                        }
+                        builder.setLength(builder.length() - 2);
+                        builder.append(")), ");
+                    }
+                }
+            }
+
+            builder.append("))')");
         } else {
             appendBytes(builder, value.toString().getBytes(StringUtils.UTF_8));
         }
@@ -223,48 +223,18 @@ public class SqlVendor {
     }
 
     protected void appendWhereRegion(StringBuilder builder, Region region, String field) {
-        List<Location> locations = region.getLocations();
-
-        builder.append("MBRCONTAINS(GEOMFROMTEXT('POLYGON((");
-        for (Location location : locations) {
-            builder.append(SqlDatabase.quoteValue(location.getX()));
-            builder.append(' ');
-            builder.append(SqlDatabase.quoteValue(location.getY()));
-            builder.append(", ");
-        }
-        builder.setLength(builder.length() - 2);
-        builder.append("))'), ");
-        builder.append(field);
-        builder.append(')');
+        throw new UnsupportedOperationException("Region support is not implemented.");
     }
 
     protected void appendWhereLocation(StringBuilder builder, Location location, String field) {
-        builder.append("MBRCONTAINS(");
-        builder.append(field);
-        builder.append(", GEOMFROMTEXT('POINT(");
-        builder.append(SqlDatabase.quoteValue(location.getX()));
-        builder.append(' ');
-        builder.append(SqlDatabase.quoteValue(location.getY()));
-        builder.append(")'))");
+        throw new UnsupportedOperationException("Region support is not implemented.");
     }
 
     protected void appendNearestLocation(
             StringBuilder orderbyBuilder,
             StringBuilder selectBuilder,
             Location location, String field) {
-
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("GLENGTH(LINESTRING(GEOMFROMTEXT('POINT(");
-        builder.append(location.getX());
-        builder.append(' ');
-        builder.append(location.getY());
-        builder.append(")'), ");
-        builder.append(field);
-        builder.append("))");
-
-        orderbyBuilder.append(builder);
-        selectBuilder.append(builder);
+        throw new UnsupportedOperationException("Region support is not implemented.");
     }
 
     protected String rewriteQueryWithLimitClause(String query, int limit, long offset) {
@@ -654,8 +624,10 @@ public class SqlVendor {
 
     public static class MySQL extends SqlVendor {
 
+        private Boolean hasSTMethod;
         private Boolean hasUdfGetFields;
         private Boolean hasUdfIncrementMetric;
+
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
@@ -757,7 +729,133 @@ public class SqlVendor {
             return "SELECT UNIX_TIMESTAMP()*1000";
         }
 
+        /* Spatial Support */
+
+        public String getGeometryContainsMethod() {
+            SqlDatabase database = getDatabase();
+
+            if (hasSTMethod == null) {
+                Connection connection = database.openConnection();
+                Statement statement = null;
+                ResultSet result = null;
+
+                try {
+                    statement = connection.createStatement();
+                    result = statement.executeQuery("SELECT ST_Contains(null, null)");
+                    hasSTMethod = true;
+                } catch (SQLException error) {
+                    if ("42000".equals(error.getSQLState())) {
+                        hasSTMethod = false;
+                    }
+                } finally {
+                    database.closeResources(null, connection, statement, result);
+                }
+            }
+
+            if (Boolean.TRUE.equals(hasSTMethod)) {
+                return "ST_Contains";
+            }
+
+            return "MBRContains";
+        }
+
+        public void appendBindLocation(StringBuilder builder, Location location, List<Object> parameters) {
+            builder.append("GeomFromText(?)");
+            if (parameters != null) {
+                parameters.add(location == null ? null : "POINT(" + location.getX() + " " + location.getY() + ")");
+            }
+        }
+
+        public void appendBindRegion(StringBuilder builder, Region region, List<Object> parameters) {
+            builder.append("GeomFromText(?)");
+            if (parameters != null) {
+                StringBuilder b = new StringBuilder();
+
+                b.append("MULTIPOLYGON(");
+                for (Region.Polygon polygon : region.getPolygons()) {
+                    for (Region.LinearRing ring : polygon) {
+                        b.append("((");
+                        for (Region.Coordinate coordinate : ring) {
+                            b.append(SqlDatabase.quoteValue(coordinate.getLatitude())); // Latitude
+                            b.append(' ');
+                            b.append(SqlDatabase.quoteValue(coordinate.getLongitude())); // Longitude
+                            b.append(", ");
+                        }
+                        b.setLength(b.length() - 2);
+                        b.append(")), ");
+                    }
+                }
+
+                for (Region.Circle circles : region.getCircles()) {
+                    for (Region.Polygon polygon : circles.getPolygons()) {
+                        for (Region.LinearRing ring : polygon) {
+                            b.append("((");
+                            for (Region.Coordinate coordinate : ring) {
+                                b.append(SqlDatabase.quoteValue(coordinate.getLatitude())); // Latitude
+                                b.append(' ');
+                                b.append(SqlDatabase.quoteValue(coordinate.getLongitude())); // Longitude
+                                b.append(", ");
+                            }
+                            b.setLength(b.length() - 2);
+                            b.append(")), ");
+                        }
+                    }
+                }
+
+                b.setLength(b.length() - 2);
+                b.append(")");
+
+                parameters.add(b.toString());
+            }
+        }
+
+        protected void appendWhereRegion(StringBuilder builder, Region region, String field) {
+            List<Location> locations = region.getLocations();
+
+            builder.append(getGeometryContainsMethod() + "(GEOMFROMTEXT('POLYGON((");
+            for (Location location : locations) {
+                builder.append(SqlDatabase.quoteValue(location.getX()));
+                builder.append(' ');
+                builder.append(SqlDatabase.quoteValue(location.getY()));
+                builder.append(", ");
+            }
+            builder.setLength(builder.length() - 2);
+            builder.append("))'), ");
+            builder.append(field);
+            builder.append(')');
+        }
+
+        protected void appendWhereLocation(StringBuilder builder, Location location, String field) {
+            builder.append(getGeometryContainsMethod() + "(");
+            builder.append(field);
+            builder.append(", GEOMFROMTEXT('POINT(");
+            builder.append(SqlDatabase.quoteValue(location.getY()));
+            builder.append(' ');
+            builder.append(SqlDatabase.quoteValue(location.getX()));
+            builder.append(")'))");
+        }
+
+        protected void appendNearestLocation(
+                StringBuilder orderbyBuilder,
+                StringBuilder selectBuilder,
+                Location location, String field) {
+
+            StringBuilder builder = new StringBuilder();
+
+            builder.append("GLENGTH(LINESTRING(GEOMFROMTEXT('POINT(");
+            builder.append(location.getX());
+            builder.append(' ');
+            builder.append(location.getY());
+            builder.append(")'), ");
+            builder.append(field);
+            builder.append("))");
+
+            orderbyBuilder.append(builder);
+            selectBuilder.append(builder);
+        }
+
         /* ******************* METRICS ******************* */
+
         @Override
         public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
 

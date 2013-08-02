@@ -4,6 +4,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -371,14 +372,11 @@ abstract class StateValueUtils {
                     return value;
 
                 } else if (value instanceof Map) {
-                    Map<?, ?> map = (Map<?, ?>) value;
-                    List<List<Location>> shapes = (List<List<Location>>) ObjectUtils.to(List.class, map.get("shapes"));
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) value;
 
-
-                    Region region = Region.empty();
-                    for (List<Location> shape : shapes) {
-                        region.addShape(shape);
-                    }
+                    Region region = Region.parseGeoJson(map);
+                    Region.parseCircles(region, (List<List<Double>>) map.get("circles"));
 
                     return region;
                 }
