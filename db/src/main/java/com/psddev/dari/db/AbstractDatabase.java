@@ -782,11 +782,6 @@ public abstract class AbstractDatabase<C> implements Database {
 
         @SuppressWarnings("unchecked")
         public final void execute(State state) {
-            ObjectType type = state.getType();
-
-            if (type == null) {
-                return;
-            }
 
             // Global modifications.
             for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
@@ -799,13 +794,30 @@ public abstract class AbstractDatabase<C> implements Database {
                 }
             }
 
-            // Type-specific modifications.
-            for (String modClassName : type.getModificationClassNames()) {
-                Class<?> modClass = ObjectUtils.getClassByName(modClassName);
+            ObjectType type = state.getType();
 
-                if (modClass != null) {
-                    executeForModification(state, modClass);
+            if (type == null) {
+                return;
+            }
+
+            // Type-specific modifications.
+            TYPE_CHANGE: while (true) {
+                for (String modClassName : type.getModificationClassNames()) {
+                    Class<?> modClass = ObjectUtils.getClassByName(modClassName);
+
+                    if (modClass != null) {
+                        executeForModification(state, modClass);
+
+                        ObjectType newType = state.getType();
+
+                        if (!type.equals(newType)) {
+                            type = newType;
+                            continue TYPE_CHANGE;
+                        }
+                    }
                 }
+
+                break;
             }
 
             // Embedded objects.

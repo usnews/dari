@@ -83,22 +83,24 @@ public class ReferentialText extends AbstractList<Object> {
         String boundary = UUID.randomUUID().toString();
 
         for (Element enhancement : body.getElementsByClass("enhancement")) {
-            Reference reference = new Reference();
+            if (!enhancement.hasClass("state-removing")) {
+                Reference reference = new Reference();
 
-            for (Map.Entry<String, String> entry : enhancement.dataset().entrySet()) {
-                String key = entry.getKey();
+                for (Map.Entry<String, String> entry : enhancement.dataset().entrySet()) {
+                    String key = entry.getKey();
 
-                if (!key.startsWith("_")) {
-                    reference.put(key, entry.getValue());
+                    if (!key.startsWith("_")) {
+                        reference.put(key, entry.getValue());
+                    }
                 }
-            }
 
-            UUID referenceId = ObjectUtils.to(UUID.class, reference.remove("id"));
+                UUID referenceId = ObjectUtils.to(UUID.class, reference.remove("id"));
 
-            if (referenceId != null) {
-                reference.put("record", Query.findById(Object.class, referenceId));
-                references.add(reference);
-                enhancement.before(boundary);
+                if (referenceId != null) {
+                    reference.put("record", Query.findById(Object.class, referenceId));
+                    references.add(reference);
+                    enhancement.before(boundary);
+                }
             }
 
             enhancement.remove();

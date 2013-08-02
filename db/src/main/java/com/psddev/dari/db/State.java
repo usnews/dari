@@ -1198,13 +1198,31 @@ public class State implements Map<String, Object> {
         return object;
     }
 
-    /** Returns the original object. */
+    /**
+     * Returns the original object, which is an instance of the Java class
+     * associated with the type.
+     *
+     * @return Never {@code null}.
+     * @throws IllegalStateException If the state is type-less or the type
+     * isn't associated with a Java class.
+     */
     public Object getOriginalObject() {
-        for (Object object : linkedObjects.values()) {
-            if (!(object instanceof Modification)) {
-                return object;
+        ObjectType type = getType();
+
+        if (type != null) {
+            Class<?> objectClass = type.getObjectClass();
+
+            if (objectClass != null) {
+                for (Object object : linkedObjects.values()) {
+                    if (objectClass.equals(object.getClass())) {
+                        return object;
+                    }
+                }
+
+                return as(objectClass);
             }
         }
+
         throw new IllegalStateException("No original object!");
     }
 
