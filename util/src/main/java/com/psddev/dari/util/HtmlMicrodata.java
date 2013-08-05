@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
 import com.google.common.base.CharMatcher;
@@ -187,6 +188,28 @@ public class HtmlMicrodata {
     public final static class Static {
 
         /**
+         * Returns all microdata items in the given {@code document},
+         * resolving all relative URLs against the given {@code url}.
+         *
+         * @param url If {@code null}, relative URLs won't be resolved.
+         * @param document If {@code null}, returns an empty list.
+         * @return Never {@code null}.
+         */
+        public static List<HtmlMicrodata> parseDocument(URL url, Document document) {
+            List<HtmlMicrodata> datas = new ArrayList<HtmlMicrodata>();
+
+            if (document != null) {
+                for (Element item : document.select("[itemscope]")) {
+                    if (!item.hasAttr("itemprop")) {
+                        datas.add(new HtmlMicrodata(url, item));
+                    }
+                }
+            }
+
+            return datas;
+        }
+
+        /**
          * Returns all microdata items in the given {@code html}, resolving
          * all relative URLs against the given {@code url}.
          *
@@ -195,17 +218,12 @@ public class HtmlMicrodata {
          * @return Never {@code null}.
          */
         public static List<HtmlMicrodata> parseString(URL url, String html) {
-            List<HtmlMicrodata> datas = new ArrayList<HtmlMicrodata>();
+            if (ObjectUtils.isBlank(html)) {
+                return new ArrayList<HtmlMicrodata>();
 
-            if (!ObjectUtils.isBlank(html)) {
-                for (Element item : Jsoup.parse(html).select("[itemscope]")) {
-                    if (!item.hasAttr("itemprop")) {
-                        datas.add(new HtmlMicrodata(url, item));
-                    }
-                }
+            } else {
+                return parseDocument(url, Jsoup.parse(html));
             }
-
-            return datas;
         }
 
         /**
