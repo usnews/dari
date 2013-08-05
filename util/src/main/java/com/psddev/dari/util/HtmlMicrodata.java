@@ -27,7 +27,7 @@ public class HtmlMicrodata {
 
     private Set<String> types;
     private String id;
-    private Map<String, Object> properties;
+    private Map<String, List<Object>> properties;
 
     public HtmlMicrodata() {
     }
@@ -42,7 +42,7 @@ public class HtmlMicrodata {
         }
 
         Splitter whitespaceSplitter = Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().trimResults();
-        Map<String, Object> properties = getProperties();
+        Map<String, List<Object>> properties = getProperties();
         String types = item.attr("itemtype");
 
         if (!ObjectUtils.isBlank(types)) {
@@ -104,20 +104,14 @@ public class HtmlMicrodata {
 
             if (!ObjectUtils.isBlank(names)) {
                 for (String name : whitespaceSplitter.split(names)) {
-                    if (name.endsWith("s")) {
-                        @SuppressWarnings("unchecked")
-                        List<Object> values = (List<Object>) properties.get(name);
+                    List<Object> values = properties.get(name);
 
-                        if (values == null) {
-                            values = new ArrayList<Object>();
-                            properties.put(name, values);
-                        }
-
-                        values.add(value);
-
-                    } else {
-                        properties.put(name, value);
+                    if (values == null) {
+                        values = new ArrayList<Object>();
+                        properties.put(name, values);
                     }
+
+                    values.add(value);
                 }
             }
         }
@@ -161,9 +155,9 @@ public class HtmlMicrodata {
     /**
      * @return Never {@code null}. Mutable.
      */
-    public Map<String, Object> getProperties() {
+    public Map<String, List<Object>> getProperties() {
         if (properties == null) {
-            properties = new CompactMap<String, Object>();
+            properties = new CompactMap<String, List<Object>>();
         }
         return properties;
     }
@@ -171,8 +165,34 @@ public class HtmlMicrodata {
     /**
      * @param properties May be {@code null} to clear the map.
      */
-    public void setProperties(Map<String, Object> properties) {
+    public void setProperties(Map<String, List<Object>> properties) {
         this.properties = properties;
+    }
+
+    /**
+     * Returns the first {@code itemtype}.
+     * @return May be {@code null}.
+     */
+    public String getFirstType() {
+        return types != null && !types.isEmpty() ? types.iterator().next() : null;
+    }
+
+    /**
+     * Returns the first {@code itemprop} associated with the given
+     * {@code name}.
+     *
+     * @return May be {@code null}.
+     */
+    public Object getFirstProperty(String name) {
+        if (properties != null) {
+            List<Object> values = properties.get(name);
+
+            if (values != null && !values.isEmpty()) {
+                return values.get(0);
+            }
+        }
+
+        return null;
     }
 
     @Override
