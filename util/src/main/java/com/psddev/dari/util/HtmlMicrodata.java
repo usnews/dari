@@ -53,20 +53,12 @@ public class HtmlMicrodata {
 
         setId(item.attr("itemid"));
 
-        PROPERTY: for (Element prop : item.select("[itemprop]")) {
+        for (Element prop : item.select("[itemprop]")) {
             if (item.equals(prop)) {
                 continue;
 
-            } else {
-                for (Element p : prop.parents()) {
-                    if (p.hasAttr("itemscope")) {
-                        if (!item.equals(p)) {
-                            continue PROPERTY;
-                        } else {
-                            break;
-                        }
-                    }
-                }
+            } else if (!item.equals(closestItemScope(prop))) {
+                continue;
             }
 
             String names = prop.attr("itemprop");
@@ -129,6 +121,16 @@ public class HtmlMicrodata {
                 }
             }
         }
+    }
+
+    protected static Element closestItemScope(Element element) {
+        for (Element p : element.parents()) {
+            if (p.hasAttr("itemscope")) {
+                return p;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -200,7 +202,8 @@ public class HtmlMicrodata {
 
             if (document != null) {
                 for (Element item : document.select("[itemscope]")) {
-                    if (!item.hasAttr("itemprop")) {
+                    if (closestItemScope(item) == null ||
+                            !item.hasAttr("itemprop")) {
                         datas.add(new HtmlMicrodata(url, item));
                     }
                 }
