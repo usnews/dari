@@ -66,6 +66,7 @@ public class HtmlApiFilter extends AbstractFilter {
                 writer.write("';");
 
                 writer.write("s.parentNode.insertBefore(f, s);");
+                writer.write("s.parentNode.removeChild(s);");
 
                 writer.write("window.addEventListener('message', function(event) {");
                     writer.write("var nh = parseInt(event.data, 10);");
