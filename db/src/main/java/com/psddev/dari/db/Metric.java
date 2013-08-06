@@ -121,33 +121,6 @@ public class Metric extends Record {
     }
 
     /**
-     * Returns the metric value associated with the main ({@code null})
-     * dimension between the given {@code start} and {@code end}.
-     *
-     * @deprecated Use {@link #getValueBetween} instead.
-     */
-    @Deprecated
-    public double getValue(DateTime start, DateTime end) {
-        return getByDimensionBetween(null, start, end);
-    }
-
-    /**
-     * Returns the metric value associated with the main ({@code null})
-     * dimension between the given {@code start} and {@code end}.
-     */
-    public double getValueBetween(DateTime start, DateTime end) {
-        return getByDimensionBetween(null, start, end);
-    }
-
-    /**
-     * Returns the metric value associated with the main ({@code null})
-     * dimension.
-     */
-    public double getValue() {
-        return getByDimensionBetween(null, null, null);
-    }
-
-    /**
      * Returns the sum of all metric values in each dimension between the given
      * {@code start} and {@code end}.
      *
@@ -155,13 +128,7 @@ public class Metric extends Record {
      * @param end If {@code null}, end of time.
      */
     public double getSumBetween(DateTime start, DateTime end) {
-        try {
-            metricDatabase.setQueryDateRange(start, end);
-            Double metricValue = metricDatabase.getMetricSum();
-            return metricValue == null ? 0.0 : metricValue;
-        } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
-        }
+        return getByDimensionBetween(null, start, end);
     }
 
     /**
@@ -227,13 +194,7 @@ public class Metric extends Record {
      * @return Never {@code null}.
      */
     public Map<DateTime, Double> groupSumByDate(MetricInterval interval, DateTime start, DateTime end) {
-        try {
-            metricDatabase.setQueryDateRange(start, end);
-            Map<DateTime, Double> metricTimeline = metricDatabase.getMetricSumTimeline(interval);
-            return metricTimeline;
-        } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
-        }
+        return groupByDate(null, interval, start, end);
     }
 
     /**
@@ -246,8 +207,40 @@ public class Metric extends Record {
         try {
             metricDatabase.reconstructCumulativeAmounts();
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.reconstructCumulativeAmounts() : " + e.getLocalizedMessage());
         }
     }
+
+    /**
+     * Returns the metric value associated with the main ({@code null})
+     * dimension between the given {@code start} and {@code end}.
+     *
+     * @deprecated Use {@link #getSumBetween} instead.
+     */
+    @Deprecated
+    public double getValue(DateTime start, DateTime end) {
+        return getByDimensionBetween(null, start, end);
+    }
+
+    /**
+     * Returns the metric value associated with the main ({@code null})
+     * dimension between the given {@code start} and {@code end}.
+     * @deprecated Use {@link #getSumBetween} instead
+     */
+    @Deprecated
+    public double getValueBetween(DateTime start, DateTime end) {
+        return getByDimensionBetween(null, start, end);
+    }
+
+    /**
+     * Returns the metric value associated with the main ({@code null})
+     * dimension.
+     * @deprecated Use {@link #getSum} instead.
+     */
+    @Deprecated
+    public double getValue() {
+        return getByDimensionBetween(null, null, null);
+    }
+
 
 }
