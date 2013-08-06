@@ -9,11 +9,13 @@ import javax.servlet.jsp.tagext.BodyTagSupport;
 @SuppressWarnings("serial")
 public class FrameTag extends BodyTagSupport {
 
-    private static final String ATTRIBUTE_PREFIX = FrameTag.class.getName() + ".";
-    private static final String JS_INCLUDED_PREFIX = ATTRIBUTE_PREFIX + "jsIncluded";
+    protected static final String ATTRIBUTE_PREFIX = FrameTag.class.getName() + ".";
+    protected static final String CURRENT_NAME_PREFIX = ATTRIBUTE_PREFIX + "currentName";
+    protected static final String JS_INCLUDED_PREFIX = ATTRIBUTE_PREFIX + "jsIncluded";
 
     private String name;
     private boolean lazy;
+    private transient String oldName;
 
     public void setName(String name) {
         this.name = name;
@@ -61,6 +63,9 @@ public class FrameTag extends BodyTagSupport {
     @Override
     public int doStartTag() throws JspException {
         HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
+        oldName = Static.getCurrentName(request);
+
+        request.setAttribute(CURRENT_NAME_PREFIX, name);
 
         try {
             if (!Boolean.TRUE.equals(request.getAttribute(JS_INCLUDED_PREFIX))) {
@@ -102,12 +107,14 @@ public class FrameTag extends BodyTagSupport {
 
     @Override
     public int doEndTag() throws JspException {
+        HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
+
+        request.setAttribute(CURRENT_NAME_PREFIX, oldName);
+
         if (bodyContent != null) {
             String body = bodyContent.getString();
 
             if (body != null) {
-                HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
-
                 if (isRenderingFrame(request)) {
                     request.setAttribute(FrameFilter.BODY_ATTRIBUTE, body);
 
@@ -128,5 +135,21 @@ public class FrameTag extends BodyTagSupport {
         }
 
         return EVAL_PAGE;
+    }
+
+    /**
+     * {@link FrameTag} utility methods.
+     */
+    public static final class Static {
+
+        /**
+         * Returns the name of the current frame that's rendering.
+         *
+         * @param request Can't be {@code null}.
+         * @return May be {@code null}.
+         */
+        public static String getCurrentName(HttpServletRequest request) {
+            return (String) request.getAttribute(CURRENT_NAME_PREFIX);
+        }
     }
 }
