@@ -496,25 +496,14 @@ public class ObjectType extends Record implements ObjectStruct {
         return field;
     }
 
-    /** Returns all fields that are indexed. */
+    /**
+     * Returns all fields that are indexed.
+     *
+     * @deprecated Use {@link ObjectStruct.Static#findIndexedFields} instead.
+     */
+    @Deprecated
     public List<ObjectField> getIndexedFields() {
-        Set<String> indexed = new HashSet<String>();
-
-        for (ObjectIndex index : getIndexes()) {
-            indexed.addAll(index.getFields());
-        }
-
-        List<ObjectField> fields = getFields();
-
-        for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
-            ObjectField field = i.next();
-
-            if (!indexed.contains(field.getInternalName())) {
-                i.remove();
-            }
-        }
-
-        return fields;
+        return ObjectStruct.Static.findIndexedFields(this);
     }
 
     /** Returns a list of all the indexes. */
