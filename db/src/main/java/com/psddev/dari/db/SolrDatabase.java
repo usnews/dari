@@ -1050,7 +1050,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         // Set up Metric fields
         for (ObjectField field : getEnvironment().getFields()) {
-            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+            if (field.isMetric()) {
                 objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
             }
         }
@@ -1059,7 +1059,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         if (type != null) {
             for (ObjectField field : type.getFields()) {
-                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                if (field.isMetric()) {
                     objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
                 }
             }

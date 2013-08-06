@@ -434,7 +434,7 @@ public class ObjectType extends Record implements ObjectStruct {
             List<ObjectField> metricFields = new ArrayList<ObjectField>();
 
             for (ObjectField field : getFields()) {
-                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                if (field.isMetric()) {
                     metricFields.add(field);
                 }
             }

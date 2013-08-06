@@ -996,6 +996,17 @@ public class ObjectField extends Record {
         return concreteTypes;
     }
 
+    /**
+     * Returns {@code true} if this field contains a {@link Metric} value.
+     */
+    public boolean isMetric() {
+        Set<ObjectType> types = getTypes();
+
+        return types != null &&
+                !types.isEmpty() &&
+                Metric.class.equals(types.iterator().next().getObjectClass());
+    }
+
     // --- Object support ---
 
     @Override
