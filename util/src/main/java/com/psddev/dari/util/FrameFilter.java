@@ -62,7 +62,8 @@ public class FrameFilter extends AbstractFilter {
             if (body != null) {
                 PrintWriter writer = response.getWriter();
 
-                if (JspUtils.isAjaxRequest(request)) {
+                if (JspUtils.isAjaxRequest(request) ||
+                        "html".equals(request.getParameter("_result"))) {
                     response.setContentType("text/plain");
                     writer.write(body);
 
