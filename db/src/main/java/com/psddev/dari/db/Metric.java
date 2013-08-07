@@ -69,6 +69,30 @@ public class Metric extends Record {
     }
 
     /**
+     * Returns when the metric value associated with the given
+     * {@code dimension} was last updated.
+     *
+     * @param dimension May be {@code null}.
+     * @return May be {@code null}.
+     */
+    public DateTime getLastDimensionUpdate(String dimension) {
+        try {
+            return metricDatabase.getLastUpdate(dimension);
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getLastUpdate() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Returns when the metric value was last updated.
+     *
+     * @return May be {@code null}.
+     */
+    public DateTime getLastUpdate() {
+        return getLastDimensionUpdate(null);
+    }
+
+    /**
      * Sets the metric value to the given {@code amount} and associates it with
      * the given {@code dimension} and {@code time}.
      *

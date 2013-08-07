@@ -168,6 +168,11 @@ class MetricDatabase {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
 
+    public DateTime getLastUpdate(String dimensionValue) throws SQLException {
+        byte[] data = Static.getDataByIdAndDimension(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), null, null);
+        return data != null ? new DateTime(Static.timestampFromBytes(data)) : null;
+    }
+
     public Double getMetric(String dimensionValue) throws SQLException {
         return Static.getMetricByIdAndDimension(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
