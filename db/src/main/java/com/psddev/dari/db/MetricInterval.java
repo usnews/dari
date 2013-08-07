@@ -17,6 +17,27 @@ public interface MetricInterval {
         }
     }
 
+    public class Minutely implements MetricInterval {
+
+        @Override
+        public long process(DateTime timestamp) {
+            return timestamp.minuteOfDay().roundFloorCopy().getMillis();
+        }
+
+        @Override
+        public String getSqlTruncatedDateFormat(SqlVendor vendor) {
+            if (vendor instanceof SqlVendor.MySQL) {
+                return "%Y%m%d%H%i";
+
+            } else if (vendor instanceof SqlVendor.PostgreSQL) {
+                return "YYYYMMDDHH24MI";
+
+            } else {
+                throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
+            }
+        }
+    }
+
     public class Hourly implements MetricInterval {
         @Override
         public long process(DateTime timestamp) {
