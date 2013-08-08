@@ -335,9 +335,7 @@ public class HtmlWriter extends Writer {
         writeCss(".dari-grid-area",
                 "-moz-box-sizing", "content-box",
                 "-webkit-box-sizing", "content-box",
-                "box-sizing", "content-box",
-                "float", "left",
-                "margin", "0 -100% 0 -30000px");
+                "box-sizing", "content-box");
 
         writeCss(".dari-grid-adj",
                 "float", "left");
@@ -409,9 +407,11 @@ public class HtmlWriter extends Writer {
             String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
 
             writeCss(selector + " > .dari-grid-area" + selectorSuffix,
-                    "clear", area.clear ? "left" : null,
+                    "clear", area.clearLeft ? "left" : null,
                     "display", "block",
-                    "padding-left", area.frPaddingLeft + "%",
+                    "float", area.floatRight ? "right" : "left",
+                    "margin", area.floatRight ? "0 0 0 -100%" : "0 -100% 0 -30000px",
+                    "padding", area.floatRight ? "0 " + area.frPaddingRight + "% 0 0" : "0 0 0 " + area.frPaddingLeft + "%",
                     "width", area.frWidth + "%");
             writeRaw(cssSuffix);
 
@@ -421,7 +421,7 @@ public class HtmlWriter extends Writer {
 
                 writeCss(selector + " .dari-grid-adj-" + unit + selectorSuffix,
                         "height", adjustment.height != null ? adjustment.height : "auto",
-                        "margin", adjustment.getMargin(unit),
+                        "margin", adjustment.getMargin(unit, area.floatRight),
                         "width", adjustment.width != null ? adjustment.width : "auto");
                 writeRaw(cssSuffix);
             }
@@ -709,7 +709,7 @@ public class HtmlWriter extends Writer {
 
         writeStart("div",
                 "class", "dari-grid-clear",
-                "style", cssString("clear", "left"));
+                "style", cssString("clear", "both"));
         writeEnd();
 
         return this;
@@ -727,6 +727,7 @@ public class HtmlWriter extends Writer {
 
         Map<String, Area> areaInstances = new LinkedHashMap<String, Area>();
         int clearAt = -1;
+        boolean hasFloatRight = false;
 
         for (int rowStart = 0, rowSize = rows.size(); rowStart < rowSize; ++ rowStart) {
             List<String> areas = template.get(rowStart);
@@ -799,6 +800,7 @@ public class HtmlWriter extends Writer {
                 double frAfterRatio = frAfter / frMax;
 
                 areaInstance.frPaddingLeft = frBeforeRatio * 100.0;
+                areaInstance.frPaddingRight = frAfterRatio * 100.0;
                 areaInstance.frWidth = (frMax - frBefore - frAfter) * 100.0 / frMax;
 
                 // Adjust left and width.
@@ -870,11 +872,32 @@ public class HtmlWriter extends Writer {
                 // Clear because of "auto" height?
                 if (clearAt >= 0 && clearAt <= rowStart) {
                     clearAt = -1;
-                    areaInstance.clear = true;
+                    areaInstance.clearLeft = true;
                 }
 
                 if (height.hasAuto() && rowStop > clearAt) {
                     clearAt = rowStop;
+                }
+
+                int autoCount = 0;
+
+                for (CssUnit row : rows.subList(rowStart, rowStop)) {
+                    if ("auto".equals(row.getUnit())) {
+                        ++ autoCount;
+                    }
+                }
+
+                if (autoCount >= 2) {
+                    areaInstance.floatRight = true;
+                    hasFloatRight = true;
+                }
+            }
+        }
+
+        if (hasFloatRight) {
+            for (Area areaInstance :  areaInstances.values()) {
+                if (!areaInstance.floatRight) {
+                    areaInstance.clearLeft = true;
                 }
             }
         }
@@ -895,14 +918,16 @@ public class HtmlWriter extends Writer {
     private static class Area {
 
         public final String name;
-        public boolean clear;
+        public boolean clearLeft;
         public double frPaddingLeft;
+        public double frPaddingRight;
         public double frWidth;
         public CssCombinedUnit width;
         public CssUnit singleWidth;
         public CssCombinedUnit height;
         public CssUnit singleHeight;
         public final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
+        public boolean floatRight;
 
         public Area(String name) {
             this.name = name;
@@ -926,10 +951,18 @@ public class HtmlWriter extends Writer {
         public CssUnit width;
         public CssUnit height;
 
-        public String getMargin(String unit) {
+        public String getMargin(String unit, boolean floatRight) {
+            double l = left;
+            double r = right;
+
+            if (floatRight) {
+                l -= 30000;
+                r += 30000;
+            }
+
             return new CssUnit(top, unit) + " " +
-                    new CssUnit(right, unit) + " 0 " +
-                    new CssUnit(left, unit);
+                    new CssUnit(r, unit) + " 0 " +
+                    new CssUnit(l, unit);
         }
     }
 
