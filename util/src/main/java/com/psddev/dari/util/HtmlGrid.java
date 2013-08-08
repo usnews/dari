@@ -194,6 +194,39 @@ public class HtmlGrid {
         return areas;
     }
 
+    /**
+     * Creates an unique ID for the given {@code area}.
+     *
+     * @param area Can't be blank.
+     * @param return Never blank.
+     */
+    public String createAreaId(String area) {
+        ErrorUtils.errorIfBlank(area, "area");
+
+        StringBuilder id = new StringBuilder();
+
+        for (CssUnit column : getColumns()) {
+            id.append(column);
+            id.append('\0');
+        }
+
+        for (CssUnit row : getRows()) {
+            id.append(row);
+            id.append('\0');
+        }
+
+        for (List<String> r : getTemplate()) {
+            for (String c : r) {
+                id.append(c);
+                id.append('\0');
+            }
+        }
+
+        id.append(area);
+
+        return StringUtils.hex(StringUtils.sha1(id.toString()));
+    }
+
     public static final class Static {
 
         private static final Logger LOGGER = LoggerFactory.getLogger(HtmlGrid.class);

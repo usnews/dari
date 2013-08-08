@@ -404,7 +404,7 @@ public class HtmlWriter extends Writer {
         writeRaw(cssSuffix);
 
         for (Area area : createAreas(grid).values()) {
-            String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
+            String selectorSuffix = "[data-grid-id=\"" + area.id + "\"]";
 
             writeCss(selector + " > .dari-grid-area" + selectorSuffix,
                     "clear", area.clearLeft ? "left" : null,
@@ -622,13 +622,15 @@ public class HtmlWriter extends Writer {
         for (Map.Entry<String, Area> entry : areas.entrySet()) {
             String areaName = entry.getKey();
             Area area = entry.getValue();
+            String areaId = area.id;
 
             // The main wrapping DIV around the area. Initially shifted
             // left 30000px so that it's off-screen as not to overlap
             // other elements that come before.
             writeStart("div",
                     "class", "dari-grid-area",
-                    "data-grid-area", areaName);
+                    "data-grid-area", areaName,
+                    "data-grid-id", areaId);
 
                 int adjustments = 0;
 
@@ -637,7 +639,7 @@ public class HtmlWriter extends Writer {
 
                     writeStart("div",
                             "class", "dari-grid-adj dari-grid-adj-" + unit,
-                            "data-grid-area", areaName);
+                            "data-grid-id", areaId);
                 }
 
                 if (debug) {
@@ -658,7 +660,7 @@ public class HtmlWriter extends Writer {
                             ++ i;
                             writeStart("div",
                                     "class", "dari-grid-mw dari-grid-mw-" + unit,
-                                    "data-grid-area", areaName);
+                                    "data-grid-id", areaId);
                         }
                     }
 
@@ -679,7 +681,7 @@ public class HtmlWriter extends Writer {
                         ++ i;
                         writeStart("div",
                                 "class", "dari-grid-mh dari-grid-mh-" + row.getUnit(),
-                                "data-grid-area", areaName);
+                                "data-grid-id", areaId);
                     }
 
                     for (; i > 0; -- i) {
@@ -767,7 +769,7 @@ public class HtmlWriter extends Writer {
 
                 // Figure out the rough initial position and size using
                 // percentages.
-                Area areaInstance = new Area(area);
+                Area areaInstance = new Area(grid, area);
                 areaInstances.put(area, areaInstance);
 
                 double frMax = 0;
@@ -917,7 +919,7 @@ public class HtmlWriter extends Writer {
 
     private static class Area {
 
-        public final String name;
+        public final String id;
         public boolean clearLeft;
         public double frPaddingLeft;
         public double frPaddingRight;
@@ -929,8 +931,8 @@ public class HtmlWriter extends Writer {
         public final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
         public boolean floatRight;
 
-        public Area(String name) {
-            this.name = name;
+        public Area(HtmlGrid grid, String name) {
+            this.id = grid.createAreaId(name);
         }
 
         public Adjustment getOrCreateAdjustment(String unit) {
