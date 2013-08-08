@@ -18,7 +18,6 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -640,17 +639,31 @@ public class Query<E> extends Record {
     }
 
     /**
-     * Returns all types that belong to the group in the given
-     * {@code environment}.
+     * Returns all types that belong to this query's group in the given
+     * {@code environment}. If this query was initialized with an object
+     * class, the types that don't have backing Java classes are excluded.
+     *
+     * @param environment Can't be {@code null}.
+     * @return Never {@code null}.
      */
     public Set<ObjectType> getConcreteTypes(DatabaseEnvironment environment) {
         Set<ObjectType> types = environment.getTypesByGroup(getGroup());
+        Class<?> queryObjectClass = getObjectClass();
+
         for (Iterator<ObjectType> i = types.iterator(); i.hasNext(); ) {
             ObjectType type = i.next();
+            Class<?> typeObjectClass = type.getObjectClass();
+
             if (!type.isConcrete()) {
+                i.remove();
+
+            } else if (queryObjectClass != null &&
+                    (typeObjectClass == null ||
+                    !queryObjectClass.isAssignableFrom(typeObjectClass))) {
                 i.remove();
             }
         }
+
         return types;
     }
 
