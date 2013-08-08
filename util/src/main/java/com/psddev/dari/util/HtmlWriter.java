@@ -404,9 +404,10 @@ public class HtmlWriter extends Writer {
         writeRaw(cssSuffix);
 
         for (Area area : createAreas(grid).values()) {
+            String selectorPrefix = selector + " > .dari-grid-area";
             String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
 
-            writeCss(selector + " > .dari-grid-area" + selectorSuffix,
+            writeCss(selectorPrefix + selectorSuffix,
                     "clear", area.clearLeft ? "left" : null,
                     "display", "block",
                     "float", area.floatRight ? "right" : "left",
@@ -418,8 +419,9 @@ public class HtmlWriter extends Writer {
             for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
                 String unit = entry.getKey();
                 Adjustment adjustment = entry.getValue();
+                selectorPrefix += " > .dari-grid-adj-" + unit;
 
-                writeCss(selector + " .dari-grid-adj-" + unit + selectorSuffix,
+                writeCss(selectorPrefix + selectorSuffix,
                         "height", adjustment.height != null ? adjustment.height : "auto",
                         "margin", adjustment.getMargin(unit, area.floatRight),
                         "width", adjustment.width != null ? adjustment.width : "auto");
@@ -435,13 +437,13 @@ public class HtmlWriter extends Writer {
             for (String unit : new String[] { "em", "fr", "pt", "px", "%" }) {
                 CssUnit width = widths.get(unit);
 
-                writeCss(selector + " .dari-grid-mw-" + unit + selectorSuffix,
+                writeCss(selectorPrefix + " .dari-grid-mw-" + unit + selectorSuffix,
                         "padding-left", width != null ? width : 0);
                 writeRaw(cssSuffix);
             }
 
             for (CssUnit height : area.height.getAll()) {
-                writeCss(selector + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
+                writeCss(selectorPrefix + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
                         "padding-top", height);
                 writeRaw(cssSuffix);
             }
