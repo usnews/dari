@@ -1213,15 +1213,17 @@ public class State implements Map<String, Object> {
         if (type != null) {
             Class<?> objectClass = type.getObjectClass();
 
-            if (objectClass != null) {
-                for (Object object : linkedObjects.values()) {
-                    if (objectClass.equals(object.getClass())) {
-                        return object;
-                    }
-                }
-
-                return as(objectClass);
+            if (objectClass == null) {
+                objectClass = Record.class;
             }
+
+            for (Object object : linkedObjects.values()) {
+                if (objectClass.equals(object.getClass())) {
+                    return object;
+                }
+            }
+
+            return as(objectClass);
         }
 
         return null;
