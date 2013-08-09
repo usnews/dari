@@ -9,15 +9,37 @@ import org.joda.time.DateTime;
 @Metric.Embedded
 public class Metric extends Record {
 
+    private final transient State owner;
+    private final transient ObjectField field;
     private final transient MetricDatabase metricDatabase;
 
     /**
-     * @param state Can't be {@code null}.
+     * @param owner Can't be {@code null}.
      * @param field Can't be {@code null}.
      */
-    public Metric(State state, ObjectField field) {
-        this.metricDatabase = new MetricDatabase(state, field.getUniqueName());
+    public Metric(State owner, ObjectField field) {
+        this.owner = owner;
+        this.field = field;
+        this.metricDatabase = new MetricDatabase(owner, field.getUniqueName());
         this.metricDatabase.setEventDateProcessor(field.as(MetricDatabase.FieldData.class).getEventDateProcessor());
+    }
+
+    /**
+     * Returns the state that owns this metric instance.
+     *
+     * @return Never {@code null}.
+     */
+    public State getOwner() {
+        return owner;
+    }
+
+    /**
+     * Returns the field that this metric instance updates.
+     *
+     * @return Never {@code null}.
+     */
+    public ObjectField getField() {
+        return field;
     }
 
     /**
