@@ -282,9 +282,16 @@ public abstract class ObjectUtils {
 
     // --- Converter bridge ---
 
-    private static final Converter CONVERTER; static {
+    private static final Converter CONVERTER;
+    private static final Converter ERRORING_CONVERTER;
+
+    static {
         CONVERTER = new Converter();
         CONVERTER.putAllStandardFunctions();
+
+        ERRORING_CONVERTER = new Converter();
+        ERRORING_CONVERTER.setThrowError(true);
+        ERRORING_CONVERTER.putAllStandardFunctions();
     }
 
     /**
@@ -315,6 +322,39 @@ public abstract class ObjectUtils {
      */
     public static <T> T to(TypeReference<T> returnTypeReference, Object object) {
         return CONVERTER.convert(returnTypeReference, object);
+    }
+
+    /**
+     * Converts the given {@code object} into an instance of the given
+     * {@code returnType}.
+     *
+     * @throws ConversionException If the conversion fails.
+     * @see Converter#convert(Type, Object)
+     */
+    public static Object toOrError(Type returnType, Object object) {
+        return ERRORING_CONVERTER.convert(returnType, object);
+    }
+
+    /**
+     * Converts the given {@code object} into an instance of the given
+     * {@code returnClass}.
+     *
+     * @throws ConversionException If the conversion fails.
+     * @see Converter#convert(Class, Object)
+     */
+    public static <T> T toOrError(Class<T> returnClass, Object object) {
+        return ERRORING_CONVERTER.convert(returnClass, object);
+    }
+
+    /**
+     * Converts the given {@code object} into an instance of the type
+     * referenced by the given {@code returnTypeReference}.
+     *
+     * @throws ConversionException If the conversion fails.
+     * @see Converter#convert(TypeReference, Object)
+     */
+    public static <T> T toOrError(TypeReference<T> returnTypeReference, Object object) {
+        return ERRORING_CONVERTER.convert(returnTypeReference, object);
     }
 
     // --- JsonProcessor bridge ---
