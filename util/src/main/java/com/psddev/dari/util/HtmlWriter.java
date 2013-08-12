@@ -32,6 +32,8 @@ public class HtmlWriter extends Writer {
     private final Map<Class<?>, HtmlFormatter<Object>> defaultFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Map<Class<?>, HtmlFormatter<Object>> overrideFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Deque<String> tags = new ArrayDeque<String>();
+    private boolean indent;
+    private int indentLevel;
 
     /** Creates an instance. */
     public HtmlWriter() {
@@ -62,6 +64,20 @@ public class HtmlWriter extends Writer {
      */
     public void setDelegate(Writer delegate) {
         this.delegate = delegate;
+    }
+
+    /**
+     * Returns {@code true} if the tags should be written indented.
+     */
+    public boolean isIndent() {
+        return indent;
+    }
+
+    /**
+     * Sets whether the tags should be written indented.
+     */
+    public void setIndent(boolean indent) {
+        this.indent = indent;
     }
 
     @SuppressWarnings("unchecked")
@@ -139,7 +155,14 @@ public class HtmlWriter extends Writer {
             throw new IllegalArgumentException("Tag can't be null!");
         }
 
+        boolean indent = isIndent();
         Writer delegate = getDelegate();
+
+        if (indent) {
+            for (int i = 0; i < indentLevel; ++ i) {
+                writeRaw("    ");
+            }
+        }
 
         delegate.write('<');
         delegate.write(tag);
@@ -164,6 +187,11 @@ public class HtmlWriter extends Writer {
         }
 
         delegate.write('>');
+
+        if (indent) {
+            writeRaw("\n");
+        }
+
         return this;
     }
 
@@ -205,6 +233,11 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter writeStart(String tag, Object... attributes) throws IOException {
         writeTag(tag, attributes);
+
+        if (isIndent()) {
+            ++ indentLevel;
+        }
+
         tags.addFirst(tag);
         return this;
     }
@@ -217,11 +250,25 @@ public class HtmlWriter extends Writer {
             throw new IllegalStateException("No more tags!");
         }
 
+        boolean indent = isIndent();
+
+        if (indent) {
+            -- indentLevel;
+
+            for (int i = 0; i < indentLevel; ++ i) {
+                writeRaw("    ");
+            }
+        }
+
         Writer delegate = getDelegate();
 
         delegate.write("</");
         delegate.write(tag);
         delegate.write('>');
+
+        if (indent) {
+            writeRaw("\n");
+        }
 
         return this;
     }
