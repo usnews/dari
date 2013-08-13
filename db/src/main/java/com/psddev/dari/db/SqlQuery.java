@@ -169,7 +169,7 @@ class SqlQuery {
                 MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
                 if (fieldData.isIndexTableSource() &&
                         fieldData.getIndexTable() != null &&
-                        ! metricFieldData.isMetricValue()) {
+                        !field.isMetric()) {
                     // TODO/performance: if this is a count(), don't join to this table.
                     // if this is a groupBy() and they don't want to group by
                     // a field in this table, don't join to this table.
@@ -585,8 +585,7 @@ class SqlQuery {
 
             if (deferMetricAndHavingPredicates) {
                 if (mappedKey.getField() != null) {
-                    MetricDatabase.FieldData metricFieldData = mappedKey.getField().as(MetricDatabase.FieldData.class);
-                    if (metricFieldData.isMetricValue()) {
+                    if (mappedKey.getField().isMetric()) {
                         if (recordMetricField == null) {
                             recordMetricField = mappedKey.getField();
                         } else if (! recordMetricField.equals(mappedKey.getField())) {
@@ -839,7 +838,7 @@ class SqlQuery {
 
             if (deferMetricPredicates) {
                 ObjectField sortField = mappedKeys.get(queryKey).getField();
-                if (sortField != null && sortField.as(MetricDatabase.FieldData.class).isMetricValue()) {
+                if (sortField != null && sortField.isMetric()) {
                     if (recordMetricField == null) {
                         recordMetricField = sortField;
                     } else if (! recordMetricField.equals(sortField)) {
@@ -1023,8 +1022,7 @@ class SqlQuery {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
                 if (mappedKey.getField() != null) {
-                    MetricDatabase.FieldData metricFieldData = mappedKey.getField().as(MetricDatabase.FieldData.class);
-                    if (metricFieldData.isMetricValue()) {
+                    if (mappedKey.getField().isMetric()) {
                         if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                             // TODO: this one has to work eventually . . .
                         } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
@@ -1206,6 +1204,12 @@ class SqlQuery {
         whereBuilder.append(" AND r."+MetricDatabase.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
+        // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
+        if (recordMetricDimensionPredicates.isEmpty()) {
+            whereBuilder.append(" AND ");
+            appendSimpleWhereClause(whereBuilder, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
+        }    
+
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
             whereBuilder.append(" AND ");
@@ -1339,6 +1343,12 @@ class SqlQuery {
 
         sql.append(" AND ");
         appendSimpleWhereClause(sql, vendor, "r", MetricDatabase.METRIC_SYMBOL_FIELD, "=", database.getSymbolId(actionSymbol));
+
+        // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
+        if (recordMetricDimensionPredicates.isEmpty()) {
+            sql.append(" AND ");   
+            appendSimpleWhereClause(sql, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
+        }    
 
         // Apply deferred WHERE predicates (eventDates and metric Dimensions)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
@@ -1797,7 +1807,7 @@ class SqlQuery {
                 needsIsNotNull = true;
                 isHaving = false;
 
-            } else if (joinField != null && joinField.as(MetricDatabase.FieldData.class).isMetricValue()) {
+            } else if (joinField != null && joinField.isMetric()) {
 
                 needsIndexTable = false;
                 likeValuePrefix = null;
@@ -1886,7 +1896,7 @@ class SqlQuery {
                     SqlIndex.Static.getByType(field.getInternalItemType()) :
                     sqlIndex;
 
-            if (field != null && field.as(MetricDatabase.FieldData.class).isMetricValue()) {
+            if (field != null && field.isMetric()) {
 
                 if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     String stringValue = null;

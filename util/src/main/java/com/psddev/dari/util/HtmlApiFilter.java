@@ -66,6 +66,7 @@ public class HtmlApiFilter extends AbstractFilter {
                 writer.write("';");
 
                 writer.write("s.parentNode.insertBefore(f, s);");
+                writer.write("s.parentNode.removeChild(s);");
 
                 writer.write("window.addEventListener('message', function(event) {");
                     writer.write("var nh = parseInt(event.data, 10);");
@@ -131,9 +132,14 @@ public class HtmlApiFilter extends AbstractFilter {
             writeJson(request, writer, output);
 
         } else if ("jsonp".equals(format)) {
-            String callback = request.getParameter("callback");
+            String callback = request.getParameter("_callback");
 
-            ErrorUtils.errorIfBlank(callback, "callback");
+            // Legacy parameter support.
+            if (ObjectUtils.isBlank(callback)) {
+                callback = request.getParameter("callback");
+            }
+
+            ErrorUtils.errorIfBlank(callback, "_callback");
 
             response.setContentType("application/javascript");
             writer.write(callback);

@@ -168,12 +168,18 @@ class MetricDatabase {
         getQuery().setDateRange(startTimestamp, endTimestamp);
     }
 
+    public DateTime getLastUpdate(String dimensionValue) throws SQLException {
+        byte[] data = Static.getDataByIdAndDimension(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), null, null);
+        return data != null ? new DateTime(Static.timestampFromBytes(data)) : null;
+    }
+
     public Double getMetric(String dimensionValue) throws SQLException {
         return Static.getMetricByIdAndDimension(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
     public Double getMetricSum() throws SQLException {
-        return Static.getMetricSumById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return getMetric(null);
+        // return Static.getMetricSumById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
     }
 
     public Map<String, Double> getMetricValues() throws SQLException {
@@ -188,18 +194,12 @@ class MetricDatabase {
     }
 
     public Map<DateTime, Double> getMetricSumTimeline(MetricInterval metricInterval) throws SQLException {
-        if (metricInterval == null) {
-            metricInterval = getEventDateProcessor();
-        }
-        return Static.getMetricSumTimelineById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
+        return getMetricTimeline(null, metricInterval);
+        // return Static.getMetricSumTimelineById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
     }
 
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
-        // This actually causes some problems if it's not here
-        if (amount == 0) {
-            return;
-        }
-        Static.doIncrementUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), amount, getEventDate(), isImplicitEventDate);
+        incrementMetricByDimensionId(getDimensionId(dimensionValue), amount);
     }
 
     public void incrementMetricByDimensionId(UUID dimensionId, Double amount) throws SQLException {
@@ -208,14 +208,27 @@ class MetricDatabase {
             return;
         }
         Static.doIncrementUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), dimensionId, amount, getEventDate(), isImplicitEventDate);
+        if (! dimensionId.equals(UuidUtils.ZERO_UUID)) {
+            // Do an additional increment for the null dimension to maintain the sum
+            Static.doIncrementUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), UuidUtils.ZERO_UUID, amount, getEventDate(), isImplicitEventDate);
+        }
     }
 
     public void setMetric(String dimensionValue, Double amount) throws SQLException {
+        setMetricByDimensionId(getDimensionId(dimensionValue), amount);
+    }
+
+    public void setMetricByDimensionId(UUID dimensionId, Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
         if (getEventDate() != 0) {
             throw new RuntimeException("MetricDatabase.setMetric() can only be used if EventDateProcessor is None");
         }
-        Static.doSetUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), amount, getEventDate());
+        Static.doSetUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), dimensionId, amount, getEventDate());
+        if (! dimensionId.equals(UuidUtils.ZERO_UUID)) {
+            // Do an additional increment for the null dimension to maintain the sum
+            Double allDimensionsAmount = Static.calculateMetricSumById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+            Static.doSetUpdateOrInsert(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), UuidUtils.ZERO_UUID, allDimensionsAmount, getEventDate());
+        }
     }
 
     public void deleteMetric() throws SQLException {
@@ -331,6 +344,11 @@ class MetricDatabase {
                 vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
                 sqlBuilder.append(" = ");
                 vendor.appendValue(sqlBuilder, dimensionId);
+            } else {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+                sqlBuilder.append(" != ");
+                vendor.appendValue(sqlBuilder, UuidUtils.ZERO_UUID);
             }
 
             if (maxEventDate != null) {
@@ -998,7 +1016,8 @@ class MetricDatabase {
         }
 
         // METRIC SELECT
-        private static Double getMetricSumById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static Double calculateMetricSumById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate) throws SQLException {
+            // This method actually calculates the sum rather than just pulling the null dimension
             String sql = getSumSql(db, id, typeId, symbolId, minEventDate, maxEventDate);
             Double amount = null;
             Connection connection = db.openReadConnection();

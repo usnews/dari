@@ -412,26 +412,27 @@ public class DebugFilter extends AbstractFilter {
                                         "servletPath", servletPath));
                             page.writeHtml(servletPath);
                         page.writeEnd();
-                        page.writeHtml("!\n\n");
+                        page.writeHtml("!");
+                    }
 
-                        List<String> paramNames = page.paramNamesList();
+                    page.writeHtml("\n\n");
+                    page.writeObject(error);
 
-                        if (!ObjectUtils.isBlank(paramNames)) {
-                            page.writeHtml("Parameters:\n");
+                    List<String> paramNames = page.paramNamesList();
 
-                            for (String name : paramNames) {
-                                for (String value : page.params(String.class, name)) {
-                                    page.writeHtml(name);
-                                    page.writeHtml('=');
-                                    page.writeHtml(value);
-                                    page.writeHtml('\n');
-                                }
+                    if (!ObjectUtils.isBlank(paramNames)) {
+                        page.writeHtml("Parameters:\n");
+
+                        for (String name : paramNames) {
+                            for (String value : page.params(String.class, name)) {
+                                page.writeHtml(name);
+                                page.writeHtml('=');
+                                page.writeHtml(value);
+                                page.writeHtml('\n');
                             }
-
-                            page.writeHtml('\n');
                         }
 
-                        page.writeObject(error);
+                        page.writeHtml('\n');
                     }
                 page.writeEnd();
             page.writeEnd();

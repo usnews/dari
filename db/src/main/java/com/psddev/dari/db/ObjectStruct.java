@@ -1,6 +1,9 @@
 package com.psddev.dari.db;
 
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 public interface ObjectStruct {
 
@@ -24,4 +27,36 @@ public interface ObjectStruct {
 
     /** Sets the list of all indexes. */
     public void setIndexes(List<ObjectIndex> indexes);
+
+    /**
+     * {@link ObjectStruct} utility methods.
+     */
+    public static final class Static {
+
+        /**
+         * Returns all fields that are indexed in the given {@code struct}.
+         *
+         * @param struct Can't be {@code null}.
+         * @return Never {@code null}.
+         */
+        public static List<ObjectField> findIndexedFields(ObjectStruct struct) {
+            Set<String> indexed = new HashSet<String>();
+
+            for (ObjectIndex index : struct.getIndexes()) {
+                indexed.addAll(index.getFields());
+            }
+
+            List<ObjectField> fields = struct.getFields();
+
+            for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
+                ObjectField field = i.next();
+
+                if (!indexed.contains(field.getInternalName())) {
+                    i.remove();
+                }
+            }
+
+            return fields;
+        }
+    }
 }

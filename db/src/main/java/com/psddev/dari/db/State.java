@@ -1029,9 +1029,12 @@ public class State implements Map<String, Object> {
         }
     }
 
-    /** Returns a descriptive label for this state. */
+    /**
+     * Returns a descriptive label for this state.
+     */
     public String getLabel() {
-        Object object = getOriginalObject();
+        Object object = getOriginalObjectOrNull();
+
         return object instanceof Record ?
                 ((Record) object).getLabel() :
                 getDefaultLabel();
@@ -1202,28 +1205,49 @@ public class State implements Map<String, Object> {
      * Returns the original object, which is an instance of the Java class
      * associated with the type.
      *
-     * @return Never {@code null}.
-     * @throws IllegalStateException If the state is type-less or the type
-     * isn't associated with a Java class.
+     * @return May be {@code null}.
      */
-    public Object getOriginalObject() {
+    public Object getOriginalObjectOrNull() {
         ObjectType type = getType();
 
         if (type != null) {
             Class<?> objectClass = type.getObjectClass();
 
-            if (objectClass != null) {
-                for (Object object : linkedObjects.values()) {
-                    if (objectClass.equals(object.getClass())) {
-                        return object;
-                    }
-                }
-
-                return as(objectClass);
+            if (objectClass == null) {
+                objectClass = Record.class;
             }
+
+            for (Object object : linkedObjects.values()) {
+                if (objectClass.equals(object.getClass())) {
+                    return object;
+                }
+            }
+
+            return as(objectClass);
         }
 
-        throw new IllegalStateException("No original object!");
+        return null;
+    }
+
+    /**
+     * Returns the original object, which is an instance of the Java class
+     * associated with the type.
+     *
+     * @return Never {@code null}.
+     * @throws IllegalStateException If the state is type-less or the type
+     * isn't associated with a Java class.
+     */
+    public Object getOriginalObject() {
+        Object object = getOriginalObjectOrNull();
+
+        if (object != null) {
+            return object;
+
+        } else {
+            throw new IllegalStateException(String.format(
+                    "No original object associated with [%s]!",
+                    getId()));
+        }
     }
 
     /** Returns a set of all objects that can be used with this state. */

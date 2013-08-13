@@ -9,15 +9,37 @@ import org.joda.time.DateTime;
 @Metric.Embedded
 public class Metric extends Record {
 
+    private final transient State owner;
+    private final transient ObjectField field;
     private final transient MetricDatabase metricDatabase;
 
     /**
-     * @param state Can't be {@code null}.
+     * @param owner Can't be {@code null}.
      * @param field Can't be {@code null}.
      */
-    public Metric(State state, ObjectField field) {
-        this.metricDatabase = new MetricDatabase(state, field.getUniqueName());
+    public Metric(State owner, ObjectField field) {
+        this.owner = owner;
+        this.field = field;
+        this.metricDatabase = new MetricDatabase(owner, field.getUniqueName());
         this.metricDatabase.setEventDateProcessor(field.as(MetricDatabase.FieldData.class).getEventDateProcessor());
+    }
+
+    /**
+     * Returns the state that owns this metric instance.
+     *
+     * @return Never {@code null}.
+     */
+    public State getOwner() {
+        return owner;
+    }
+
+    /**
+     * Returns the field that this metric instance updates.
+     *
+     * @return Never {@code null}.
+     */
+    public ObjectField getField() {
+        return field;
     }
 
     /**
@@ -66,6 +88,30 @@ public class Metric extends Record {
             throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getDimensionId() : " + e.getLocalizedMessage());
         }
         MetricIncrementQueue.queueIncrement(metricDatabase, dimensionId, amount, within);
+    }
+
+    /**
+     * Returns when the metric value associated with the given
+     * {@code dimension} was last updated.
+     *
+     * @param dimension May be {@code null}.
+     * @return May be {@code null}.
+     */
+    public DateTime getLastDimensionUpdate(String dimension) {
+        try {
+            return metricDatabase.getLastUpdate(dimension);
+        } catch (SQLException e) {
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getLastUpdate() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Returns when the metric value was last updated.
+     *
+     * @return May be {@code null}.
+     */
+    public DateTime getLastUpdate() {
+        return getLastDimensionUpdate(null);
     }
 
     /**
@@ -121,33 +167,6 @@ public class Metric extends Record {
     }
 
     /**
-     * Returns the metric value associated with the main ({@code null})
-     * dimension between the given {@code start} and {@code end}.
-     *
-     * @deprecated Use {@link #getValueBetween} instead.
-     */
-    @Deprecated
-    public double getValue(DateTime start, DateTime end) {
-        return getByDimensionBetween(null, start, end);
-    }
-
-    /**
-     * Returns the metric value associated with the main ({@code null})
-     * dimension between the given {@code start} and {@code end}.
-     */
-    public double getValueBetween(DateTime start, DateTime end) {
-        return getByDimensionBetween(null, start, end);
-    }
-
-    /**
-     * Returns the metric value associated with the main ({@code null})
-     * dimension.
-     */
-    public double getValue() {
-        return getByDimensionBetween(null, null, null);
-    }
-
-    /**
      * Returns the sum of all metric values in each dimension between the given
      * {@code start} and {@code end}.
      *
@@ -155,13 +174,7 @@ public class Metric extends Record {
      * @param end If {@code null}, end of time.
      */
     public double getSumBetween(DateTime start, DateTime end) {
-        try {
-            metricDatabase.setQueryDateRange(start, end);
-            Double metricValue = metricDatabase.getMetricSum();
-            return metricValue == null ? 0.0 : metricValue;
-        } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
-        }
+        return getByDimensionBetween(null, start, end);
     }
 
     /**
@@ -227,13 +240,7 @@ public class Metric extends Record {
      * @return Never {@code null}.
      */
     public Map<DateTime, Double> groupSumByDate(MetricInterval interval, DateTime start, DateTime end) {
-        try {
-            metricDatabase.setQueryDateRange(start, end);
-            Map<DateTime, Double> metricTimeline = metricDatabase.getMetricSumTimeline(interval);
-            return metricTimeline;
-        } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
-        }
+        return groupByDate(null, interval, start, end);
     }
 
     /**
@@ -246,8 +253,40 @@ public class Metric extends Record {
         try {
             metricDatabase.reconstructCumulativeAmounts();
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getSumTimeline() : " + e.getLocalizedMessage());
+            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.reconstructCumulativeAmounts() : " + e.getLocalizedMessage());
         }
     }
+
+    /**
+     * Returns the metric value associated with the main ({@code null})
+     * dimension between the given {@code start} and {@code end}.
+     *
+     * @deprecated Use {@link #getSumBetween} instead.
+     */
+    @Deprecated
+    public double getValue(DateTime start, DateTime end) {
+        return getByDimensionBetween(null, start, end);
+    }
+
+    /**
+     * Returns the metric value associated with the main ({@code null})
+     * dimension between the given {@code start} and {@code end}.
+     * @deprecated Use {@link #getSumBetween} instead
+     */
+    @Deprecated
+    public double getValueBetween(DateTime start, DateTime end) {
+        return getByDimensionBetween(null, start, end);
+    }
+
+    /**
+     * Returns the metric value associated with the main ({@code null})
+     * dimension.
+     * @deprecated Use {@link #getSum} instead.
+     */
+    @Deprecated
+    public double getValue() {
+        return getByDimensionBetween(null, null, null);
+    }
+
 
 }

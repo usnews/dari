@@ -822,7 +822,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
                     MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
 
-                    if (fieldData.isIndexTableSource() && !metricFieldData.isMetricValue()) {
+                    if (fieldData.isIndexTableSource() && !field.isMetric()) {
                         loadExtraFields.add(field);
                     }
                 }
@@ -1194,7 +1194,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         try {
             Connection connection = dataSource.getConnection();
             connection.setReadOnly(false);
-            connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            if (vendor != null) {
+                vendor.setTransactionIsolation(connection);
+            }
             return connection;
 
         } catch (SQLException error) {
@@ -1801,7 +1803,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public double getSum(String field) {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
-            if (sumField.as(MetricDatabase.FieldData.class).isMetricValue()) {
+            if (sumField.isMetric()) {
                 if (!metricSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedMetricStatement(query, field, fields);

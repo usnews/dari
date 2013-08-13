@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
 import com.google.common.base.CharMatcher;
@@ -26,7 +27,7 @@ public class HtmlMicrodata {
 
     private Set<String> types;
     private String id;
-    private Map<String, Object> properties;
+    private Map<String, List<Object>> properties;
 
     public HtmlMicrodata() {
     }
@@ -41,7 +42,7 @@ public class HtmlMicrodata {
         }
 
         Splitter whitespaceSplitter = Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().trimResults();
-        Map<String, Object> properties = getProperties();
+        Map<String, List<Object>> properties = getProperties();
         String types = item.attr("itemtype");
 
         if (!ObjectUtils.isBlank(types)) {
@@ -52,20 +53,12 @@ public class HtmlMicrodata {
 
         setId(item.attr("itemid"));
 
-        PROPERTY: for (Element prop : item.select("[itemprop]")) {
+        for (Element prop : item.select("[itemprop]")) {
             if (item.equals(prop)) {
                 continue;
 
-            } else {
-                for (Element p : prop.parents()) {
-                    if (p.hasAttr("itemscope")) {
-                        if (!item.equals(p)) {
-                            continue PROPERTY;
-                        } else {
-                            break;
-                        }
-                    }
-                }
+            } else if (!item.equals(closestItemScope(prop))) {
+                continue;
             }
 
             String names = prop.attr("itemprop");
@@ -111,23 +104,27 @@ public class HtmlMicrodata {
 
             if (!ObjectUtils.isBlank(names)) {
                 for (String name : whitespaceSplitter.split(names)) {
-                    if (name.endsWith("s")) {
-                        @SuppressWarnings("unchecked")
-                        List<Object> values = (List<Object>) properties.get(name);
+                    List<Object> values = properties.get(name);
 
-                        if (values == null) {
-                            values = new ArrayList<Object>();
-                            properties.put(name, values);
-                        }
-
-                        values.add(value);
-
-                    } else {
-                        properties.put(name, value);
+                    if (values == null) {
+                        values = new ArrayList<Object>();
+                        properties.put(name, values);
                     }
+
+                    values.add(value);
                 }
             }
         }
+    }
+
+    protected static Element closestItemScope(Element element) {
+        for (Element p : element.parents()) {
+            if (p.hasAttr("itemscope")) {
+                return p;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -158,9 +155,9 @@ public class HtmlMicrodata {
     /**
      * @return Never {@code null}. Mutable.
      */
-    public Map<String, Object> getProperties() {
+    public Map<String, List<Object>> getProperties() {
         if (properties == null) {
-            properties = new CompactMap<String, Object>();
+            properties = new CompactMap<String, List<Object>>();
         }
         return properties;
     }
@@ -168,8 +165,34 @@ public class HtmlMicrodata {
     /**
      * @param properties May be {@code null} to clear the map.
      */
-    public void setProperties(Map<String, Object> properties) {
+    public void setProperties(Map<String, List<Object>> properties) {
         this.properties = properties;
+    }
+
+    /**
+     * Returns the first {@code itemtype}.
+     * @return May be {@code null}.
+     */
+    public String getFirstType() {
+        return types != null && !types.isEmpty() ? types.iterator().next() : null;
+    }
+
+    /**
+     * Returns the first {@code itemprop} associated with the given
+     * {@code name}.
+     *
+     * @return May be {@code null}.
+     */
+    public Object getFirstProperty(String name) {
+        if (properties != null) {
+            List<Object> values = properties.get(name);
+
+            if (values != null && !values.isEmpty()) {
+                return values.get(0);
+            }
+        }
+
+        return null;
     }
 
     @Override
@@ -187,6 +210,29 @@ public class HtmlMicrodata {
     public final static class Static {
 
         /**
+         * Returns all microdata items in the given {@code document},
+         * resolving all relative URLs against the given {@code url}.
+         *
+         * @param url If {@code null}, relative URLs won't be resolved.
+         * @param document If {@code null}, returns an empty list.
+         * @return Never {@code null}.
+         */
+        public static List<HtmlMicrodata> parseDocument(URL url, Document document) {
+            List<HtmlMicrodata> datas = new ArrayList<HtmlMicrodata>();
+
+            if (document != null) {
+                for (Element item : document.select("[itemscope]")) {
+                    if (closestItemScope(item) == null ||
+                            !item.hasAttr("itemprop")) {
+                        datas.add(new HtmlMicrodata(url, item));
+                    }
+                }
+            }
+
+            return datas;
+        }
+
+        /**
          * Returns all microdata items in the given {@code html}, resolving
          * all relative URLs against the given {@code url}.
          *
@@ -195,17 +241,12 @@ public class HtmlMicrodata {
          * @return Never {@code null}.
          */
         public static List<HtmlMicrodata> parseString(URL url, String html) {
-            List<HtmlMicrodata> datas = new ArrayList<HtmlMicrodata>();
+            if (ObjectUtils.isBlank(html)) {
+                return new ArrayList<HtmlMicrodata>();
 
-            if (!ObjectUtils.isBlank(html)) {
-                for (Element item : Jsoup.parse(html).select("[itemscope]")) {
-                    if (!item.hasAttr("itemprop")) {
-                        datas.add(new HtmlMicrodata(url, item));
-                    }
-                }
+            } else {
+                return parseDocument(url, Jsoup.parse(html));
             }
-
-            return datas;
         }
 
         /**
