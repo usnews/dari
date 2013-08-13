@@ -16,6 +16,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.UuidUtils;
 
@@ -45,6 +48,10 @@ public class SqlVendor {
 
     public void setDatabase(SqlDatabase database) {
         this.database = database;
+    }
+
+    public void setTransactionIsolation(Connection connection) throws SQLException {
+        connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
     }
 
     public Set<String> getTables(Connection connection) throws SQLException {
@@ -594,6 +601,47 @@ public class SqlVendor {
 
         private Boolean hasUdfGetFields;
         private Boolean hasUdfIncrementMetric;
+
+        private static final Logger LOGGER = LoggerFactory.getLogger(MySQL.class);
+
+        @Override
+        public void setTransactionIsolation(Connection connection) throws SQLException {
+            Statement statement = null;
+            ResultSet result = null;
+
+            try {
+                statement = connection.createStatement();
+                result = statement.executeQuery("SHOW VARIABLES LIKE 'binlog_format'");
+
+                if (result.next()) {
+                    String mode = result.getString("Value");
+                    if ("STATEMENT".equalsIgnoreCase(mode)) {
+                        String message =
+                            "Using REPEATABLE READ transaction isolation due to statement-based replication. " +
+                            "This may cause reduced performance under load. Please use mixed-mode replication (Add 'binlog_format = mixed' to my.cnf).";
+                        LOGGER.warn(message);
+                        return;
+                    }
+                }
+
+                connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            } catch(Exception ex) {
+                LOGGER.warn("Unable to set transaction isolation to READ COMMITTED due to an error", ex);
+                return;
+            } finally {
+                if (result != null) {
+                    try {
+                        result.close();
+                    } catch (SQLException error) { }
+                }
+
+                if (statement != null) {
+                    try {
+                        statement.close();
+                    } catch (SQLException error) { }
+                }
+            }
+        }
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
