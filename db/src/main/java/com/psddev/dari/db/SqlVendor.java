@@ -823,9 +823,9 @@ public class SqlVendor {
                     for (Region.LinearRing ring : polygon) {
                         b.append("((");
                         for (Region.Coordinate coordinate : ring) {
-                            b.append(SqlDatabase.quoteValue(coordinate.getLatitude())); // Latitude
+                            b.append(SqlDatabase.quoteValue(coordinate.getLatitude()));
                             b.append(' ');
-                            b.append(SqlDatabase.quoteValue(coordinate.getLongitude())); // Longitude
+                            b.append(SqlDatabase.quoteValue(coordinate.getLongitude()));
                             b.append(", ");
                         }
                         b.setLength(b.length() - 2);
@@ -838,9 +838,9 @@ public class SqlVendor {
                         for (Region.LinearRing ring : polygon) {
                             b.append("((");
                             for (Region.Coordinate coordinate : ring) {
-                                b.append(SqlDatabase.quoteValue(coordinate.getLatitude())); // Latitude
+                                b.append(SqlDatabase.quoteValue(coordinate.getLatitude()));
                                 b.append(' ');
-                                b.append(SqlDatabase.quoteValue(coordinate.getLongitude())); // Longitude
+                                b.append(SqlDatabase.quoteValue(coordinate.getLongitude()));
                                 b.append(", ");
                             }
                             b.setLength(b.length() - 2);
@@ -1177,6 +1177,17 @@ public class SqlVendor {
         }
 
         @Override
+        protected void appendWhereLocation(StringBuilder builder, Location location, String field) {
+            builder.append("ST_Contains(");
+            builder.append(field);
+            builder.append(", ST_GEOMFROMTEXT('POINT(");
+            builder.append(SqlDatabase.quoteValue(location.getX()));
+            builder.append(' ');
+            builder.append(SqlDatabase.quoteValue(location.getY()));
+            builder.append(")', 4326))");
+        }
+
+        @Override
         protected void appendNearestLocation(
                 StringBuilder orderbyBuilder,
                 StringBuilder selectBuilder,
@@ -1200,6 +1211,50 @@ public class SqlVendor {
             builder.append("ST_GeomFromText(?, 4326)");
             if (location != null && parameters != null) {
                 parameters.add("POINT(" + location.getX() + " " + location.getY() + ")");
+            }
+        }
+
+        @Override
+        public void appendBindRegion(StringBuilder builder, Region region, List<Object> parameters) {
+            builder.append("ST_GeomFromText(?, 4326)");
+            if (parameters != null) {
+                StringBuilder b = new StringBuilder();
+
+                b.append("MULTIPOLYGON(");
+                for (Region.Polygon polygon : region.getPolygons()) {
+                    for (Region.LinearRing ring : polygon) {
+                        b.append("((");
+                        for (Region.Coordinate coordinate : ring) {
+                            b.append(SqlDatabase.quoteValue(coordinate.getLatitude()));
+                            b.append(' ');
+                            b.append(SqlDatabase.quoteValue(coordinate.getLongitude()));
+                            b.append(", ");
+                        }
+                        b.setLength(b.length() - 2);
+                        b.append(")), ");
+                    }
+                }
+
+                for (Region.Circle circles : region.getCircles()) {
+                    for (Region.Polygon polygon : circles.getPolygons()) {
+                        for (Region.LinearRing ring : polygon) {
+                            b.append("((");
+                            for (Region.Coordinate coordinate : ring) {
+                                b.append(SqlDatabase.quoteValue(coordinate.getLatitude()));
+                                b.append(' ');
+                                b.append(SqlDatabase.quoteValue(coordinate.getLongitude()));
+                                b.append(", ");
+                            }
+                            b.setLength(b.length() - 2);
+                            b.append(")), ");
+                        }
+                    }
+                }
+
+                b.setLength(b.length() - 2);
+                b.append(")");
+
+                parameters.add(b);
             }
         }
 

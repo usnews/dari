@@ -2440,6 +2440,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 parameter = ((String) parameter).getBytes(StringUtils.UTF_8);
             }
 
+            if (parameter instanceof StringBuilder) {
+                parameter = ((StringBuilder) parameter).toString();
+            }
+
             if (parameter instanceof byte[]) {
                 byte[] parameterBytes = (byte[]) parameter;
                 int parameterBytesLength = parameterBytes.length;
