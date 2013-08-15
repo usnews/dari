@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -44,8 +45,8 @@ import org.iq80.snappy.Snappy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Suppliers;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.jolbox.bonecp.BoneCPDataSource;
@@ -236,25 +237,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 symbols.invalidate();
 
                 if (writable) {
-                    vendor.createRecord(this);
-                    vendor.createRecordUpdate(this);
-                    vendor.createSymbol(this);
-
-                    for (SqlIndex index : SqlIndex.values()) {
-                        if (index != SqlIndex.CUSTOM) {
-                            vendor.createRecordIndex(
-                                    this,
-                                    index.getReadTable(this, null).getName(this, null),
-                                    index);
-                        }
-                    }
-
+                    vendor.setUp(this);
                     tableNames.refresh();
                     symbols.invalidate();
                 }
 
-            } catch (SQLException ex) {
-                throw new SqlDatabaseException(this, "Can't check for required tables!", ex);
+            } catch (IOException error) {
+                throw new IllegalStateException(error);
+
+            } catch (SQLException error) {
+                throw new SqlDatabaseException(this, "Can't check for required tables!", error);
             }
         }
     }

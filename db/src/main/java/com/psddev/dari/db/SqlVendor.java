@@ -1,5 +1,7 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -16,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.psddev.dari.util.IoUtils;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.UuidUtils;
 
@@ -45,6 +48,76 @@ public class SqlVendor {
 
     public void setDatabase(SqlDatabase database) {
         this.database = database;
+    }
+
+    /**
+     * Returns the path to the resource that contains the SQL statements to
+     * be executed during {@link #setUp}. The default implementation returns
+     * {@code null} to signal that there's nothing to do.
+     *
+     * @return May be {@code null}.
+     */
+    protected String getSetUpResourcePath() {
+        return null;
+    }
+
+    /**
+     * Catches the given {@code error} thrown in {@link #setUp} to be
+     * processed in vendor-specific way. Typically, this is used to ignore
+     * errors when the vendor doesn't natively support that ability (e.g.
+     * {@code CREATE TABLE IF NOT EXISTS}). The default implementation
+     * always rethrows the error.
+     *
+     * @param error Can't be {@code null}.
+     */
+    protected void catchSetUpError(SQLException error) throws SQLException {
+        throw error;
+    }
+
+    /**
+     * Sets up the given {@code database}. This method should create all the
+     * necessary elements, such as tables, that are required for proper
+     * operation. The default implementation executes all SQL statements from
+     * the resource at {@link #getSetUpResourcePath}, and processes the errors
+     * using {@link #catchSetUpError}.
+     *
+     * @param database Can't be {@code null}.
+     */
+    public void setUp(SqlDatabase database) throws IOException, SQLException {
+        String resourcePath = getSetUpResourcePath();
+
+        if (resourcePath == null) {
+            return;
+        }
+
+        InputStream resourceInput = getClass().getClassLoader().getResourceAsStream(resourcePath);
+
+        if (resourceInput == null) {
+            throw new IllegalArgumentException(String.format(
+                    "Can't find [%s] using ClassLoader#getResourceAsStream!",
+                    resourcePath));
+        }
+
+        Connection connection = database.openConnection();
+
+        try {
+            for (String ddl : IoUtils.toString(resourceInput, StringUtils.UTF_8).trim().split("(?:\r\n?|\n){2,}")) {
+                Statement statement = connection.createStatement();
+
+                try {
+                    statement.execute(ddl);
+
+                } catch (SQLException error) {
+                    catchSetUpError(error);
+
+                } finally {
+                    statement.close();
+                }
+            }
+
+        } finally {
+            database.closeConnection(connection);
+        }
     }
 
     public Set<String> getTables(Connection connection) throws SQLException {
@@ -222,7 +295,12 @@ public class SqlVendor {
         return String.format("%s LIMIT %d OFFSET %d", query, limit, offset);
     }
 
-    /** Creates a table using the given parameters. */
+    /**
+     * Creates a table using the given parameters.
+     *
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createTable(
             SqlDatabase database,
             String tableName,
@@ -252,7 +330,12 @@ public class SqlVendor {
         executeDdl(database, ddlBuilder);
     }
 
-    /** Creates an index using the given parameters. */
+    /**
+     * Creates an index using the given parameters.
+     *
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createIndex(
             SqlDatabase database,
             String tableName,
@@ -273,6 +356,10 @@ public class SqlVendor {
         executeDdl(database, ddlBuilder);
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createRecord(SqlDatabase database) throws SQLException {
         if (database.hasTable(RECORD_TABLE_NAME)) {
             return;
@@ -296,6 +383,10 @@ public class SqlVendor {
         INDEX_TYPES = m;
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createRecordIndex(
             SqlDatabase database,
             String tableName,
@@ -320,6 +411,10 @@ public class SqlVendor {
         createIndex(database, tableName, Arrays.asList(SqlDatabase.ID_COLUMN), false);
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createRecordUpdate(SqlDatabase database) throws SQLException {
         if (database.hasTable(RECORD_UPDATE_TABLE_NAME)) {
             return;
@@ -335,6 +430,10 @@ public class SqlVendor {
         createIndex(database, RECORD_UPDATE_TABLE_NAME, Arrays.asList(SqlDatabase.UPDATE_DATE_COLUMN), false);
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createSymbol(SqlDatabase database) throws SQLException {
         if (database.hasTable(SYMBOL_TABLE_NAME)) {
             return;
@@ -556,6 +655,16 @@ public class SqlVendor {
     public static class H2 extends SqlVendor {
 
         @Override
+        protected String getSetUpResourcePath() {
+            return "h2/schema-11.sql";
+        }
+
+        @Override
+        public void appendIdentifier(StringBuilder builder, String identifier) {
+            builder.append(identifier);
+        }
+
+        @Override
         protected void appendUuid(StringBuilder builder, UUID value) {
             builder.append('\'');
             builder.append(value);
@@ -594,6 +703,11 @@ public class SqlVendor {
 
         private Boolean hasUdfGetFields;
         private Boolean hasUdfIncrementMetric;
+
+        @Override
+        protected String getSetUpResourcePath() {
+            return "mysql/schema-11.sql";
+        }
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
@@ -917,6 +1031,18 @@ public class SqlVendor {
     }
 
     public static class PostgreSQL extends SqlVendor {
+
+        @Override
+        protected String getSetUpResourcePath() {
+            return "postgres/schema-11.sql";
+        }
+
+        @Override
+        protected void catchSetUpError(SQLException error) throws SQLException {
+            if (!Arrays.asList("42P07").contains(error.getSQLState())) {
+                throw error;
+            }
+        }
 
         @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
