@@ -142,10 +142,21 @@ public abstract class AbstractDatabase<C> implements Database {
                                 oldItems.remove(item);
 
                                 if (junction == null ||
-                                        !State.getInstance(junction).equals(state)) {
+                                        (junction instanceof Recordable &&
+                                        !State.getInstance(junction).equals(state))) {
                                     save = true;
 
                                     itemState.put(junctionField, state.getOriginalObject());
+
+                                } else if (junction instanceof Collection) {
+                                    save = true;
+                                    @SuppressWarnings("unchecked")
+                                    Collection<Object> junctionCollection = (Collection<Object>) junction;
+                                    Object stateObject = state.getOriginalObject();
+
+                                    if (!junctionCollection.contains(stateObject)) {
+                                        junctionCollection.add(stateObject);
+                                    }
                                 }
 
                                 if (!ObjectUtils.isBlank(positionField)) {
