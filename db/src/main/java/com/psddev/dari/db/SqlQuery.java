@@ -190,7 +190,7 @@ class SqlQuery {
                 if (type != null) {
                     for (ObjectField field : type.getFields()) {
                         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                        if (fieldData.isIndexTableSource() && fieldData.getIndexTable() != null) {
+                        if (fieldData.isIndexTableSource() && fieldData.getIndexTable() != null && !field.isMetric()) {
                             sourceTables.add(field);
                         }
                     }
