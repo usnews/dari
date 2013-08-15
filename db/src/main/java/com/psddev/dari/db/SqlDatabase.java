@@ -1186,7 +1186,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         try {
             Connection connection = dataSource.getConnection();
             connection.setReadOnly(false);
-            connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            if (vendor != null) {
+                vendor.setTransactionIsolation(connection);
+            }
             return connection;
 
         } catch (SQLException error) {
