@@ -708,47 +708,42 @@ public class SqlVendor {
 
     public static class MySQL extends SqlVendor {
 
-        private Boolean hasUdfGetFields;
-        private Boolean hasUdfIncrementMetric;
+        private volatile Boolean statementReplication;
+        private volatile Boolean hasUdfGetFields;
+        private volatile Boolean hasUdfIncrementMetric;
 
         private static final Logger LOGGER = LoggerFactory.getLogger(MySQL.class);
 
         @Override
         public void setTransactionIsolation(Connection connection) throws SQLException {
-            Statement statement = null;
-            ResultSet result = null;
+            if (statementReplication == null) {
+                Statement statement = connection.createStatement();
 
-            try {
-                statement = connection.createStatement();
-                result = statement.executeQuery("SHOW VARIABLES LIKE 'binlog_format'");
+                try {
+                    ResultSet result = statement.executeQuery("SHOW VARIABLES LIKE 'binlog_format'");
 
-                if (result.next()) {
-                    String mode = result.getString("Value");
-                    if ("STATEMENT".equalsIgnoreCase(mode)) {
-                        String message =
-                            "Using REPEATABLE READ transaction isolation due to statement-based replication. " +
-                            "This may cause reduced performance under load. Please use mixed-mode replication (Add 'binlog_format = mixed' to my.cnf).";
-                        LOGGER.warn(message);
-                        return;
-                    }
-                }
-
-                connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-            } catch(Exception ex) {
-                LOGGER.warn("Unable to set transaction isolation to READ COMMITTED due to an error", ex);
-                return;
-            } finally {
-                if (result != null) {
                     try {
+                        statementReplication = result.next() &&
+                                "STATEMENT".equalsIgnoreCase(result.getString(2));
+
+                        if (statementReplication) {
+                            LOGGER.warn(
+                                    "Using REPEATABLE READ transaction isolation due to statement-based replication." +
+                                    " This may cause reduced performance under load." +
+                                    " Please use mixed-mode replication (Add 'binlog_format = mixed' to my.cnf).");
+                        }
+
+                    } finally {
                         result.close();
-                    } catch (SQLException error) { }
-                }
+                    }
 
-                if (statement != null) {
-                    try {
-                        statement.close();
-                    } catch (SQLException error) { }
+                } finally {
+                    statement.close();
                 }
+            }
+
+            if (!statementReplication) {
+                connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             }
         }
 
