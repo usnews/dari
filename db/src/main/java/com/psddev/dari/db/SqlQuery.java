@@ -1828,7 +1828,7 @@ class SqlQuery {
                     isHaving = false;
                 } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     // for metricField#date, use "data"
-                    valueField = sqlIndexTable.getValueField(database, index, 0);
+                    valueField = MetricDatabase.METRIC_DATA_FIELD;
                     isHaving = false;
                 } else {
                     // for metricField, use internalName
