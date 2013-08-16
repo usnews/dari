@@ -734,15 +734,7 @@ public class DatabaseEnvironment implements ObjectStruct {
         state.setId(id);
         state.setTypeId(typeId);
 
-        for (ObjectField field : getMetricFields()) {
-            state.put(field.getInternalName(), new Metric(state, field));
-        }
-
         if (type != null) {
-            for (ObjectField field : type.getMetricFields()) {
-                state.put(field.getInternalName(), new Metric(state, field));
-            }
-
             if (!hasClass) {
                 for (ObjectField field : type.getFields()) {
                     Object defaultValue = field.getDefaultValue();

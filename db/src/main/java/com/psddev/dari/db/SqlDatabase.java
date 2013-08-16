@@ -798,21 +798,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
-        // Set up Metric fields
-        for (ObjectField field : getEnvironment().getMetricFields()) {
-            objectState.put(field.getInternalName(), new Metric(objectState, field));
-        }
-
         if (type != null) {
-            for (ObjectField field : type.getMetricFields()) {
-                objectState.put(field.getInternalName(), new Metric(objectState, field));
-            }
-
             if ((unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
                 !queryTypes.contains(type)) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
 
                     if (fieldData.isIndexTableSource() && !field.isMetric()) {
                         loadExtraFields.add(field);

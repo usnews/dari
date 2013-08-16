@@ -195,7 +195,7 @@ abstract class StateValueUtils {
             String type,
             Object value) {
 
-        if (value == null) {
+        if (value == null && (field == null || ! field.isMetric())) {
             return null;
         }
 
@@ -376,6 +376,25 @@ abstract class StateValueUtils {
 
                 } else {
                     throw new IllegalArgumentException();
+                }
+            }
+        });
+
+        m.put(ObjectField.METRIC_TYPE, new Converter() {
+            @Override
+            public Object toJavaValue(
+                    Database database,
+                    Object object,
+                    ObjectField field,
+                    String subType,
+                    Object value) {
+
+                if (value instanceof Metric) {
+                    return value;
+
+                } else {
+                    Metric metric = new Metric(State.getInstance(object), field);
+                    return metric;
                 }
             }
         });

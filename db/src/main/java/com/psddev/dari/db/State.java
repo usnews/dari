@@ -1295,6 +1295,19 @@ public class State implements Map<String, Object> {
             Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
 
+            for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
+                resolved.put(metricField.getInternalName(), new Metric(this, metricField));
+            }
+
+            for (Object obj : linkedObjects.values()) {
+                ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
+                if (type != null) {
+                    for (ObjectField metricField : type.getMetricFields()) {
+                        resolved.put(metricField.getInternalName(), new Metric(this, metricField));
+                    }
+                }
+            }
+
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
                 UUID id = StateValueUtils.toIdIfReference(e.getValue());
                 if (id != null) {
