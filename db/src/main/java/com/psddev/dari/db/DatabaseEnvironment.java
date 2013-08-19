@@ -405,7 +405,11 @@ public class DatabaseEnvironment implements ObjectStruct {
 
         if (singletonType != null) {
             for (ObjectType type : singletonType.findConcreteTypes()) {
-                if (!Query.fromType(type).hasMoreThan(0)) {
+                if (!Query.
+                        fromType(type).
+                        master().
+                        noCache().
+                        hasMoreThan(0)) {
                     try {
                         State.getInstance(type.createObject(null)).save();
                     } catch (Exception error) {
