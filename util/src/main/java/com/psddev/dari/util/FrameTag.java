@@ -28,7 +28,8 @@ public class FrameTag extends BodyTagSupport {
     // --- TagSupport support ---
 
     private boolean isRenderingFrame(HttpServletRequest request) {
-        return request.getParameter(FrameFilter.PATH_PARAMETER) != null;
+        return request.getParameter(FrameFilter.PATH_PARAMETER) != null &&
+                name.equals(request.getParameter(FrameFilter.NAME_PARAMETER));
     }
 
     private void writeScript(HttpServletRequest request, HtmlWriter writer, String source) throws IOException {
