@@ -1105,7 +1105,7 @@ public class SqlVendor {
         @Override
         public void appendValue(StringBuilder builder, Object value) {
             if (value instanceof String) {
-                builder.append("'" + value + "'");
+                builder.append("'" + StringUtils.escapeSql((String) value) + "'");
 
             } else if (value instanceof Location) {
                 Location valueLocation = (Location) value;
