@@ -253,6 +253,7 @@ public class CodeUtils {
      */
     @SuppressWarnings("unchecked")
     public static Set<String> getResourcePaths(ServletContext context, String path) {
+        Set<String> originalPaths = (Set<String>) context.getResourcePaths(path);
         File source = getWebappSource(context, path);
 
         if (source != null && source.exists()) {
@@ -270,10 +271,14 @@ public class CodeUtils {
                 }
             }
 
+            if (originalPaths != null) {
+                paths.addAll(originalPaths);
+            }
+
             return paths;
 
         } else {
-            return (Set<String>) context.getResourcePaths(path);
+            return originalPaths;
         }
     }
 
@@ -283,7 +288,7 @@ public class CodeUtils {
      */
     public static URL getResource(ServletContext context, String path) throws MalformedURLException {
         File source = getWebappSource(context, path);
-        return source != null ? source.toURI().toURL() : context.getResource(path);
+        return source != null && source.exists() ? source.toURI().toURL() : context.getResource(path);
     }
 
     /**
@@ -293,7 +298,7 @@ public class CodeUtils {
     public static InputStream getResourceAsStream(ServletContext context, String path) {
         File source = getWebappSource(context, path);
 
-        if (source != null) {
+        if (source != null && source.exists()) {
             try {
                 return new FileInputStream(source);
             } catch (FileNotFoundException error) {
