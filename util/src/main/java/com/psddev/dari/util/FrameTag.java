@@ -43,13 +43,6 @@ public class FrameTag extends BodyTagSupport {
                 name.equals(request.getParameter(FrameFilter.NAME_PARAMETER));
     }
 
-    private void writeScript(HttpServletRequest request, HtmlWriter writer, String source) throws IOException {
-        writer.writeStart("script",
-                "type", "text/javascript",
-                "src", JspUtils.getAbsolutePath(request, source));
-        writer.writeEnd();
-    }
-
     private void startFrame(HttpServletRequest request, HtmlWriter writer, String... classNames) throws IOException {
         StringBuilder fullClassName = new StringBuilder("dari-frame");
 
@@ -87,22 +80,48 @@ public class FrameTag extends BodyTagSupport {
                 @SuppressWarnings("all")
                 HtmlWriter writer = new HtmlWriter(pageContext.getOut());
 
-                writeScript(request, writer, "/_resource/jquery2/jquery.extra.js");
-                writeScript(request, writer, "/_resource/jquery2/jquery.popup.js");
-                writeScript(request, writer, "/_resource/jquery2/jquery.frame.js");
+                final String[][] plugins = new String[][] {
+                        //name          path
+                        {"$.plugin2",  "/_resource/jquery2/jquery.extra.js"},
+                        {"$.fn.popup", "/_resource/jquery2/jquery.popup.js"},
+                        {"$.fn.frame", "/_resource/jquery2/jquery.frame.js"},
+                };
+
                 writer.writeStart("script", "type", "text/javascript");
-                    writer.write("$(window.document).frame({");
-                    writer.write(    "'setBody': function(body) {");
-                    writer.write(        "var insertionMode = $(this).attr('data-insertion-mode');");
-                    writer.write(        "if ('append' === insertionMode) {");
-                    writer.write(            "$(this).append(body);");
-                    writer.write(        "} else if ('prepend' === insertionMode) {");
-                    writer.write(            "$(this).prepend(body);");
-                    writer.write(        "} else {"); // 'replace' === insertionMode
-                    writer.write(            "$(this).html(body);");
-                    writer.write(        "}");
+                    writer.write("(function($, win, undef) {");
+                    writer.write(    "var done = function() {");
+                    writer.write(        "$(window.document).frame({");
+                    writer.write(            "'setBody': function(body) {");
+                    writer.write(                "var insertionMode = $(this).attr('data-insertion-mode');");
+                    writer.write(                "if ('append' === insertionMode) {");
+                    writer.write(                    "$(this).append(body);");
+                    writer.write(                "} else if ('prepend' === insertionMode) {");
+                    writer.write(                    "$(this).prepend(body);");
+                    writer.write(                "} else {"); // 'replace' === insertionMode
+                    writer.write(                    "$(this).html(body);");
+                    writer.write(                "}");
+                    writer.write(            "}");
+                    writer.write(        "}).ready(function() {");
+                    writer.write(            "$(this).trigger('create');");
+                    writer.write(        "});");
+                    writer.write(    "};");
+                    writer.write(    "var deferreds = [];");
+                    for (String[] plugin : plugins) {
+                        writer.write("if (!$.isFunction(" + plugin[0] + ")) {");
+                        writer.write(    "deferreds.push($.getScript('" + JspUtils.getAbsolutePath(request, plugin[1]) + "'));");
+                        writer.write("}");
+                    }
+                    writer.write(    "if (deferreds.length > 0) {");
+                    writer.write(        "deferreds.push($.Deferred(function(deferred) {");
+                    writer.write(            "$(deferred.resolve);");
+                    writer.write(        "}));");
+                    writer.write(        "$.when.apply($, deferreds).done(function() {");
+                    writer.write(            "done();");
+                    writer.write(        "});");
+                    writer.write(    "} else {");
+                    writer.write(        "done();");
                     writer.write(    "}");
-                    writer.write("}).ready(function(){$(this).trigger('create');});");
+                    writer.write("}(jQuery, window));");
                 writer.writeEnd();
             }
 
