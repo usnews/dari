@@ -299,7 +299,15 @@ public class SqlVendor {
     }
 
     protected String rewriteQueryWithLimitClause(String query, int limit, long offset) {
-        return String.format("%s LIMIT %d OFFSET %d", query, limit, offset);
+        if (query.contains(getLimitOffsetPlaceholder())) {
+            return String.format("%s LIMIT %d", query.replace(getLimitOffsetPlaceholder(), String.format(" LIMIT %d OFFSET %d ", limit, offset)), limit);
+        } else {
+            return String.format("%s LIMIT %d OFFSET %d", query, limit, offset);
+        }
+    }
+
+    public String getLimitOffsetPlaceholder() {
+        return "/*__LIMIT_OFFSET__*/";
     }
 
     /**
@@ -1388,6 +1396,11 @@ public class SqlVendor {
                     "        (%s) a " +
                     "      WHERE ROWNUM <= %d)" +
                     " WHERE rnum  >= %d", query, offset + limit, offset);
+        }
+
+        @Override
+        public String getLimitOffsetPlaceholder() {
+            return "";
         }
 
         @Override

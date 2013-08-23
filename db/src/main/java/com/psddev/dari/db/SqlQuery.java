@@ -166,7 +166,6 @@ class SqlQuery {
         for (ObjectType type : queryTypes) {
             for (ObjectField field : type.getFields()) {
                 SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
                 if (fieldData.isIndexTableSource() &&
                         fieldData.getIndexTable() != null &&
                         !field.isMetric()) {
@@ -1335,6 +1334,8 @@ class SqlQuery {
         sql.append(" ON (\n");
         appendSimpleOnClause(sql, vendor, "r", SqlDatabase.ID_COLUMN, "=", "m2", MetricDatabase.METRIC_ID_FIELD);
         sql.append(" AND \n");
+        appendSimpleOnClause(sql, vendor, "r", SqlDatabase.TYPE_ID_COLUMN, "=", "m2", MetricDatabase.METRIC_TYPE_FIELD);
+        sql.append(" AND \n");
         appendSimpleWhereClause(sql, vendor, "m2", MetricDatabase.METRIC_SYMBOL_FIELD, "=", database.getSymbolId(actionSymbol));
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
@@ -1368,6 +1369,22 @@ class SqlQuery {
         appendSimpleAliasedColumn(sql, vendor, "r", SqlDatabase.TYPE_ID_COLUMN);
         sql.append(", ");
         appendSimpleAliasedColumn(sql, vendor, "m2", MetricDatabase.METRIC_DIMENSION_FIELD);
+
+        sql.append(orderByClause);
+        if (! recordMetricSorters.isEmpty()) {
+            StringBuilder orderByBuilder = new StringBuilder();
+            for (Sorter sorter : recordMetricSorters) {
+                addOrderByClause(orderByBuilder, sorter, false, true);
+            }
+            if (orderByBuilder.length() > 0) {
+                orderByBuilder.setLength(orderByBuilder.length() - 2);
+                orderByBuilder.insert(0, "\nORDER BY ");
+                sql.append(orderByBuilder);
+            }
+        }
+
+        // Add placeholder for LIMIT/OFFSET sql injected by SqlDatabase
+        sql.append(vendor.getLimitOffsetPlaceholder());
 
     }
 
