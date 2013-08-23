@@ -98,6 +98,12 @@
             <artifactId>imgscalr-lib</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.servicemix.bundles</groupId>
+            <artifactId>org.apache.servicemix.bundles.fop</artifactId>
+            <version>1.0_3</version>
+        </dependency>
+
         <!-- JSON -->
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
