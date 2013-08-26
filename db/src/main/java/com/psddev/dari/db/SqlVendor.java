@@ -728,11 +728,19 @@ public class SqlVendor {
                 Statement statement = connection.createStatement();
 
                 try {
-                    ResultSet result = statement.executeQuery("SHOW VARIABLES LIKE 'binlog_format'");
+                    ResultSet result = statement.executeQuery("SHOW VARIABLES WHERE variable_name IN ('log_bin', 'binlog_format')");
 
                     try {
-                        statementReplication = result.next() &&
-                                "STATEMENT".equalsIgnoreCase(result.getString(2));
+                        boolean binLogEnabled = false;
+                        while (result.next()) {
+                            if ("binlog_format".equalsIgnoreCase(result.getString(1))) {
+                                statementReplication = "STATEMENT".equalsIgnoreCase(result.getString(2));
+                            } else if ("log_bin".equalsIgnoreCase(result.getString(1))) {
+                                binLogEnabled = (! "OFF".equalsIgnoreCase(result.getString(2)));
+                            }
+                        }
+                        // Server is using statement replication only if log_bin is not OFF and binlog_format is STATEMENT
+                        statementReplication = (binLogEnabled && (statementReplication != null ? statementReplication : false));
 
                         if (statementReplication) {
                             LOGGER.warn(
