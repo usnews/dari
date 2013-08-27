@@ -17,6 +17,9 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.psddev.dari.util.ClassFinder;
 import com.psddev.dari.util.CodeUtils;
@@ -752,27 +755,50 @@ public class DatabaseEnvironment implements ObjectStruct {
         return object;
     }
 
+    private final transient LoadingCache<String, Integer> beanPropertyIndexes = CacheBuilder.newBuilder().
+            build(new CacheLoader<String, Integer>() {
+
+                private final Map<String, Integer> indexes = new HashMap<String, Integer>();
+                private int nextIndex = 0;
+
+                @Override
+                public Integer load(String beanProperty) {
+                    Integer index = indexes.get(beanProperty);
+
+                    if (index == null) {
+                        index = nextIndex;
+
+                        if (index >= 29) {
+                            throw new IllegalStateException("Can't use more than 30 @BeanProperty!");
+                        }
+
+                        ++ nextIndex;
+                        indexes.put(beanProperty, index);
+                    }
+
+                    return index;
+                }
+            });
+
     private final transient Lazy<List<DynamicProperty>> dynamicProperties = new Lazy<List<DynamicProperty>>() {
 
         @Override
         protected List<DynamicProperty> create() {
             List<DynamicProperty> properties = new ArrayList<DynamicProperty>();
-            int index = 0;
 
             for (ObjectType type : getTypes()) {
                 String beanProperty = type.getJavaBeanProperty();
 
                 if (ObjectUtils.isBlank(beanProperty)) {
                     continue;
-
-                } else if (index >= 29) {
-                    throw new IllegalStateException("Can't create more than 30 dynamic properties!");
                 }
 
                 try {
+                    properties.add(new DynamicProperty(
+                            type,
+                            beanProperty,
+                            beanPropertyIndexes.get(beanProperty)));
 
-                    properties.add(new DynamicProperty(type, beanProperty, index));
-                    ++ index;
                 } catch (Exception error) {
                 }
             }
