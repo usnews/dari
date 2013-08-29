@@ -64,12 +64,8 @@ class MetricDatabase {
         this.typeId = typeId;
     }
 
-    public MetricDatabase(UUID id, UUID typeId, String symbol) {
-        this(Database.Static.getFirst(SqlDatabase.class), id, typeId, symbol);
-    }
-
-    public MetricDatabase(State state, String symbol) {
-        this(state.getId(), state.getTypeId(), symbol);
+    public MetricDatabase(SqlDatabase database, State state, String symbol) {
+        this(database, state.getId(), state.getTypeId(), symbol);
     }
 
     public void setEventDateProcessor(MetricInterval processor) {
@@ -239,14 +235,13 @@ class MetricDatabase {
         Static.doReconstructCumulativeAmounts(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), null);
     }
 
-    public static UUID getDimensionIdByValue(String dimensionValue) {
+    public static UUID getDimensionIdByValue(SqlDatabase db, String dimensionValue) {
         if (dimensionValue == null || "".equals(dimensionValue)) {
             return UuidUtils.ZERO_UUID;
         }
         UUID dimensionId = dimensionCache.getIfPresent(dimensionValue);
         if (dimensionId == null) {
             try {
-                SqlDatabase db = Database.Static.getFirst(SqlDatabase.class);
                 dimensionId = Static.getDimensionIdByValue(db, dimensionValue);
                 if (dimensionId == null) {
                     dimensionId = UuidUtils.createSequentialUuid();
@@ -254,7 +249,7 @@ class MetricDatabase {
                 }
                 dimensionCache.put(dimensionValue, dimensionId);
             } catch (SQLException e) {
-                throw new DatabaseException(Database.Static.getFirst(SqlDatabase.class), "Error in MetricDatabase.getDimensionIdByValue() : " + e.getLocalizedMessage());
+                throw new DatabaseException(db, "Error in MetricDatabase.getDimensionIdByValue() : " + e.getLocalizedMessage());
             }
         }
         return dimensionId;
