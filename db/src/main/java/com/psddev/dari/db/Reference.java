@@ -1,16 +1,19 @@
 package com.psddev.dari.db;
 
-import java.util.HashMap;
+import com.psddev.dari.db.Recordable.Embedded;
 
-@SuppressWarnings("serial")
-public class Reference extends HashMap<String, Object> {
+@Embedded
+public class Reference extends Record {
 
     public static final String OBJECT_KEY = "_object";
 
+    @InternalName("record")
+    private Record object;
+
     public Object getObject() {
-        Object value = get(OBJECT_KEY);
+        Object value = getState().get(OBJECT_KEY);
         if (value == null) {
-            value = get("record");
+            value = object;
         }
         return value instanceof Record ?
                 value :
@@ -18,6 +21,10 @@ public class Reference extends HashMap<String, Object> {
     }
 
     public void setObject(Object object) {
-        put(OBJECT_KEY, object);
+        if (object instanceof Record) {
+            this.object = (Record) object;
+        } else {
+            getState().put(OBJECT_KEY, object);
+        }
     }
 }

@@ -14,6 +14,7 @@ import org.jsoup.parser.Tag;
 
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
 
 /** Contains strings and references to other objects. */
 public class ReferentialText extends AbstractList<Object> {
@@ -84,20 +85,37 @@ public class ReferentialText extends AbstractList<Object> {
 
         for (Element enhancement : body.getElementsByClass("enhancement")) {
             if (!enhancement.hasClass("state-removing")) {
-                Reference reference = new Reference();
 
-                for (Map.Entry<String, String> entry : enhancement.dataset().entrySet()) {
-                    String key = entry.getKey();
+                Reference reference = null;
 
-                    if (!key.startsWith("_")) {
-                        reference.put(key, entry.getValue());
+                String referenceData = enhancement.dataset().remove("reference");
+                if (!StringUtils.isBlank(referenceData)) {
+
+                    Map<?, ?> referenceMap = (Map<?, ?>) ObjectUtils.fromJson(referenceData);
+
+                    UUID id = ObjectUtils.to(UUID.class, referenceMap.get("_id"));
+                    UUID typeId = ObjectUtils.to(UUID.class, referenceMap.get("_type"));
+
+                    ObjectType type = Database.Static.getDefault().getEnvironment().getTypeById(typeId);
+
+                    if (type != null) {
+                        Object referenceObject = type.createObject(id);
+
+                        if (referenceObject instanceof Reference) {
+                            reference = (Reference) referenceObject;
+                        }
+                    }
+
+                    if (reference == null) {
+                        reference = new Reference();
+                    }
+
+                    for (Map.Entry<?, ?> entry : referenceMap.entrySet()) {
+                        reference.getState().put(entry.getKey().toString(), entry.getValue());
                     }
                 }
 
-                UUID referenceId = ObjectUtils.to(UUID.class, reference.remove("id"));
-
-                if (referenceId != null) {
-                    reference.put("record", Query.findById(Object.class, referenceId));
+                if (reference != null) {
                     references.add(reference);
                     enhancement.before(boundary);
                 }
@@ -230,10 +248,28 @@ public class ReferentialText extends AbstractList<Object> {
             return item;
 
         } else if (item instanceof Map) {
-            Reference ref = new Reference();
+            Reference ref = null;
+
+            UUID id = ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get("_id"));
+            UUID typeId = ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get("_type"));
+
+            ObjectType type = Database.Static.getDefault().getEnvironment().getTypeById(typeId);
+
+            if (type != null) {
+                Object object = type.createObject(id);
+
+                if (object instanceof Reference) {
+                    ref = (Reference) object;
+                }
+            }
+
+            if (ref == null) {
+                ref = new Reference();
+            }
+
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) item).entrySet()) {
                 Object key = entry.getKey();
-                ref.put(key != null ? key.toString() : null, entry.getValue());
+                ref.getState().put(key != null ? key.toString() : null, entry.getValue());
             }
             return ref;
 
