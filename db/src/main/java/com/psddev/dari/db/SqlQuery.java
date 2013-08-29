@@ -1193,7 +1193,7 @@ class SqlQuery {
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
             whereBuilder.append(" AND ");
-            appendSimpleWhereClause(whereBuilder, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
+            appendSimpleWhereClause(whereBuilder, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(database, null));
         }    
 
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
@@ -1340,7 +1340,7 @@ class SqlQuery {
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
             sql.append(" AND ");
-            appendSimpleWhereClause(sql, vendor, "m2", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(null));
+            appendSimpleWhereClause(sql, vendor, "m2", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(database, null));
         }
         // Apply deferred WHERE predicates (eventDates and metric Dimensions)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
@@ -1917,7 +1917,7 @@ class SqlQuery {
                     if (value != null) {
                         stringValue = String.valueOf(value);
                     }
-                    value = MetricDatabase.getDimensionIdByValue(stringValue);
+                    value = MetricDatabase.getDimensionIdByValue(database, stringValue);
 
                 } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
 
