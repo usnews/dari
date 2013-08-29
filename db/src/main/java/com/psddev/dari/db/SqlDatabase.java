@@ -78,6 +78,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String READ_JDBC_PASSWORD_SETTING = "readJdbcPassword";
     public static final String READ_JDBC_POOL_SIZE_SETTING = "readJdbcPoolSize";
 
+    public static final String CATALOG_SUB_SETTING = "catalog";
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
@@ -126,6 +127,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private volatile DataSource dataSource;
     private volatile DataSource readDataSource;
+    private volatile String catalog;
+    private volatile transient String defaultCatalog;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
@@ -217,6 +220,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     }
 
                     try {
+                        defaultCatalog = connection.getCatalog();
                         DatabaseMetaData meta = connection.getMetaData();
                         String vendorName = meta.getDatabaseProductName();
                         Class<? extends SqlVendor> vendorClass = VENDOR_CLASSES.get(vendorName);
@@ -259,6 +263,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** Sets the JDBC data source used exclusively for read operations. */
     public void setReadDataSource(DataSource readDataSource) {
         this.readDataSource = readDataSource;
+    }
+
+    public String getCatalog() {
+        return catalog;
+    }
+
+    public void setCatalog(String catalog) {
+        this.catalog = catalog;
+
+        try {
+            getVendor().setUp(this);
+            tableNames.refresh();
+            symbols.invalidate();
+
+        } catch (IOException error) {
+            throw new IllegalStateException(error);
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't check for required tables!", error);
+        }
     }
 
     /** Returns the vendor-specific SQL engine information. */
@@ -1174,16 +1198,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = dataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(dataSource);
+
             connection.setReadOnly(false);
+
             if (vendor != null) {
                 vendor.setTransactionIsolation(connection);
             }
+
             return connection;
 
         } catch (SQLException error) {
             throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
+    }
+
+    private Connection getConnectionFromDataSource(DataSource dataSource) throws SQLException {
+        Connection connection = dataSource.getConnection();
+        String catalog = getCatalog();
+
+        if (catalog != null) {
+            connection.setCatalog(catalog);
+        }
+
+        return connection;
     }
 
     @Override
@@ -1199,7 +1237,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = readDataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(readDataSource);
+
             connection.setReadOnly(true);
             return connection;
 
@@ -1235,7 +1274,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public void closeConnection(Connection connection) {
         if (connection != null) {
             try {
+                if (defaultCatalog != null) {
+                    String catalog = getCatalog();
+
+                    if (catalog != null) {
+                        connection.setCatalog(defaultCatalog);
+                    }
+                }
+
                 connection.close();
+
             } catch (SQLException error) {
                 // Not likely and probably harmless.
             }
@@ -1271,6 +1319,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 JDBC_USER_SETTING,
                 JDBC_PASSWORD_SETTING,
                 JDBC_POOL_SIZE_SETTING));
+
+        setCatalog(ObjectUtils.to(String.class, settings.get(CATALOG_SUB_SETTING)));
 
         String vendorClassName = ObjectUtils.to(String.class, settings.get(VENDOR_CLASS_SETTING));
         Class<?> vendorClass = null;
