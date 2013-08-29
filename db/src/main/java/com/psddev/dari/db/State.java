@@ -1294,19 +1294,7 @@ public class State implements Map<String, Object> {
             Object object = linkedObjects.values().iterator().next();
             Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
-
-            for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
-                resolved.put(metricField.getInternalName(), new Metric(this, metricField));
-            }
-
-            for (Object obj : linkedObjects.values()) {
-                ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
-                if (type != null) {
-                    for (ObjectField metricField : type.getMetricFields()) {
-                        resolved.put(metricField.getInternalName(), new Metric(this, metricField));
-                    }
-                }
-            }
+            resolveMetricReferences();
 
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
                 UUID id = StateValueUtils.toIdIfReference(e.getValue());
@@ -1317,6 +1305,25 @@ public class State implements Map<String, Object> {
 
             for (Map.Entry<String, Object> e : resolved.entrySet()) {
                 put(e.getKey(), e.getValue());
+            }
+        }
+    }
+
+    /**
+     * Instantiate all Metric objects.
+    */ 
+    private void resolveMetricReferences() {
+
+        for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
+            put(metricField.getInternalName(), new Metric(this, metricField));
+        }
+
+        for (Object obj : linkedObjects.values()) {
+            ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
+            if (type != null) {
+                for (ObjectField metricField : type.getMetricFields()) {
+                    put(metricField.getInternalName(), new Metric(this, metricField));
+                }
             }
         }
     }
@@ -1638,6 +1645,7 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
+                resolveMetricReferences();
                 flags &= ~ALL_RESOLVED_FLAG;
                 return;
 
