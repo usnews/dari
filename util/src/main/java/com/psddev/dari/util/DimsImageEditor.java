@@ -341,7 +341,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                 throw new MalformedURLException("Cannot create DIMS URL for item [" + item + "] with url [null]");
             }
 
-            String baseUrl = DimsImageEditor.this.getBaseUrl();
+            String baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getBaseUrl(), "/");
             if (url.startsWith(baseUrl)) {
 
                 // It's an existing DIMS URL that we're further modifying
@@ -401,7 +401,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                     imagePath.toLowerCase(Locale.ENGLISH).endsWith(".tiff")) {
                     addCommand(new FormatCommand(ImageFormat.png));
                 }
-                
+
                 Integer quality = DimsImageEditor.this.getQuality();
                 if (quality != null) {
                     addCommand(new QualityCommand(quality));
@@ -599,12 +599,9 @@ public class DimsImageEditor extends AbstractImageEditor {
             StringBuilder dimsUrlBuilder = new StringBuilder();
 
             String imageUrl = this.imageUrl.toString();
-            String baseUrl = DimsImageEditor.this.getBaseUrl();
+            String baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getBaseUrl(), "/");
 
             dimsUrlBuilder.append(baseUrl);
-            if(!baseUrl.endsWith("/")) {
-                dimsUrlBuilder.append('/');
-            }
 
             StringBuilder commandsBuilder = new StringBuilder();
             for(Command command : getCommands()) {
