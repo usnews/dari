@@ -26,7 +26,6 @@ import com.psddev.dari.util.ObjectUtils;
 class SqlQuery {
 
     private static final Pattern QUERY_KEY_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
-    //private static final Pattern EVENT_DATE_FORMAT_PATTERN = Pattern.compile("\\[([^\\]]+)\\]$");
     //private static final Logger LOGGER = LoggerFactory.getLogger(SqlQuery.class);
 
     private final SqlDatabase database;
@@ -1468,6 +1467,15 @@ class SqlQuery {
         if (extraSourceColumns != null) {
             statementBuilder.append(", ");
             statementBuilder.append(extraSourceColumns);
+        }
+
+        if (!needsDistinct && ! subSqlQueries.isEmpty()) {
+            for (Map.Entry<Query<?>, SqlQuery> entry : subSqlQueries.entrySet()) {
+                SqlQuery subSqlQuery = entry.getValue();
+                statementBuilder.append(", " + subSqlQuery.aliasPrefix + "r."+SqlDatabase.ID_COLUMN+" AS "+SqlDatabase.SUB_DATA_COLUMN_ALIAS_PREFIX + subSqlQuery.aliasPrefix + "_" + SqlDatabase.ID_COLUMN);
+                statementBuilder.append(", " + subSqlQuery.aliasPrefix + "r."+SqlDatabase.TYPE_ID_COLUMN+" AS "+SqlDatabase.SUB_DATA_COLUMN_ALIAS_PREFIX + subSqlQuery.aliasPrefix + "_" + SqlDatabase.TYPE_ID_COLUMN);
+                statementBuilder.append(", " + subSqlQuery.aliasPrefix + "r."+SqlDatabase.DATA_COLUMN+" AS "+SqlDatabase.SUB_DATA_COLUMN_ALIAS_PREFIX + subSqlQuery.aliasPrefix + "_" + SqlDatabase.DATA_COLUMN);
+            }
         }
 
         statementBuilder.append("\nFROM ");

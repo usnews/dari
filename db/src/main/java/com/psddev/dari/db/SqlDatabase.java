@@ -110,6 +110,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
 
+    public static final String SUB_DATA_COLUMN_ALIAS_PREFIX = "subData_";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
     private static final String SHORT_NAME = "SQL";
     private static final Stats STATS = new Stats(SHORT_NAME);
@@ -806,9 +808,29 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
 
         ResultSetMetaData meta = resultSet.getMetaData();
+        Object subId = null, subTypeId = null;
+        byte[] subData;
+
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
-            if (query.getExtraSourceColumns().containsKey(columnName)) {
+            if (columnName.startsWith(SUB_DATA_COLUMN_ALIAS_PREFIX)) {
+                if (columnName.endsWith("_"+ID_COLUMN)) {
+                    subId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+TYPE_ID_COLUMN)) {
+                    subTypeId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+DATA_COLUMN)) {
+                    subData = resultSet.getBytes(i);
+                    if (subId != null && subTypeId != null && subData != null && ! subId.equals(objectState.getId())) {
+                        Object subObject = createSavedObject(subTypeId, subId, query);
+                        State subObjectState = State.getInstance(subObject);
+                        subObjectState.setValues(unserializeData(subData));
+                        subId = null; 
+                        subTypeId = null; 
+                        subData = null;
+                        objectState.getExtras().put(State.SUB_DATA_STATE_EXTRA_PREFIX + subObjectState.getId(), subObject);
+                    }
+                }
+            } else if (query.getExtraSourceColumns().containsKey(columnName)) {
                 objectState.put(query.getExtraSourceColumns().get(columnName), resultSet.getObject(i));
             } else {
                 objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));

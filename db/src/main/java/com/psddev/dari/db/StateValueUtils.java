@@ -118,6 +118,8 @@ abstract class StateValueUtils {
                 if (id != null) {
                     if (circularReferences.containsKey(id)) {
                         references.put(id, circularReferences.get(id));
+                    } else if (parentState != null && parentState.getExtras().containsKey(State.SUB_DATA_STATE_EXTRA_PREFIX + id)) {
+                       references.put(id, parentState.getExtras().get(State.SUB_DATA_STATE_EXTRA_PREFIX + id));
                     } else {
                         unresolvedIds.add(id);
                         unresolvedTypeIds.add(ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get(TYPE_KEY)));

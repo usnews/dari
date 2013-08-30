@@ -48,6 +48,8 @@ public class State implements Map<String, Object> {
 
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
 
+    public static final String SUB_DATA_STATE_EXTRA_PREFIX = "dari.subDataState.";
+
     private static final String ATOMIC_OPERATIONS_EXTRA = "dari.atomicOperations";
 
     private static final int STATUS_FLAG_OFFSET = 16;
