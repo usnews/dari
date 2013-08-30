@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,25 +16,25 @@ final class MetricIncrementQueue {
 
     private static final ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements = new ConcurrentHashMap<String, QueuedMetricIncrement>();;
 
-    public static void queueIncrement(MetricDatabase metricDatabase, UUID dimensionId, double amount, double withinSeconds) {
+    public static void queueIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase, double amount, double withinSeconds) {
 
-        putInMap(metricDatabase, dimensionId, amount);
+        putInMap(id, dimensionId, eventDate, metricDatabase, amount);
 
         // If the task is already running or has been scheduled, this won't do anything.
         MetricIncrementQueueTask.getInstance(queuedIncrements).schedule(withinSeconds);
 
     }
 
-    private static void putInMap(MetricDatabase metricDatabase, UUID dimensionId, double amount) {
+    private static void putInMap(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase, double amount) {
 
-        String key = getKey(metricDatabase, dimensionId);
-        QueuedMetricIncrement placeholder = new QueuedMetricIncrement(metricDatabase, dimensionId, 0d);
+        String key = getKey(id, dimensionId, eventDate, metricDatabase);
+        QueuedMetricIncrement placeholder = new QueuedMetricIncrement(id, dimensionId, eventDate, metricDatabase, 0d);
         while (true) {
             QueuedMetricIncrement current = queuedIncrements.putIfAbsent(key, placeholder);
             if (current == null) {
                 current = placeholder;
             }
-            QueuedMetricIncrement next = new QueuedMetricIncrement(metricDatabase, dimensionId, current.amount + amount);
+            QueuedMetricIncrement next = new QueuedMetricIncrement(id, dimensionId, eventDate, metricDatabase, current.amount + amount);
             if (queuedIncrements.replace(key, current, next)) {
                 return;
             } else {
@@ -43,20 +44,36 @@ final class MetricIncrementQueue {
 
     }
 
-    private static String getKey(MetricDatabase metricDatabase, UUID dimensionId) {
-        return metricDatabase.toKeyString() + ":" + dimensionId.toString();
+    private static String getKey(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase) {
+        StringBuilder str = new StringBuilder();
+        str.append(id);
+        str.append(':');
+        str.append(metricDatabase.getTypeId());
+        str.append(':');
+        str.append(metricDatabase.getSymbolId());
+        str.append(':');
+        if (eventDate != null) {
+            str.append(eventDate.getMillis());
+        }
+        str.append(':');
+        str.append(dimensionId);
+        return str.toString();
     }
 
 }
 
 class QueuedMetricIncrement {
-    public final MetricDatabase metricDatabase;
+    public final UUID id;
     public final UUID dimensionId;
+    public final DateTime eventDate;
+    public final MetricDatabase metricDatabase;
     public final double amount;
 
-    public QueuedMetricIncrement(MetricDatabase metricDatabase, UUID dimensionId, double amount) {
-        this.metricDatabase = metricDatabase;
+    public QueuedMetricIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase, double amount) {
+        this.id = id;
         this.dimensionId = dimensionId;
+        this.eventDate = eventDate;
+        this.metricDatabase = metricDatabase;
         this.amount = amount;
     }
 
@@ -65,9 +82,12 @@ class QueuedMetricIncrement {
         if (other == null || !(other instanceof QueuedMetricIncrement)) {
             return false;
         } else {
-            if (this.amount == ((QueuedMetricIncrement) other).amount &&
-                this.metricDatabase.equals(((QueuedMetricIncrement) other).metricDatabase) &&
-                this.dimensionId.equals(((QueuedMetricIncrement) other).dimensionId)) {
+            QueuedMetricIncrement otherIncr = (QueuedMetricIncrement) other;
+            if (this.amount == otherIncr.amount &&
+                this.metricDatabase.equals(otherIncr.metricDatabase) &&
+                this.dimensionId.equals(otherIncr.dimensionId) &&
+                ((this.eventDate == null && otherIncr.eventDate == null) || (this.eventDate != null && this.eventDate.equals(otherIncr.eventDate))) &&
+                this.id.equals(otherIncr.id)) {
                 return true;
             } else {
                 return false;
@@ -96,16 +116,14 @@ class MetricIncrementQueueTask extends Task {
 
     public void doTask() {
 
-        // LOGGER.info("EXECUTING MetricIncrementQueueTask");
         while (true) {
             if (queuedIncrements.isEmpty()) {
                 break;
             }
             String key = queuedIncrements.keySet().iterator().next();
             QueuedMetricIncrement queuedIncrement = queuedIncrements.remove(key);
-            // LOGGER.info("Incrementing : " + queuedIncrement.metricDatabase.toKeyString() + " : " + queuedIncrement.dimensionId.toKeyString() + " += " + queuedIncrement.amount );
             try {
-                queuedIncrement.metricDatabase.incrementMetricByDimensionId(queuedIncrement.dimensionId, queuedIncrement.amount);
+                queuedIncrement.metricDatabase.incrementMetricByDimensionId(queuedIncrement.id, queuedIncrement.eventDate, queuedIncrement.dimensionId, queuedIncrement.amount);
             } catch (SQLException ex) {
                 LOGGER.error("SQLException during incrementMetricByDimensionId: " + ex.getLocalizedMessage());
                 throw new DatabaseException(queuedIncrement.metricDatabase.getDatabase(), "SQLException during MetricDatabase.incrementMetricByDimensionId", ex);
