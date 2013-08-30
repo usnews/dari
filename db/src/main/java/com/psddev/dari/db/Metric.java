@@ -6,13 +6,8 @@ import java.util.UUID;
 
 import org.joda.time.DateTime;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Metric.Embedded
 public class Metric extends Record {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(Metric.class);
 
     private final transient State owner;
     private final transient ObjectField field;
@@ -44,7 +39,6 @@ public class Metric extends Record {
         }
 
         if (sqlDatabase == null) {
-            LOGGER.error("Metric field "+field.getUniqueName()+" cannot determine SQL database for database " + owner.getDatabase().getName() + " (" + owner.getDatabase().getClass().getName() + "), this Metric object is unusable!");
             this.metricDatabase = null;
         } else {
             this.metricDatabase = new MetricDatabase(sqlDatabase, owner, field.getUniqueName());
