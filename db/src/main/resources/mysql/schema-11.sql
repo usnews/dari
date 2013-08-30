@@ -89,8 +89,8 @@ SELECT c.id
 , c.typeId
 , c.symbolId
 , c.dimensionId
-, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, 10) / 1000000, 6) amount
-, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, 10) / 1000000, 6) cumulativeAmount
+, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, -10) / 1000000, 6) amount
+, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, -10) / 1000000, 6) cumulativeAmount
 , CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000 eventDate
 , data AS data
 FROM Metric c;
@@ -102,8 +102,8 @@ SELECT hex(c.id) AS id
 , hex(c.dimensionId) as dimensionId
 , d.value AS dimension
 , ls.value as symbol
-, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, 10) / 1000000, 6) amount
-, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, 10) / 1000000, 6) cumulativeAmount
+, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, -10) / 1000000, 6) amount
+, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, -10) / 1000000, 6) cumulativeAmount
 , FROM_UNIXTIME(CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60) eventDate
 , HEX(data) AS data
 , CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000 eventTimestamp

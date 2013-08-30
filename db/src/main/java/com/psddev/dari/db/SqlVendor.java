@@ -993,7 +993,7 @@ public class SqlVendor {
                         appendValue(str, MetricDatabase.AMOUNT_BYTE_SIZE);
                     str.append(')');
                 str.append(')');
-            str.append(", 16, 10)");
+            str.append(", 16, -10)");
         }
 
         @Override
