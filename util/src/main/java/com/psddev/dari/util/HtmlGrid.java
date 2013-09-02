@@ -202,6 +202,7 @@ public class HtmlGrid {
         private static final String CSS_MODIFIED_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "cssModified.";
         private static final String GRID_PATHS_ATTRIBUTE = ATTRIBUTE_PREFIX + "gridPaths";
         private static final String GRIDS_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "grids.";
+        private static final String REQUEST_GRIDS_ATTRIBUTE = ATTRIBUTE_PREFIX + "requestGrids";
 
         private static final String DISPLAY_GRID_VALUE = "-dari-grid";
         private static final String TEMPLATE_PROPERTY = "-dari-grid-template";
@@ -209,7 +210,7 @@ public class HtmlGrid {
         private static final String ROWS_PROPERTY = "-dari-grid-definition-rows";
 
         public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
-            return findGrids(context, findGridPaths(context));
+            return findGrids(context, null, findGridPaths(context));
         }
 
         public static void addStyleSheet(HttpServletRequest request, String path) {
@@ -224,12 +225,36 @@ public class HtmlGrid {
             paths.add(0, path);
         }
 
+        /**
+         * Adds the given {@code grid} definition and associates it with the
+         * given {@code selector} so that it's valid for use in the given
+         * {@code request}.
+         *
+         * @param request Can't be {@code null}.
+         * @param selector Can't be blank.
+         * @param grid Can't be {@code null}.
+         */
+        public static void addGrid(HttpServletRequest request, String selector, HtmlGrid grid) {
+            ErrorUtils.errorIfBlank(selector, "selector");
+            ErrorUtils.errorIfNull(grid, "grid");
+
+            @SuppressWarnings("unchecked")
+            Map<String, HtmlGrid> grids = (Map<String, HtmlGrid>) request.getAttribute(REQUEST_GRIDS_ATTRIBUTE);
+
+            if (grids == null) {
+                grids = new CompactMap<String, HtmlGrid>();
+                request.setAttribute(REQUEST_GRIDS_ATTRIBUTE, grids);
+            }
+
+            grids.put(selector, grid);
+        }
+
         public static Map<String, HtmlGrid> findAll(ServletContext context, HttpServletRequest request) throws IOException {
             @SuppressWarnings("unchecked")
             List<String> usedPaths = request != null ? (List<String>) request.getAttribute(GRID_PATHS_ATTRIBUTE) : null;
             List<String> gridPaths = findGridPaths(context);
 
-            return findGrids(context, usedPaths == null || usedPaths.isEmpty() ? gridPaths : usedPaths);
+            return findGrids(context, request, usedPaths == null || usedPaths.isEmpty() ? gridPaths : usedPaths);
         }
 
         /** @deprecated Use {@link #findAll} instead. */
@@ -406,13 +431,22 @@ public class HtmlGrid {
             }
         }
 
-        private static Map<String, HtmlGrid> findGrids(ServletContext context, List<String> gridPaths) {
+        private static Map<String, HtmlGrid> findGrids(ServletContext context, HttpServletRequest request, List<String> gridPaths) {
             Map<String, HtmlGrid> all = new LinkedHashMap<String, HtmlGrid>();
 
             for (int i = gridPaths.size() - 1; i >= 0; -- i) {
                 String gridPath = gridPaths.get(i);
                 @SuppressWarnings("unchecked")
                 Map<String, HtmlGrid> grids = (Map<String, HtmlGrid>) context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + gridPath);
+
+                if (grids != null) {
+                    all.putAll(grids);
+                }
+            }
+
+            if (request != null) {
+                @SuppressWarnings("unchecked")
+                Map<String, HtmlGrid> grids = (Map<String, HtmlGrid>) request.getAttribute(REQUEST_GRIDS_ATTRIBUTE);
 
                 if (grids != null) {
                     all.putAll(grids);
