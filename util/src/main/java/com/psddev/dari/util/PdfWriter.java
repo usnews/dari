@@ -38,7 +38,7 @@ public class PdfWriter {
 
     /**
      * Service to generate a PDF<br/>
-     * Default to using request attribute mainContent that implements PdfWriter<br/>
+     * Default to using request attribute mainContent that implements PdfWriteable<br/>
      * Optional key/value parameter pairs fileName, xml, xsl and pdfWriteable
      * @param request
      * @param response
