@@ -51,6 +51,9 @@ class MetricDatabase {
     private static final int QUERY_TIMEOUT = 3;
     private static final int DIMENSION_CACHE_SIZE = 1000;
 
+    private static final String CACHE_MIN = "min";
+    private static final String CACHE_MAX = "max";
+
     private static final transient Cache<String, UUID> dimensionCache = CacheBuilder.newBuilder().maximumSize(DIMENSION_CACHE_SIZE).build();
 
     private static final ConcurrentMap<String, MetricDatabase> metricDatabases = new ConcurrentHashMap<String, MetricDatabase>();
@@ -132,11 +135,11 @@ class MetricDatabase {
     private byte[] getMaxData(UUID id, UUID dimensionId, Long endTimestamp) throws SQLException {
         CachingDatabase cachingDb = Static.getCachingDatabase();
         byte[] data;
-        if (hasCachedData(cachingDb, id, dimensionId, endTimestamp)) {
-            data = getCachedData(cachingDb, id, dimensionId, endTimestamp);
+        if (hasCachedData(cachingDb, id, dimensionId, endTimestamp, CACHE_MAX)) {
+            data = getCachedData(cachingDb, id, dimensionId, endTimestamp, CACHE_MAX);
         } else {
             data = Static.getDataByIdAndDimension(getDatabase(), id, getTypeId(), getSymbolId(), dimensionId, null, endTimestamp);
-            putCachedData(cachingDb, id, dimensionId, endTimestamp, data);
+            putCachedData(cachingDb, id, dimensionId, endTimestamp, data, CACHE_MAX);
         }
         return data;
     }
@@ -149,45 +152,45 @@ class MetricDatabase {
     private List<byte[]> getMaxMinData(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp) throws SQLException {
         CachingDatabase cachingDb = Static.getCachingDatabase();
         List<byte[]> result;
-        if (hasCachedData(cachingDb, id, dimensionId, startTimestamp) && hasCachedData(cachingDb, id, dimensionId, endTimestamp)) {
+        if (hasCachedData(cachingDb, id, dimensionId, startTimestamp, CACHE_MIN) && hasCachedData(cachingDb, id, dimensionId, endTimestamp, CACHE_MAX)) {
             result = new ArrayList<byte[]>();
-            result.add(getCachedData(cachingDb, id, dimensionId, endTimestamp)); // MAX
-            result.add(getCachedData(cachingDb, id, dimensionId, startTimestamp)); // MIN
+            result.add(getCachedData(cachingDb, id, dimensionId, endTimestamp, CACHE_MAX));
+            result.add(getCachedData(cachingDb, id, dimensionId, startTimestamp, CACHE_MIN));
         } else {
             result = Static.getMaxMinDataByIdAndDimension(getDatabase(), id, getTypeId(), getSymbolId(), dimensionId, startTimestamp, endTimestamp);
             if (result.isEmpty()) {
                 result.add(null);
                 result.add(null);
             }
-            putCachedData(cachingDb, id, dimensionId, endTimestamp, result.get(0)); // MAX
-            putCachedData(cachingDb, id, dimensionId, startTimestamp, result.get(1)); // MIN
+            putCachedData(cachingDb, id, dimensionId, endTimestamp, result.get(0), CACHE_MAX);
+            putCachedData(cachingDb, id, dimensionId, startTimestamp, result.get(1), CACHE_MIN);
         }
         return result;
     }
 
-    private boolean hasCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp) {
+    private boolean hasCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, String position) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras == null) return false;
         synchronized(extras) {
-            return (extras.containsKey(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp));
+            return (extras.containsKey(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp + '.' + position));
         }
     }
 
-    private byte[] getCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp) {
+    private byte[] getCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, String position) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
             synchronized(extras) {
-                return (byte[]) extras.get(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp);
+                return (byte[]) extras.get(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp + '.' + position);
             }
         }
         return null;
     }
 
-    private void putCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, byte[] data) {
+    private void putCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, byte[] data, String position) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
             synchronized(extras) {
-                extras.put(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp, data);
+                extras.put(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp + '.' + position, data);
             }
         }
     }
@@ -196,14 +199,11 @@ class MetricDatabase {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
             synchronized(extras) {
-                Set<String> toRemove = new HashSet<String>();
-                for (Map.Entry<String, Object> entry : extras.entrySet()) {
-                    if (entry.getKey().startsWith(METRIC_CACHE_EXTRA_PREFIX)) {
-                        toRemove.add(entry.getKey());
+                Set<String> keys = new HashSet<String>(extras.keySet());
+                for (String key : keys) {
+                    if (key.startsWith(METRIC_CACHE_EXTRA_PREFIX)) {
+                        extras.remove(key);
                     }
-                }
-                for (String key : toRemove) {
-                    extras.remove(key);
                 }
             }
         }
@@ -1231,9 +1231,9 @@ class MetricDatabase {
                             }
                             MetricDatabase metricDb = mdbBySymbolId.get(symbolId);
                             if (selectMinData) {
-                                metricDb.putCachedData(cachingDb, id, dimensionId, startTimestamp, minData);
+                                metricDb.putCachedData(cachingDb, id, dimensionId, startTimestamp, minData, CACHE_MIN);
                             }
-                            metricDb.putCachedData(cachingDb, id, dimensionId, endTimestamp, maxData);
+                            metricDb.putCachedData(cachingDb, id, dimensionId, endTimestamp, maxData, CACHE_MAX);
                             metricDatabases.remove(metricDb);
                         }
                     } finally {
@@ -1251,9 +1251,9 @@ class MetricDatabase {
             while (iter.hasNext()) {
                 MetricDatabase metricDb = iter.next();
                 if (selectMinData) {
-                    metricDb.putCachedData(cachingDb, id, dimensionId, startTimestamp, null);
+                    metricDb.putCachedData(cachingDb, id, dimensionId, startTimestamp, null, CACHE_MIN);
                 }
-                metricDb.putCachedData(cachingDb, id, dimensionId, endTimestamp, null);
+                metricDb.putCachedData(cachingDb, id, dimensionId, endTimestamp, null, CACHE_MAX);
             }
 
         }
