@@ -12,6 +12,8 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.ObjectUtils;
+
 @Metric.Embedded
 public class Metric extends Record {
 
@@ -116,6 +118,7 @@ public class Metric extends Record {
      */
     public DateTime getLastDimensionUpdate(String dimension) {
         try {
+            Static.preFetchMetrics(getOwner(), getMetricDatabase().getDimensionId(dimension), null, null);
             return getMetricDatabase().getLastUpdate(getOwner().getId(), dimension);
         } catch (SQLException e) {
             throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.getLastUpdate() : " + e.getLocalizedMessage());
@@ -167,6 +170,7 @@ public class Metric extends Record {
         try {
             Long startTimestamp = (start == null ? null : start.getMillis());
             Long endTimestamp = (end == null ? null : end.getMillis());
+            Static.preFetchMetrics(getOwner(), getMetricDatabase().getDimensionId(dimension), startTimestamp, endTimestamp);
             Double metricValue = getMetricDatabase().getMetric(getOwner().getId(), dimension, startTimestamp, endTimestamp);
             return metricValue == null ? 0.0 : metricValue;
         } catch (SQLException e) {
@@ -309,19 +313,17 @@ public class Metric extends Record {
 
     public static class Static {
 
-        private static final String EXTRA_METRICS_FETCHED = "dari.metric.preFetched";
+        private static final String EXTRA_METRICS_FETCHED_PREFIX = "dari.metric.preFetched.";
 
-        private static void preFetchMetrics(State state, String dimensionValue, DateTime start, DateTime end) {
-            if (state == null) {
+        private static void preFetchMetrics(State state, UUID dimensionId, Long startTimestamp, Long endTimestamp) {
+            if (state == null || state.getType() == null) {
                 return;
             }
-            if (state.getType() == null) {
+            String extraKey = EXTRA_METRICS_FETCHED_PREFIX + ObjectUtils.to(String.class, dimensionId) + '.' + ObjectUtils.to(String.class, startTimestamp) + '.' + ObjectUtils.to(String.class, endTimestamp);
+            if (state.getExtra(extraKey) != null && ((Boolean) state.getExtra(extraKey)) == true) {
                 return;
             }
-            if (state.getExtra(EXTRA_METRICS_FETCHED) != null && ((Boolean) state.getExtra(EXTRA_METRICS_FETCHED)) == true) {
-                return;
-            }
-            state.getExtras().put(EXTRA_METRICS_FETCHED, true);
+            state.getExtras().put(extraKey, true);
             List<ObjectField> fields = state.getType().getMetricFields();
             fields.addAll(state.getDatabase().getEnvironment().getMetricFields());
             Set<MetricDatabase> metricDatabases = new HashSet<MetricDatabase>();
@@ -331,15 +333,13 @@ public class Metric extends Record {
                     metricDatabases.add(mdb);
                 }
             }
-            Long startTimestamp = (start == null ? null : start.getMillis());
-            Long endTimestamp = (end == null ? null : end.getMillis());
-            doDatabasePreFetch(state.getId(), dimensionValue, startTimestamp, endTimestamp, metricDatabases);
+            doDatabasePreFetch(state.getId(), dimensionId, startTimestamp, endTimestamp, metricDatabases);
         }
 
-        private static void doDatabasePreFetch(UUID id, String dimensionValue, Long startTimestamp, Long endTimestamp, Collection<MetricDatabase> metricDatabases) {
+        private static void doDatabasePreFetch(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricDatabase> metricDatabases) {
             if (metricDatabases.isEmpty()) return;
             try{
-                MetricDatabase.Static.preFetchMetricSums(id, dimensionValue, startTimestamp, endTimestamp, metricDatabases);
+                MetricDatabase.Static.preFetchMetricSums(id, dimensionId, startTimestamp, endTimestamp, metricDatabases);
             } catch (SQLException ex) {
                 LOGGER.warn("Exception when prefetching Metrics for object "+id+": " + ex.getLocalizedMessage());
             }

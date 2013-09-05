@@ -169,7 +169,7 @@ class MetricDatabase {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras == null) return false;
         synchronized(extras) {
-            return (extras.containsKey(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + "." + dimensionId + "." + timestamp));
+            return (extras.containsKey(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp));
         }
     }
 
@@ -177,7 +177,7 @@ class MetricDatabase {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
             synchronized(extras) {
-                return (byte[]) extras.get(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + "." + dimensionId + "." + timestamp);
+                return (byte[]) extras.get(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp);
             }
         }
         return null;
@@ -187,7 +187,7 @@ class MetricDatabase {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
             synchronized(extras) {
-                extras.put(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + "." + dimensionId + "." + timestamp, data);
+                extras.put(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp, data);
             }
         }
     }
@@ -1184,7 +1184,7 @@ class MetricDatabase {
             return null;
         }
 
-        public static void preFetchMetricSums(UUID id, String dimensionValue, Long startTimestamp, Long endTimestamp, Collection<MetricDatabase> metricDatabases) throws SQLException {
+        public static void preFetchMetricSums(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricDatabase> metricDatabases) throws SQLException {
             if (metricDatabases.isEmpty()) return;
             CachingDatabase cachingDb = getCachingDatabase();
             if (cachingDb == null) return;
@@ -1192,12 +1192,11 @@ class MetricDatabase {
             MetricDatabase mdb = iter.next();
             UUID typeId = mdb.getTypeId();
             SqlDatabase db = mdb.getDatabase();
-            UUID dimensionId = mdb.getDimensionId(dimensionValue);
             Map<Integer, MetricDatabase> mdbBySymbolId = new HashMap<Integer, MetricDatabase>();
             StringBuilder symbolIdsString = new StringBuilder();
             do {
                 symbolIdsString.append(mdb.getSymbolId());
-                symbolIdsString.append(",");
+                symbolIdsString.append(',');
                 mdbBySymbolId.put(mdb.getSymbolId(), mdb);
             } while (iter.hasNext() && (mdb = iter.next()) != null);
             symbolIdsString.setLength(symbolIdsString.length()-1);
@@ -1264,22 +1263,16 @@ class MetricDatabase {
             Database db = state.getDatabase();
             if (db == null) return null;
             StringBuilder keyBuilder = new StringBuilder(db.getName());
-            keyBuilder.append(":");
+            keyBuilder.append(':');
             keyBuilder.append(field.getUniqueName());
-            keyBuilder.append(":");
+            keyBuilder.append(':');
             keyBuilder.append(field.as(MetricDatabase.FieldData.class).getEventDateProcessorClassName());
             String mdbKey = keyBuilder.toString();
             MetricDatabase metricDb = metricDatabases.get(mdbKey);
             if (metricDb == null) {
                 SqlDatabase sqlDb = null;
-                // CachingDatabase cachingDb = null;
-                // Drill down until we find the SqlDatabase
                 while (db instanceof ForwardingDatabase) {
-                    // if (db instanceof CachingDatabase) {
-                    //     cachingDb = (CachingDatabase) db;
-                    // }
                     db = ((ForwardingDatabase) db).getDelegate();
-
                 }
                 if (db instanceof SqlDatabase) {
                     sqlDb = (SqlDatabase) db;
