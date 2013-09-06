@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -324,7 +325,7 @@ public class Metric extends Record {
                 return;
             }
             state.getExtras().put(extraKey, true);
-            List<ObjectField> fields = state.getType().getMetricFields();
+            List<ObjectField> fields = new ArrayList<ObjectField>(state.getType().getMetricFields());
             fields.addAll(state.getDatabase().getEnvironment().getMetricFields());
             Set<MetricDatabase> metricDatabases = new HashSet<MetricDatabase>();
             for (ObjectField field : fields) {

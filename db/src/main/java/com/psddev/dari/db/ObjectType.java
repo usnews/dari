@@ -439,7 +439,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 }
             }
 
-            return metricFields;
+            return Collections.unmodifiableList(metricFields);
         }
     };
 
