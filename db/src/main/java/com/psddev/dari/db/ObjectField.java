@@ -42,12 +42,12 @@ public class ObjectField extends Record {
     public static final String FILE_TYPE = "file";
     public static final String LIST_TYPE = "list";
     public static final String LOCATION_TYPE = "location";
-    public static final String REGION_TYPE = "region";
     public static final String MAP_TYPE = "map";
     public static final String METRIC_TYPE = "metric";
     public static final String NUMBER_TYPE = "number";
     public static final String RECORD_TYPE = "record";
     public static final String REFERENTIAL_TEXT_TYPE = "referentialText";
+    public static final String REGION_TYPE = "region";
     public static final String SET_TYPE = "set";
     public static final String TEXT_TYPE = "text";
     public static final String URI_TYPE = "uri";

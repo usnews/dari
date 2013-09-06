@@ -824,8 +824,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         Object subObject = createSavedObject(subTypeId, subId, query);
                         State subObjectState = State.getInstance(subObject);
                         subObjectState.setValues(unserializeData(subData));
-                        subId = null; 
-                        subTypeId = null; 
+                        subId = null;
+                        subTypeId = null;
                         subData = null;
                         objectState.getExtras().put(State.SUB_DATA_STATE_EXTRA_PREFIX + subObjectState.getId(), subObject);
                     }
@@ -2459,7 +2459,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                 i++;
             }
-        
+
             Exception ex = bue.getNextException() != null ? bue.getNextException() : bue;
             LOGGER.error(errorBuilder.toString(), ex);
         }

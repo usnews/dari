@@ -411,8 +411,8 @@ public class SqlVendor {
     private static final Map<SqlIndex, ColumnType> INDEX_TYPES; static {
         Map<SqlIndex, ColumnType> m = new HashMap<SqlIndex, ColumnType>();
         m.put(SqlIndex.LOCATION, ColumnType.POINT);
-        m.put(SqlIndex.REGION, ColumnType.POLYGON);
         m.put(SqlIndex.NUMBER, ColumnType.DOUBLE);
+        m.put(SqlIndex.REGION, ColumnType.POLYGON);
         m.put(SqlIndex.STRING, ColumnType.BYTES_SHORT);
         m.put(SqlIndex.UUID, ColumnType.UUID);
         INDEX_TYPES = m;

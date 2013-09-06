@@ -320,7 +320,7 @@ public enum SqlIndex {
                 if (SqlIndex.Static.getByIndex(index) == SqlIndex.LOCATION) {
                     vendor.appendBindLocation(insertBuilder, null, null);
                 } else if (SqlIndex.Static.getByIndex(index) == SqlIndex.REGION) {
-                    vendor.appendBindRegion(insertBuilder, null, null); 
+                    vendor.appendBindRegion(insertBuilder, null, null);
                 } else {
                     insertBuilder.append("?");
                 }

@@ -241,11 +241,10 @@ public class Region {
         return Region.parseGeoJson(json);
     }
 
-    @SuppressWarnings("unchecked")
     protected static void parseCircles(Region region, List<List<Double>> geo) {
         for (List<Double> c : geo) {
             Double radius = ObjectUtils.to(Double.class, c.get(2));
-            Double lat = ObjectUtils.to(Double.class, c.get(1)); 
+            Double lat = ObjectUtils.to(Double.class, c.get(1));
             Double lng = ObjectUtils.to(Double.class, c.get(0));
 
             Circle circle = new Circle(lat, lng, radius);
@@ -262,14 +261,13 @@ public class Region {
         List<Double> coordinate = (List<Double>) coordinates.get(0);
 
         Circle circle = new Circle(
-                ObjectUtils.to(Double.class, coordinate.get(1)), 
+                ObjectUtils.to(Double.class, coordinate.get(1)),
                 ObjectUtils.to(Double.class, coordinate.get(0)),
                 radius);
 
         region.addCircle(circle);
     }
 
-    @SuppressWarnings("unchecked")
     protected static void parsePolygon(Region region, List<List<List<Double>>> geo) {
         Region.Polygon polygon = new Region.Polygon();
 
@@ -277,10 +275,10 @@ public class Region {
             Region.LinearRing ring = new Region.LinearRing();
 
             for (List<Double> c : r) {
-                Region.Coordinate coordinate = 
-                    new Region.Coordinate(ObjectUtils.to(Double.class, c.get(1)), 
+                Region.Coordinate coordinate =
+                    new Region.Coordinate(ObjectUtils.to(Double.class, c.get(1)),
                                           ObjectUtils.to(Double.class, c.get(0)));
-                
+
                 ring.add(coordinate);
             }
 
@@ -290,13 +288,12 @@ public class Region {
         region.addPolygon(polygon);
     }
 
-    @SuppressWarnings("unchecked")
     protected static void parseMultiPolygon(Region region, List<List<List<List<Double>>>> geo) {
         for (List<List<List<Double>>> p : geo) {
             parsePolygon(region, p);
         }
     }
-     
+
     @SuppressWarnings("unchecked")
     protected static Region parseGeoJson(Map<String, Object> geoJSON) {
         if (geoJSON == null) {
@@ -305,7 +302,7 @@ public class Region {
 
         if (geoJSON.get("polygons") != null) {
             return parseDariGeoJson((List<List<List<List<Double>>>>) geoJSON.get("polygons"));
-        } 
+        }
 
         Region region = Region.empty();
         parseFullGeoJson(region, geoJSON);
@@ -313,7 +310,7 @@ public class Region {
     }
 
     /**
-     * Parses the partial GeoJSON that is stored by Dari in a Database. 
+     * Parses the partial GeoJSON that is stored by Dari in a Database.
      */
     private static Region parseDariGeoJson(List<List<List<List<Double>>>> geoJSON) {
         Region region = Region.empty();
@@ -379,7 +376,7 @@ public class Region {
         }
 
         public MultiPolygon getPolygons() {
-            return Region.locationsFlat(getLatitude(), getLongitude(), radius, 32, true); 
+            return Region.locationsFlat(getLatitude(), getLongitude(), radius, 32, true);
         }
     }
 
@@ -425,5 +422,4 @@ public class Region {
     public String toString() {
         return getGeoJson();
     }
-
 }
