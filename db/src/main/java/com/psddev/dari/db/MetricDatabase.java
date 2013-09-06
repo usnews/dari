@@ -18,17 +18,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.UuidUtils;
-
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
 
 class MetricDatabase {
 
-    //private static final Logger LOGGER = LoggerFactory.getLogger(MetricDatabase.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricDatabase.class);
 
     public static final String METRIC_TABLE = "Metric";
     public static final String METRIC_ID_FIELD = "id";
@@ -904,6 +904,8 @@ class MetricDatabase {
 
         // This is for the occasional race condition when we check for the existence of a row, it does not exist, then two threads try to insert at (almost) the same time.
         private static void tryInsertThenUpdate(SqlDatabase db, Connection connection, String insertSql, List<Object> insertParameters, String updateSql, List<Object> updateParameters) throws SQLException {
+
+            //LOGGER.info("tryInsertThenUpdate: \n("+insertSql+" ("+insertParametersDebug+"); \n"+updateSql+" ("+updateParametersDebug+");)");
             try {
                 SqlDatabase.Static.executeUpdateWithList(connection, insertSql, insertParameters);
             } catch (SQLException ex) {
@@ -911,8 +913,36 @@ class MetricDatabase {
                     // Try the update again, maybe we lost a race condition.
                     if (updateSql != null) {
                         int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
+
+                        ////////////////////////// <DEBUGGING> //////////////////////////////
+                        StringBuilder insertParametersDebug = new StringBuilder();
+                        for (Object param : insertParameters) {
+                            if (ObjectUtils.to(UUID.class, param) != null) {
+                                insertParametersDebug.append(ObjectUtils.to(UUID.class, param));
+                            } else {
+                                insertParametersDebug.append(ObjectUtils.to(String.class, param));
+                            }
+                            insertParametersDebug.append(",");
+                        }
+                        insertParametersDebug.setLength(insertParametersDebug.length()-1);
+                        StringBuilder updateParametersDebug = new StringBuilder();
+                        for (Object param : updateParameters) {
+                            if (ObjectUtils.to(UUID.class, param) != null) {
+                                updateParametersDebug.append(ObjectUtils.to(UUID.class, param));
+                            } else {
+                                updateParametersDebug.append(ObjectUtils.to(String.class, param));
+                            }
+                            updateParametersDebug.append(",");
+                        }
+                        updateParametersDebug.setLength(updateParametersDebug.length()-1);
+                        LOGGER.info("tryInsertThenUpdate \n("+insertSql+" ("+insertParametersDebug+"); \n"+updateSql+" ("+updateParametersDebug+");) \n "+rowsAffected+" rows affected during update.");
+                        ////////////////////////// </DEBUGGING> //////////////////////////////
+
                         if (1 != rowsAffected) {
-                            // If THAT didn't work, of we somehow updated more than one row, just throw the original exception again; it is a legitimate unique key violation
+                            ////////////////////////// <DEBUGGING> //////////////////////////////
+                            LOGGER.error("Error during tryInsertThenUpdate\n ("+insertSql+" ("+insertParametersDebug+"); \n"+updateSql+" ("+updateParametersDebug+");) \n "+rowsAffected+" rows affected during update.");
+                            ////////////////////////// </DEBUGGING> //////////////////////////////
+                            // If THAT didn't work, or we somehow updated more than one row, just throw the original exception again; it is (probably?) a legitimate unique key violation
                             throw ex;
                         }
                     }
