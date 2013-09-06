@@ -97,7 +97,7 @@ public final class Settings {
                     // JNDI.
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
-                    } catch (NamingException error) {
+                    } catch (Throwable error) {
                         LOGGER.warn("Can't read from JNDI!", error);
                     }
 

@@ -3,6 +3,7 @@ package com.psddev.dari.db;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -41,6 +42,7 @@ public class CachingDatabase extends ForwardingDatabase {
     private final ConcurrentMap<Query<?>, Long> readCountCache = new ConcurrentHashMap<Query<?>, Long>();
     private final ConcurrentMap<Query<?>, Object> readFirstCache = new ConcurrentHashMap<Query<?>, Object>();
     private final ConcurrentMap<Query<?>, Map<Range, PaginatedResult<?>>> readPartialCache = new ConcurrentHashMap<Query<?>, Map<Range, PaginatedResult<?>>>();
+    private final ConcurrentMap<UUID, Boolean> idOnlyQueryIds = new ConcurrentHashMap<UUID, Boolean>();
 
     private static class Range {
 
@@ -71,6 +73,15 @@ public class CachingDatabase extends ForwardingDatabase {
         public int hashCode() {
             return ObjectUtils.hashCode(offset, limit);
         }
+    }
+
+    /**
+     * Returns the set of all IDs which were results of ID-only queries.
+     *
+     * @return Never {@code null}. Mutable. Thread-safe.
+     */
+    public Set<UUID> getIdOnlyQueryIds() {
+        return idOnlyQueryIds.keySet();
     }
 
     /**
@@ -158,6 +169,7 @@ public class CachingDatabase extends ForwardingDatabase {
                 UUID valueId = ObjectUtils.to(UUID.class, value);
 
                 if (valueId != null) {
+                    idOnlyQueryIds.put(valueId, true);
                     Object object = findCachedObject(valueId, query);
                     if (object != null) {
                         all.add(object);
@@ -246,6 +258,7 @@ public class CachingDatabase extends ForwardingDatabase {
                 UUID valueId = ObjectUtils.to(UUID.class, value);
 
                 if (valueId != null) {
+                    idOnlyQueryIds.put(valueId, true);
                     Object object = findCachedObject(valueId, query);
 
                     if (object != null) {
@@ -301,6 +314,24 @@ public class CachingDatabase extends ForwardingDatabase {
         }
 
         return (PaginatedResult<T>) result;
+    }
+
+    @Override
+    public void save(State state) {
+        super.save(state);
+        flush();
+    }
+
+    /**
+     * Flush the entire cache. This is executed after every .save() to avoid inconsistent results.
+     */
+    protected void flush() {
+        objectCache.clear();
+        referenceCache.clear();
+        readAllCache.clear();
+        readCountCache.clear();
+        readFirstCache.clear();
+        readPartialCache.clear();
     }
 
     /**

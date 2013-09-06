@@ -120,6 +120,8 @@ abstract class StateValueUtils {
                 if (id != null) {
                     if (circularReferences.containsKey(id)) {
                         references.put(id, circularReferences.get(id));
+                    } else if (parentState != null && parentState.getExtras().containsKey(State.SUB_DATA_STATE_EXTRA_PREFIX + id)) {
+                       references.put(id, parentState.getExtras().get(State.SUB_DATA_STATE_EXTRA_PREFIX + id));
                     } else {
                         unresolvedIds.add(id);
                         unresolvedTypeIds.add(ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get(TYPE_KEY)));
@@ -197,7 +199,7 @@ abstract class StateValueUtils {
             String type,
             Object value) {
 
-        if (value == null) {
+        if (value == null && (field == null || ! field.isMetric())) {
             return null;
         }
 
@@ -404,6 +406,25 @@ abstract class StateValueUtils {
 
                 } else {
                     throw new IllegalArgumentException();
+                }
+            }
+        });
+
+        m.put(ObjectField.METRIC_TYPE, new Converter() {
+            @Override
+            public Object toJavaValue(
+                    Database database,
+                    Object object,
+                    ObjectField field,
+                    String subType,
+                    Object value) {
+
+                if (value instanceof Metric) {
+                    return value;
+
+                } else {
+                    Metric metric = new Metric(State.getInstance(object), field);
+                    return metric;
                 }
             }
         });

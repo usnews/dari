@@ -1,5 +1,7 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -19,6 +21,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.IoUtils;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.UuidUtils;
 
@@ -49,6 +52,76 @@ public class SqlVendor {
 
     public void setDatabase(SqlDatabase database) {
         this.database = database;
+    }
+
+    /**
+     * Returns the path to the resource that contains the SQL statements to
+     * be executed during {@link #setUp}. The default implementation returns
+     * {@code null} to signal that there's nothing to do.
+     *
+     * @return May be {@code null}.
+     */
+    protected String getSetUpResourcePath() {
+        return null;
+    }
+
+    /**
+     * Catches the given {@code error} thrown in {@link #setUp} to be
+     * processed in vendor-specific way. Typically, this is used to ignore
+     * errors when the vendor doesn't natively support that ability (e.g.
+     * {@code CREATE TABLE IF NOT EXISTS}). The default implementation
+     * always rethrows the error.
+     *
+     * @param error Can't be {@code null}.
+     */
+    protected void catchSetUpError(SQLException error) throws SQLException {
+        throw error;
+    }
+
+    /**
+     * Sets up the given {@code database}. This method should create all the
+     * necessary elements, such as tables, that are required for proper
+     * operation. The default implementation executes all SQL statements from
+     * the resource at {@link #getSetUpResourcePath}, and processes the errors
+     * using {@link #catchSetUpError}.
+     *
+     * @param database Can't be {@code null}.
+     */
+    public void setUp(SqlDatabase database) throws IOException, SQLException {
+        String resourcePath = getSetUpResourcePath();
+
+        if (resourcePath == null) {
+            return;
+        }
+
+        InputStream resourceInput = getClass().getClassLoader().getResourceAsStream(resourcePath);
+
+        if (resourceInput == null) {
+            throw new IllegalArgumentException(String.format(
+                    "Can't find [%s] using ClassLoader#getResourceAsStream!",
+                    resourcePath));
+        }
+
+        Connection connection = database.openConnection();
+
+        try {
+            for (String ddl : IoUtils.toString(resourceInput, StringUtils.UTF_8).trim().split("(?:\r\n?|\n){2,}")) {
+                Statement statement = connection.createStatement();
+
+                try {
+                    statement.execute(ddl);
+
+                } catch (SQLException error) {
+                    catchSetUpError(error);
+
+                } finally {
+                    statement.close();
+                }
+            }
+
+        } finally {
+            database.closeConnection(connection);
+        }
     }
 
     public void setTransactionIsolation(Connection connection) throws SQLException {
@@ -245,10 +318,23 @@ public class SqlVendor {
     }
 
     protected String rewriteQueryWithLimitClause(String query, int limit, long offset) {
-        return String.format("%s LIMIT %d OFFSET %d", query, limit, offset);
+        if (query.contains(getLimitOffsetPlaceholder())) {
+            return String.format("%s LIMIT %d", query.replace(getLimitOffsetPlaceholder(), String.format(" LIMIT %d OFFSET %d ", limit, offset)), limit);
+        } else {
+            return String.format("%s LIMIT %d OFFSET %d", query, limit, offset);
+        }
     }
 
-    /** Creates a table using the given parameters. */
+    public String getLimitOffsetPlaceholder() {
+        return "/*__LIMIT_OFFSET__*/";
+    }
+
+    /**
+     * Creates a table using the given parameters.
+     *
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createTable(
             SqlDatabase database,
             String tableName,
@@ -278,7 +364,12 @@ public class SqlVendor {
         executeDdl(database, ddlBuilder);
     }
 
-    /** Creates an index using the given parameters. */
+    /**
+     * Creates an index using the given parameters.
+     *
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createIndex(
             SqlDatabase database,
             String tableName,
@@ -299,6 +390,10 @@ public class SqlVendor {
         executeDdl(database, ddlBuilder);
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createRecord(SqlDatabase database) throws SQLException {
         if (database.hasTable(RECORD_TABLE_NAME)) {
             return;
@@ -323,6 +418,10 @@ public class SqlVendor {
         INDEX_TYPES = m;
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createRecordIndex(
             SqlDatabase database,
             String tableName,
@@ -347,6 +446,10 @@ public class SqlVendor {
         createIndex(database, tableName, Arrays.asList(SqlDatabase.ID_COLUMN), false);
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createRecordUpdate(SqlDatabase database) throws SQLException {
         if (database.hasTable(RECORD_UPDATE_TABLE_NAME)) {
             return;
@@ -362,6 +465,10 @@ public class SqlVendor {
         createIndex(database, RECORD_UPDATE_TABLE_NAME, Arrays.asList(SqlDatabase.UPDATE_DATE_COLUMN), false);
     }
 
+    /**
+     * @deprecated Use {@link #setUp} instead.
+     */
+    @Deprecated
     public void createSymbol(SqlDatabase database) throws SQLException {
         if (database.hasTable(SYMBOL_TABLE_NAME)) {
             return;
@@ -590,6 +697,16 @@ public class SqlVendor {
     public static class H2 extends SqlVendor {
 
         @Override
+        protected String getSetUpResourcePath() {
+            return "h2/schema-11.sql";
+        }
+
+        @Override
+        public void appendIdentifier(StringBuilder builder, String identifier) {
+            builder.append(identifier);
+        }
+
+        @Override
         protected void appendUuid(StringBuilder builder, UUID value) {
             builder.append('\'');
             builder.append(value);
@@ -631,49 +748,57 @@ public class SqlVendor {
 
     public static class MySQL extends SqlVendor {
 
-        private Boolean hasSTMethod;
-        private Boolean hasUdfGetFields;
-        private Boolean hasUdfIncrementMetric;
+        private volatile Boolean statementReplication;
+        private volatile Boolean hasSTMethod;
+        private volatile Boolean hasUdfGetFields;
+        private volatile Boolean hasUdfIncrementMetric;
 
         private static final Logger LOGGER = LoggerFactory.getLogger(MySQL.class);
 
         @Override
         public void setTransactionIsolation(Connection connection) throws SQLException {
-            Statement statement = null;
-            ResultSet result = null;
+            if (statementReplication == null) {
+                Statement statement = connection.createStatement();
 
-            try {
-                statement = connection.createStatement();
-                result = statement.executeQuery("SHOW VARIABLES LIKE 'binlog_format'");
+                try {
+                    ResultSet result = statement.executeQuery("SHOW VARIABLES WHERE variable_name IN ('log_bin', 'binlog_format')");
 
-                if (result.next()) {
-                    String mode = result.getString("Value");
-                    if ("STATEMENT".equalsIgnoreCase(mode)) {
-                        String message =
-                            "Using REPEATABLE READ transaction isolation due to statement-based replication. " +
-                            "This may cause reduced performance under load. Please use mixed-mode replication (Add 'binlog_format = mixed' to my.cnf).";
-                        LOGGER.warn(message);
-                        return;
-                    }
-                }
-
-                connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-            } catch(Exception ex) {
-                LOGGER.warn("Unable to set transaction isolation to READ COMMITTED due to an error", ex);
-                return;
-            } finally {
-                if (result != null) {
                     try {
+                        boolean binLogEnabled = false;
+                        while (result.next()) {
+                            if ("binlog_format".equalsIgnoreCase(result.getString(1))) {
+                                statementReplication = "STATEMENT".equalsIgnoreCase(result.getString(2));
+                            } else if ("log_bin".equalsIgnoreCase(result.getString(1))) {
+                                binLogEnabled = (! "OFF".equalsIgnoreCase(result.getString(2)));
+                            }
+                        }
+                        // Server is using statement replication only if log_bin is not OFF and binlog_format is STATEMENT
+                        statementReplication = (binLogEnabled && (statementReplication != null ? statementReplication : false));
+
+                        if (statementReplication) {
+                            LOGGER.warn(
+                                    "Using REPEATABLE READ transaction isolation due to statement-based replication." +
+                                    " This may cause reduced performance under load." +
+                                    " Please use mixed-mode replication (Add 'binlog_format = mixed' to my.cnf).");
+                        }
+
+                    } finally {
                         result.close();
-                    } catch (SQLException error) { }
-                }
+                    }
 
-                if (statement != null) {
-                    try {
-                        statement.close();
-                    } catch (SQLException error) { }
+                } finally {
+                    statement.close();
                 }
             }
+
+            if (!statementReplication) {
+                connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            }
+        }
+
+        @Override
+        protected String getSetUpResourcePath() {
+            return "mysql/schema-11.sql";
         }
 
         @Override
@@ -1027,7 +1152,7 @@ public class SqlVendor {
                         appendValue(str, MetricDatabase.AMOUNT_BYTE_SIZE);
                     str.append(')');
                 str.append(')');
-            str.append(", 16, 10)");
+            str.append(", 16, -10)");
         }
 
         @Override
@@ -1126,6 +1251,18 @@ public class SqlVendor {
     public static class PostgreSQL extends SqlVendor {
 
         @Override
+        protected String getSetUpResourcePath() {
+            return "postgres/schema-11.sql";
+        }
+
+        @Override
+        protected void catchSetUpError(SQLException error) throws SQLException {
+            if (!Arrays.asList("42P07").contains(error.getSQLState())) {
+                throw error;
+            }
+        }
+
+        @Override
         public void appendIdentifier(StringBuilder builder, String identifier) {
             builder.append(identifier.toLowerCase());
         }
@@ -1143,7 +1280,7 @@ public class SqlVendor {
         @Override
         public void appendValue(StringBuilder builder, Object value) {
             if (value instanceof String) {
-                builder.append("'" + value + "'");
+                builder.append("'" + StringUtils.escapeSql((String) value) + "'");
 
             } else if (value instanceof Location) {
                 Location valueLocation = (Location) value;
@@ -1481,6 +1618,11 @@ public class SqlVendor {
                     "        (%s) a " +
                     "      WHERE ROWNUM <= %d)" +
                     " WHERE rnum  >= %d", query, offset + limit, offset);
+        }
+
+        @Override
+        public String getLimitOffsetPlaceholder() {
+            return "";
         }
 
         @Override

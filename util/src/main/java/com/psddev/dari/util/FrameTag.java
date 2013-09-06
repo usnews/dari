@@ -13,8 +13,15 @@ public class FrameTag extends BodyTagSupport {
     protected static final String CURRENT_NAME_PREFIX = ATTRIBUTE_PREFIX + "currentName";
     protected static final String JS_INCLUDED_PREFIX = ATTRIBUTE_PREFIX + "jsIncluded";
 
+    public enum InsertionMode {
+        replace, // default
+        append,
+        prepend;
+    }
+
     private String name;
     private boolean lazy;
+    private InsertionMode mode;
     private transient String oldName;
 
     public void setName(String name) {
@@ -25,17 +32,15 @@ public class FrameTag extends BodyTagSupport {
         this.lazy = lazy;
     }
 
+    public void setMode(InsertionMode mode) {
+        this.mode = mode;
+    }
+
     // --- TagSupport support ---
 
     private boolean isRenderingFrame(HttpServletRequest request) {
-        return request.getParameter(FrameFilter.PATH_PARAMETER) != null;
-    }
-
-    private void writeScript(HttpServletRequest request, HtmlWriter writer, String source) throws IOException {
-        writer.writeStart("script",
-                "type", "text/javascript",
-                "src", JspUtils.getAbsolutePath(request, source));
-        writer.writeEnd();
+        return request.getParameter(FrameFilter.PATH_PARAMETER) != null &&
+                name.equals(request.getParameter(FrameFilter.NAME_PARAMETER));
     }
 
     private void startFrame(HttpServletRequest request, HtmlWriter writer, String... classNames) throws IOException {
@@ -55,6 +60,7 @@ public class FrameTag extends BodyTagSupport {
         writer.writeStart("div",
                 "class", fullClassName.toString(),
                 "name", name,
+                "data-insertion-mode", mode != null ? mode : InsertionMode.replace,
                 "data-extra-form-data",
                         FrameFilter.PATH_PARAMETER + "=" + StringUtils.encodeUri(JspUtils.getCurrentServletPath(request)) + "&" +
                         FrameFilter.NAME_PARAMETER + "=" + StringUtils.encodeUri(name));
@@ -74,11 +80,48 @@ public class FrameTag extends BodyTagSupport {
                 @SuppressWarnings("all")
                 HtmlWriter writer = new HtmlWriter(pageContext.getOut());
 
-                writeScript(request, writer, "/_resource/jquery2/jquery.extra.js");
-                writeScript(request, writer, "/_resource/jquery2/jquery.popup.js");
-                writeScript(request, writer, "/_resource/jquery2/jquery.frame.js");
+                final String[][] plugins = new String[][] {
+                        //name          path
+                        {"$.plugin2",  "/_resource/jquery2/jquery.extra.js"},
+                        {"$.fn.popup", "/_resource/jquery2/jquery.popup.js"},
+                        {"$.fn.frame", "/_resource/jquery2/jquery.frame.js"},
+                };
+
                 writer.writeStart("script", "type", "text/javascript");
-                    writer.write("$(window.document).frame().ready(function(){$(this).trigger('create');});");
+                    writer.write("(function($, win, undef) {");
+                    writer.write(    "var done = function() {");
+                    writer.write(        "$(window.document).frame({");
+                    writer.write(            "'setBody': function(body) {");
+                    writer.write(                "var insertionMode = $(this).attr('data-insertion-mode');");
+                    writer.write(                "if ('append' === insertionMode) {");
+                    writer.write(                    "$(this).append(body);");
+                    writer.write(                "} else if ('prepend' === insertionMode) {");
+                    writer.write(                    "$(this).prepend(body);");
+                    writer.write(                "} else {"); // 'replace' === insertionMode
+                    writer.write(                    "$(this).html(body);");
+                    writer.write(                "}");
+                    writer.write(            "}");
+                    writer.write(        "}).ready(function() {");
+                    writer.write(            "$(this).trigger('create');");
+                    writer.write(        "});");
+                    writer.write(    "};");
+                    writer.write(    "var deferreds = [];");
+                    for (String[] plugin : plugins) {
+                        writer.write("if (!$.isFunction(" + plugin[0] + ")) {");
+                        writer.write(    "deferreds.push($.getScript('" + JspUtils.getAbsolutePath(request, plugin[1]) + "'));");
+                        writer.write("}");
+                    }
+                    writer.write(    "if (deferreds.length > 0) {");
+                    writer.write(        "deferreds.push($.Deferred(function(deferred) {");
+                    writer.write(            "$(deferred.resolve);");
+                    writer.write(        "}));");
+                    writer.write(        "$.when.apply($, deferreds).done(function() {");
+                    writer.write(            "done();");
+                    writer.write(        "});");
+                    writer.write(    "} else {");
+                    writer.write(        "done();");
+                    writer.write(    "}");
+                    writer.write("}(jQuery, window));");
                 writer.writeEnd();
             }
 

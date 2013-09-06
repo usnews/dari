@@ -44,6 +44,7 @@ public class ObjectField extends Record {
     public static final String LOCATION_TYPE = "location";
     public static final String REGION_TYPE = "region";
     public static final String MAP_TYPE = "map";
+    public static final String METRIC_TYPE = "metric";
     public static final String NUMBER_TYPE = "number";
     public static final String RECORD_TYPE = "record";
     public static final String REFERENTIAL_TEXT_TYPE = "referentialText";
@@ -86,8 +87,9 @@ public class ObjectField extends Record {
         CLASS_TO_TYPE.put(Date.class, DATE_TYPE);
         CLASS_TO_TYPE.put(StorageItem.class, FILE_TYPE);
         CLASS_TO_TYPE.put(Location.class, LOCATION_TYPE);
-        CLASS_TO_TYPE.put(Region.class, REGION_TYPE);
+        CLASS_TO_TYPE.put(Metric.class, METRIC_TYPE);
         CLASS_TO_TYPE.put(Recordable.class, RECORD_TYPE);
+        CLASS_TO_TYPE.put(Region.class, REGION_TYPE);
         CLASS_TO_TYPE.put(ReferentialText.class, REFERENTIAL_TEXT_TYPE);
         CLASS_TO_TYPE.put(String.class, TEXT_TYPE);
         CLASS_TO_TYPE.put(URI.class, URI_TYPE);
@@ -838,6 +840,9 @@ public class ObjectField extends Record {
             if (javaTypeClass.equals(Object.class)) {
                 return ANY_TYPE;
 
+            } else if (javaTypeClass.equals(Metric.class)) {
+                return METRIC_TYPE;
+
             } else if (Recordable.class.isAssignableFrom(javaTypeClass)) {
                 ObjectType type = environment.getTypeByClass(javaTypeClass);
                 if (type != null) {
@@ -1004,9 +1009,10 @@ public class ObjectField extends Record {
     public boolean isMetric() {
         Set<ObjectType> types = getTypes();
 
-        return types != null &&
+        return getInternalItemType().equals(METRIC_TYPE) || 
+                (types != null &&
                 !types.isEmpty() &&
-                Metric.class.equals(types.iterator().next().getObjectClass());
+                Metric.class.equals(types.iterator().next().getObjectClass()));
     }
 
     // --- Object support ---

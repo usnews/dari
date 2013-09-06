@@ -1,17 +1,28 @@
 package com.psddev.dari.db;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.psddev.dari.util.ObjectUtils;
 
 @Metric.Embedded
 public class Metric extends Record {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Metric.class);
+
     private final transient State owner;
     private final transient ObjectField field;
-    private final transient MetricDatabase metricDatabase;
+    private transient MetricDatabase metricDatabase;
 
     /**
      * @param owner Can't be {@code null}.
@@ -20,8 +31,6 @@ public class Metric extends Record {
     public Metric(State owner, ObjectField field) {
         this.owner = owner;
         this.field = field;
-        this.metricDatabase = new MetricDatabase(owner, field.getUniqueName());
-        this.metricDatabase.setEventDateProcessor(field.as(MetricDatabase.FieldData.class).getEventDateProcessor());
     }
 
     /**
@@ -43,6 +52,20 @@ public class Metric extends Record {
     }
 
     /**
+     * Returns the MetricDatabase or throw an exception if it could not find the SQL database. 
+     * 
+     */
+    private MetricDatabase getMetricDatabase() {
+        if (metricDatabase == null) {
+            metricDatabase = MetricDatabase.Static.getMetricDatabase(owner, field);
+        }
+        if (metricDatabase == null) {
+            throw new RuntimeException ("Metric field " +field.getUniqueName()+" cannot determine SQL database for database " + owner.getDatabase().getName() + " (" + owner.getDatabase().getClass().getName() + "), this Metric object is unusable!");
+        }
+        return metricDatabase;
+    }
+
+    /**
      * Increases the metric value by the given {@code amount}.
      */
     public void increment(double amount) {
@@ -58,10 +81,9 @@ public class Metric extends Record {
      */
     public void incrementDimensionAt(double amount, String dimension, DateTime time) {
         try {
-            metricDatabase.setEventDate(time);
-            metricDatabase.incrementMetric(dimension, amount);
+            getMetricDatabase().incrementMetric(owner.getId(), time, dimension, amount);
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.incrementMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.incrementMetric() : " + e.getLocalizedMessage());
         }
     }
 
@@ -79,15 +101,13 @@ public class Metric extends Record {
         if (within <= 0) {
             within = 1.0;
         }
-
-        metricDatabase.setEventDate(time);
         UUID dimensionId;
         try {
-            dimensionId = metricDatabase.getDimensionId(dimension);
+            dimensionId = getMetricDatabase().getDimensionId(dimension);
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getDimensionId() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.getDimensionId() : " + e.getLocalizedMessage());
         }
-        MetricIncrementQueue.queueIncrement(metricDatabase, dimensionId, amount, within);
+        MetricIncrementQueue.queueIncrement(getOwner().getId(), dimensionId, time, getMetricDatabase(), amount, within);
     }
 
     /**
@@ -99,9 +119,10 @@ public class Metric extends Record {
      */
     public DateTime getLastDimensionUpdate(String dimension) {
         try {
-            return metricDatabase.getLastUpdate(dimension);
+            Static.preFetchMetrics(getOwner(), getMetricDatabase().getDimensionId(dimension), null, null);
+            return getMetricDatabase().getLastUpdate(getOwner().getId(), dimension);
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getLastUpdate() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.getLastUpdate() : " + e.getLocalizedMessage());
         }
     }
 
@@ -123,19 +144,18 @@ public class Metric extends Record {
      */
     public void setDimensionAt(double amount, String dimension, DateTime time) {
         try {
-            metricDatabase.setEventDate(time);
-            metricDatabase.setMetric(dimension, amount);
+            getMetricDatabase().setMetric(getOwner().getId(), time, dimension, amount);
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.setMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.setMetric() : " + e.getLocalizedMessage());
         }
     }
 
     /** Deletes all metric values. */
     public void deleteAll() {
         try {
-            metricDatabase.deleteMetric();
+            getMetricDatabase().deleteMetric(getOwner().getId());
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.deleteMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.deleteMetric() : " + e.getLocalizedMessage());
         }
     }
 
@@ -149,11 +169,13 @@ public class Metric extends Record {
      */
     public double getByDimensionBetween(String dimension, DateTime start, DateTime end) {
         try {
-            metricDatabase.setQueryDateRange(start, end);
-            Double metricValue = metricDatabase.getMetric(dimension);
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            Static.preFetchMetrics(getOwner(), getMetricDatabase().getDimensionId(dimension), startTimestamp, endTimestamp);
+            Double metricValue = getMetricDatabase().getMetric(getOwner().getId(), dimension, startTimestamp, endTimestamp);
             return metricValue == null ? 0.0 : metricValue;
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
         }
     }
 
@@ -194,11 +216,12 @@ public class Metric extends Record {
      */
     public Map<String, Double> groupByDimensionBetween(DateTime start, DateTime end) {
         try {
-            metricDatabase.setQueryDateRange(start, end);
-            Map<String, Double> metricValues = metricDatabase.getMetricValues();
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            Map<String, Double> metricValues = getMetricDatabase().getMetricValues(getOwner().getId(), startTimestamp, endTimestamp);
             return metricValues;
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetric() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.getMetricValues() : " + e.getLocalizedMessage());
         }
     }
 
@@ -223,11 +246,12 @@ public class Metric extends Record {
      */
     public Map<DateTime, Double> groupByDate(String dimension, MetricInterval interval, DateTime start, DateTime end) {
         try {
-            metricDatabase.setQueryDateRange(start, end);
-            Map<DateTime, Double> metricTimeline = metricDatabase.getMetricTimeline(dimension, interval);
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            Map<DateTime, Double> metricTimeline = getMetricDatabase().getMetricTimeline(getOwner().getId(), dimension, startTimestamp, endTimestamp, interval);
             return metricTimeline;
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.getMetricTimeline() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.getMetricTimeline() : " + e.getLocalizedMessage());
         }
     }
 
@@ -251,9 +275,9 @@ public class Metric extends Record {
      */
     public void repair() {
         try {
-            metricDatabase.reconstructCumulativeAmounts();
+            getMetricDatabase().reconstructCumulativeAmounts(getOwner().getId());
         } catch (SQLException e) {
-            throw new DatabaseException(metricDatabase.getDatabase(), "Error in MetricDatabase.reconstructCumulativeAmounts() : " + e.getLocalizedMessage());
+            throw new DatabaseException(getMetricDatabase().getDatabase(), "Error in MetricDatabase.reconstructCumulativeAmounts() : " + e.getLocalizedMessage());
         }
     }
 
@@ -288,5 +312,40 @@ public class Metric extends Record {
         return getByDimensionBetween(null, null, null);
     }
 
+    public static class Static {
+
+        private static final String EXTRA_METRICS_FETCHED_PREFIX = "dari.metric.preFetched.";
+
+        private static void preFetchMetrics(State state, UUID dimensionId, Long startTimestamp, Long endTimestamp) {
+            if (state == null || state.getType() == null) {
+                return;
+            }
+            String extraKey = EXTRA_METRICS_FETCHED_PREFIX + ObjectUtils.to(String.class, dimensionId) + '.' + ObjectUtils.to(String.class, startTimestamp) + '.' + ObjectUtils.to(String.class, endTimestamp);
+            if (state.getExtra(extraKey) != null && ((Boolean) state.getExtra(extraKey)) == true) {
+                return;
+            }
+            state.getExtras().put(extraKey, true);
+            List<ObjectField> fields = new ArrayList<ObjectField>(state.getType().getMetricFields());
+            fields.addAll(state.getDatabase().getEnvironment().getMetricFields());
+            Set<MetricDatabase> metricDatabases = new HashSet<MetricDatabase>();
+            for (ObjectField field : fields) {
+                MetricDatabase mdb = MetricDatabase.Static.getMetricDatabase(state, field);
+                if (mdb != null) {
+                    metricDatabases.add(mdb);
+                }
+            }
+            doDatabasePreFetch(state.getId(), dimensionId, startTimestamp, endTimestamp, metricDatabases);
+        }
+
+        private static void doDatabasePreFetch(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricDatabase> metricDatabases) {
+            if (metricDatabases.isEmpty()) return;
+            try{
+                MetricDatabase.Static.preFetchMetricSums(id, dimensionId, startTimestamp, endTimestamp, metricDatabases);
+            } catch (SQLException ex) {
+                LOGGER.warn("Exception when prefetching Metrics for object "+id+": " + ex.getLocalizedMessage());
+            }
+        }
+
+    }
 
 }

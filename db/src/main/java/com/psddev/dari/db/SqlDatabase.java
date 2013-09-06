@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -44,8 +45,8 @@ import org.iq80.snappy.Snappy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Suppliers;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.jolbox.bonecp.BoneCPDataSource;
@@ -77,6 +78,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String READ_JDBC_PASSWORD_SETTING = "readJdbcPassword";
     public static final String READ_JDBC_POOL_SIZE_SETTING = "readJdbcPoolSize";
 
+    public static final String CATALOG_SUB_SETTING = "catalog";
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
@@ -108,6 +110,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
 
+    public static final String SUB_DATA_COLUMN_ALIAS_PREFIX = "subData_";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
     private static final String SHORT_NAME = "SQL";
     private static final Stats STATS = new Stats(SHORT_NAME);
@@ -125,6 +129,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private volatile DataSource dataSource;
     private volatile DataSource readDataSource;
+    private volatile String catalog;
+    private volatile transient String defaultCatalog;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
@@ -216,6 +222,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     }
 
                     try {
+                        defaultCatalog = connection.getCatalog();
                         DatabaseMetaData meta = connection.getMetaData();
                         String vendorName = meta.getDatabaseProductName();
                         Class<? extends SqlVendor> vendorClass = VENDOR_CLASSES.get(vendorName);
@@ -236,25 +243,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 symbols.invalidate();
 
                 if (writable) {
-                    vendor.createRecord(this);
-                    vendor.createRecordUpdate(this);
-                    vendor.createSymbol(this);
-
-                    for (SqlIndex index : SqlIndex.values()) {
-                        if (index != SqlIndex.CUSTOM) {
-                            vendor.createRecordIndex(
-                                    this,
-                                    index.getReadTable(this, null).getName(this, null),
-                                    index);
-                        }
-                    }
-
+                    vendor.setUp(this);
                     tableNames.refresh();
                     symbols.invalidate();
                 }
 
-            } catch (SQLException ex) {
-                throw new SqlDatabaseException(this, "Can't check for required tables!", ex);
+            } catch (IOException error) {
+                throw new IllegalStateException(error);
+
+            } catch (SQLException error) {
+                throw new SqlDatabaseException(this, "Can't check for required tables!", error);
             }
         }
     }
@@ -267,6 +265,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** Sets the JDBC data source used exclusively for read operations. */
     public void setReadDataSource(DataSource readDataSource) {
         this.readDataSource = readDataSource;
+    }
+
+    public String getCatalog() {
+        return catalog;
+    }
+
+    public void setCatalog(String catalog) {
+        this.catalog = catalog;
+
+        try {
+            getVendor().setUp(this);
+            tableNames.refresh();
+            symbols.invalidate();
+
+        } catch (IOException error) {
+            throw new IllegalStateException(error);
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't check for required tables!", error);
+        }
     }
 
     /** Returns the vendor-specific SQL engine information. */
@@ -790,9 +808,29 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
 
         ResultSetMetaData meta = resultSet.getMetaData();
+        Object subId = null, subTypeId = null;
+        byte[] subData;
+
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
-            if (query.getExtraSourceColumns().containsKey(columnName)) {
+            if (columnName.startsWith(SUB_DATA_COLUMN_ALIAS_PREFIX)) {
+                if (columnName.endsWith("_"+ID_COLUMN)) {
+                    subId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+TYPE_ID_COLUMN)) {
+                    subTypeId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+DATA_COLUMN)) {
+                    subData = resultSet.getBytes(i);
+                    if (subId != null && subTypeId != null && subData != null && ! subId.equals(objectState.getId())) {
+                        Object subObject = createSavedObject(subTypeId, subId, query);
+                        State subObjectState = State.getInstance(subObject);
+                        subObjectState.setValues(unserializeData(subData));
+                        subId = null; 
+                        subTypeId = null; 
+                        subData = null;
+                        objectState.getExtras().put(State.SUB_DATA_STATE_EXTRA_PREFIX + subObjectState.getId(), subObject);
+                    }
+                }
+            } else if (query.getExtraSourceColumns().containsKey(columnName)) {
                 objectState.put(query.getExtraSourceColumns().get(columnName), resultSet.getObject(i));
             } else {
                 objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
@@ -806,21 +844,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
-        // Set up Metric fields
-        for (ObjectField field : getEnvironment().getMetricFields()) {
-            objectState.put(field.getInternalName(), new Metric(objectState, field));
-        }
-
         if (type != null) {
-            for (ObjectField field : type.getMetricFields()) {
-                objectState.put(field.getInternalName(), new Metric(objectState, field));
-            }
-
             if ((unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
                 !queryTypes.contains(type)) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
 
                     if (fieldData.isIndexTableSource() && !field.isMetric()) {
                         loadExtraFields.add(field);
@@ -1192,16 +1220,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = dataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(dataSource);
+
             connection.setReadOnly(false);
+
             if (vendor != null) {
                 vendor.setTransactionIsolation(connection);
             }
+
             return connection;
 
         } catch (SQLException error) {
             throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
+    }
+
+    private Connection getConnectionFromDataSource(DataSource dataSource) throws SQLException {
+        Connection connection = dataSource.getConnection();
+        String catalog = getCatalog();
+
+        if (catalog != null) {
+            connection.setCatalog(catalog);
+        }
+
+        return connection;
     }
 
     @Override
@@ -1217,7 +1259,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = readDataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(readDataSource);
+
             connection.setReadOnly(true);
             return connection;
 
@@ -1253,7 +1296,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public void closeConnection(Connection connection) {
         if (connection != null) {
             try {
+                if (defaultCatalog != null) {
+                    String catalog = getCatalog();
+
+                    if (catalog != null) {
+                        connection.setCatalog(defaultCatalog);
+                    }
+                }
+
                 connection.close();
+
             } catch (SQLException error) {
                 // Not likely and probably harmless.
             }
@@ -1289,6 +1341,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 JDBC_USER_SETTING,
                 JDBC_PASSWORD_SETTING,
                 JDBC_POOL_SIZE_SETTING));
+
+        setCatalog(ObjectUtils.to(String.class, settings.get(CATALOG_SUB_SETTING)));
 
         String vendorClassName = ObjectUtils.to(String.class, settings.get(VENDOR_CLASS_SETTING));
         Class<?> vendorClass = null;
