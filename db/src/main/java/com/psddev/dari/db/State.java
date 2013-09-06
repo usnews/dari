@@ -1315,11 +1315,6 @@ public class State implements Map<String, Object> {
      * Instantiate all Metric objects.
      */
     private void resolveMetricReferences(Map<String, Object> map) {
-
-        for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
-            map.put(metricField.getInternalName(), new Metric(this, metricField));
-        }
-
         for (Object obj : linkedObjects.values()) {
             ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
             if (type != null) {
@@ -1327,6 +1322,10 @@ public class State implements Map<String, Object> {
                     map.put(metricField.getInternalName(), new Metric(this, metricField));
                 }
             }
+        }
+
+        for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
+            map.put(metricField.getInternalName(), new Metric(this, metricField));
         }
     }
 
