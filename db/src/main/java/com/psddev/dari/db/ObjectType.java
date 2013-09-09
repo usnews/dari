@@ -243,7 +243,8 @@ public class ObjectType extends Record implements ObjectStruct {
      * the given {@code modificationClass}.
      */
     public static void modifyAll(Database database, Class<?> modificationClass) {
-        if (Modifier.isAbstract(modificationClass.getModifiers())) {
+        if (Modification.class.isAssignableFrom(modificationClass) &&
+                Modifier.isAbstract(modificationClass.getModifiers())) {
             return;
         }
 
@@ -881,7 +882,8 @@ public class ObjectType extends Record implements ObjectStruct {
      */
     @SuppressWarnings("deprecation")
     public void modify(Class<?> modificationClass) {
-        if (Modifier.isAbstract(modificationClass.getModifiers())) {
+        if (Modification.class.isAssignableFrom(modificationClass) &&
+                Modifier.isAbstract(modificationClass.getModifiers())) {
             return;
         }
 
