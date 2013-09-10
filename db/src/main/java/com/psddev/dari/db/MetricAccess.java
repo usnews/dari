@@ -318,6 +318,10 @@ class MetricAccess {
         return dimensionId;
     }
 
+    static class UpdateFailedException extends Exception {
+        private static final long serialVersionUID = 1L;
+    }
+
     /** {@link MetricAccess} utility methods. */
     public static final class Static {
 
@@ -619,6 +623,47 @@ class MetricAccess {
             return updateBuilder.toString();
         }
 
+        private static String getRepairTypeIdSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, UUID dimensionId, int symbolId, long eventDate) {
+                // String repairSql = getRepairTypeIdSql(db, repairParameters, id, typeId, symbolId, eventDate);
+            StringBuilder updateBuilder = new StringBuilder("UPDATE ");
+            SqlVendor vendor = db.getVendor();
+            vendor.appendIdentifier(updateBuilder, METRIC_TABLE);
+            updateBuilder.append(" SET ");
+
+            vendor.appendIdentifier(updateBuilder, METRIC_TYPE_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, typeId, parameters);
+
+            updateBuilder.append(" WHERE ");
+            vendor.appendIdentifier(updateBuilder, METRIC_ID_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, id, parameters);
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_SYMBOL_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, symbolId, parameters);
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_DIMENSION_FIELD);
+            updateBuilder.append(" = ");
+            vendor.appendBindValue(updateBuilder, dimensionId, parameters);
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
+            updateBuilder.append(" >= ");
+            vendor.appendMetricEncodeTimestampSql(updateBuilder, null, eventDate, '0');
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
+            updateBuilder.append(" <= ");
+            vendor.appendMetricEncodeTimestampSql(updateBuilder, null, eventDate, 'F');
+
+
+            return updateBuilder.toString();
+        }
+
+
         private static String getFixDataRowSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, int symbolId, UUID dimensionId, long eventDate, double cumulativeAmount, double amount) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
@@ -897,13 +942,19 @@ class MetricAccess {
                     }
                 }
 
+            } catch (UpdateFailedException e) {
+                // There is an existing row that has the wrong type ID (bad data). Repair it and try again.
+                List<Object> repairParameters = new ArrayList<Object>();
+                String repairSql = getRepairTypeIdSql(db, repairParameters, id, typeId, dimensionId, symbolId, eventDate);
+                SqlDatabase.Static.executeUpdateWithList(connection, repairSql, repairParameters);
+                doIncrementUpdateOrInsert(db, id, typeId, symbolId, dimensionId, incrementAmount, eventDate, isImplicitEventDate);
             } finally {
                 db.closeConnection(connection);
             }
         }
 
         // This is for the occasional race condition when we check for the existence of a row, it does not exist, then two threads try to insert at (almost) the same time.
-        private static void tryInsertThenUpdate(SqlDatabase db, Connection connection, String insertSql, List<Object> insertParameters, String updateSql, List<Object> updateParameters) throws SQLException {
+        private static void tryInsertThenUpdate(SqlDatabase db, Connection connection, String insertSql, List<Object> insertParameters, String updateSql, List<Object> updateParameters) throws SQLException, UpdateFailedException {
             try {
                 SqlDatabase.Static.executeUpdateWithList(connection, insertSql, insertParameters);
             } catch (SQLException ex) {
@@ -911,33 +962,9 @@ class MetricAccess {
                     // Try the update again, maybe we lost a race condition.
                     if (updateSql != null) {
                         int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
-
                         if (0 == rowsAffected) {
-                            // Something very strange happened; we got a PK exception *and* the subsequent update affected 0 rows, so try the insert again and let it throw the exception if it fails.
-
-                            StringBuilder insertParametersDebug = new StringBuilder();
-                            for (Object param : insertParameters) {
-                                if (ObjectUtils.to(UUID.class, param) != null) {
-                                    insertParametersDebug.append(ObjectUtils.to(UUID.class, param));
-                                } else {
-                                    insertParametersDebug.append(ObjectUtils.to(String.class, param));
-                                }
-                                insertParametersDebug.append(",");
-                            }
-                            insertParametersDebug.setLength(insertParametersDebug.length()-1);
-                            StringBuilder updateParametersDebug = new StringBuilder();
-                            for (Object param : updateParameters) {
-                                if (ObjectUtils.to(UUID.class, param) != null) {
-                                    updateParametersDebug.append(ObjectUtils.to(UUID.class, param));
-                                } else {
-                                    updateParametersDebug.append(ObjectUtils.to(String.class, param));
-                                }
-                                updateParametersDebug.append(",");
-                            }
-                            updateParametersDebug.setLength(updateParametersDebug.length()-1);
-
-                            LOGGER.warn("0 rows affected with update parameters ["+updateParametersDebug+"]; Retrying insert with parameters [" + insertParametersDebug + "]");
-                            SqlDatabase.Static.executeUpdateWithList(connection, insertSql, insertParameters);
+                            // The only practical way this query updated 0 rows is if there is an existing row with the wrong typeId.
+                            throw new UpdateFailedException();
                         }
                     }
                 } else {
@@ -1287,6 +1314,9 @@ class MetricAccess {
             Database db = state.getDatabase();
             if (db == null) return null;
             StringBuilder keyBuilder = new StringBuilder(db.getName());
+            keyBuilder.append(':');
+            // For some reason metrics are being created with the wrong typeId; make sure a new typeId busts the cache
+            keyBuilder.append(state.getTypeId()); 
             keyBuilder.append(':');
             keyBuilder.append(field.getUniqueName());
             keyBuilder.append(':');
