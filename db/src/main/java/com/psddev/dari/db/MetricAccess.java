@@ -26,9 +26,9 @@ import com.google.common.cache.CacheBuilder;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.UuidUtils;
 
-class MetricDatabase {
+class MetricAccess {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MetricDatabase.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricAccess.class);
 
     public static final String METRIC_TABLE = "Metric";
     public static final String METRIC_ID_FIELD = "id";
@@ -56,7 +56,7 @@ class MetricDatabase {
 
     private static final transient Cache<String, UUID> dimensionCache = CacheBuilder.newBuilder().maximumSize(DIMENSION_CACHE_SIZE).build();
 
-    private static final ConcurrentMap<String, MetricDatabase> metricDatabases = new ConcurrentHashMap<String, MetricDatabase>();
+    private static final ConcurrentMap<String, MetricAccess> metricAccesses = new ConcurrentHashMap<String, MetricAccess>();
 
     private final String symbol;
     private final SqlDatabase db;
@@ -64,7 +64,7 @@ class MetricDatabase {
 
     private MetricInterval eventDateProcessor;
 
-    public MetricDatabase(SqlDatabase database, UUID typeId, String symbol, MetricInterval interval) {
+    public MetricAccess(SqlDatabase database, UUID typeId, String symbol, MetricInterval interval) {
         this.db = database;
         this.typeId = typeId;
         this.symbol = symbol;
@@ -261,7 +261,7 @@ class MetricDatabase {
     public void setMetricByDimensionId(UUID id, DateTime time, UUID dimensionId, Double amount) throws SQLException {
         // This only works if we're not tracking eventDate
         if (getEventDate(time) != 0L) {
-            throw new RuntimeException("MetricDatabase.setMetric() can only be used if EventDateProcessor is None");
+            throw new RuntimeException("MetricAccess.setMetric() can only be used if EventDateProcessor is None");
         }
         Static.doSetUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), dimensionId, amount, 0L);
         if (! dimensionId.equals(UuidUtils.ZERO_UUID)) {
@@ -296,7 +296,7 @@ class MetricDatabase {
                 }
                 dimensionCache.put(dimensionValue, dimensionId);
             } catch (SQLException e) {
-                throw new DatabaseException(db, "Error in MetricDatabase.getDimensionIdByValue() : " + e.getLocalizedMessage());
+                throw new DatabaseException(db, "Error in MetricAccess.getDimensionIdByValue() : " + e.getLocalizedMessage());
             }
         }
         return dimensionId;
@@ -318,7 +318,7 @@ class MetricDatabase {
         return dimensionId;
     }
 
-    /** {@link MetricDatabase} utility methods. */
+    /** {@link MetricAccess} utility methods. */
     public static final class Static {
 
         // Methods that generate SQL statements
@@ -955,7 +955,7 @@ class MetricDatabase {
         private static void doSetUpdateOrInsert(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, double amount, long eventDate) throws SQLException {
             Connection connection = db.openConnection();
             if (eventDate != 0L) {
-                throw new RuntimeException("MetricDatabase.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
+                throw new RuntimeException("MetricAccess.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
             }
             try {
                 List<Object> parameters = new ArrayList<Object>();
@@ -1214,21 +1214,21 @@ class MetricDatabase {
             return null;
         }
 
-        public static void preFetchMetricSums(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricDatabase> metricDatabases) throws SQLException {
-            if (metricDatabases.isEmpty()) return;
+        public static void preFetchMetricSums(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricAccess> metricAccesses) throws SQLException {
+            if (metricAccesses.isEmpty()) return;
             CachingDatabase cachingDb = getCachingDatabase();
             if (cachingDb == null) return;
-            Iterator<MetricDatabase> iter = metricDatabases.iterator();
-            MetricDatabase mdb = iter.next();
-            UUID typeId = mdb.getTypeId();
-            SqlDatabase db = mdb.getDatabase();
-            Map<Integer, MetricDatabase> mdbBySymbolId = new HashMap<Integer, MetricDatabase>();
+            Iterator<MetricAccess> iter = metricAccesses.iterator();
+            MetricAccess ma = iter.next();
+            UUID typeId = ma.getTypeId();
+            SqlDatabase db = ma.getDatabase();
+            Map<Integer, MetricAccess> maBySymbolId = new HashMap<Integer, MetricAccess>();
             StringBuilder symbolIdsString = new StringBuilder();
             do {
-                symbolIdsString.append(mdb.getSymbolId());
+                symbolIdsString.append(ma.getSymbolId());
                 symbolIdsString.append(',');
-                mdbBySymbolId.put(mdb.getSymbolId(), mdb);
-            } while (iter.hasNext() && (mdb = iter.next()) != null);
+                maBySymbolId.put(ma.getSymbolId(), ma);
+            } while (iter.hasNext() && (ma = iter.next()) != null);
             symbolIdsString.setLength(symbolIdsString.length()-1);
 
             boolean selectMinData = true;
@@ -1259,12 +1259,12 @@ class MetricDatabase {
                                 minData = null;
                                 symbolId = result.getInt(2);
                             }
-                            MetricDatabase metricDb = mdbBySymbolId.get(symbolId);
+                            MetricAccess metricAccess = maBySymbolId.get(symbolId);
                             if (selectMinData) {
-                                metricDb.putCachedData(cachingDb, id, dimensionId, startTimestamp, minData, CACHE_MIN);
+                                metricAccess.putCachedData(cachingDb, id, dimensionId, startTimestamp, minData, CACHE_MIN);
                             }
-                            metricDb.putCachedData(cachingDb, id, dimensionId, endTimestamp, maxData, CACHE_MAX);
-                            metricDatabases.remove(metricDb);
+                            metricAccess.putCachedData(cachingDb, id, dimensionId, endTimestamp, maxData, CACHE_MAX);
+                            metricAccesses.remove(metricAccess);
                         }
                     } finally {
                         result.close();
@@ -1277,18 +1277,18 @@ class MetricDatabase {
             }
 
             // If we did not find data, we still need to cache that fact.
-            iter = metricDatabases.iterator();
+            iter = metricAccesses.iterator();
             while (iter.hasNext()) {
-                MetricDatabase metricDb = iter.next();
+                MetricAccess metricAccess = iter.next();
                 if (selectMinData) {
-                    metricDb.putCachedData(cachingDb, id, dimensionId, startTimestamp, null, CACHE_MIN);
+                    metricAccess.putCachedData(cachingDb, id, dimensionId, startTimestamp, null, CACHE_MIN);
                 }
-                metricDb.putCachedData(cachingDb, id, dimensionId, endTimestamp, null, CACHE_MAX);
+                metricAccess.putCachedData(cachingDb, id, dimensionId, endTimestamp, null, CACHE_MAX);
             }
 
         }
 
-        public static MetricDatabase getMetricDatabase(State state, ObjectField field) {
+        public static MetricAccess getMetricAccess(State state, ObjectField field) {
             if (state == null || field == null) return null;
             Database db = state.getDatabase();
             if (db == null) return null;
@@ -1296,10 +1296,10 @@ class MetricDatabase {
             keyBuilder.append(':');
             keyBuilder.append(field.getUniqueName());
             keyBuilder.append(':');
-            keyBuilder.append(field.as(MetricDatabase.FieldData.class).getEventDateProcessorClassName());
-            String mdbKey = keyBuilder.toString();
-            MetricDatabase metricDb = metricDatabases.get(mdbKey);
-            if (metricDb == null) {
+            keyBuilder.append(field.as(MetricAccess.FieldData.class).getEventDateProcessorClassName());
+            String maKey = keyBuilder.toString();
+            MetricAccess metricAccess = metricAccesses.get(maKey);
+            if (metricAccess == null) {
                 SqlDatabase sqlDb = null;
                 while (db instanceof ForwardingDatabase) {
                     db = ((ForwardingDatabase) db).getDelegate();
@@ -1314,11 +1314,11 @@ class MetricDatabase {
                     }
                 }
                 if (sqlDb != null) {
-                    metricDb = new MetricDatabase(sqlDb, state.getTypeId(), field.getUniqueName(), field.as(MetricDatabase.FieldData.class).getEventDateProcessor());
-                    metricDatabases.put(mdbKey, metricDb);
+                    metricAccess = new MetricAccess(sqlDb, state.getTypeId(), field.getUniqueName(), field.as(MetricAccess.FieldData.class).getEventDateProcessor());
+                    metricAccesses.put(maKey, metricAccess);
                 }
             }
-            return metricDb;
+            return metricAccess;
         }
 
         public static CachingDatabase getCachingDatabase() {
