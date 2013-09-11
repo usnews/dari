@@ -106,8 +106,11 @@ public abstract class ObjectUtils {
     /**
      * Returns the first non-{@code null} value among the given
      * {@code values}.
+     *
+     * @param values If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
      */
-    public static <T> T coalesce(T... values) {
+    public static <T> T firstNonNull(T... values) {
         if (values != null) {
             for (T value : values) {
                 if (value != null) {
@@ -115,7 +118,38 @@ public abstract class ObjectUtils {
                 }
             }
         }
+
         return null;
+    }
+
+    /**
+     * Returns the first non-{@link #isBlank blank} value among the given
+     * {@code values}.
+     *
+     * @param values If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public static <T> T firstNonBlank(T... values) {
+        if (values != null) {
+            for (T value : values) {
+                if (!ObjectUtils.isBlank(value)) {
+                    return value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the first non-{@code null} value among the given
+     * {@code values}.
+     *
+     * @deprecated Use {@link #firstNonNull} instead.
+     */
+    @Deprecated
+    public static <T> T coalesce(T... values) {
+        return firstNonNull(values);
     }
 
     /**
