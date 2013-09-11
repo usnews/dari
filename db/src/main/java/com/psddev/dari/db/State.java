@@ -1646,7 +1646,11 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
-                resolveMetricReferences(rawValues);
+                Map<String,Object> metricObjects = new HashMap<String, Object>();
+                resolveMetricReferences(metricObjects);
+                for (Map.Entry<? extends String, ? extends Object> e : metricObjects.entrySet()) {
+                    put(e.getKey(), e.getValue());
+                }
                 flags &= ~ALL_RESOLVED_FLAG;
                 return;
 
