@@ -16,25 +16,25 @@ final class MetricIncrementQueue {
 
     private static final ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements = new ConcurrentHashMap<String, QueuedMetricIncrement>();;
 
-    public static void queueIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase, double amount, double withinSeconds) {
+    public static void queueIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount, double withinSeconds) {
 
-        putInMap(id, dimensionId, eventDate, metricDatabase, amount);
+        putInMap(id, dimensionId, eventDate, metricAccess, amount);
 
         // If the task is already running or has been scheduled, this won't do anything.
         MetricIncrementQueueTask.getInstance(queuedIncrements).schedule(withinSeconds);
 
     }
 
-    private static void putInMap(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase, double amount) {
+    private static void putInMap(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount) {
 
-        String key = getKey(id, dimensionId, eventDate, metricDatabase);
-        QueuedMetricIncrement placeholder = new QueuedMetricIncrement(id, dimensionId, eventDate, metricDatabase, 0d);
+        String key = getKey(id, dimensionId, eventDate, metricAccess);
+        QueuedMetricIncrement placeholder = new QueuedMetricIncrement(id, dimensionId, eventDate, metricAccess, 0d);
         while (true) {
             QueuedMetricIncrement current = queuedIncrements.putIfAbsent(key, placeholder);
             if (current == null) {
                 current = placeholder;
             }
-            QueuedMetricIncrement next = new QueuedMetricIncrement(id, dimensionId, eventDate, metricDatabase, current.amount + amount);
+            QueuedMetricIncrement next = new QueuedMetricIncrement(id, dimensionId, eventDate, metricAccess, current.amount + amount);
             if (queuedIncrements.replace(key, current, next)) {
                 return;
             } else {
@@ -44,13 +44,13 @@ final class MetricIncrementQueue {
 
     }
 
-    private static String getKey(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase) {
+    private static String getKey(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess) {
         StringBuilder str = new StringBuilder();
         str.append(id);
         str.append(':');
-        str.append(metricDatabase.getTypeId());
+        str.append(metricAccess.getTypeId());
         str.append(':');
-        str.append(metricDatabase.getSymbolId());
+        str.append(metricAccess.getSymbolId());
         str.append(':');
         if (eventDate != null) {
             str.append(eventDate.getMillis());
@@ -66,14 +66,14 @@ class QueuedMetricIncrement {
     public final UUID id;
     public final UUID dimensionId;
     public final DateTime eventDate;
-    public final MetricDatabase metricDatabase;
+    public final MetricAccess metricAccess;
     public final double amount;
 
-    public QueuedMetricIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricDatabase metricDatabase, double amount) {
+    public QueuedMetricIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount) {
         this.id = id;
         this.dimensionId = dimensionId;
         this.eventDate = eventDate;
-        this.metricDatabase = metricDatabase;
+        this.metricAccess = metricAccess;
         this.amount = amount;
     }
 
@@ -84,7 +84,7 @@ class QueuedMetricIncrement {
         } else {
             QueuedMetricIncrement otherIncr = (QueuedMetricIncrement) other;
             if (this.amount == otherIncr.amount &&
-                this.metricDatabase.equals(otherIncr.metricDatabase) &&
+                this.metricAccess.equals(otherIncr.metricAccess) &&
                 this.dimensionId.equals(otherIncr.dimensionId) &&
                 ((this.eventDate == null && otherIncr.eventDate == null) || (this.eventDate != null && this.eventDate.equals(otherIncr.eventDate))) &&
                 this.id.equals(otherIncr.id)) {
@@ -123,10 +123,10 @@ class MetricIncrementQueueTask extends Task {
             String key = queuedIncrements.keySet().iterator().next();
             QueuedMetricIncrement queuedIncrement = queuedIncrements.remove(key);
             try {
-                queuedIncrement.metricDatabase.incrementMetricByDimensionId(queuedIncrement.id, queuedIncrement.eventDate, queuedIncrement.dimensionId, queuedIncrement.amount);
+                queuedIncrement.metricAccess.incrementMetricByDimensionId(queuedIncrement.id, queuedIncrement.eventDate, queuedIncrement.dimensionId, queuedIncrement.amount);
             } catch (SQLException ex) {
                 LOGGER.error("SQLException during incrementMetricByDimensionId: " + ex.getLocalizedMessage());
-                throw new DatabaseException(queuedIncrement.metricDatabase.getDatabase(), "SQLException during MetricDatabase.incrementMetricByDimensionId", ex);
+                throw new DatabaseException(queuedIncrement.metricAccess.getDatabase(), "SQLException during MetricAccess.incrementMetricByDimensionId", ex);
             }
         }
 

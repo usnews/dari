@@ -1191,14 +1191,14 @@ class SqlQuery {
         String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         selectBuilder.insert(7, "MIN(r.data) minData, MAX(r.data) maxData, "); // Right after "SELECT " (7 chars)
-        fromBuilder.insert(0, "FROM "+MetricDatabase.METRIC_TABLE+" r ");
-        whereBuilder.append(" AND r."+MetricDatabase.METRIC_SYMBOL_FIELD+" = ");
+        fromBuilder.insert(0, "FROM "+MetricAccess.METRIC_TABLE+" r ");
+        whereBuilder.append(" AND r."+MetricAccess.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
             whereBuilder.append(" AND ");
-            appendSimpleWhereClause(whereBuilder, vendor, "r", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(database, null));
+            appendSimpleWhereClause(whereBuilder, vendor, "r", MetricAccess.METRIC_DIMENSION_FIELD, "=", MetricAccess.getDimensionIdByValue(database, null));
         }    
 
         // Apply deferred WHERE predicates (eventDates and dimensionIds)
@@ -1224,7 +1224,7 @@ class SqlQuery {
         selectBuilder.append("SELECT ");
 
         StringBuilder amountBuilder  = new StringBuilder();
-        MetricDatabase.Static.appendSelectCalculatedAmountSql(amountBuilder, vendor, "minData", "maxData", true);
+        MetricAccess.Static.appendSelectCalculatedAmountSql(amountBuilder, vendor, "minData", "maxData", true);
         selectBuilder.append(amountBuilder);
         reverseAliasSql.put(metricField.getInternalName(), amountBuilder.toString());
 
@@ -1304,13 +1304,13 @@ class SqlQuery {
         StringBuilder minData = new StringBuilder("MIN(");
         vendor.appendIdentifier(minData, "m2");
         minData.append('.');
-        vendor.appendIdentifier(minData, MetricDatabase.METRIC_DATA_FIELD);
+        vendor.appendIdentifier(minData, MetricAccess.METRIC_DATA_FIELD);
         minData.append(')');
 
         StringBuilder maxData = new StringBuilder("MAX(");
         vendor.appendIdentifier(maxData, "m2");
         maxData.append('.');
-        vendor.appendIdentifier(maxData, MetricDatabase.METRIC_DATA_FIELD);
+        vendor.appendIdentifier(maxData, MetricAccess.METRIC_DATA_FIELD);
         maxData.append(')');
 
         sql.append("SELECT ");
@@ -1318,7 +1318,7 @@ class SqlQuery {
         sql.append(", ");
         appendSimpleAliasedColumn(sql, vendor, "r", SqlDatabase.TYPE_ID_COLUMN);
         sql.append(", ");
-        MetricDatabase.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
+        MetricAccess.Static.appendSelectCalculatedAmountSql(sql, vendor, minData.toString(), maxData.toString(), false);
         sql.append(' ');
         vendor.appendAlias(sql, metricField.getInternalName());
         sql.append(" FROM ");
@@ -1333,19 +1333,19 @@ class SqlQuery {
         } else {
             sql.append(" \nINNER JOIN ");
         }
-        vendor.appendIdentifier(sql, MetricDatabase.METRIC_TABLE);
+        vendor.appendIdentifier(sql, MetricAccess.METRIC_TABLE);
         sql.append(" ");
         vendor.appendIdentifier(sql, "m2");
         sql.append(" ON (\n");
-        appendSimpleOnClause(sql, vendor, "r", SqlDatabase.ID_COLUMN, "=", "m2", MetricDatabase.METRIC_ID_FIELD);
+        appendSimpleOnClause(sql, vendor, "r", SqlDatabase.ID_COLUMN, "=", "m2", MetricAccess.METRIC_ID_FIELD);
         sql.append(" AND \n");
-        appendSimpleOnClause(sql, vendor, "r", SqlDatabase.TYPE_ID_COLUMN, "=", "m2", MetricDatabase.METRIC_TYPE_FIELD);
+        appendSimpleOnClause(sql, vendor, "r", SqlDatabase.TYPE_ID_COLUMN, "=", "m2", MetricAccess.METRIC_TYPE_FIELD);
         sql.append(" AND \n");
-        appendSimpleWhereClause(sql, vendor, "m2", MetricDatabase.METRIC_SYMBOL_FIELD, "=", database.getSymbolId(actionSymbol));
+        appendSimpleWhereClause(sql, vendor, "m2", MetricAccess.METRIC_SYMBOL_FIELD, "=", database.getSymbolId(actionSymbol));
         // If a dimensionId is not specified, we will append dimensionId = 00000000000000000000000000000000
         if (recordMetricDimensionPredicates.isEmpty()) {
             sql.append(" AND ");
-            appendSimpleWhereClause(sql, vendor, "m2", MetricDatabase.METRIC_DIMENSION_FIELD, "=", MetricDatabase.getDimensionIdByValue(database, null));
+            appendSimpleWhereClause(sql, vendor, "m2", MetricAccess.METRIC_DIMENSION_FIELD, "=", MetricAccess.getDimensionIdByValue(database, null));
         }
         // Apply deferred WHERE predicates (eventDates and metric Dimensions)
         for (int i = 0; i < recordMetricDatePredicates.size(); i++) {
@@ -1373,7 +1373,7 @@ class SqlQuery {
         sql.append(", ");
         appendSimpleAliasedColumn(sql, vendor, "r", SqlDatabase.TYPE_ID_COLUMN);
         sql.append(", ");
-        appendSimpleAliasedColumn(sql, vendor, "m2", MetricDatabase.METRIC_DIMENSION_FIELD);
+        appendSimpleAliasedColumn(sql, vendor, "m2", MetricAccess.METRIC_DIMENSION_FIELD);
 
         sql.append(orderByClause);
         if (! recordMetricSorters.isEmpty()) {
@@ -1787,11 +1787,11 @@ class SqlQuery {
             } else if (Query.DIMENSION_KEY.equals(queryKey)) {
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                //valueField = MetricDatabase.METRIC_DIMENSION_FIELD;
+                //valueField = MetricAccess.METRIC_DIMENSION_FIELD;
                 StringBuilder fieldBuilder = new StringBuilder();
                 vendor.appendIdentifier(fieldBuilder, "r");
                 fieldBuilder.append('.');
-                vendor.appendIdentifier(fieldBuilder, MetricDatabase.METRIC_DIMENSION_FIELD);
+                vendor.appendIdentifier(fieldBuilder, MetricAccess.METRIC_DIMENSION_FIELD);
                 valueField = fieldBuilder.toString();
                 sqlIndexTable = null;
                 table = null;
@@ -1855,11 +1855,11 @@ class SqlQuery {
 
                 if (Query.METRIC_DIMENSION_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     // for metricField#dimension, use dimensionId
-                    valueField = MetricDatabase.METRIC_DIMENSION_FIELD;
+                    valueField = MetricAccess.METRIC_DIMENSION_FIELD;
                     isHaving = false;
                 } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
                     // for metricField#date, use "data"
-                    valueField = MetricDatabase.METRIC_DATA_FIELD;
+                    valueField = MetricAccess.METRIC_DATA_FIELD;
                     isHaving = false;
                 } else {
                     // for metricField, use internalName
@@ -1931,11 +1931,11 @@ class SqlQuery {
                     if (value != null) {
                         stringValue = String.valueOf(value);
                     }
-                    value = MetricDatabase.getDimensionIdByValue(database, stringValue);
+                    value = MetricAccess.getDimensionIdByValue(database, stringValue);
 
                 } else if (Query.METRIC_DATE_ATTRIBUTE.equals(mappedKey.getHashAttribute())) {
 
-                    // EventDates in MetricDatabase are smaller than long
+                    // EventDates in MetricAccess are smaller than long
                     Character padChar = 'F';
                     if (PredicateParser.LESS_THAN_OPERATOR.equals(comparison.getOperator()) ||
                             PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(comparison.getOperator())) {
