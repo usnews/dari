@@ -615,7 +615,11 @@ public class ObjectField extends Record {
 
     /** Returns the Java field. */
     public Field getJavaField(Class<?> objectClass) {
-        return javaFieldCache.get(objectClass);
+        Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
+
+        return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
+                javaFieldCache.get(objectClass) :
+                null;
     }
 
     private final transient Map<Class<?>, Field> javaFieldCache = new PullThroughCache<Class<?>, Field>() {
