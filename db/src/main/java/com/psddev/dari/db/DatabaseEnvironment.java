@@ -196,11 +196,18 @@ public class DatabaseEnvironment implements ObjectStruct {
         Database database = getDatabase();
         LOGGER.info("Loading globals from [{}]", database.getName());
 
-        State newGlobals = State.getInstance(Query.
+        Query<Object> globalsQuery = Query.
                 from(Object.class).
                 where("_id = ?", GLOBALS_ID).
                 using(database).
-                first());
+                noCache();
+
+        State newGlobals = State.getInstance(globalsQuery.first());
+
+        if (newGlobals == null) {
+            newGlobals = State.getInstance(globalsQuery.master().first());
+        }
+
         if (newGlobals == null) {
             newGlobals = new State();
             newGlobals.setDatabase(database);
