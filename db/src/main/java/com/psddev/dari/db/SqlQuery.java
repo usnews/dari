@@ -1007,6 +1007,7 @@ class SqlQuery {
      */
     public String groupStatement(String[] groupFields) {
         Map<String, Join> groupJoins = new LinkedHashMap<String, Join>();
+        Map<String, SqlQuery> groupSubSqlQueries = new HashMap<String, SqlQuery>();
         if (groupFields != null) {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
@@ -1036,6 +1037,12 @@ class SqlQuery {
                     selectedIndexes.put(groupField, selectedIndex);
                 }
                 Join join = getJoin(groupField);
+                Query<?> subQuery = mappedKey.getSubQueryWithGroupBy();
+                if (subQuery != null) {
+                    SqlQuery subSqlQuery = getOrCreateSubSqlQuery(subQuery, true);
+                    groupSubSqlQueries.put(groupField, subSqlQuery);
+                    subQueries.put(subQuery, join.getValueField(groupField, null) + " = ");
+                }
                 groupJoins.put(groupField, join);
             }
         }
@@ -1063,7 +1070,13 @@ class SqlQuery {
         int columnNum = 0;
         for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
             statementBuilder.append(", ");
-            statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+            if (groupSubSqlQueries.containsKey(entry.getKey())) {
+                for (String subSqlSelectField : groupSubSqlQueries.get(entry.getKey()).orderBySelectColumns) {
+                    statementBuilder.append(subSqlSelectField);
+                }
+            } else {
+                statementBuilder.append(entry.getValue().getValueField(entry.getKey(), null));
+            }
             statementBuilder.append(" ");
             String columnAlias = null;
             if (! entry.getValue().queryKey.equals(Query.ID_KEY) && ! entry.getValue().queryKey.equals(Query.DIMENSION_KEY)) { // Special case for id and dimensionId
@@ -1092,7 +1105,13 @@ class SqlQuery {
         statementBuilder.append(whereClause);
 
         for (Map.Entry<String, Join> entry : groupJoins.entrySet()) {
-            groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
+            if (groupSubSqlQueries.containsKey(entry.getKey())) {
+                for (String subSqlSelectField : groupSubSqlQueries.get(entry.getKey()).orderBySelectColumns) {
+                    groupBy.append(subSqlSelectField);
+                }
+            } else {
+                groupBy.append(entry.getValue().getValueField(entry.getKey(), null));
+            }
             groupBy.append(", ");
         }
 

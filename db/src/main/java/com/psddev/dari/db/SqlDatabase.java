@@ -1685,7 +1685,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             List<Integer> removes = new ArrayList<Integer>();
 
             for (int i = 0; i < fieldsLength; ++ i) {
-                ObjectField field = query.mapEmbeddedKey(getEnvironment(), fields[i]).getField();
+                Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), fields[i]);
+                ObjectField field = key.getSubQueryKeyField();
+                if (field == null) {
+                    field = key.getField();
+                }
 
                 if (field != null) {
                     Map<String, Object> rawKeys = new HashMap<String, Object>();
