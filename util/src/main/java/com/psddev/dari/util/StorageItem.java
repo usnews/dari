@@ -29,8 +29,11 @@ import javax.servlet.ServletContext;
  */
 public interface StorageItem extends SettingsBackedObject {
 
-    /** Setting key for default storage name. */
+    /** Setting key for default storage name for images */
     public static final String DEFAULT_STORAGE_SETTING = "dari/defaultStorage";
+
+    /** Setting key for default storage name for videos */
+    public static final String DEFAULT_VIDEO_STORAGE_SETTING = "dari/defaultVideoStorage";
 
     /** Setting key for all storage configuration. */
     public static final String SETTING_PREFIX = "dari/storage";
@@ -125,6 +128,20 @@ public interface StorageItem extends SettingsBackedObject {
         public static StorageItem create() {
             return createIn(null);
         }
+
+        /** Creates an item in the default storage based on the contentType */
+	public static StorageItem create(String contentType) {
+            // If it's a video, use default video storage
+            if (contentType.startsWith("video/")) {
+	       StorageItem si = createIn(Settings.get(String.class,DEFAULT_VIDEO_STORAGE_SETTING));
+	       si.setContentType(contentType);
+	       return si;
+	    } else {
+	       StorageItem si = createIn(null);
+	       si.setContentType(contentType);
+	       return si;
+	    }
+	}
 
         /** Creates a one-off storage item backed by the given {@code url}. */
         public static UrlStorageItem createUrl(String url) {

@@ -24,7 +24,7 @@ import com.kaltura.client.types.KalturaUploadedFileTokenResource;
  * {@link StorageItem} stored in
  * <a href="http://www.kaltura.com/">Kaltura</a>.
  *
- * <p>To use this class, we should add log4j dependency 
+ * <p>To use this class, please add log4j dependency 
  * <a href="http://logging.apache.org/log4j">Log4j Logging library</a>.
  * If you use Maven, you should add the following dependency:</p>
  *

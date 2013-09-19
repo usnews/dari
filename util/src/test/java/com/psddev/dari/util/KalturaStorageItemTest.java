@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * Also add log4j dependency. Updated your POM to add log4j dependency if your are using maven.
  * @author rmadupuru
  */
-//@Ignore
+@Ignore
 public class KalturaStorageItemTest {
 	  private static final Logger log = LoggerFactory.getLogger(KalturaStorageItemTest.class);
 	  KalturaStorageItem kalturaStorageItem;
