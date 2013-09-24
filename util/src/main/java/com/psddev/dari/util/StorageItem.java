@@ -130,18 +130,13 @@ public interface StorageItem extends SettingsBackedObject {
         }
 
         /** Creates an item in the default storage based on the contentType */
-	public static StorageItem create(String contentType) {
+        public static StorageItem createWithContentType(String contentType) {
             // If it's a video, use default video storage
-            if (contentType.startsWith("video/")) {
-	       StorageItem si = createIn(Settings.get(String.class,DEFAULT_VIDEO_STORAGE_SETTING));
-	       si.setContentType(contentType);
-	       return si;
-	    } else {
-	       StorageItem si = createIn(null);
-	       si.setContentType(contentType);
-	       return si;
-	    }
-	}
+            String storage = contentType.startsWith("video/") ? Settings.get(String.class, DEFAULT_VIDEO_STORAGE_SETTING) : null;
+            StorageItem si = createIn(storage);
+            si.setContentType(contentType);
+            return si;
+        }
 
         /** Creates a one-off storage item backed by the given {@code url}. */
         public static UrlStorageItem createUrl(String url) {
