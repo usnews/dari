@@ -42,6 +42,11 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+        </dependency>
+
         <!-- -->
         <dependency>
             <groupId>commons-fileupload</groupId>
@@ -149,21 +154,13 @@
             <artifactId>slf4j-jdk14</artifactId>
             <scope>test</scope>
         </dependency>
+
         <!-- Dependency of Kaltura Client Library -->
         <dependency>
             <groupId>com.kaltura</groupId>
             <artifactId>kalturaclient</artifactId>
             <version>1.0</version>
         </dependency>
-        <!-- Kaltura client library  depends on Log4j -->
-        <!-- Add Log4j in case if you want to run KalturaStorageItemTest -->
-        <!--
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.16</version>
-        </dependency>
-        -->
     </dependencies>
 
 </project>
