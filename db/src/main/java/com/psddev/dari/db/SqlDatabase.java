@@ -588,7 +588,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 (query == null ||
                 !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
             try {
-                connection.close();
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
             } catch (SQLException ex) {
             }
         }
@@ -660,7 +662,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public void close() {
             if (connection != null) {
                 try {
-                    connection.close();
+                    if (!connection.isClosed()) {
+                        connection.close();
+                    }
                 } catch (SQLException error) {
                 }
             }
@@ -1205,7 +1209,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public void closeConnection(Connection connection) {
         if (connection != null) {
             try {
-                connection.close();
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
             } catch (SQLException ex) {
             }
         }
