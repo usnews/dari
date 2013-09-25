@@ -1084,7 +1084,7 @@ public class HtmlWriter extends Writer {
                     if (property != null) {
                         Object value = properties[i];
 
-                        if (value != null) {
+                        if (!ObjectUtils.isBlank(value)) {
                             css.append(property);
                             css.append(':');
                             css.append(value);

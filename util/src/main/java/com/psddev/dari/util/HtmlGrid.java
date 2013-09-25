@@ -27,6 +27,7 @@ public class HtmlGrid {
     private final List<CssUnit> columns;
     private final List<CssUnit> rows;
     private final List<List<String>> template;
+    private final Map<String, String> contexts = new CompactMap<String, String>();
 
     /**
      * Creates an instance based on the given {@code columns}, {@code rows},
@@ -144,6 +145,10 @@ public class HtmlGrid {
         return template;
     }
 
+    public Map<String, String> getContexts() {
+        return contexts;
+    }
+
     private CssCombinedUnit combineNonFractionals(List<CssUnit> units) {
         List<CssUnit> filtered = new ArrayList<CssUnit>();
 
@@ -208,6 +213,7 @@ public class HtmlGrid {
         private static final String TEMPLATE_PROPERTY = "-dari-grid-template";
         private static final String COLUMNS_PROPERTY = "-dari-grid-definition-columns";
         private static final String ROWS_PROPERTY = "-dari-grid-definition-rows";
+        private static final String CONTEXTS_PROPERTY = "-dari-grid-contexts";
 
         public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
             return findGrids(context, null, findGridPaths(context));
@@ -412,6 +418,17 @@ public class HtmlGrid {
                                         t.toString());
 
                                 grid.selector = selector;
+                                Map<String, String> contexts = grid.contexts;
+                                String contextsString = rule.getValue(CONTEXTS_PROPERTY);
+
+                                if (!ObjectUtils.isBlank(contextsString)) {
+                                    String[] entries = contextsString.trim().split("\\s+");
+
+                                    for (int i = 1, length = entries.length; i < length; i += 2) {
+                                        contexts.put(entries[i - 1], entries[i]);
+                                    }
+                                }
+
                                 grids.put(selector, grid);
 
                             } catch (IllegalArgumentException error) {

@@ -4,19 +4,21 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.psddev.dari.util.ObjectMap;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.ObjectMap;
 import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.StorageItem;
 
 /** State value utility methods. */
 abstract class StateValueUtils {
@@ -353,6 +355,32 @@ abstract class StateValueUtils {
                     if (x != null && y != null) {
                         return new Location(x, y);
                     }
+                }
+
+                throw new IllegalArgumentException();
+            }
+        });
+
+        m.put(ObjectField.REGION_TYPE, new Converter() {
+            @Override
+            public Object toJavaValue(
+                    Database database,
+                    Object object,
+                    ObjectField field,
+                    String subType,
+                    Object value) {
+
+                if (value instanceof Region) {
+                    return value;
+
+                } else if (value instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) value;
+
+                    Region region = Region.parseGeoJson(map);
+                    Region.parseCircles(region, (List<List<Double>>) map.get("circles"));
+
+                    return region;
                 }
 
                 throw new IllegalArgumentException();

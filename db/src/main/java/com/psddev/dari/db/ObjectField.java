@@ -47,6 +47,7 @@ public class ObjectField extends Record {
     public static final String NUMBER_TYPE = "number";
     public static final String RECORD_TYPE = "record";
     public static final String REFERENTIAL_TEXT_TYPE = "referentialText";
+    public static final String REGION_TYPE = "region";
     public static final String SET_TYPE = "set";
     public static final String TEXT_TYPE = "text";
     public static final String URI_TYPE = "uri";
@@ -88,6 +89,7 @@ public class ObjectField extends Record {
         CLASS_TO_TYPE.put(Location.class, LOCATION_TYPE);
         CLASS_TO_TYPE.put(Metric.class, METRIC_TYPE);
         CLASS_TO_TYPE.put(Recordable.class, RECORD_TYPE);
+        CLASS_TO_TYPE.put(Region.class, REGION_TYPE);
         CLASS_TO_TYPE.put(ReferentialText.class, REFERENTIAL_TEXT_TYPE);
         CLASS_TO_TYPE.put(String.class, TEXT_TYPE);
         CLASS_TO_TYPE.put(URI.class, URI_TYPE);
@@ -613,7 +615,11 @@ public class ObjectField extends Record {
 
     /** Returns the Java field. */
     public Field getJavaField(Class<?> objectClass) {
-        return javaFieldCache.get(objectClass);
+        Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
+
+        return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
+                javaFieldCache.get(objectClass) :
+                null;
     }
 
     private final transient Map<Class<?>, Field> javaFieldCache = new PullThroughCache<Class<?>, Field>() {

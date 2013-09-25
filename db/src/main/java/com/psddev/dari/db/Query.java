@@ -903,6 +903,10 @@ public class Query<E> extends Record {
 
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index);
 
+        public Query<?> getSubQueryWithGroupBy();
+
+        public ObjectField getSubQueryKeyField();
+
         public String getHashAttribute();
 
     }
@@ -1032,6 +1036,36 @@ public class Query<E> extends Record {
         }
 
         @Override
+        public Query<?> getSubQueryWithGroupBy() {
+            if (subQueryTypes == null) {
+                return null;
+            }
+
+            Query<?> subQuery = Query.fromAll();
+            String keySuffix = "/" + subQueryKey;
+
+            for (ObjectType type : subQueryTypes) {
+                subQuery.sortAscending(type.getInternalName() + keySuffix);
+            }
+
+            return subQuery;
+        }
+
+        @Override
+        public ObjectField getSubQueryKeyField() {
+            if (subQueryTypes == null || subQueryKey == null) {
+                return null;
+            }
+            for (ObjectType subQueryType : subQueryTypes) {
+                ObjectField keyField = subQueryType.getField(subQueryKey);
+                if (keyField != null) {
+                    return keyField;
+                }
+            }
+            return null;
+        }
+
+        @Override
         public String getHashAttribute() {
             if (hashAttribute == null) {
                 return null;
@@ -1085,6 +1119,16 @@ public class Query<E> extends Record {
 
         @Override
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index) {
+            return null;
+        }
+
+        @Override
+        public Query<?> getSubQueryWithGroupBy() {
+            return null;
+        }
+
+        @Override
+        public ObjectField getSubQueryKeyField() {
             return null;
         }
 
