@@ -352,7 +352,8 @@ public interface StorageItem extends SettingsBackedObject {
                                         if (childPath.length() == 0) {
                                             newCssBuilder.append("''");
 
-                                        } else if (childPath.startsWith("data:")) {
+                                        } else if (childPath.startsWith("data:") ||
+                                                childPath.endsWith(".htc")) {
                                             newCssBuilder.append(childPath);
 
                                         } else {
