@@ -300,14 +300,17 @@ public class KalturaStorageItem extends AbstractStorageItem {
 	/***
 	 * Public Url to access video on kaltura
 	 */
-	 @Override
-    public String getPublicUrl() {
+         @Override
+         public String getPublicUrl() {
 		return getPath();
 	 }
 
-	@Override
-	public boolean isInStorage() {
+       	 @Override
+	 public boolean isInStorage() {
 		if ( StringUtils.isBlank(getPath())) return false;
 		return true;
-	}
+	 }
+         public  String getThumbnailUrl() {
+                return new StringBuffer(getBaseUrl()).append(getPartnerId().toString()).append("/thumbnail/entry_id/").append(getKalturaId()).toString();
+         }
 }
