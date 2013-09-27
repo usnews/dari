@@ -59,6 +59,21 @@ public class ReferentialText extends AbstractList<Object> {
 
         Element body = Jsoup.parseBodyFragment(html).body();
 
+        for (Element element : body.select("*")) {
+            String tagName = element.tagName();
+
+            if (tagName.startsWith("o:")) {
+                element.unwrap();
+
+            } else if (tagName.equals("span")) {
+                if (element.attributes().size() == 0 ||
+                        element.attr("class").contains("Mso") ||
+                        element.hasAttr("color")) {
+                    element.unwrap();
+                }
+            }
+        }
+
         // Remove editorial markups.
         if (finalDraft) {
             body.getElementsByTag("del").remove();
