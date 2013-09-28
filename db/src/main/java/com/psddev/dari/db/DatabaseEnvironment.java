@@ -794,6 +794,10 @@ public class DatabaseEnvironment implements ObjectStruct {
             List<DynamicProperty> properties = new ArrayList<DynamicProperty>();
 
             for (ObjectType type : getTypes()) {
+                if (type.getObjectClass() == null) {
+                    continue;
+                }
+
                 String beanProperty = type.getJavaBeanProperty();
 
                 if (ObjectUtils.isBlank(beanProperty)) {
