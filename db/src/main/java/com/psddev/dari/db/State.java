@@ -1296,7 +1296,7 @@ public class State implements Map<String, Object> {
             Object object = linkedObjects.values().iterator().next();
             Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
-            resolveMetricReferences();
+            resolveMetricReferences(resolved);
 
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
                 UUID id = StateValueUtils.toIdIfReference(e.getValue());
@@ -1313,20 +1313,19 @@ public class State implements Map<String, Object> {
 
     /**
      * Instantiate all Metric objects.
-    */ 
-    private void resolveMetricReferences() {
-
-        for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
-            put(metricField.getInternalName(), new Metric(this, metricField));
-        }
-
+     */
+    private void resolveMetricReferences(Map<String, Object> map) {
         for (Object obj : linkedObjects.values()) {
             ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
             if (type != null) {
                 for (ObjectField metricField : type.getMetricFields()) {
-                    put(metricField.getInternalName(), new Metric(this, metricField));
+                    map.put(metricField.getInternalName(), new Metric(this, metricField));
                 }
             }
+        }
+
+        for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
+            map.put(metricField.getInternalName(), new Metric(this, metricField));
         }
     }
 
@@ -1647,7 +1646,11 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
-                resolveMetricReferences();
+                Map<String,Object> metricObjects = new HashMap<String, Object>();
+                resolveMetricReferences(metricObjects);
+                for (Map.Entry<? extends String, ? extends Object> e : metricObjects.entrySet()) {
+                    put(e.getKey(), e.getValue());
+                }
                 flags &= ~ALL_RESOLVED_FLAG;
                 return;
 

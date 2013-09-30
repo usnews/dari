@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -116,7 +117,7 @@ public class SourceFilter extends AbstractFilter {
     private final Set<File> javaSourcesSet = new HashSet<File>();
     private Map<JavaFileObject, Long> javaSourceFileModifieds;
     private final Map<String, File> webappSourcesMap = new HashMap<String, File>();
-    private final Map<File, Long> webappSourceFileModifieds = new HashMap<File, Long>();
+    private final Map<File, Long> webappSourceFileModifieds = new ConcurrentHashMap<File, Long>();
     private final Map<String, Date> changedClassTimes = new TreeMap<String, Date>();
 
     // --- AbstractFilter support ---

@@ -628,7 +628,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     // Closes all the given SQL resources safely.
-    private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
+    protected void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
             try {
                 result.close();
@@ -824,8 +824,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         Object subObject = createSavedObject(subTypeId, subId, query);
                         State subObjectState = State.getInstance(subObject);
                         subObjectState.setValues(unserializeData(subData));
-                        subId = null; 
-                        subTypeId = null; 
+                        subId = null;
+                        subTypeId = null;
                         subData = null;
                         objectState.getExtras().put(State.SUB_DATA_STATE_EXTRA_PREFIX + subObjectState.getId(), subObject);
                     }
@@ -1790,7 +1790,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             List<Integer> removes = new ArrayList<Integer>();
 
             for (int i = 0; i < fieldsLength; ++ i) {
-                ObjectField field = query.mapEmbeddedKey(getEnvironment(), fields[i]).getField();
+                Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), fields[i]);
+                ObjectField field = key.getSubQueryKeyField();
+                if (field == null) {
+                    field = key.getField();
+                }
 
                 if (field != null) {
                     Map<String, Object> rawKeys = new HashMap<String, Object>();
@@ -2434,25 +2438,31 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
          */
         static void logBatchUpdateException(BatchUpdateException bue, String sqlQuery, List<? extends List<?>> parameters) {
             int i = 0;
-            int failureOffset = bue.getUpdateCounts().length;
-            List<?> rowData = parameters.get(failureOffset);
 
             StringBuilder errorBuilder = new StringBuilder();
-            errorBuilder.append("Batch update failed with query '");
-            errorBuilder.append(sqlQuery);
-            errorBuilder.append("' with values (");
-            for (Object value : rowData) {
-                if (i++ != 0) {
-                    errorBuilder.append(", ");
+            for (int code : bue.getUpdateCounts()) {
+                if (code == Statement.EXECUTE_FAILED) {
+                    List<?> rowData = parameters.get(i);
+
+                    errorBuilder.append("Batch update failed with query '");
+                    errorBuilder.append(sqlQuery);
+                    errorBuilder.append("' with values (");
+                    for (Object value : rowData) {
+                        if (i++ != 0) {
+                            errorBuilder.append(", ");
+                        }
+
+                        if (value instanceof byte[]) {
+                            errorBuilder.append(StringUtils.hex((byte[]) value));
+                        } else {
+                            errorBuilder.append(value);
+                        }
+                    }
+                    errorBuilder.append(')');
                 }
 
-                if (value instanceof byte[]) {
-                    errorBuilder.append(StringUtils.hex((byte[]) value));
-                } else {
-                    errorBuilder.append(value);
-                }
+                i++;
             }
-            errorBuilder.append(')');
 
             Exception ex = bue.getNextException() != null ? bue.getNextException() : bue;
             LOGGER.error(errorBuilder.toString(), ex);
@@ -2486,6 +2496,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         private static void bindParameter(PreparedStatement statement, int index, Object parameter) throws SQLException {
             if (parameter instanceof String) {
                 parameter = ((String) parameter).getBytes(StringUtils.UTF_8);
+            }
+
+            if (parameter instanceof StringBuilder) {
+                parameter = ((StringBuilder) parameter).toString();
             }
 
             if (parameter instanceof byte[]) {

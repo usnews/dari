@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS RecordNumber2 (
 
 CREATE INDEX k_recordnumber2_id ON RecordNumber2 (id);
 
+CREATE TABLE IF NOT EXISTS RecordRegion (
+    id UUID NOT NULL,
+    symbolId INT NOT NULL,
+    value GEOMETRY(MULTIPOLYGON,4326) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE INDEX k_recordregion_value_gix ON RecordRegion USING GIST (value);
+
 CREATE TABLE IF NOT EXISTS RecordString3 (
     id UUID NOT NULL,
     symbolId INT NOT NULL,

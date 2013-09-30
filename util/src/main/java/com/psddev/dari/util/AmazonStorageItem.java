@@ -197,9 +197,7 @@ public class AmazonStorageItem extends AbstractStorageItem {
             }
 
         } catch (ServiceException error) {
-            throw new IllegalStateException(
-                    String.format("Can't check whether [%s] is in storage!", getPath()),
-                    error);
+            return false;
         }
     }
 

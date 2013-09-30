@@ -316,6 +316,24 @@ public class CachingDatabase extends ForwardingDatabase {
         return (PaginatedResult<T>) result;
     }
 
+    @Override
+    public void save(State state) {
+        super.save(state);
+        flush();
+    }
+
+    /**
+     * Flush the entire cache. This is executed after every .save() to avoid inconsistent results.
+     */
+    protected void flush() {
+        objectCache.clear();
+        referenceCache.clear();
+        readAllCache.clear();
+        readCountCache.clear();
+        readFirstCache.clear();
+        readPartialCache.clear();
+    }
+
     /**
      * {@link Query} options for {@link CachingDatabase}.
      *
