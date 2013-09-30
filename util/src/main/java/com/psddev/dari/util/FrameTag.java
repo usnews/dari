@@ -1,13 +1,16 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.BodyTagSupport;
+import javax.servlet.jsp.tagext.DynamicAttributes;
 
 @SuppressWarnings("serial")
-public class FrameTag extends BodyTagSupport {
+public class FrameTag extends BodyTagSupport implements DynamicAttributes {
 
     protected static final String ATTRIBUTE_PREFIX = FrameTag.class.getName() + ".";
     protected static final String CURRENT_NAME_PREFIX = ATTRIBUTE_PREFIX + "currentName";
@@ -22,6 +25,7 @@ public class FrameTag extends BodyTagSupport {
     private String name;
     private boolean lazy;
     private InsertionMode mode;
+    private final Map<String, Object> attributes = new LinkedHashMap<String, Object>();
     private transient String oldName;
 
     public void setName(String name) {
@@ -34,6 +38,15 @@ public class FrameTag extends BodyTagSupport {
 
     public void setMode(InsertionMode mode) {
         this.mode = mode;
+    }
+
+    // --- DynamicAttributes support ---
+
+    @Override
+    public void setDynamicAttribute(String uri, String localName, Object value) {
+        if (value != null) {
+            attributes.put(localName, value);
+        }
     }
 
     // --- TagSupport support ---
@@ -58,6 +71,7 @@ public class FrameTag extends BodyTagSupport {
         }
 
         writer.writeStart("div",
+                attributes,
                 "class", fullClassName.toString(),
                 "name", name,
                 "data-insertion-mode", mode != null ? mode : InsertionMode.replace,
