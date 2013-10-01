@@ -273,7 +273,7 @@ public class ObjectField extends Record {
 
     /** Converts this field to a definition map. */
     public Map<String, Object> toDefinition() {
-        Map<String, Object> definition  = new LinkedHashMap<String, Object>();
+        Map<String, Object> definition = new LinkedHashMap<String, Object>(200);
 
         List<String> typeIds = new ArrayList<String>();
         for (ObjectType type : getTypes()) {
