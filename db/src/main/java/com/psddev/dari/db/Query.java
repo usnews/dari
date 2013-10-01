@@ -751,7 +751,6 @@ public class Query<E> extends Record {
         Set<ObjectType> subQueryTypes = null;
         String subQueryKey = null;
         String hashAttribute = null;
-        Set<ObjectType> groupTypes = environment.getTypesByGroup(getGroup());
 
         while (hasMore) {
             int slashAt = keyRest.indexOf('/');
@@ -782,23 +781,6 @@ public class Query<E> extends Record {
                     for (ObjectType fieldType : fieldTypes) {
                         field = fieldType.getField(keyFirst);
                         break;
-                    }
-                }
-
-                if (field == null && ! groupTypes.isEmpty()) {
-                    boolean isFirst = true;
-                    for (ObjectType t : groupTypes) {
-                        if (isFirst) {
-                            field = t.getField(keyFirst);
-                            if (field == null) {
-                                break;
-                            } else {
-                                isFirst = false;
-                            }
-                        } else if (t.getField(keyFirst) == null || ! field.getUniqueName().equals(t.getField(keyFirst).getUniqueName())) {
-                            field = null;
-                            break;
-                        }
                     }
                 }
 
