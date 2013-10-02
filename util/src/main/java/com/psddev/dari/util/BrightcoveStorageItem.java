@@ -38,7 +38,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
  *    <version>4.0.1</version>
  *</dependency>}</code></pre></blockquote>
  */
-public class BrightcoveStorageItem extends AbstractStorageItem {
+public class BrightcoveStorageItem extends AbstractStorageItem implements VideoStorageItem {
 
     /** Setting key for Brightcove read service url. */
     public static final String READ_SERVICE_URL_SETTING = "readServiceUrl";
@@ -950,5 +950,11 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
     public static enum Encoding {
         FLV,
         MP4
+    }
+    public void resetVideoStorageItemListeners() {
+         throw new UnsupportedOperationException();
+    }
+    public void registerVideoStorageItemListener(VideoStorageItemListener listener) {
+         throw new UnsupportedOperationException();
     }
 }
