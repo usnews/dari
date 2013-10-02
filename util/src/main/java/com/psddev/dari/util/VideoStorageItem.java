@@ -7,10 +7,10 @@ import java.io.IOException;
  * Provides methods to access most commonly used information of a video stored
  * using KalturaStorageItem or BrightCoveStorageItem
  */
-public interface VideoStorageItem  {
-	String getThumbnailUrl();
-	Long getLength();
-        void delete() throws IOException;
-        public void resetVideoStorageItemListeners();
-	public void registerVideoStorageItemListener(VideoStorageItemListener listener);
+public interface VideoStorageItem extends StorageItem {
+    String getThumbnailUrl();
+    Long getLength();
+    void delete() throws IOException;
+    public void resetVideoStorageItemListeners();
+    public void registerVideoStorageItemListener(VideoStorageItemListener listener);
 }
