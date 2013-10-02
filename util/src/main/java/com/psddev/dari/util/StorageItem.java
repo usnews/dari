@@ -325,7 +325,7 @@ public interface StorageItem extends SettingsBackedObject {
                                 String path;
 
                                 MessageDigest md5 = MessageDigest.getInstance("MD5");
-                                md5.update((byte) 15);
+                                md5.update((byte) 16);
                                 String hash = StringUtils.hex(md5.digest(source));
 
                                 // name.ext -> createPath(name.hash, ext)
@@ -364,7 +364,8 @@ public interface StorageItem extends SettingsBackedObject {
                                         if (childPath.length() == 0) {
                                             newCssBuilder.append("''");
 
-                                        } else if (childPath.startsWith("data:")) {
+                                        } else if (childPath.startsWith("data:") ||
+                                                childPath.endsWith(".htc")) {
                                             newCssBuilder.append(childPath);
 
                                         } else {

@@ -222,6 +222,7 @@ public class Css {
     private List<CssDeclaration> readDeclarations(Set<String> selectors) throws IOException {
         readComments();
 
+        boolean readingProperty = true;
         List<CssDeclaration> declarations = new ArrayList<CssDeclaration>();
         StringBuilder property = new StringBuilder();
         StringBuilder value = new StringBuilder();
@@ -237,12 +238,14 @@ public class Css {
                 readRule(selectors);
                 lastDeclaration = cssIndex;
 
-            } else if (letter == ':') {
+            } else if (readingProperty && letter == ':') {
+                readingProperty = false;
                 current = value;
                 ++ cssIndex;
                 readComments();
 
             } else if (letter == ';') {
+                readingProperty = true;
                 declarations.add(new CssDeclaration(property.toString().trim(), value.toString().trim()));
                 property.setLength(0);
                 value.setLength(0);
