@@ -31,6 +31,7 @@ import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
 import com.psddev.dari.util.TypeReference;
+import com.psddev.dari.util.VideoStorageItem;
 
 /** Description of how field values can be stored in a state. */
 @ObjectField.Embedded
@@ -86,6 +87,7 @@ public class ObjectField extends Record {
 
         CLASS_TO_TYPE.put(Date.class, DATE_TYPE);
         CLASS_TO_TYPE.put(StorageItem.class, FILE_TYPE);
+        CLASS_TO_TYPE.put(VideoStorageItem.class, FILE_TYPE);
         CLASS_TO_TYPE.put(Location.class, LOCATION_TYPE);
         CLASS_TO_TYPE.put(Metric.class, METRIC_TYPE);
         CLASS_TO_TYPE.put(Recordable.class, RECORD_TYPE);
