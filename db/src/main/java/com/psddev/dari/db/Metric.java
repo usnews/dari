@@ -348,4 +348,13 @@ public class Metric extends Record {
 
     }
 
+    /**
+     * @deprecated This constructor creates an invalid object and should never be used; it only exists for the benefit of TypeDefinition#newInstance()
+     */
+    @Deprecated
+    public Metric() {
+        this.field = null;
+        this.owner = null;
+    }
+
 }
