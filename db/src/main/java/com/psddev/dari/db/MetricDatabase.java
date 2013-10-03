@@ -562,15 +562,15 @@ class MetricDatabase {
 
             updateBuilder.append(" AND ");
             vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
-            if (updateFuture) {
-                // Note that this is a >= : we are updating the cumulativeAmount for every date AFTER this date, too, while leaving their amounts alone.
-                updateBuilder.append(" >= ");
-                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, '0');
-            } else {
-                updateBuilder.append(" LIKE ");
-                updateBuilder.append(" CONCAT(");
-                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, null);
-                updateBuilder.append(", '%') ESCAPE ''");
+
+            updateBuilder.append(" >= ");
+            vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, '0');
+
+            if (!updateFuture) {
+                updateBuilder.append(" AND ");
+                vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
+                updateBuilder.append(" <= ");
+                vendor.appendMetricEncodeTimestampSql(updateBuilder, parameters, eventDate, 'F');
             }
 
             return updateBuilder.toString();
