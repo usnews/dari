@@ -951,10 +951,16 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements VideoS
         FLV,
         MP4
     }
-    public void resetVideoStorageItemListeners() {
+    public TranscodingStatus getTranscodingStatus() {
          throw new UnsupportedOperationException();
     }
-    public void registerVideoStorageItemListener(VideoStorageItemListener listener) {
+    public String getTranscodingError() {
          throw new UnsupportedOperationException();
+    }
+    public void push() {
+         pushToBrightcove();
+    }
+    public boolean pull() {
+         return pullFromBrightcove();
     }
 }
