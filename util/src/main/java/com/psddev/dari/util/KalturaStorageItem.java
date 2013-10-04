@@ -3,10 +3,8 @@ package com.psddev.dari.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +35,7 @@ import com.kaltura.client.types.KalturaUploadedFileTokenResource;
  *</dependency>}</code></pre></blockquote>
  */
 
-public class KalturaStorageItem extends AbstractStorageItem implements VideoStorageItem {
+public class KalturaStorageItem extends VideoStorageItem {
     private static final Logger LOGGER = LoggerFactory.getLogger(KalturaStorageItem.class);
 
     /** Setting key for Kaltura's API secret */
@@ -433,38 +431,6 @@ public class KalturaStorageItem extends AbstractStorageItem implements VideoStor
             return "Pending Moderation";
         default:
             return "";
-        }
-    }
-
-    private List<UUID> videoStorageItemListenerIds;
-    private transient List<VideoStorageItemListener> videoStorageItemListeners;
-    public List<UUID> getVideoStorageItemListenerIds() {
-        return videoStorageItemListenerIds;
-    }
-    public void setVideoStorageItemListeners( List<VideoStorageItemListener> videoStorageItemListeners) {
-        this.videoStorageItemListeners = videoStorageItemListeners;
-    }
-    /** UUID of a record which implements VideoStorageItemListener interface **/
-    public void registerVideoStorageItemListener(UUID listenerId) {
-        //LOGGER.info("Value of listener in registerVideoStorageItemListener is:" + listener);
-        if (videoStorageItemListenerIds == null) {
-             resetVideoStorageItemListeners();
-        }
-        videoStorageItemListenerIds.add(listenerId);
-    }
-    public void resetVideoStorageItemListeners() {
-        videoStorageItemListenerIds = new ArrayList<UUID>();
-        videoStorageItemListeners =null;
-    }
-    
-    public void notifyVideoStorageItemListeners() {
-        for (VideoStorageItemListener listener : videoStorageItemListeners) {
-            try {
-                listener.processTranscodingNotification(this);
-            } catch (Exception error) {
-                LOGGER.error(String.format("Can't execute [%s] on [%s]!",
-                        listener, this), error);
-            }
         }
     }
 }
