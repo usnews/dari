@@ -12,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
@@ -963,4 +964,19 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements VideoS
     public boolean pull() {
          return pullFromBrightcove();
     }
+    public void registerVideoStorageItemListener(UUID listenerId) {
+         throw new UnsupportedOperationException();
+    }
+    public List<UUID> getVideoStorageItemListenerIds() {
+         throw new UnsupportedOperationException();
+    }
+    public void resetVideoStorageItemListeners() {
+         throw new UnsupportedOperationException();
+    }
+    public void setVideoStorageItemListeners( List<VideoStorageItemListener> videoStorageItemListeners) {
+         throw new UnsupportedOperationException();
+    }
+    public void notifyVideoStorageItemListeners() {
+    }
+
 }

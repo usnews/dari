@@ -6,6 +6,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -375,8 +376,8 @@ public class KalturaStorageItem extends AbstractStorageItem implements VideoStor
             if (mediaEntry != null) {
                 length = new Long(mediaEntry.duration);
                 //If there is a change in transcodingStatus, update listeners if added
-                //if (status != mediaEntry.status && videoStorageItemlisteners != null) {
-                //      updateVideoStorageItemListeners();                
+                //if (status != mediaEntry.status && videoStorageItemListeners != null) {
+                 //     notifyVideoStorageItemListeners();                
                 //}
                 status = mediaEntry.status;
             }
@@ -432,6 +433,38 @@ public class KalturaStorageItem extends AbstractStorageItem implements VideoStor
             return "Pending Moderation";
         default:
             return "";
+        }
+    }
+
+    private List<UUID> videoStorageItemListenerIds;
+    private transient List<VideoStorageItemListener> videoStorageItemListeners;
+    public List<UUID> getVideoStorageItemListenerIds() {
+        return videoStorageItemListenerIds;
+    }
+    public void setVideoStorageItemListeners( List<VideoStorageItemListener> videoStorageItemListeners) {
+        this.videoStorageItemListeners = videoStorageItemListeners;
+    }
+    /** UUID of a record which implements VideoStorageItemListener interface **/
+    public void registerVideoStorageItemListener(UUID listenerId) {
+        //LOGGER.info("Value of listener in registerVideoStorageItemListener is:" + listener);
+        if (videoStorageItemListenerIds == null) {
+             resetVideoStorageItemListeners();
+        }
+        videoStorageItemListenerIds.add(listenerId);
+    }
+    public void resetVideoStorageItemListeners() {
+        videoStorageItemListenerIds = new ArrayList<UUID>();
+        videoStorageItemListeners =null;
+    }
+    
+    public void notifyVideoStorageItemListeners() {
+        for (VideoStorageItemListener listener : videoStorageItemListeners) {
+            try {
+                listener.processTranscodingNotification(this);
+            } catch (Exception error) {
+                LOGGER.error(String.format("Can't execute [%s] on [%s]!",
+                        listener, this), error);
+            }
         }
     }
 }
