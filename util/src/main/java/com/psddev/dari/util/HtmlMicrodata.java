@@ -5,14 +5,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.joda.time.DateTime;
-import org.joda.time.Period;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -98,13 +95,7 @@ public class HtmlMicrodata {
                 value = prop.attr("value");
 
             } else if (" time ".contains(tagName)) {
-
-                value = ObjectUtils.coalesce(prop.attr("datetime"), prop.text());
-                try {
-                    value = ObjectUtils.to(Integer.class, Period.parse((String) value).toStandardSeconds().getSeconds());
-                } catch (IllegalArgumentException periodError) {
-                    value = ObjectUtils.to(Date.class, value);
-                }
+                value = ObjectUtils.firstNonNull(prop.attr("datetime"), prop.text());
 
             } else {
                 value = prop.text();
