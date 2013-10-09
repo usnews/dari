@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.joda.time.DateTime;
+import org.joda.time.Period;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -96,7 +98,13 @@ public class HtmlMicrodata {
                 value = prop.attr("value");
 
             } else if (" time ".contains(tagName)) {
-                value = ObjectUtils.to(Date.class, ObjectUtils.coalesce(prop.attr("datetime"), prop.text()));
+
+                value = ObjectUtils.coalesce(prop.attr("datetime"), prop.text());
+                try {
+                    value = ObjectUtils.to(Integer.class, Period.parse((String) value).toStandardSeconds().getSeconds());
+                } catch (IllegalArgumentException periodError) {
+                    value = ObjectUtils.to(Date.class, value);
+                }
 
             } else {
                 value = prop.text();
