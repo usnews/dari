@@ -141,11 +141,11 @@ public class Region {
         MultiPolygon polygons = new MultiPolygon();
         polygons.add(polygon);
 
-        ring.add(new Coordinate(x + radius, y));
-        ring.add(new Coordinate(x, y + deltaY));
-        ring.add(new Coordinate(x - radius, y));
-        ring.add(new Coordinate(x, y - deltaY));
-        ring.add(new Coordinate(x + radius, y));
+        ring.add(new Coordinate(x + radius, y + deltaY));
+        ring.add(new Coordinate(x - radius, y + deltaY));
+        ring.add(new Coordinate(x - radius, y - deltaY));
+        ring.add(new Coordinate(x + radius, y - deltaY));
+        ring.add(new Coordinate(x + radius, y + deltaY));
 
         return polygons;
     }
