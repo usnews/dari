@@ -188,14 +188,12 @@ public class CodeDebugServlet extends HttpServlet {
             imports.add("java.util.*");
 
             String includes = Settings.get(String.class, INCLUDE_IMPORTS_SETTING);
-            System.out.println(includes);
 
             if (!ObjectUtils.isBlank(includes)) {
                 Collections.addAll(imports, includes.trim().split("\\s*,?\\s+"));
             }
 
             String excludes = Settings.get(String.class, EXCLUDE_IMPORTS_SETTING);
-            System.out.println(excludes);
 
             if (!ObjectUtils.isBlank(excludes)) {
                 for (String exclude : excludes.trim().split("\\s*,?\\s+")) {
