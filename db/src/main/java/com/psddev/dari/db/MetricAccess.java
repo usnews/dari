@@ -979,14 +979,20 @@ class MetricAccess {
                 throw new RuntimeException("MetricAccess.Static.doSetUpdateOrInsert() can only be used if EventDatePrecision is NONE; eventDate is " + eventDate + ", should be 0L.");
             }
             try {
-                List<Object> parameters = new ArrayList<Object>();
-                String sql = getUpdateSql(db, parameters, id, typeId, symbolId, dimensionId, amount, eventDate, false, false);
-                int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                List<Object> updateParameters = new ArrayList<Object>();
+                String updateSql = getUpdateSql(db, updateParameters, id, typeId, symbolId, dimensionId, amount, eventDate, false, false);
+                int rowsAffected = SqlDatabase.Static.executeUpdateWithList(connection, updateSql, updateParameters);
                 if (rowsAffected == 0) {
-                    parameters = new ArrayList<Object>();
-                    sql = getMetricInsertSql(db, parameters, id, typeId, symbolId, dimensionId, amount, amount, eventDate);
-                    SqlDatabase.Static.executeUpdateWithList(connection, sql, parameters);
+                    List<Object> insertParameters = new ArrayList<Object>();
+                    String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbolId, dimensionId, amount, amount, eventDate);
+                    tryInsertThenUpdate(db, connection, insertSql, insertParameters, updateSql, updateParameters);
                 }
+            } catch (UpdateFailedException e) {
+                // There is an existing row that has the wrong type ID (bad data). Repair it and try again.
+                List<Object> repairParameters = new ArrayList<Object>();
+                String repairSql = getRepairTypeIdSql(db, repairParameters, id, typeId, dimensionId, symbolId, eventDate);
+                SqlDatabase.Static.executeUpdateWithList(connection, repairSql, repairParameters);
+                doSetUpdateOrInsert(db, id, typeId, symbolId, dimensionId, amount, eventDate);
             } finally {
                 db.closeConnection(connection);
             }
