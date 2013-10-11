@@ -13,7 +13,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.psddev.dari.util.AsyncQueue;
 import com.psddev.dari.util.DebugFilter;
+import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TaskExecutor;
+import com.psddev.dari.util.UuidUtils;
 import com.psddev.dari.util.WebPageContext;
 
 /** Debug servlet for running bulk database operations. */
@@ -82,13 +84,32 @@ public class BulkDebugServlet extends HttpServlet {
                         fromType(selectedType).
                         resolveToReferenceOnly();
 
+                if (wp.param(boolean.class, "isResumable") && source instanceof SqlDatabase) {
+                    query.getOptions().put(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
+                    String resumeIdStr = wp.param(String.class, "resumeId");
+                    if (!StringUtils.isEmpty(resumeIdStr)) {
+                        UUID resumeId = UuidUtils.fromString(resumeIdStr);
+                        if (resumeId != null) {
+                            query.where("_id >= ?", resumeId);
+                        }
+                    }
+                }
+
                 if (wp.param(boolean.class, "deleteDestination")) {
                     destination.deleteByQuery(query);
                 }
 
                 new AsyncDatabaseReader<Object>(
-                        executor, queue, source, query).
-                        submit();
+                        executor, queue, source, query) {
+                        @Override
+                        protected Object produce() {
+                            Object obj = super.produce();
+                            if (obj instanceof Record) {
+                                this.setProgress(this.getProgress() + " (last: " + ((Record) obj).getId() + ")");
+                            }
+                            return obj;
+                        }
+                }.submit();
 
                 queue.closeAutomatically();
 
@@ -120,7 +141,7 @@ public class BulkDebugServlet extends HttpServlet {
 
                 writeStart("p");
                     writeHtml("Use this when you add ");
-                    writeStart("code").writeHtml("@FieldIndexed").writeEnd();
+                    writeStart("code").writeHtml("@Indexed").writeEnd();
                     writeHtml(" to your model or if queries are returning unexpected results.");
                 writeEnd();
 
@@ -202,6 +223,9 @@ public class BulkDebugServlet extends HttpServlet {
 
                     List<Database> databases = Database.Static.getAll();
 
+                    String resumeIdControlId = wp.createId();
+                    String resumableControlId = wp.createId();
+
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Source").writeEnd();
                         writeStart("div", "class", "controls");
@@ -209,12 +233,23 @@ public class BulkDebugServlet extends HttpServlet {
                                 writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (Database database : databases) {
                                     if (!(database instanceof Iterable)) {
-                                        writeStart("option", "value", database.getName());
+                                        writeStart("option", "value", database.getName(), "className", database.getClass().getName());
                                             writeHtml(database);
                                         writeEnd();
                                     }
                                 }
                             writeEnd();
+                            writeStart("label", "class", "checkbox", "style", "margin-top: 5px;", "id", resumableControlId);
+                                writeTag("input", "name", "isResumable", "type", "checkbox", "value", "true");
+                                writeHtml("Resumable");
+                            writeEnd();
+                        writeEnd();
+                    writeEnd();
+
+                    writeStart("div", "class", "control-group", "id", resumeIdControlId);
+                        writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Resume With ID").writeEnd();
+                        writeStart("div", "class", "controls");
+                            writeTag("input", "name", "resumeId", "type", "text");
                         writeEnd();
                     writeEnd();
 
@@ -225,7 +260,7 @@ public class BulkDebugServlet extends HttpServlet {
                                 writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (Database database : databases) {
                                     if (!(database instanceof Iterable)) {
-                                        writeStart("option", "value", database.getName());
+                                        writeStart("option", "value", database.getName(), "className", database.getClass().getName());
                                             writeHtml(database);
                                         writeEnd();
                                     }
@@ -241,6 +276,27 @@ public class BulkDebugServlet extends HttpServlet {
                     writeStart("div", "class", "form-actions");
                         writeTag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
                     writeEnd();
+                writeEnd();
+
+                writeStart("script", "type", "text/javascript");
+                    write("$(document).ready(function() {");
+                        write("$('#"+resumableControlId+"').hide();");
+                        write("$('[name=source]').change(function() {");
+                             write("if ($('option:selected', this).attr('className') == '"+SqlDatabase.class.getName()+"') {");
+                                 write("$('#"+resumableControlId+"').show();");
+                             write("} else {");
+                                 write("$('#"+resumableControlId+"').hide();");
+                             write("}");
+                        write("});");
+                        write("$('#"+resumeIdControlId+"').hide();");
+                        write("$('[name=isResumable]').change(function() {");
+                            write("if ($(this).is(':checked')) {");
+                                write("$('#"+resumeIdControlId+"').show();");
+                            write("} else {");
+                                write("$('#"+resumeIdControlId+"').hide();");
+                            write("}");
+                        write("})");
+                    write("})");
                 writeEnd();
 
                 if (!copyExecutors.isEmpty()) {
