@@ -207,6 +207,34 @@ public class Metric extends Record {
     }
 
     /**
+     * Returns true if the Metric has no data for the given dimension
+     * between the given {@code start} and {@code end}. Note that {@link #incrementDimensionAt}
+     * does <b>not</b> insert a row where there is none, but {@link #setDimensionAt} does.
+     *
+     * @param dimension May be {@code null}.
+     * @param start If {@code null}, beginning of time.
+     * @param end If {@code null}, end of time.
+     */
+    public boolean isEmptyByDimensionBetween(String dimension, DateTime start, DateTime end) {
+        try {
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            Static.preFetchMetrics(getOwner(), getMetricAccess().getDimensionId(dimension), startTimestamp, endTimestamp);
+            Double metricValue = getMetricAccess().getMetric(getOwner().getId(), dimension, startTimestamp, endTimestamp);
+            return metricValue == null;
+        } catch (SQLException e) {
+            throw new DatabaseException(getMetricAccess().getDatabase(), "Error in MetricAccess.getMetric() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Returns true if the Metric has no data for the default dimension over all time.
+     */
+    public boolean isEmpty() {
+        return isEmptyByDimensionBetween(null, null, null);
+    }
+
+    /**
      * Groups the metric values between the given {@code start} and {@code end}
      * by each dimension.
      *
