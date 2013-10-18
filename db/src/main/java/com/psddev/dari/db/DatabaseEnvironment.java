@@ -417,6 +417,7 @@ public class DatabaseEnvironment implements ObjectStruct {
             for (ObjectType type : singletonType.findConcreteTypes()) {
                 if (!Query.
                         fromType(type).
+                        where("_type = ?", type).
                         master().
                         noCache().
                         hasMoreThan(0)) {
