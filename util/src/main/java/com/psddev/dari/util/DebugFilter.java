@@ -524,6 +524,7 @@ public class DebugFilter extends AbstractFilter {
         public void includeStandardStylesheetsAndScripts() throws IOException {
             includeStylesheet("/_resource/bootstrap/css/bootstrap.min.css");
             includeStylesheet("/_resource/codemirror/lib/codemirror.css");
+            includeStylesheet("/_resource/codemirror/addon/dialog/dialog.css");
 
             writeStart("style", "type", "text/css");
                 write("@font-face { font-family: 'AauxNextMedium'; src: url('/_resource/aauxnext-md-webfont.eot'); src: local('☺'), url('/_resource/aauxnext-md-webfont.woff') format('woff'), url('/_resource/aauxnext-md-webfont.ttf') format('truetype'), url('/_resource/aauxnext-md-webfont.svg#webfontfLsPAukW') }");
@@ -537,7 +538,8 @@ public class DebugFilter extends AbstractFilter {
                 write(".popup .content { background-color: white; -moz-border-radius: 5px; -webkit-border-radius: 5px; border-radius: 5px; -moz-box-shadow: 0 0 10px #777; -webkit-box-shadow: 0 0 10px #777; box-shadow: 0 0 10px #777; position: relative; top: 10px; }");
                 write(".popup .content .marker { border-color: transparent transparent white transparent; border-style: solid; border-width: 10px; left: 5px; position: absolute; top: -20px; }");
                 write(".CodeMirror-scroll { height: auto; overflow-x: auto; overflow-y: hidden; width: 100%; }");
-                write(".CodeMirror pre { font-family: Menlo, Monaco, 'Courier New', monospace; font-size: 12px; }");
+                write(".CodeMirror { height: auto; }");
+                write(".CodeMirror pre { font-family: Menlo, Monaco, 'Courier New', monospace; font-size: 12px; line-height: 1.5em;}");
                 write(".CodeMirror .selected { background-color: #FCF8E3; }");
                 write(".CodeMirror .errorLine { background-color: #F2DEDE; }");
                 write(".CodeMirror .errorColumn { background-color: #B94A48; color: white; }");
@@ -552,6 +554,10 @@ public class DebugFilter extends AbstractFilter {
             includeScript("/_resource/jquery/jquery.popup.js");
             includeScript("/_resource/codemirror/lib/codemirror.js");
             includeScript("/_resource/codemirror/mode/clike.js");
+            includeScript("/_resource/codemirror/keymap/vim.js");
+            includeScript("/_resource/codemirror/addon/dialog/dialog.js");
+            includeScript("/_resource/codemirror/addon/search/searchcursor.js");
+            includeScript("/_resource/codemirror/addon/search/search.js");
 
             writeStart("script", "type", "text/javascript");
                 write("$(function() {");

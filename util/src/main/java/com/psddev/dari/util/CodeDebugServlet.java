@@ -291,6 +291,13 @@ public class CodeDebugServlet extends HttpServlet {
                                     writeTag("input", "name", "isLiveResult", "type", "checkbox");
                                     writeHtml("Live Result");
                                 writeEnd();
+                                writeStart("label", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;", "title", "Shortcut: ?_vim=true");
+                                    boolean vimMode = page.param(boolean.class, "_vim");
+                                    writeStart("label", "class", "checkbox", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;");
+                                        writeTag("input", "name", "_vim", "type", "checkbox", "value", "true", vimMode ? "checked" : "_unchecked", "true");
+                                        writeHtml("Vim Mode");
+                                    writeEnd();
+                                writeEnd();
                                 writeTag("input",
                                         "class", "btn btn-success pull-right",
                                         "name", "isSave",
@@ -337,6 +344,10 @@ public class CodeDebugServlet extends HttpServlet {
                                     write("}");
                                 write("})");
                             write("});");
+                            write("$('input[name=_vim]').change(function() {");
+                                write("codeMirror.setOption('vimMode', $(this).is(':checked'));");
+                            write("});");
+                            write("$('input[name=_vim]').change();");
 
                             int line = page.param(int.class, "line");
                             if (line > 0) {

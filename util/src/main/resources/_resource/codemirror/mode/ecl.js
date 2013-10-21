@@ -1,1 +1,192 @@
-CodeMirror.defineMode("ecl",function(a){function b(a){var b={},c=a.split(" ");for(var d=0;d<c.length;++d)b[c[d]]=!0;return b}function c(a,b){return b.startOfLine?(a.skipToEnd(),"meta"):!1}function d(a,b){var c;while((c=a.next())!=null)if(c=='"'&&!a.eat('"')){b.tokenize=null;break}return"string"}function q(a,b){var c=a.next();if(m[c]){var d=m[c](a,b);if(d!==!1)return d}if(c=='"'||c=="'")return b.tokenize=r(c),b.tokenize(a,b);if(/[\[\]{}\(\),;\:\.]/.test(c))return p=c,null;if(/\d/.test(c))return a.eatWhile(/[\w\.]/),"number";if(c=="/"){if(a.eat("*"))return b.tokenize=s,s(a,b);if(a.eat("/"))return a.skipToEnd(),"comment"}if(o.test(c))return a.eatWhile(o),"operator";a.eatWhile(/[\w\$_]/);var e=a.current().toLowerCase();if(f.propertyIsEnumerable(e))return k.propertyIsEnumerable(e)&&(p="newstatement"),"keyword";if(g.propertyIsEnumerable(e))return k.propertyIsEnumerable(e)&&(p="newstatement"),"variable";if(h.propertyIsEnumerable(e))return k.propertyIsEnumerable(e)&&(p="newstatement"),"variable-2";if(i.propertyIsEnumerable(e))return k.propertyIsEnumerable(e)&&(p="newstatement"),"variable-3";if(j.propertyIsEnumerable(e))return k.propertyIsEnumerable(e)&&(p="newstatement"),"builtin";var n=e.length-1;while(n>=0&&(!isNaN(e[n])||e[n]=="_"))--n;if(n>0){var q=e.substr(0,n+1);if(i.propertyIsEnumerable(q))return k.propertyIsEnumerable(q)&&(p="newstatement"),"variable-3"}return l.propertyIsEnumerable(e)?"atom":"word"}function r(a){return function(b,c){var d=!1,e,f=!1;while((e=b.next())!=null){if(e==a&&!d){f=!0;break}d=!d&&e=="\\"}if(f||!d&&!n)c.tokenize=q;return"string"}}function s(a,b){var c=!1,d;while(d=a.next()){if(d=="/"&&c){b.tokenize=q;break}c=d=="*"}return"comment"}function t(a,b,c,d,e){this.indented=a,this.column=b,this.type=c,this.align=d,this.prev=e}function u(a,b,c){return a.context=new t(a.indented,b,c,null,a.context)}function v(a){var b=a.context.type;if(b==")"||b=="]"||b=="}")a.indented=a.context.indented;return a.context=a.context.prev}var e=a.indentUnit,f=b("abs acos allnodes ascii asin asstring atan atan2 ave case choose choosen choosesets clustersize combine correlation cos cosh count covariance cron dataset dedup define denormalize distribute distributed distribution ebcdic enth error evaluate event eventextra eventname exists exp failcode failmessage fetch fromunicode getisvalid global graph group hash hash32 hash64 hashcrc hashmd5 having if index intformat isvalid iterate join keyunicode length library limit ln local log loop map matched matchlength matchposition matchtext matchunicode max merge mergejoin min nolocal nonempty normalize parse pipe power preload process project pull random range rank ranked realformat recordof regexfind regexreplace regroup rejected rollup round roundup row rowdiff sample set sin sinh sizeof soapcall sort sorted sqrt stepped stored sum table tan tanh thisnode topn tounicode transfer trim truncate typeof ungroup unicodeorder variance which workunit xmldecode xmlencode xmltext xmlunicode"),g=b("apply assert build buildindex evaluate fail keydiff keypatch loadxml nothor notify output parallel sequential soapcall wait"),h=b("__compressed__ all and any as atmost before beginc++ best between case const counter csv descend encrypt end endc++ endmacro except exclusive expire export extend false few first flat from full function group header heading hole ifblock import in interface joined keep keyed last left limit load local locale lookup macro many maxcount maxlength min skew module named nocase noroot noscan nosort not of only opt or outer overwrite packed partition penalty physicallength pipe quote record relationship repeat return right scan self separator service shared skew skip sql store terminator thor threshold token transform trim true type unicodeorder unsorted validate virtual whole wild within xml xpath"),i=b("ascii big_endian boolean data decimal ebcdic integer pattern qstring real record rule set of string token udecimal unicode unsigned varstring varunicode"),j=b("checkpoint deprecated failcode failmessage failure global independent onwarning persist priority recovery stored success wait when"),k=b("catch class do else finally for if switch try while"),l=b("true false null"),m={"#":c},n,o=/[+\-*&%=<>!?|\/]/,p;return{startState:function(a){return{tokenize:null,context:new t((a||0)-e,0,"top",!1),indented:0,startOfLine:!0}},token:function(a,b){var c=b.context;a.sol()&&(c.align==null&&(c.align=!1),b.indented=a.indentation(),b.startOfLine=!0);if(a.eatSpace())return null;p=null;var d=(b.tokenize||q)(a,b);if(d=="comment"||d=="meta")return d;c.align==null&&(c.align=!0);if(p!=";"&&p!=":"||c.type!="statement")if(p=="{")u(b,a.column(),"}");else if(p=="[")u(b,a.column(),"]");else if(p=="(")u(b,a.column(),")");else if(p=="}"){while(c.type=="statement")c=v(b);c.type=="}"&&(c=v(b));while(c.type=="statement")c=v(b)}else p==c.type?v(b):(c.type=="}"||c.type=="top"||c.type=="statement"&&p=="newstatement")&&u(b,a.column(),"statement");else v(b);return b.startOfLine=!1,d},indent:function(a,b){if(a.tokenize!=q&&a.tokenize!=null)return 0;var c=a.context,d=b&&b.charAt(0);c.type=="statement"&&d=="}"&&(c=c.prev);var f=d==c.type;return c.type=="statement"?c.indented+(d=="{"?0:e):c.align?c.column+(f?0:1):c.indented+(f?0:e)},electricChars:"{}"}}),CodeMirror.defineMIME("text/x-ecl");
+CodeMirror.defineMode("ecl", function(config) {
+
+  function words(str) {
+    var obj = {}, words = str.split(" ");
+    for (var i = 0; i < words.length; ++i) obj[words[i]] = true;
+    return obj;
+  }
+
+  function metaHook(stream, state) {
+    if (!state.startOfLine) return false;
+    stream.skipToEnd();
+    return "meta";
+  }
+
+  var indentUnit = config.indentUnit;
+  var keyword = words("abs acos allnodes ascii asin asstring atan atan2 ave case choose choosen choosesets clustersize combine correlation cos cosh count covariance cron dataset dedup define denormalize distribute distributed distribution ebcdic enth error evaluate event eventextra eventname exists exp failcode failmessage fetch fromunicode getisvalid global graph group hash hash32 hash64 hashcrc hashmd5 having if index intformat isvalid iterate join keyunicode length library limit ln local log loop map matched matchlength matchposition matchtext matchunicode max merge mergejoin min nolocal nonempty normalize parse pipe power preload process project pull random range rank ranked realformat recordof regexfind regexreplace regroup rejected rollup round roundup row rowdiff sample set sin sinh sizeof soapcall sort sorted sqrt stepped stored sum table tan tanh thisnode topn tounicode transfer trim truncate typeof ungroup unicodeorder variance which workunit xmldecode xmlencode xmltext xmlunicode");
+  var variable = words("apply assert build buildindex evaluate fail keydiff keypatch loadxml nothor notify output parallel sequential soapcall wait");
+  var variable_2 = words("__compressed__ all and any as atmost before beginc++ best between case const counter csv descend encrypt end endc++ endmacro except exclusive expire export extend false few first flat from full function group header heading hole ifblock import in interface joined keep keyed last left limit load local locale lookup macro many maxcount maxlength min skew module named nocase noroot noscan nosort not of only opt or outer overwrite packed partition penalty physicallength pipe quote record relationship repeat return right scan self separator service shared skew skip sql store terminator thor threshold token transform trim true type unicodeorder unsorted validate virtual whole wild within xml xpath");
+  var variable_3 = words("ascii big_endian boolean data decimal ebcdic integer pattern qstring real record rule set of string token udecimal unicode unsigned varstring varunicode");
+  var builtin = words("checkpoint deprecated failcode failmessage failure global independent onwarning persist priority recovery stored success wait when");
+  var blockKeywords = words("catch class do else finally for if switch try while");
+  var atoms = words("true false null");
+  var hooks = {"#": metaHook};
+  var multiLineStrings;
+  var isOperatorChar = /[+\-*&%=<>!?|\/]/;
+
+  var curPunc;
+
+  function tokenBase(stream, state) {
+    var ch = stream.next();
+    if (hooks[ch]) {
+      var result = hooks[ch](stream, state);
+      if (result !== false) return result;
+    }
+    if (ch == '"' || ch == "'") {
+      state.tokenize = tokenString(ch);
+      return state.tokenize(stream, state);
+    }
+    if (/[\[\]{}\(\),;\:\.]/.test(ch)) {
+      curPunc = ch;
+      return null;
+    }
+    if (/\d/.test(ch)) {
+      stream.eatWhile(/[\w\.]/);
+      return "number";
+    }
+    if (ch == "/") {
+      if (stream.eat("*")) {
+        state.tokenize = tokenComment;
+        return tokenComment(stream, state);
+      }
+      if (stream.eat("/")) {
+        stream.skipToEnd();
+        return "comment";
+      }
+    }
+    if (isOperatorChar.test(ch)) {
+      stream.eatWhile(isOperatorChar);
+      return "operator";
+    }
+    stream.eatWhile(/[\w\$_]/);
+    var cur = stream.current().toLowerCase();
+    if (keyword.propertyIsEnumerable(cur)) {
+      if (blockKeywords.propertyIsEnumerable(cur)) curPunc = "newstatement";
+      return "keyword";
+    } else if (variable.propertyIsEnumerable(cur)) {
+      if (blockKeywords.propertyIsEnumerable(cur)) curPunc = "newstatement";
+      return "variable";
+    } else if (variable_2.propertyIsEnumerable(cur)) {
+      if (blockKeywords.propertyIsEnumerable(cur)) curPunc = "newstatement";
+      return "variable-2";
+    } else if (variable_3.propertyIsEnumerable(cur)) {
+      if (blockKeywords.propertyIsEnumerable(cur)) curPunc = "newstatement";
+      return "variable-3";
+    } else if (builtin.propertyIsEnumerable(cur)) {
+      if (blockKeywords.propertyIsEnumerable(cur)) curPunc = "newstatement";
+      return "builtin";
+    } else { //Data types are of from KEYWORD##
+                var i = cur.length - 1;
+                while(i >= 0 && (!isNaN(cur[i]) || cur[i] == '_'))
+                        --i;
+
+                if (i > 0) {
+                        var cur2 = cur.substr(0, i + 1);
+                if (variable_3.propertyIsEnumerable(cur2)) {
+                        if (blockKeywords.propertyIsEnumerable(cur2)) curPunc = "newstatement";
+                        return "variable-3";
+                }
+            }
+    }
+    if (atoms.propertyIsEnumerable(cur)) return "atom";
+    return null;
+  }
+
+  function tokenString(quote) {
+    return function(stream, state) {
+      var escaped = false, next, end = false;
+      while ((next = stream.next()) != null) {
+        if (next == quote && !escaped) {end = true; break;}
+        escaped = !escaped && next == "\\";
+      }
+      if (end || !(escaped || multiLineStrings))
+        state.tokenize = tokenBase;
+      return "string";
+    };
+  }
+
+  function tokenComment(stream, state) {
+    var maybeEnd = false, ch;
+    while (ch = stream.next()) {
+      if (ch == "/" && maybeEnd) {
+        state.tokenize = tokenBase;
+        break;
+      }
+      maybeEnd = (ch == "*");
+    }
+    return "comment";
+  }
+
+  function Context(indented, column, type, align, prev) {
+    this.indented = indented;
+    this.column = column;
+    this.type = type;
+    this.align = align;
+    this.prev = prev;
+  }
+  function pushContext(state, col, type) {
+    return state.context = new Context(state.indented, col, type, null, state.context);
+  }
+  function popContext(state) {
+    var t = state.context.type;
+    if (t == ")" || t == "]" || t == "}")
+      state.indented = state.context.indented;
+    return state.context = state.context.prev;
+  }
+
+  // Interface
+
+  return {
+    startState: function(basecolumn) {
+      return {
+        tokenize: null,
+        context: new Context((basecolumn || 0) - indentUnit, 0, "top", false),
+        indented: 0,
+        startOfLine: true
+      };
+    },
+
+    token: function(stream, state) {
+      var ctx = state.context;
+      if (stream.sol()) {
+        if (ctx.align == null) ctx.align = false;
+        state.indented = stream.indentation();
+        state.startOfLine = true;
+      }
+      if (stream.eatSpace()) return null;
+      curPunc = null;
+      var style = (state.tokenize || tokenBase)(stream, state);
+      if (style == "comment" || style == "meta") return style;
+      if (ctx.align == null) ctx.align = true;
+
+      if ((curPunc == ";" || curPunc == ":") && ctx.type == "statement") popContext(state);
+      else if (curPunc == "{") pushContext(state, stream.column(), "}");
+      else if (curPunc == "[") pushContext(state, stream.column(), "]");
+      else if (curPunc == "(") pushContext(state, stream.column(), ")");
+      else if (curPunc == "}") {
+        while (ctx.type == "statement") ctx = popContext(state);
+        if (ctx.type == "}") ctx = popContext(state);
+        while (ctx.type == "statement") ctx = popContext(state);
+      }
+      else if (curPunc == ctx.type) popContext(state);
+      else if (ctx.type == "}" || ctx.type == "top" || (ctx.type == "statement" && curPunc == "newstatement"))
+        pushContext(state, stream.column(), "statement");
+      state.startOfLine = false;
+      return style;
+    },
+
+    indent: function(state, textAfter) {
+      if (state.tokenize != tokenBase && state.tokenize != null) return 0;
+      var ctx = state.context, firstChar = textAfter && textAfter.charAt(0);
+      if (ctx.type == "statement" && firstChar == "}") ctx = ctx.prev;
+      var closing = firstChar == ctx.type;
+      if (ctx.type == "statement") return ctx.indented + (firstChar == "{" ? 0 : indentUnit);
+      else if (ctx.align) return ctx.column + (closing ? 0 : 1);
+      else return ctx.indented + (closing ? 0 : indentUnit);
+    },
+
+    electricChars: "{}"
+  };
+});
+
+CodeMirror.defineMIME("text/x-ecl", "ecl");
