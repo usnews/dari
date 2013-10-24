@@ -123,7 +123,22 @@ public class JsonProcessor {
         }
     }
 
-    /** Parses the given {@code source}. */
+    /**
+     * Parses the given JSON {@code bytes} into an object.
+     *
+     * @param bytes If {@code null}, returns {@code null}.
+     */
+    public Object parse(byte[] bytes) {
+        try {
+            return parseAny(bytes);
+        } catch (JsonParseException error) {
+            throw new JsonParsingException("Can't parse JSON bytes!", error);
+        } catch (IOException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
+    // Parses the given source.
     private Object parseAny(Object source) throws JsonParseException, IOException {
         if (source != null) {
             JsonParser parser = null;
@@ -137,6 +152,8 @@ public class JsonProcessor {
                     parser = factory.createJsonParser((Reader) source);
                 } else if (source instanceof String) {
                     parser = factory.createJsonParser(new StringReader((String) source));
+                } else if (source instanceof byte[]) {
+                    parser = factory.createJsonParser((byte[]) source);
                 } else {
                     throw new IllegalStateException();
                 }
@@ -264,9 +281,26 @@ public class JsonProcessor {
                 transformed instanceof CharSequence) {
             generator.writeString(transformed.toString());
 
-        } else if (transformed instanceof Boolean ||
-                transformed instanceof Number) {
-            generator.writeRawValue(transformed.toString());
+        } else if (transformed instanceof Boolean) {
+            generator.writeBoolean((Boolean) transformed);
+
+        } else if (transformed instanceof Double) {
+            generator.writeNumber((Double) transformed);
+
+        } else if (transformed instanceof Number) {
+            if (transformed instanceof Long ||
+                    transformed instanceof Integer ||
+                    transformed instanceof Short ||
+                    transformed instanceof Byte) {
+                generator.writeNumber(((Number) transformed).longValue());
+
+            } else if (transformed instanceof Double ||
+                    transformed instanceof Float) {
+                generator.writeNumber(((Number) transformed).doubleValue());
+
+            } else {
+                generator.writeString(transformed.toString());
+            }
 
         } else if (isDuplicate) {
             generator.writeNull();

@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<ruleset name="Dari"
+        xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 http://pmd.sourceforge.net/ruleset_2_0_0.xsd">
+    <rule ref="rulesets/java/basic.xml">
+        <exclude name="AvoidBranchingStatementAsLastInLoop" />
+    </rule>
+
+    <rule ref="rulesets/java/braces.xml" />
+    <rule ref="rulesets/java/clone.xml" />
+
+    <rule ref="rulesets/java/design.xml">
+        <exclude name="AvoidReassigningParameters" />
+        <exclude name="AvoidSynchronizedAtMethodLevel" />
+        <exclude name="CloseResource" />
+        <exclude name="ConfusingTernary" />
+        <exclude name="EmptyMethodInAbstractClassShouldBeAbstract" />
+        <exclude name="FieldDeclarationsShouldBeAtStartOfClass" />
+        <exclude name="GodClass" />
+        <exclude name="NonStaticInitializer" />
+        <exclude name="UncommentedEmptyMethod" />
+        <exclude name="UseSingleton" />
+    </rule>
+
+    <rule ref="rulesets/java/empty.xml">
+        <exclude name="EmptyCatchBlock" />
+    </rule>
+
+    <rule ref="rulesets/java/empty.xml/EmptyCatchBlock">
+        <properties>
+            <property name="allowCommentedBlocks" value="true" />
+        </properties>
+    </rule>
+
+    <rule ref="rulesets/java/finalizers.xml" />
+    <rule ref="rulesets/java/imports.xml" />
+
+    <rule ref="rulesets/java/naming.xml">
+        <exclude name="AbstractNaming" />
+        <exclude name="AvoidFieldNameMatchingMethodName" />
+        <exclude name="LongVariable" />
+        <exclude name="ShortClassName" />
+        <exclude name="ShortVariable" />
+        <exclude name="ShortMethodName" />
+    </rule>
+
+    <rule ref="rulesets/java/strictexception.xml">
+        <exclude name="AvoidCatchingGenericException" />
+        <exclude name="SignatureDeclareThrowsException" />
+    </rule>
+
+    <rule ref="rulesets/java/strings.xml">
+        <exclude name="AvoidDuplicateLiterals" />
+        <exclude name="ConsecutiveLiteralAppends" />
+    </rule>
+
+    <rule ref="rulesets/java/sunsecure.xml" />
+
+    <rule ref="rulesets/java/typeresolution.xml">
+        <exclude name="SignatureDeclareThrowsException" />
+    </rule>
+
+    <rule ref="rulesets/java/unnecessary.xml">
+        <exclude name="UselessParentheses" />
+    </rule>
+
+    <rule ref="rulesets/java/unusedcode.xml">
+        <exclude name="UnusedModifier" />
+    </rule>
+</ruleset>

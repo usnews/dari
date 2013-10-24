@@ -14,8 +14,10 @@ import java.io.StringReader;
 import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.lang.instrument.UnmodifiableClassException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -64,7 +66,7 @@ import org.objectweb.asm.ClassWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CodeUtils {
+public final class CodeUtils {
 
     public static final String JAVA_SOURCE_DIRECTORY_PROPERTY = "javaSourceDirectory";
     public static final String RESOURCE_DIRECTORY_PROPERTY = "resourceDirectory";
@@ -96,8 +98,10 @@ public class CodeUtils {
 
         try {
             for (Enumeration<URL> i = ObjectUtils.getCurrentClassLoader().getResources(BUILD_PROPERTIES_PATH); i.hasMoreElements(); ) {
+                URL buildUrl = i.nextElement();
+
                 try {
-                    URLConnection buildConnection = i.nextElement().openConnection();
+                    URLConnection buildConnection = buildUrl.openConnection();
                     InputStream buildInput = buildConnection.getInputStream();
                     try {
                         Properties build = new Properties();
@@ -141,10 +145,12 @@ public class CodeUtils {
                     } finally {
                         buildInput.close();
                     }
-                } catch (IOException ex) {
+                } catch (IOException error) {
+                    LOGGER.debug(String.format("Can't read [%s]!", buildUrl), error);
                 }
             }
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            LOGGER.warn("Can't find build.properties files!", error);
         }
 
         SOURCE_DIRECTORIES = Collections.unmodifiableSet(sources);
@@ -253,6 +259,7 @@ public class CodeUtils {
      */
     @SuppressWarnings("unchecked")
     public static Set<String> getResourcePaths(ServletContext context, String path) {
+        Set<String> originalPaths = (Set<String>) context.getResourcePaths(path);
         File source = getWebappSource(context, path);
 
         if (source != null && source.exists()) {
@@ -261,19 +268,27 @@ public class CodeUtils {
 
             if (children != null) {
                 for (String child : children) {
-                    String childPath = path + child;
+                    StringBuilder childPath = new StringBuilder();
+
+                    childPath.append(path);
+                    childPath.append(child);
 
                     if (new File(source, child).isDirectory()) {
-                        childPath += "/";
+                        childPath.append('/');
                     }
-                    paths.add(childPath);
+
+                    paths.add(childPath.toString());
                 }
+            }
+
+            if (originalPaths != null) {
+                paths.addAll(originalPaths);
             }
 
             return paths;
 
         } else {
-            return (Set<String>) context.getResourcePaths(path);
+            return originalPaths;
         }
     }
 
@@ -283,7 +298,7 @@ public class CodeUtils {
      */
     public static URL getResource(ServletContext context, String path) throws MalformedURLException {
         File source = getWebappSource(context, path);
-        return source != null ? source.toURI().toURL() : context.getResource(path);
+        return source != null && source.exists() ? source.toURI().toURL() : context.getResource(path);
     }
 
     /**
@@ -293,10 +308,12 @@ public class CodeUtils {
     public static InputStream getResourceAsStream(ServletContext context, String path) {
         File source = getWebappSource(context, path);
 
-        if (source != null) {
+        if (source != null && source.exists()) {
             try {
                 return new FileInputStream(source);
             } catch (FileNotFoundException error) {
+                // Falls through to using the native #getResourceAsStream
+                // method.
             }
         }
 
@@ -494,12 +511,13 @@ public class CodeUtils {
 
     // ---
 
-    private static Class<?> AGENT_CLASS;
+    private static Class<?> agentClass;
     private static final Instrumentation INSTRUMENTATION;
     private static final Map<String, String> JSP_SERVLET_PATHS_MAP = new HashMap<String, String>();
     private static final Map<String, String> JSP_LINE_NUMBERS_MAP = new HashMap<String, String>();
+    private static final ClassFileTransformer JSP_CLASS_RECORDER = new JspTransformer();
 
-    private static final ClassFileTransformer JSP_CLASS_RECORDER = new ClassFileTransformer() {
+    private static class JspTransformer implements ClassFileTransformer {
 
         @Override
         public byte[] transform(
@@ -519,7 +537,7 @@ public class CodeUtils {
 
             return null;
         }
-    };
+    }
 
     private static class SmapAdapter extends ClassAdapter {
 
@@ -550,13 +568,36 @@ public class CodeUtils {
     static {
         Class<?> agentClass = getAgentClass();
         Instrumentation instrumentation = null;
+
         if (agentClass != null) {
+            Throwable error = null;
+
             try {
-                instrumentation = (Instrumentation) agentClass.getField("INSTRUMENTATION").get(null);
+                Field instrumentationField;
+
+                try {
+                    instrumentationField = agentClass.getDeclaredField("instrumentation");
+                } catch (NoSuchFieldException e) {
+                    instrumentationField = agentClass.getDeclaredField("INSTRUMENTATION");
+                }
+
+                instrumentationField.setAccessible(true);
+                instrumentation = (Instrumentation) instrumentationField.get(null);
                 instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
-            } catch (Exception ex) {
+
+            } catch (IllegalAccessException e) {
+                error = e;
+            } catch (NoSuchFieldException e) {
+                error = e;
+            } catch (RuntimeException e) {
+                error = e;
+            }
+
+            if (error != null) {
+                LOGGER.info("Can't get instrumentation instance from agent!", error);
             }
         }
+
         INSTRUMENTATION = instrumentation;
     }
 
@@ -568,12 +609,14 @@ public class CodeUtils {
      */
     private static synchronized Class<?> getAgentClass() {
         try {
-            AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
-            return AGENT_CLASS;
-        } catch (ClassNotFoundException ex) {
+            agentClass = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
+            return agentClass;
+        } catch (ClassNotFoundException error) {
+            // If not found, try to create it on-the-fly below.
         }
 
         Class<?> vmClass = ObjectUtils.getClassByName("com.sun.tools.attach.VirtualMachine");
+
         if (vmClass == null) {
             return null;
         }
@@ -582,26 +625,33 @@ public class CodeUtils {
         RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
         String pid = runtime.getName();
         int atAt = pid.indexOf('@');
+
         if (atAt < 0) {
             LOGGER.info("Can't guess the VM PID!");
             return null;
+
         } else {
             pid = pid.substring(0, atAt);
         }
 
         Object vm = null;
+        Throwable error = null;
+
         try {
             try {
 
                 // Hack around Mac OS X not using the correct
                 // temporary directory.
                 String newTmpdir = System.getenv("TMPDIR");
+
                 if (newTmpdir != null) {
                     String oldTmpdir = System.getProperty("java.io.tmpdir");
+
                     if (oldTmpdir != null) {
                         try {
                             System.setProperty("java.io.tmpdir", newTmpdir);
                             vm = vmClass.getMethod("attach", String.class).invoke(null, pid);
+
                         } finally {
                             System.setProperty("java.io.tmpdir", oldTmpdir);
                         }
@@ -610,39 +660,40 @@ public class CodeUtils {
 
                 // Create a temporary instrumentation agent JAR.
                 String agentName = Agent.class.getName();
-                File file = File.createTempFile(agentName, ".jar");
+                File agentDir = new File(System.getProperty("user.home"), ".dari");
+
+                IoUtils.createDirectories(agentDir);
+
+                File agentFile = new File(agentDir, agentName + ".jar");
+                Manifest manifest = new Manifest();
+                Attributes attributes = manifest.getMainAttributes();
+
+                attributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
+                attributes.putValue("Agent-Class", Agent.class.getName());
+                attributes.putValue("Can-Redefine-Classes", "true");
+                attributes.putValue("Can-Retransform-Classes", "true");
+
+                JarOutputStream jar = new JarOutputStream(new FileOutputStream(agentFile), manifest);
+
                 try {
+                    String entryName = agentName.replace('.', '/') + ".class";
+                    InputStream originalInput = CodeUtils.class.getResourceAsStream("/" + entryName);
 
-                    Manifest manifest = new Manifest();
-                    Attributes attributes = manifest.getMainAttributes();
-                    attributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
-                    attributes.putValue("Agent-Class", Agent.class.getName());
-                    attributes.putValue("Can-Redefine-Classes", "true");
-                    attributes.putValue("Can-Retransform-Classes", "true");
-
-                    JarOutputStream jar = new JarOutputStream(new FileOutputStream(file), manifest);
                     try {
-                        String entryName = agentName.replace('.', '/') + ".class";
                         jar.putNextEntry(new JarEntry(entryName));
-                        InputStream originalInput = CodeUtils.class.getResourceAsStream("/" + entryName);
-                        try {
-                            IoUtils.copy(originalInput, jar);
-                        } finally {
-                            originalInput.close();
-                        }
+                        IoUtils.copy(originalInput, jar);
                         jar.closeEntry();
-                    } finally {
-                        jar.close();
-                    }
 
-                    vmClass.getMethod("loadAgent", String.class).invoke(vm, file.getAbsolutePath());
-                    AGENT_CLASS = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
+                    } finally {
+                        originalInput.close();
+                    }
 
                 } finally {
-                    if (!file.delete()) {
-                        file.deleteOnExit();
-                    }
+                    jar.close();
                 }
+
+                vmClass.getMethod("loadAgent", String.class).invoke(vm, agentFile.getAbsolutePath());
+                agentClass = ClassLoader.getSystemClassLoader().loadClass(Agent.class.getName());
 
             } finally {
                 if (vm != null) {
@@ -650,11 +701,25 @@ public class CodeUtils {
                 }
             }
 
-        } catch (Exception ex) {
-            LOGGER.info("Can't create an instrumentation instance!", ex);
+        } catch (ClassNotFoundException e) {
+            error = e;
+        } catch (IllegalAccessException e) {
+            error = e;
+        } catch (InvocationTargetException e) {
+            error = e.getCause();
+        } catch (IOException e) {
+            error = e;
+        } catch (NoSuchMethodException e) {
+            error = e;
+        } catch (RuntimeException e) {
+            error = e;
         }
 
-        return AGENT_CLASS;
+        if (error != null) {
+            LOGGER.info("Can't create an instrumentation instance!", error);
+        }
+
+        return agentClass;
     }
 
     /**
@@ -664,10 +729,17 @@ public class CodeUtils {
      */
     public static final class Agent {
 
-        public static Instrumentation INSTRUMENTATION;
+        private Agent() {
+        }
 
-        public static void agentmain(String agentArguments, Instrumentation instrumentation) {
-            INSTRUMENTATION = instrumentation;
+        private static Instrumentation instrumentation;
+
+        public static Instrumentation getInstrumentation() {
+            return instrumentation;
+        }
+
+        public static void agentmain(String agentArguments, Instrumentation i) {
+            instrumentation = i;
         }
     }
 
@@ -730,12 +802,22 @@ public class CodeUtils {
 
         } else {
             for (ClassDefinition definition : definitions) {
+                Throwable error = null;
+
                 try {
                     instrumentation.redefineClasses(definition);
                     Class<?> c = definition.getDefinitionClass();
                     successes.add(c);
 
-                } catch (Exception error) {
+                } catch (ClassNotFoundException e) {
+                    error = e;
+                } catch (UnmodifiableClassException e) {
+                    error = e;
+                } catch (RuntimeException e) {
+                    error = e;
+                }
+
+                if (error != null) {
                     failures.add(definition);
                 }
             }
@@ -805,7 +887,9 @@ public class CodeUtils {
                 }
             }
 
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            // This should never happen since StringReader doesn't throw
+            // IOException.
         }
 
         return -1;

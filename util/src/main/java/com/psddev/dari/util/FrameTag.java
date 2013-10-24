@@ -1,19 +1,32 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.BodyTagSupport;
+import javax.servlet.jsp.tagext.DynamicAttributes;
 
 @SuppressWarnings("serial")
-public class FrameTag extends BodyTagSupport {
+public class FrameTag extends BodyTagSupport implements DynamicAttributes {
 
-    private static final String ATTRIBUTE_PREFIX = FrameTag.class.getName() + ".";
-    private static final String JS_INCLUDED_PREFIX = ATTRIBUTE_PREFIX + "jsIncluded";
+    protected static final String ATTRIBUTE_PREFIX = FrameTag.class.getName() + ".";
+    protected static final String CURRENT_NAME_PREFIX = ATTRIBUTE_PREFIX + "currentName";
+    protected static final String JS_INCLUDED_PREFIX = ATTRIBUTE_PREFIX + "jsIncluded";
+
+    public enum InsertionMode {
+        replace, // default
+        append,
+        prepend;
+    }
 
     private String name;
     private boolean lazy;
+    private InsertionMode mode;
+    private final Map<String, Object> attributes = new LinkedHashMap<String, Object>();
+    private transient String oldName;
 
     public void setName(String name) {
         this.name = name;
@@ -23,17 +36,24 @@ public class FrameTag extends BodyTagSupport {
         this.lazy = lazy;
     }
 
+    public void setMode(InsertionMode mode) {
+        this.mode = mode;
+    }
+
+    // --- DynamicAttributes support ---
+
+    @Override
+    public void setDynamicAttribute(String uri, String localName, Object value) {
+        if (value != null) {
+            attributes.put(localName, value);
+        }
+    }
+
     // --- TagSupport support ---
 
     private boolean isRenderingFrame(HttpServletRequest request) {
-        return request.getParameter(FrameFilter.PATH_PARAMETER) != null;
-    }
-
-    private void writeScript(HttpServletRequest request, HtmlWriter writer, String source) throws IOException {
-        writer.writeStart("script",
-                "type", "text/javascript",
-                "src", JspUtils.getAbsolutePath(request, source));
-        writer.writeEnd();
+        return request.getParameter(FrameFilter.PATH_PARAMETER) != null &&
+                name.equals(request.getParameter(FrameFilter.NAME_PARAMETER));
     }
 
     private void startFrame(HttpServletRequest request, HtmlWriter writer, String... classNames) throws IOException {
@@ -41,7 +61,7 @@ public class FrameTag extends BodyTagSupport {
 
         if (classNames != null) {
             int length = classNames.length;
-            
+
             if (length > 0) {
                 for (int i = 0; i < length; ++ i) {
                     fullClassName.append(" dari-frame-");
@@ -51,8 +71,10 @@ public class FrameTag extends BodyTagSupport {
         }
 
         writer.writeStart("div",
+                attributes,
                 "class", fullClassName.toString(),
                 "name", name,
+                "data-insertion-mode", mode != null ? mode : InsertionMode.replace,
                 "data-extra-form-data",
                         FrameFilter.PATH_PARAMETER + "=" + StringUtils.encodeUri(JspUtils.getCurrentServletPath(request)) + "&" +
                         FrameFilter.NAME_PARAMETER + "=" + StringUtils.encodeUri(name));
@@ -61,6 +83,9 @@ public class FrameTag extends BodyTagSupport {
     @Override
     public int doStartTag() throws JspException {
         HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
+        oldName = Static.getCurrentName(request);
+
+        request.setAttribute(CURRENT_NAME_PREFIX, name);
 
         try {
             if (!Boolean.TRUE.equals(request.getAttribute(JS_INCLUDED_PREFIX))) {
@@ -69,11 +94,48 @@ public class FrameTag extends BodyTagSupport {
                 @SuppressWarnings("all")
                 HtmlWriter writer = new HtmlWriter(pageContext.getOut());
 
-                writeScript(request, writer, "/_resource/jquery2/jquery.extra.js");
-                writeScript(request, writer, "/_resource/jquery2/jquery.popup.js");
-                writeScript(request, writer, "/_resource/jquery2/jquery.frame.js");
+                final String[][] plugins = new String[][] {
+                        //name          path
+                        {"$.plugin2",  "/_resource/jquery2/jquery.extra.js"},
+                        {"$.fn.popup", "/_resource/jquery2/jquery.popup.js"},
+                        {"$.fn.frame", "/_resource/jquery2/jquery.frame.js"},
+                };
+
                 writer.writeStart("script", "type", "text/javascript");
-                    writer.write("$(window.document).frame().ready(function(){$(this).trigger('create');});");
+                    writer.write("(function($, win, undef) {");
+                    writer.write(    "var done = function() {");
+                    writer.write(        "$(window.document).frame({");
+                    writer.write(            "'setBody': function(body) {");
+                    writer.write(                "var insertionMode = $(this).attr('data-insertion-mode');");
+                    writer.write(                "if ('append' === insertionMode) {");
+                    writer.write(                    "$(this).append(body);");
+                    writer.write(                "} else if ('prepend' === insertionMode) {");
+                    writer.write(                    "$(this).prepend(body);");
+                    writer.write(                "} else {"); // 'replace' === insertionMode
+                    writer.write(                    "$(this).html(body);");
+                    writer.write(                "}");
+                    writer.write(            "}");
+                    writer.write(        "}).ready(function() {");
+                    writer.write(            "$(this).trigger('create');");
+                    writer.write(        "});");
+                    writer.write(    "};");
+                    writer.write(    "var deferreds = [];");
+                    for (String[] plugin : plugins) {
+                        writer.write("if (!$.isFunction(" + plugin[0] + ")) {");
+                        writer.write(    "deferreds.push($.getScript('" + JspUtils.getAbsolutePath(request, plugin[1]) + "'));");
+                        writer.write("}");
+                    }
+                    writer.write(    "if (deferreds.length > 0) {");
+                    writer.write(        "deferreds.push($.Deferred(function(deferred) {");
+                    writer.write(            "$(deferred.resolve);");
+                    writer.write(        "}));");
+                    writer.write(        "$.when.apply($, deferreds).done(function() {");
+                    writer.write(            "done();");
+                    writer.write(        "});");
+                    writer.write(    "} else {");
+                    writer.write(        "done();");
+                    writer.write(    "}");
+                    writer.write("}(jQuery, window));");
                 writer.writeEnd();
             }
 
@@ -102,12 +164,14 @@ public class FrameTag extends BodyTagSupport {
 
     @Override
     public int doEndTag() throws JspException {
+        HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
+
+        request.setAttribute(CURRENT_NAME_PREFIX, oldName);
+
         if (bodyContent != null) {
             String body = bodyContent.getString();
-            
-            if (body != null) {
-                HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
 
+            if (body != null) {
                 if (isRenderingFrame(request)) {
                     request.setAttribute(FrameFilter.BODY_ATTRIBUTE, body);
 
@@ -128,5 +192,21 @@ public class FrameTag extends BodyTagSupport {
         }
 
         return EVAL_PAGE;
+    }
+
+    /**
+     * {@link FrameTag} utility methods.
+     */
+    public static final class Static {
+
+        /**
+         * Returns the name of the current frame that's rendering.
+         *
+         * @param request Can't be {@code null}.
+         * @return May be {@code null}.
+         */
+        public static String getCurrentName(HttpServletRequest request) {
+            return (String) request.getAttribute(CURRENT_NAME_PREFIX);
+        }
     }
 }

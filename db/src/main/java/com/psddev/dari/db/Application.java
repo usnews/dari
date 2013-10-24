@@ -59,10 +59,7 @@ public class Application extends Record {
     }
 
     /** {@linkplain Application Application} utility methods. */
-    public final static class Static {
-
-        private Static() {
-        }
+    public static final class Static {
 
         /**
          * Returns the singleton application object matching the given

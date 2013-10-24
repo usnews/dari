@@ -33,9 +33,9 @@ public class PredicateParserTest {
     	assertEquals(null, parser.parse(" "));
     }
 
-    @Test (expected=NullPointerException.class)
+    @Test
     public void parse_null() {
-    	parser.parse(null);
+    	assertEquals(null, parser.parse(null));
     }
 
     @Test

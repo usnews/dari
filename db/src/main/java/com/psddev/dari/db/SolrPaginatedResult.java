@@ -24,8 +24,8 @@ import com.psddev.dari.util.StringUtils;
  */
 public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlObject {
 
-    Class<?> _klass;
-    List<FacetField> _facetedFields;
+    final Class<?> _klass;
+    final List<FacetField> _facetedFields;
 
     public SolrPaginatedResult(
             long offset, int limit, long count, List<E> items, List<FacetField> facetedFields,
@@ -123,8 +123,8 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
     static public class DariFacetField {
 
-        private Class<?> _klass;
-        private FacetField _field;
+        private final Class<?> _klass;
+        private final FacetField _field;
 
         public DariFacetField(Class<?> klass, FacetField field) {
             this._klass = klass;
@@ -136,7 +136,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
         }
 
         public Long getCount() {
-            return new Long(_field.getValueCount());
+            return Long.valueOf(_field.getValueCount());
         }
 
         public <T> List<T> getObjects() {
@@ -157,7 +157,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
                 for (Object o : objects) {
                     Record record = (Record)o;
                     FacetField.Count c = index.get(record.getId().toString());
-                    record.getState().getExtras().put("count", new Long(c.getCount()));
+                    record.getState().getExtras().put("count", Long.valueOf(c.getCount()));
                 }
             }
 

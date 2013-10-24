@@ -17,6 +17,13 @@ import java.util.regex.Pattern;
 
 import javax.tools.JavaFileObject;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** For finding classes that are compatible with an arbitrary class. */
 public class ClassFinder {
 
@@ -27,6 +34,7 @@ public class ClassFinder {
     public static final String INCLUDE_ATTRIBUTE = "Dari-ClassFinder-Include";
 
     private static final String CLASS_FILE_SUFFIX = JavaFileObject.Kind.CLASS.extension;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClassFinder.class);
 
     private Set<String> classLoaderExclusions = new HashSet<String>(Arrays.asList(
             "sun.misc.Launcher$ExtClassLoader",
@@ -67,7 +75,8 @@ public class ClassFinder {
             for (String path : StringUtils.split(classPath, Pattern.quote(File.pathSeparator))) {
                 try {
                     processUrl(classNames, new File(path).toURI().toURL());
-                } catch (MalformedURLException ex) {
+                } catch (MalformedURLException error) {
+                    // Ignore JARs in the class path that can't be found.
                 }
             }
         }
@@ -81,8 +90,12 @@ public class ClassFinder {
                     Class<? extends T> tc = (Class<? extends T>) c;
                     classes.add(tc);
                 }
-            } catch (ClassNotFoundException ex) {
-            } catch (NoClassDefFoundError ex) {
+
+            } catch (ClassNotFoundException error) {
+                // Ignore classes that can't be found by name.
+
+            } catch (NoClassDefFoundError error) {
+                // Ignore classes that can't be somehow resolved at runtime.
             }
         }
 
@@ -123,7 +136,10 @@ public class ClassFinder {
                     urlInput.close();
                 }
 
-            } catch (IOException ex) {
+            } catch (IOException error) {
+                LOGGER.debug(String.format(
+                        "Can't read [%s] to scan its classes!", url),
+                        error);
             }
 
         } else {
@@ -154,6 +170,67 @@ public class ClassFinder {
                 className = StringUtils.replaceAll(className, Pattern.quote(File.separator), ".");
                 classNames.add(className);
             }
+        }
+    }
+
+    /**
+     * {@link ClassFinder} utility methods.
+     */
+    public static final class Static {
+
+        private static final ClassFinder INSTANCE = new ClassFinder();
+
+        private static final LoadingCache<ClassLoader, LoadingCache<Class<?>, Set<?>>> CLASSES_BY_BASE_CLASS_BY_LOADER = CacheBuilder.newBuilder().
+                build(new CacheLoader<ClassLoader, LoadingCache<Class<?>, Set<?>>>() {
+                    @Override
+                    public LoadingCache<Class<?>, Set<?>> load(final ClassLoader loader) {
+                        return CacheBuilder.newBuilder().
+                                build(new CacheLoader<Class<?>, Set<?>>() {
+                                    @Override
+                                    public Set<?> load(Class<?> baseClass) {
+                                        return INSTANCE.find(loader, baseClass);
+                                    }
+                                });
+                    }
+                });
+
+        static {
+            CodeUtils.addRedefineClassesListener(new CodeUtils.RedefineClassesListener() {
+                @Override
+                public void redefined(Set<Class<?>> classes) {
+                    CLASSES_BY_BASE_CLASS_BY_LOADER.invalidateAll();
+                }
+            });
+        }
+
+        /**
+         * Finds all classes that are compatible with the given {@code baseClass}
+         * within the given class {@code loader}.
+         *
+         * @param loader If {@code null}, uses the current class loader.
+         * @param baseClass Can't be {@code null}.
+         * @return Never {@code null}.
+         */
+        @SuppressWarnings("unchecked")
+        public static <T> Set<Class<? extends T>> findClassesFromLoader(ClassLoader loader, Class<T> baseClass) {
+            ErrorUtils.errorIfNull(baseClass, "baseClass");
+
+            if (loader == null) {
+                loader = ObjectUtils.getCurrentClassLoader();
+            }
+
+            return (Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER.getUnchecked(loader).getUnchecked(baseClass);
+        }
+
+        /**
+         * Finds all classes that are compatible with the given {@code baseClass}
+         * within the current class loader.
+         *
+         * @param baseClass Can't be {@code null}.
+         * @return Never {@code null}.
+         */
+        public static <T> Set<Class<? extends T>> findClasses(Class<T> baseClass) {
+            return findClassesFromLoader(null, baseClass);
         }
     }
 }

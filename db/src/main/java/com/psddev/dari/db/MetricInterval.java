@@ -17,18 +17,40 @@ public interface MetricInterval {
         }
     }
 
+    public class Minutely implements MetricInterval {
+
+        @Override
+        public long process(DateTime timestamp) {
+            return timestamp.minuteOfDay().roundFloorCopy().getMillis();
+        }
+
+        @Override
+        public String getSqlTruncatedDateFormat(SqlVendor vendor) {
+            if (vendor instanceof SqlVendor.MySQL) {
+                return "%Y%m%d%H%i";
+
+            } else if (vendor instanceof SqlVendor.PostgreSQL) {
+                return "YYYYMMDDHH24MI";
+
+            } else {
+                throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
+            }
+        }
+    }
+
     public class Hourly implements MetricInterval {
         @Override
         public long process(DateTime timestamp) {
             return timestamp.hourOfDay().roundFloorCopy().getMillis();
         }
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
-            if (vendor instanceof SqlVendor.MySQL)
+            if (vendor instanceof SqlVendor.MySQL) {
                 return "%Y%m%d%H";
-            else if (vendor instanceof SqlVendor.PostgreSQL)
+            } else if (vendor instanceof SqlVendor.PostgreSQL) {
                 return "YYYYMMDDHH24";
-            else
+            } else {
                 throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
+            }
         }
     }
 
@@ -38,12 +60,13 @@ public interface MetricInterval {
             return timestamp.dayOfMonth().roundFloorCopy().getMillis();
         }
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
-            if (vendor instanceof SqlVendor.MySQL)
+            if (vendor instanceof SqlVendor.MySQL) {
                 return "%Y%m%d";
-            else if (vendor instanceof SqlVendor.PostgreSQL)
+            } else if (vendor instanceof SqlVendor.PostgreSQL) {
                 return "YYYYMMDD";
-            else
+            } else {
                 throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
+            }
         }
     }
 
@@ -53,12 +76,13 @@ public interface MetricInterval {
             return timestamp.weekOfWeekyear().roundFloorCopy().getMillis();
         }
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
-            if (vendor instanceof SqlVendor.MySQL)
+            if (vendor instanceof SqlVendor.MySQL) {
                 return "%Y%u";
-            else if (vendor instanceof SqlVendor.PostgreSQL)
+            } else if (vendor instanceof SqlVendor.PostgreSQL) {
                 return "YYYYWW";
-            else
+            } else {
                 throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
+            }
         }
     }
 
@@ -68,12 +92,13 @@ public interface MetricInterval {
             return timestamp.monthOfYear().roundFloorCopy().getMillis();
         }
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
-            if (vendor instanceof SqlVendor.MySQL)
+            if (vendor instanceof SqlVendor.MySQL) {
                 return "%Y%m";
-            else if (vendor instanceof SqlVendor.PostgreSQL)
+            } else if (vendor instanceof SqlVendor.PostgreSQL) {
                 return "YYYYMM";
-            else
+            } else {
                 throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
+            }
         }
     }
 
@@ -83,12 +108,13 @@ public interface MetricInterval {
             return timestamp.year().roundFloorCopy().getMillis();
         }
         public String getSqlTruncatedDateFormat(SqlVendor vendor) {
-            if (vendor instanceof SqlVendor.MySQL)
+            if (vendor instanceof SqlVendor.MySQL) {
                 return "%Y";
-            else if (vendor instanceof SqlVendor.PostgreSQL)
+            } else if (vendor instanceof SqlVendor.PostgreSQL) {
                 return "YYYY";
-            else
+            } else {
                 throw new DatabaseException(vendor.getDatabase(), "This MetricInterval does not support this database vendor.");
+            }
         }
     }
 }

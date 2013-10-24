@@ -46,10 +46,10 @@ public class ODataServlet extends HttpServlet {
         if (pathInfo == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
 
-        } else if (pathInfo.equals("/")) {
+        } else if ("/".equals(pathInfo)) {
             renderServiceDocument(context);
 
-        } else if (pathInfo.equals("/$metadata")) {
+        } else if ("/$metadata".equals(pathInfo)) {
             renderMetadataDocument(context);
 
         } else {

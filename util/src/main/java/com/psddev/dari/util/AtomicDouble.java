@@ -58,7 +58,7 @@ public class AtomicDouble extends Number {
     }
 
     /**
-     * Atomically sets the given {@code newValue} and returns the old value. 
+     * Atomically sets the given {@code newValue} and returns the old value.
      */
     public double getAndSet(double newValue) {
         return Double.longBitsToDouble(value.getAndSet(Double.doubleToLongBits(newValue)));

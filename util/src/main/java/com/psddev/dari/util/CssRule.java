@@ -55,16 +55,16 @@ public class CssRule {
         for (CssDeclaration decl : getDeclarations()) {
             css.append("  ");
             css.append(decl.toString());
-            css.append("\n");
+            css.append('\n');
         }
 
-        css.append("}");
-        
+        css.append('}');
+
         for (int i = 0, count = getAtRulesCount(); i < count; ++ i) {
             css.append(" }");
         }
-        
-        css.append("\n");
+
+        css.append('\n');
 
         return css.toString();
     }

@@ -69,9 +69,6 @@ public interface ImageEditor extends SettingsBackedObject {
             }
         };
 
-        private Static() {
-        }
-
         /** Returns the image editor with the given {@code name}. */
         public static ImageEditor getInstance(String name) {
             return EDITORS.get(name);

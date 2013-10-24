@@ -25,7 +25,7 @@ public interface AuthenticationPolicy extends SettingsBackedObject {
      */
     public static final class Static {
 
-        protected static final PullThroughCache<String, AuthenticationPolicy>
+        private static final PullThroughCache<String, AuthenticationPolicy>
                 INSTANCES = new PullThroughCache<String, AuthenticationPolicy>() {
 
             @Override
@@ -33,9 +33,6 @@ public interface AuthenticationPolicy extends SettingsBackedObject {
                 return Settings.newInstance(AuthenticationPolicy.class, SETTING_PREFIX + "/" + name);
             }
         };
-
-        private Static() {
-        }
 
         /**
          * Returns the authentication policy associated with the given

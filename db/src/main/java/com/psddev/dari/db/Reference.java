@@ -12,9 +12,9 @@ public class Reference extends HashMap<String, Object> {
         if (value == null) {
             value = get("record");
         }
-        return value instanceof Record
-                ? value
-                : Query.findById(Object.class, StateValueUtils.toIdIfReference(value));
+        return value instanceof Record ?
+                value :
+                Query.findById(Object.class, StateValueUtils.toIdIfReference(value));
     }
 
     public void setObject(Object object) {

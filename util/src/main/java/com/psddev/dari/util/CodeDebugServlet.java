@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +28,8 @@ public class CodeDebugServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     public static final String INPUTS_ATTRIBUTE = CodeDebugServlet.class.getName() + ".inputs";
+    public static final String INCLUDE_IMPORTS_SETTING = "dari/code/includeImports";
+    public static final String EXCLUDE_IMPORTS_SETTING = "dari/code/excludeImports";
 
     private static final String WEB_INF_CLASSES_PATH = "/WEB-INF/classes/";
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<Map<String, Object>>() { };
@@ -40,7 +43,6 @@ public class CodeDebugServlet extends HttpServlet {
         WebPageContext page = new WebPageContext(this, request, response);
         String action = page.param(String.class, "action");
 
-        try {
         if ("run".equals(action)) {
             if (page.param(String.class, "isSave") != null) {
                 doSave(page);
@@ -52,12 +54,9 @@ public class CodeDebugServlet extends HttpServlet {
         } else {
             doEdit(page);
         }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
     }
 
-    private static File getFile(WebPageContext page) {
+    private static File getFile(WebPageContext page) throws IOException {
         String file = page.param(String.class, "file");
 
         if (file == null) {
@@ -75,8 +74,7 @@ public class CodeDebugServlet extends HttpServlet {
         File fileInstance = new File(file);
 
         if (!fileInstance.exists()) {
-            File parent = fileInstance.getParentFile();
-            parent.mkdirs();
+            IoUtils.createParentDirectories(fileInstance);
         }
 
         return fileInstance;
@@ -101,7 +99,7 @@ public class CodeDebugServlet extends HttpServlet {
                             for (Object item : (Collection<?>) result) {
                                 if (item instanceof Class) {
                                     file = new File(file, ((Class<?>) item).getName().replace('.', File.separatorChar) + ".java");
-                                    file.getParentFile().mkdirs();
+                                    IoUtils.createParentDirectories(file);
                                     break CLASS_FOUND;
                                 }
                             }
@@ -110,9 +108,7 @@ public class CodeDebugServlet extends HttpServlet {
                         throw new IllegalArgumentException("Syntax error!");
                     }
 
-                if (!file.exists()) {
-                    file.createNewFile();
-                }
+                IoUtils.createFile(file);
 
                 FileOutputStream fileOutput = new FileOutputStream(file);
 
@@ -185,18 +181,35 @@ public class CodeDebugServlet extends HttpServlet {
             }
 
         } else {
-            Set<String> packages = findPackages();
-            packages.add("com.psddev.dari.db.");
-            packages.add("com.psddev.dari.util.");
-            packages.add("java.util.");
+            Set<String> imports = findImports();
 
-            for (String packageName : packages) {
-                codeBuilder.append("import ");
-                codeBuilder.append(packageName);
-                codeBuilder.append("*;\n");
+            imports.add("com.psddev.dari.db.*");
+            imports.add("com.psddev.dari.util.*");
+            imports.add("java.util.*");
+
+            String includes = Settings.get(String.class, INCLUDE_IMPORTS_SETTING);
+            System.out.println(includes);
+
+            if (!ObjectUtils.isBlank(includes)) {
+                Collections.addAll(imports, includes.trim().split("\\s*,?\\s+"));
             }
 
-            codeBuilder.append("\n");
+            String excludes = Settings.get(String.class, EXCLUDE_IMPORTS_SETTING);
+            System.out.println(excludes);
+
+            if (!ObjectUtils.isBlank(excludes)) {
+                for (String exclude : excludes.trim().split("\\s*,?\\s+")) {
+                    imports.remove(exclude);
+                }
+            }
+
+            for (String i : imports) {
+                codeBuilder.append("import ");
+                codeBuilder.append(i);
+                codeBuilder.append(";\n");
+            }
+
+            codeBuilder.append('\n');
             codeBuilder.append("public class Code {\n");
             codeBuilder.append("    public static Object main() throws Throwable {\n");
 
@@ -220,7 +233,7 @@ public class CodeDebugServlet extends HttpServlet {
             List<Object> inputs = CodeDebugServlet.Static.getInputs(getServletContext());
             Object input = inputs == null || inputs.isEmpty() ? null : inputs.get(0);
             String name;
-            
+
             if (file == null) {
                 name = null;
 
@@ -426,19 +439,19 @@ public class CodeDebugServlet extends HttpServlet {
         };
     }
 
-    private Set<String> findPackages() {
-        Set<String> packages = new TreeSet<String>();
-        addPackages(packages, WEB_INF_CLASSES_PATH.length(), WEB_INF_CLASSES_PATH);
-        return packages;
+    private Set<String> findImports() {
+        Set<String> imports = new TreeSet<String>();
+        addImports(imports, WEB_INF_CLASSES_PATH.length(), WEB_INF_CLASSES_PATH);
+        return imports;
     }
 
     @SuppressWarnings("unchecked")
-    private void addPackages(Set<String> packages, int prefixLength, String path) {
+    private void addImports(Set<String> imports, int prefixLength, String path) {
         for (String subPath : (Set<String>) getServletContext().getResourcePaths(path)) {
             if (subPath.endsWith("/")) {
-                addPackages(packages, prefixLength, subPath);
+                addImports(imports, prefixLength, subPath);
             } else if (subPath.endsWith(".class")) {
-                packages.add(path.substring(prefixLength).replace('/', '.'));
+                imports.add(path.substring(prefixLength).replace('/', '.') + "*");
             }
         }
     }
@@ -552,7 +565,7 @@ public class CodeDebugServlet extends HttpServlet {
                             draftIndex = 0;
                             draftIndexes.put(draft, draftIndex);
                         }
-                        new File(context.getRealPath(draft + draftIndex + extension)).delete();
+                        IoUtils.delete(new File(context.getRealPath(draft + draftIndex + extension)));
                         ++ draftIndex;
                         draftIndexes.put(draft, draftIndex);
                         draft = draft + draftIndex + extension;
@@ -560,7 +573,7 @@ public class CodeDebugServlet extends HttpServlet {
 
                     String realDraft = context.getRealPath(draft);
                     File realDraftFile = new File(realDraft);
-                    realDraftFile.getParentFile().mkdirs();
+                    IoUtils.createParentDirectories(realDraftFile);
                     FileOutputStream realDraftOutput = new FileOutputStream(realDraftFile);
                     try {
                         realDraftOutput.write(page.paramOrDefault(String.class, "code", "").getBytes("UTF-8"));
@@ -595,9 +608,6 @@ public class CodeDebugServlet extends HttpServlet {
 
     /** {@link CodeDebugServlet} utility methods. */
     public static final class Static {
-
-        private Static() {
-        }
 
         @SuppressWarnings("unchecked")
         public static List<Object> getInputs(ServletContext context) {

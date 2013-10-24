@@ -37,6 +37,11 @@ public class CssUnit {
     // --- Object support ---
 
     @Override
+    public int hashCode() {
+        return ObjectUtils.hashCode(getNumber(), getUnit());
+    }
+
+    @Override
     public boolean equals(Object other) {
         if (this == other) {
             return true;

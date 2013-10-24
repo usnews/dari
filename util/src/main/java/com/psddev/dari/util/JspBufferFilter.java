@@ -38,9 +38,6 @@ public class JspBufferFilter extends AbstractFilter {
     /** {@link JspBufferFilter} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /** Overrides the current JSP buffer value for this thread. */
         public static Integer overrideBuffer(int buffer) {
             return BUFFER_OVERRIDE.push(buffer);

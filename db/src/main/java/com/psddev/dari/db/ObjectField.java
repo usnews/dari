@@ -43,14 +43,18 @@ public class ObjectField extends Record {
     public static final String LIST_TYPE = "list";
     public static final String LOCATION_TYPE = "location";
     public static final String MAP_TYPE = "map";
+    public static final String METRIC_TYPE = "metric";
     public static final String NUMBER_TYPE = "number";
     public static final String RECORD_TYPE = "record";
     public static final String REFERENTIAL_TEXT_TYPE = "referentialText";
+    public static final String REGION_TYPE = "region";
     public static final String SET_TYPE = "set";
     public static final String TEXT_TYPE = "text";
     public static final String URI_TYPE = "uri";
     public static final String URL_TYPE = "url";
     public static final String UUID_TYPE = "uuid";
+
+    private static final TypeReference<Set<String>> SET_STRING_TYPE_REF = new TypeReference<Set<String>>() { };
 
     private static final Map<Class<?>, String> COLLECTION_CLASS_TO_TYPE = new HashMap<Class<?>, String>();
     private static final Map<Class<?>, String> CLASS_TO_TYPE = new HashMap<Class<?>, String>();
@@ -83,7 +87,9 @@ public class ObjectField extends Record {
         CLASS_TO_TYPE.put(Date.class, DATE_TYPE);
         CLASS_TO_TYPE.put(StorageItem.class, FILE_TYPE);
         CLASS_TO_TYPE.put(Location.class, LOCATION_TYPE);
+        CLASS_TO_TYPE.put(Metric.class, METRIC_TYPE);
         CLASS_TO_TYPE.put(Recordable.class, RECORD_TYPE);
+        CLASS_TO_TYPE.put(Region.class, REGION_TYPE);
         CLASS_TO_TYPE.put(ReferentialText.class, REFERENTIAL_TEXT_TYPE);
         CLASS_TO_TYPE.put(String.class, TEXT_TYPE);
         CLASS_TO_TYPE.put(URI.class, URI_TYPE);
@@ -112,6 +118,8 @@ public class ObjectField extends Record {
     private static final String DENORMALIZED_FIELDS_KEY = "denormalizedFields";
     private static final String IS_EMBEDDED_KEY = "isEmbedded";
     private static final String IS_REQUIRED_KEY = "isRequired";
+    private static final String JUNCTION_FIELD_KEY = "junctionField";
+    private static final String JUNCTION_POSITION_FIELD_KEY = "junctionPositionField";
     private static final String MINIMUM_KEY = "minimum";
     private static final String STEP_KEY = "step";
     private static final String MAXIMUM_KEY = "maximum";
@@ -143,6 +151,8 @@ public class ObjectField extends Record {
     private Set<String> denormalizedFields;
     private boolean isEmbedded;
     private boolean isRequired;
+    private String junctionField;
+    private String junctionPositionField;
     private Number minimum;
     private Number step;
     private Number maximum;
@@ -176,6 +186,8 @@ public class ObjectField extends Record {
         isDenormalized = field.isDenormalized;
         isEmbedded = field.isEmbedded;
         isRequired = field.isRequired;
+        junctionField = field.junctionField;
+        junctionPositionField = field.junctionPositionField;
         minimum = field.minimum;
         step = field.step;
         maximum = field.maximum;
@@ -216,9 +228,11 @@ public class ObjectField extends Record {
         internalName = (String) definition.remove(INTERNAL_NAME_KEY);
         internalType = (String) definition.remove(INTERNAL_TYPE_KEY);
         isDenormalized = Boolean.TRUE.equals(definition.remove(IS_DENORMALIZED_KEY));
-        denormalizedFields = ObjectUtils.to(new TypeReference<Set<String>>() { }, definition.remove(DENORMALIZED_FIELDS_KEY));
+        denormalizedFields = ObjectUtils.to(SET_STRING_TYPE_REF, definition.remove(DENORMALIZED_FIELDS_KEY));
         isEmbedded = Boolean.TRUE.equals(definition.remove(IS_EMBEDDED_KEY));
         isRequired = Boolean.TRUE.equals(definition.remove(IS_REQUIRED_KEY));
+        junctionField = (String) definition.remove(JUNCTION_FIELD_KEY);
+        junctionPositionField = (String) definition.remove(JUNCTION_POSITION_FIELD_KEY);
         minimum = (Number) definition.remove(MINIMUM_KEY);
         step = (Number) definition.remove(STEP_KEY);
         maximum = (Number) definition.remove(MAXIMUM_KEY);
@@ -259,7 +273,7 @@ public class ObjectField extends Record {
 
     /** Converts this field to a definition map. */
     public Map<String, Object> toDefinition() {
-        Map<String, Object> definition  = new LinkedHashMap<String, Object>();
+        Map<String, Object> definition = new LinkedHashMap<String, Object>(200);
 
         List<String> typeIds = new ArrayList<String>();
         for (ObjectType type : getTypes()) {
@@ -288,6 +302,8 @@ public class ObjectField extends Record {
         definition.put(DENORMALIZED_FIELDS_KEY, denormalizedFields);
         definition.put(IS_EMBEDDED_KEY, isEmbedded);
         definition.put(IS_REQUIRED_KEY, isRequired);
+        definition.put(JUNCTION_FIELD_KEY, junctionField);
+        definition.put(JUNCTION_POSITION_FIELD_KEY, junctionPositionField);
         definition.put(MINIMUM_KEY, minimum);
         definition.put(STEP_KEY, step);
         definition.put(MAXIMUM_KEY, maximum);
@@ -482,6 +498,43 @@ public class ObjectField extends Record {
         this.isRequired = isRequired;
     }
 
+    public String getJunctionField() {
+        return junctionField;
+    }
+
+    public void setJunctionField(String junctionField) {
+        this.junctionField = junctionField;
+    }
+
+    public String getJunctionPositionField() {
+        return junctionPositionField;
+    }
+
+    public void setJunctionPositionField(String junctionPositionField) {
+        this.junctionPositionField = junctionPositionField;
+    }
+
+    public List<Object> findJunctionItems(State state) {
+        Set<ObjectType> types = getTypes();
+
+        if (types.isEmpty()) {
+            return new ArrayList<Object>();
+
+        } else {
+            Query<Object> query = Query.
+                    fromType(types.iterator().next()).
+                    where(getJunctionField() + " = ?", state.getId());
+
+            String junctionPositionField = getJunctionPositionField();
+
+            if (!ObjectUtils.isBlank(junctionPositionField)) {
+                query.sortAscending(junctionPositionField);
+            }
+
+            return query.selectAll();
+        }
+    }
+
     public Number getMinimum() {
         return minimum;
     }
@@ -562,7 +615,11 @@ public class ObjectField extends Record {
 
     /** Returns the Java field. */
     public Field getJavaField(Class<?> objectClass) {
-        return javaFieldCache.get(objectClass);
+        Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
+
+        return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
+                javaFieldCache.get(objectClass) :
+                null;
     }
 
     private final transient Map<Class<?>, Field> javaFieldCache = new PullThroughCache<Class<?>, Field>() {
@@ -618,7 +675,7 @@ public class ObjectField extends Record {
         String displayName = getDisplayName();
         if (ObjectUtils.isBlank(displayName)) {
             String internalName = getInternalName();
-            int dotAt = internalName.lastIndexOf(".");
+            int dotAt = internalName.lastIndexOf('.');
             if (dotAt > -1) {
                 internalName = internalName.substring(dotAt + 1, internalName.length());
             }
@@ -630,7 +687,7 @@ public class ObjectField extends Record {
 
     /** Validates the field value in the given record. */
     public void validate(State state) {
-        Object value = state.getValue(getInternalName());
+        Object value = state.get(getInternalName());
         if (isRequired() && ObjectUtils.isBlank(value)) {
             state.addError(this, "Required!");
         } else {
@@ -654,7 +711,7 @@ public class ObjectField extends Record {
 
         // Separate internal type like list/map/text into list and map/text.
         String subType = "";
-        int slashAt = internalType.indexOf("/");
+        int slashAt = internalType.indexOf('/');
         if (slashAt > -1) {
             subType = internalType.substring(slashAt + 1);
             internalType = internalType.substring(0, slashAt);
@@ -764,7 +821,7 @@ public class ObjectField extends Record {
      */
     public String getInternalItemType() {
         String internalType = getInternalType();
-        int slashAt = internalType.lastIndexOf("/");
+        int slashAt = internalType.lastIndexOf('/');
         return slashAt > -1 ? internalType.substring(slashAt + 1) : internalType;
     }
 
@@ -786,6 +843,9 @@ public class ObjectField extends Record {
 
             if (javaTypeClass.equals(Object.class)) {
                 return ANY_TYPE;
+
+            } else if (javaTypeClass.equals(Metric.class)) {
+                return METRIC_TYPE;
 
             } else if (Recordable.class.isAssignableFrom(javaTypeClass)) {
                 ObjectType type = environment.getTypeByClass(javaTypeClass);
@@ -896,7 +956,9 @@ public class ObjectField extends Record {
             for (Type bound : javaTypeVar.getBounds()) {
                 try {
                     return translateType(environment, objectClass, bound);
-                } catch (IllegalArgumentException ex) {
+                } catch (IllegalArgumentException error) {
+                    // If the bound type can't be translated correctly,
+                    // try the next one.
                 }
             }
         }
@@ -943,6 +1005,18 @@ public class ObjectField extends Record {
         }
 
         return concreteTypes;
+    }
+
+    /**
+     * Returns {@code true} if this field contains a {@link Metric} value.
+     */
+    public boolean isMetric() {
+        Set<ObjectType> types = getTypes();
+
+        return getInternalItemType().equals(METRIC_TYPE) || 
+                (types != null &&
+                !types.isEmpty() &&
+                Metric.class.equals(types.iterator().next().getObjectClass()));
     }
 
     // --- Object support ---
@@ -1076,9 +1150,6 @@ public class ObjectField extends Record {
 
     /** {@link ObjectField} utility methods. */
     public static final class Static {
-
-        private Static() {
-        }
 
         /**
          * Converts all given field {@code definitions} into a map of

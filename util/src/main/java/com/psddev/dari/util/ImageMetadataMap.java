@@ -93,30 +93,29 @@ public class ImageMetadataMap extends HashMap<String, Object> {
     // Populates the map with dimension information.
     private void populateDimension(ImageInputStream image) {
         try {
-            Iterator<ImageReader> readers = ImageIO.getImageReaders(image);
+            try {
+                Iterator<ImageReader> readers = ImageIO.getImageReaders(image);
 
-            if (readers.hasNext()) {
-                ImageReader reader = readers.next();
+                if (readers.hasNext()) {
+                    ImageReader reader = readers.next();
 
-                try {
-                    reader.setInput(image);
-                    int index = reader.getMinIndex();
-                    put("width", reader.getWidth(index));
-                    put("height", reader.getHeight(index));
+                    try {
+                        reader.setInput(image);
+                        int index = reader.getMinIndex();
+                        put("width", reader.getWidth(index));
+                        put("height", reader.getHeight(index));
 
-                } finally {
-                    reader.dispose();
+                    } finally {
+                        reader.dispose();
+                    }
                 }
+
+            } finally {
+                image.close();
             }
 
         } catch (IOException error) {
             errors.add(error);
-
-        } finally {
-            try {
-                image.close();
-            } catch (IOException error) {
-            }
         }
     }
 

@@ -72,8 +72,8 @@ public class FormFilter extends AbstractFilter {
      *  later. */
     private static class BufferedResponse extends HttpServletResponseWrapper {
 
-        private PrintWriter printWriter;
-        private StringWriter stringWriter;
+        private final PrintWriter printWriter;
+        private final StringWriter stringWriter;
 
         public BufferedResponse(HttpServletResponse response) {
             super(response);

@@ -66,6 +66,10 @@ public enum SqlIndex {
         new SymbolIdSingleValueTable(2, "RecordLocation2")
     ),
 
+    REGION(
+        new SymbolIdSingleValueTable(1, "RecordRegion")
+    ),
+
     NUMBER(
         new NameSingleValueTable(1, "RecordNumber"),
         new SymbolIdSingleValueTable(2, "RecordNumber2")
@@ -177,7 +181,7 @@ public enum SqlIndex {
                 List<List<Object>> parameters) throws SQLException;
     }
 
-    private static abstract class AbstractTable implements Table {
+    private abstract static class AbstractTable implements Table {
 
         private final int version;
         private final String idField;
@@ -250,7 +254,8 @@ public enum SqlIndex {
 
             if (ObjectField.DATE_TYPE.equals(type) ||
                     ObjectField.NUMBER_TYPE.equals(type) ||
-                    ObjectField.LOCATION_TYPE.equals(type)) {
+                    ObjectField.LOCATION_TYPE.equals(type) ||
+                    ObjectField.REGION_TYPE.equals(type)) {
                 return value;
 
             } else if (value instanceof UUID) {
@@ -314,6 +319,8 @@ public enum SqlIndex {
 
                 if (SqlIndex.Static.getByIndex(index) == SqlIndex.LOCATION) {
                     vendor.appendBindLocation(insertBuilder, null, null);
+                } else if (SqlIndex.Static.getByIndex(index) == SqlIndex.REGION) {
+                    vendor.appendBindRegion(insertBuilder, null, null);
                 } else {
                     insertBuilder.append("?");
                 }
@@ -408,7 +415,7 @@ public enum SqlIndex {
         }
     }
 
-    public static class IndexValue {
+    public static final class IndexValue {
 
         private final ObjectField[] prefixes;
         private final ObjectIndex index;
@@ -470,9 +477,6 @@ public enum SqlIndex {
     /** {@linkplain SqlIndex} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Returns the instance that should be used to index values
          * of the given field {@code type}.
@@ -484,6 +488,9 @@ public enum SqlIndex {
 
             } else if (ObjectField.LOCATION_TYPE.equals(type)) {
                 return SqlIndex.LOCATION;
+
+            } else if (ObjectField.REGION_TYPE.equals(type)) {
+                return SqlIndex.REGION;
 
             } else if (ObjectField.RECORD_TYPE.equals(type) ||
                     ObjectField.UUID_TYPE.equals(type)) {
@@ -501,10 +508,15 @@ public enum SqlIndex {
         public static SqlIndex getByIndex(ObjectIndex index) {
             List<String> fieldNames = index.getFields();
             ObjectField field = index.getParent().getField(fieldNames.get(0));
-            if (fieldNames.size() > 1 || field.as(SqlDatabase.FieldData.class).getIndexTable() != null) {
+
+            if (fieldNames.size() > 1 ||
+                    (field != null &&
+                    field.as(SqlDatabase.FieldData.class).getIndexTable() != null)) {
                 return SqlIndex.CUSTOM;
+
             } else {
                 String type = field != null ? field.getInternalItemType() : index.getType();
+
                 return getByType(type);
             }
         }
@@ -604,9 +616,14 @@ public enum SqlIndex {
                     ObjectIndex index = indexValue.getIndex();
 
                     if (database.hasInRowIndex() && index.isShortConstant()) {
-                        String inRowIndex = inRowIndexes.get(state);
-                        if (inRowIndex == null) {
-                            inRowIndex = ";";
+                        StringBuilder inRowIndex = new StringBuilder();
+                        String current = inRowIndexes.get(state);
+
+                        if (current != null) {
+                            inRowIndex.append(current);
+
+                        } else {
+                            inRowIndex.append(';');
                         }
 
                         int nameId = database.getSymbolId(index.getUniqueName());
@@ -617,12 +634,12 @@ public enum SqlIndex {
                             tokenBuilder.append(database.getSymbolId(values[0].toString()));
                             tokenBuilder.append(";");
                             String token = tokenBuilder.toString();
-                            if (!inRowIndex.contains(";" + token)) {
-                                inRowIndex += token;
+                            if (inRowIndex.indexOf(";" + token) < 0) {
+                                inRowIndex.append(token);
                             }
                         }
 
-                        inRowIndexes.put(state, inRowIndex);
+                        inRowIndexes.put(state, inRowIndex.toString());
                         continue;
                     }
 
@@ -647,8 +664,9 @@ public enum SqlIndex {
                 }
             }
 
-            for (String name : insertQueries.keySet()) {
-                String sqlQuery = insertQueries.get(name);
+            for (Map.Entry<String, String> entry : insertQueries.entrySet()) {
+                String name = entry.getKey();
+                String sqlQuery = entry.getValue();
                 List<List<Object>> parameters = insertParameters.get(name);
                 try {
                     if (!parameters.isEmpty()) {

@@ -20,7 +20,11 @@ public abstract class TypeReference<T> implements Comparable<TypeReference<T>> {
         type = ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
     }
 
-    /** Returns the generic type. */
+    /**
+     * Returns the generic type.
+     *
+     * @return Never {@code null}.
+     */
     public Type getType() {
         return type;
     }
@@ -30,5 +34,30 @@ public abstract class TypeReference<T> implements Comparable<TypeReference<T>> {
     @Override
     public int compareTo(TypeReference<T> object) {
         return 0;
+    }
+
+    // --- Object support ---
+
+    @Override
+    public int hashCode() {
+        return getType().hashCode();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+
+        } else if (other instanceof TypeReference) {
+            return getType().equals(((TypeReference<?>) other).getType());
+
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return getType().toString();
     }
 }

@@ -18,6 +18,8 @@ import com.psddev.dari.util.TypeReference;
 /** Description of how field values in a state can be queried. */
 public class ObjectIndex {
 
+    private static final TypeReference<List<String>> LIST_STRING_TYPE_REF = new TypeReference<List<String>>() { };
+
     private static final String FIELDS_KEY = "fields";
     private static final String TYPE_KEY = "type";
     private static final String IS_UNIQUE_KEY = "isUnique";
@@ -53,7 +55,7 @@ public class ObjectIndex {
 
         definition = new LinkedHashMap<String, Object>(definition);
 
-        List<String> fields = ObjectUtils.to(new TypeReference<List<String>>() { }, definition.remove(FIELDS_KEY));
+        List<String> fields = ObjectUtils.to(LIST_STRING_TYPE_REF, definition.remove(FIELDS_KEY));
         if (fields == null) {
             String field = ObjectUtils.to(String.class, definition.remove(LEGACY_FIELD_KEY));
             if (field != null) {
@@ -239,7 +241,7 @@ public class ObjectIndex {
     private Object getValue(State state, String field) {
         int index = field.indexOf('/');
         if (index != -1) {
-            Object value = state.getValue(field.substring(0, index));
+            Object value = state.get(field.substring(0, index));
 
             if (value instanceof Iterable || value instanceof Map) {
                 Iterable<?> iterable;
@@ -252,7 +254,7 @@ public class ObjectIndex {
                 List<Object> values = new ArrayList<Object>();
                 for (Object object : iterable) {
                     if (object instanceof Recordable) {
-                        value = getValue(((Recordable)object).getState(),
+                        value = getValue(((Recordable) object).getState(),
                                 field.substring(index + 1));
                         if (value != null) {
                             values.add(value);
@@ -262,13 +264,13 @@ public class ObjectIndex {
                 return values;
 
             } else if (value instanceof Recordable) {
-                return getValue(((Recordable)value).getState(),
+                return getValue(((Recordable) value).getState(),
                         field.substring(index + 1));
             } else {
                 return null;
             }
         } else {
-            return state.getValue(field);
+            return state.get(field);
         }
     }
 
@@ -446,9 +448,6 @@ public class ObjectIndex {
 
     /** {@link ObjectIndex} utility methods. */
     public static final class Static {
-
-        private Static() {
-        }
 
         /**
          * Converts the given index {@code definitions} into a map of

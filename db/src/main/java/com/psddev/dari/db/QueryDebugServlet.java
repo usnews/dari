@@ -138,6 +138,7 @@ public class QueryDebugServlet extends HttpServlet {
             query.using(caching);
         }
 
+        @SuppressWarnings("deprecation")
         public void render() throws IOException {
             try {
                 Database.Static.setIgnoreReadConnection(ignoreReadConnection);
@@ -156,7 +157,7 @@ public class QueryDebugServlet extends HttpServlet {
                     renderDefault();
                 }
 
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 writeObject(ex);
 
             } finally {
@@ -171,7 +172,7 @@ public class QueryDebugServlet extends HttpServlet {
                 }
                 writeObject(query.count());
 
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 writeHtml("Many (");
                 writeStart("a", "href", page.url("", "timeout", 0));
                     writeHtml("Force Count");
@@ -215,7 +216,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 state.setValues((Map<String, Object>) ObjectUtils.fromJson(page.param(String.class, "data")));
                                 state.save();
                                 writeStart("p", "class", "alert alert-success").writeHtml("Saved successfully at " + new Date() + "!").writeEnd();
-                            } catch (Exception error) {
+                            } catch (RuntimeException error) {
                                 writeStart("div", "class", "alert alert-error").writeObject(error).writeEnd();
                             }
                         }
@@ -241,7 +242,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 form.updateAll(state, page.getRequest());
                                 state.save();
                                 writeStart("p", "class", "alert alert-success").writeHtml("Saved successfully at " + new Date() + "!").writeEnd();
-                            } catch (Exception error) {
+                            } catch (RuntimeException error) {
                                 writeStart("div", "class", "alert alert-error").writeObject(error).writeEnd();
                             }
                         }
@@ -475,7 +476,7 @@ public class QueryDebugServlet extends HttpServlet {
                                         writeStart("td").writeHtml(itemType != null ? itemType.getLabel() : null).writeEnd();
                                         writeStart("td").writeHtml(itemState.getLabel()).writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                            writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                         }
                                     writeEnd();
                                 }
@@ -483,7 +484,7 @@ public class QueryDebugServlet extends HttpServlet {
                         writeEnd();
                     }
 
-                } catch (Exception ex) {
+                } catch (RuntimeException ex) {
                     writeStart("div", "class", "alert alert-error");
                         writeObject(ex);
                     writeEnd();
@@ -718,7 +719,7 @@ public class QueryDebugServlet extends HttpServlet {
                                                 writeEnd();
                                             writeEnd();
                                             for (String additionalField : additionalFields) {
-                                                writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                                writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                             }
                                         writeEnd();
                                     }
@@ -787,7 +788,7 @@ public class QueryDebugServlet extends HttpServlet {
                                             writeEnd();
                                         writeEnd();
                                         for (String additionalField : additionalFields) {
-                                            writeStart("td").writeHtml(itemState.getValue(additionalField)).writeEnd();
+                                            writeStart("td").writeHtml(itemState.getByPath(additionalField)).writeEnd();
                                         }
                                     writeEnd();
 
@@ -799,7 +800,7 @@ public class QueryDebugServlet extends HttpServlet {
                         writeEnd();
                     }
 
-                } catch (Exception ex) {
+                } catch (RuntimeException ex) {
                     writeStart("div", "class", "alert alert-error");
                         writeObject(ex);
                     writeEnd();

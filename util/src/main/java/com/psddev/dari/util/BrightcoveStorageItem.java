@@ -38,7 +38,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
  *    <version>4.0.1</version>
  *</dependency>}</code></pre></blockquote>
  */
-public class BrightcoveStorageItem extends AbstractStorageItem implements StorageItem {
+public class BrightcoveStorageItem extends AbstractStorageItem {
 
     /** Setting key for Brightcove read service url. */
     public static final String READ_SERVICE_URL_SETTING = "readServiceUrl";
@@ -63,6 +63,8 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
 
     /** Setting key for Brightcove player ID for preview player */
     public static final String PREVIEW_PLAYER_ID_SETTING = "previewPlayerId";
+
+    private static final TypeReference<List<String>> LIST_STRING_TYPE = new TypeReference<List<String>>() { };
 
     private transient String readServiceUrl;
     private transient String writeServiceUrl;
@@ -285,12 +287,6 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return accountId;
     }
 
-    /** Sets the Account ID field, used in Brightcove */
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setAccountId(String accountId) {
-        this.accountId = accountId;
-    }
-
     /** Returns the encoding to be specified when creating a video in Brightcove */
     public Encoding getEncoding() {
         return encoding;
@@ -326,37 +322,16 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return flvUrl;
     }
 
-    /** Sets the FLV URL property */
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setFlvUrl(String flvUrl) {
-        this.flvUrl = flvUrl;
-    }
-
     public Date getCreationDate() {
         return creationDate;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setCreationDate(Date creationDate) {
-        this.creationDate = creationDate;
     }
 
     public Date getPublishedDate() {
         return publishedDate;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setPublishedDate(Date publishedDate) {
-        this.publishedDate = publishedDate;
-    }
-
     public Date getLastModifiedDate() {
         return lastModifiedDate;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setLastModifiedDate(Date lastModifiedDate) {
-        this.lastModifiedDate = lastModifiedDate;
     }
 
     public ItemState getItemState() {
@@ -411,27 +386,12 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return videoStillUrl;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setVideoStillUrl(String videoStillUrl) {
-        this.videoStillUrl = videoStillUrl;
-    }
-
     public String getThumbnailUrl() {
         return thumbnailUrl;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setThumbnailUrl(String thumbnailUrl) {
-        this.thumbnailUrl = thumbnailUrl;
-    }
-
     public Long getLength() {
         return length;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setLength(Long length) {
-        this.length = length;
     }
 
     public Map<String, String> getCustomFields() {
@@ -486,18 +446,8 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         return playsTotal;
     }
 
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setPlaysTotal(Integer playsTotal) {
-        this.playsTotal = playsTotal;
-    }
-
     public Integer getPlaysTrailingWeek() {
         return playsTrailingWeek;
-    }
-
-    /** Intentionally private.  Property is READ-ONLY in Brightcove */
-    private void setPlaysTrailingWeek(Integer playsTrailingWeek) {
-        this.playsTrailingWeek = playsTrailingWeek;
     }
 
     // --- AbstractStorageItem support ---
@@ -549,8 +499,8 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         try {
             requestUrl.append(getReadServiceUrl());
             requestUrl.append("?command=find_video_by_id");
-            requestUrl.append("&token=" + getReadUrlToken());
-            requestUrl.append("&video_id=" + getBrightcoveId());
+            requestUrl.append("&token=").append(getReadUrlToken());
+            requestUrl.append("&video_id=").append(getBrightcoveId());
             requestUrl.append("&video_fields=FLVURL");
 
             HttpGet httpGet = new HttpGet(requestUrl.toString());
@@ -570,7 +520,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         } finally {
             try {
                 client.getConnectionManager().shutdown();
-            } catch (Exception ignore) {
+            } catch (RuntimeException ignore) {
                 throw new IllegalStateException("Could not close connection to Brightcove API!");
             }
         }
@@ -671,10 +621,10 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
                 }
 
             } finally {
-                storageFile.delete();
+                IoUtils.delete(storageFile);
             }
         } finally {
-            try { client.getConnectionManager().shutdown(); } catch (Exception ignore) { }
+            try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
         }
     }
 
@@ -730,7 +680,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
                     return videoJson;
                 }
             } finally {
-                try { client.getConnectionManager().shutdown(); } catch (Exception ignore) { }
+                try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
             }
         } catch(IOException e) {
             return null;
@@ -786,7 +736,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("tags"))) {
-            this.tags = ObjectUtils.to(new TypeReference<List<String>>()  {}, videoJson.get("tags"));
+            this.tags = ObjectUtils.to(LIST_STRING_TYPE, videoJson.get("tags"));
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("videoStillURL"))) {
@@ -808,7 +758,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         if(!ObjectUtils.isBlank(videoJson.get("economics"))) {
             try {
                 this.economics = ObjectUtils.to(Economics.class, videoJson.get("economics"));
-            } catch (Exception ignore) { }
+            } catch (RuntimeException ignore) { }
         }
 
         if(!ObjectUtils.isBlank(videoJson.get("playsTotal"))) {
@@ -932,20 +882,20 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
         if(getBrightcoveId() != null) {
             // append "find_video_by_id" as the "command" parameter (differs significantly from the POST methods)
             requestUrl.append("?command=find_video_by_id");
-            requestUrl.append("&video_id=" + getBrightcoveId());
+            requestUrl.append("&video_id=").append(getBrightcoveId());
         } else if(getReferenceId() != null) {
             // append "find_vide_by_reference_id" as the "command" parameter
             requestUrl.append("?command=find_video_by_reference_id");
-            requestUrl.append("&reference_id=" + getReferenceId());
+            requestUrl.append("&reference_id=").append(getReferenceId());
         } else {
             throw new IllegalStateException("brightcoveId and referenceId are both null.");
         }
 
         // set readUrlToken or readToken as the "token" parameter or throw an exception if both are null.
         if(this.readUrlToken != null) {
-            requestUrl.append("&token=" + this.readUrlToken);
+            requestUrl.append("&token=").append(this.readUrlToken);
         } else if(this.readToken != null) {
-            requestUrl.append("&token=" + this.readToken);
+            requestUrl.append("&token=").append(this.readToken);
         } else {
             throw new IllegalStateException("Both readToken and readUrlToken are null.");
         }
@@ -976,7 +926,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem implements Storag
             }
 
         } finally {
-            try { client.getConnectionManager().shutdown(); } catch (Exception ignore) { }
+            try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
         }
     }
 

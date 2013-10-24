@@ -1,5 +1,9 @@
 package com.psddev.dari.util;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** For sending SMS messages. */
 public interface SmsProvider extends SettingsBackedObject {
 
@@ -27,17 +31,14 @@ public interface SmsProvider extends SettingsBackedObject {
      */
     public static final class Static {
 
-        protected static final PullThroughCache<String, SmsProvider>
-                INSTANCES = new PullThroughCache<String, SmsProvider>() {
+        private static final LoadingCache<String, SmsProvider> INSTANCES = CacheBuilder.newBuilder().
+                build(new CacheLoader<String, SmsProvider>() {
 
-            @Override
-            public SmsProvider produce(String name) {
-                return Settings.newInstance(SmsProvider.class, SETTING_PREFIX + "/" + name);
-            }
-        };
-
-        private Static() {
-        }
+                    @Override
+                    public SmsProvider load(String name) {
+                        return Settings.newInstance(SmsProvider.class, SETTING_PREFIX + "/" + name);
+                    }
+                });
 
         /**
          * Returns the SMS provider associated with the given {@code name}.
@@ -45,7 +46,7 @@ public interface SmsProvider extends SettingsBackedObject {
          * @param name If blank, returns the default SMS provider.
          * @return Never {@code null}, but throws an exception if the SMS
          * provider associated with the given {@code name} can't be found or
-         * isn't configured..
+         * isn't configured.
          */
         public static SmsProvider getInstance(String name) {
             if (ObjectUtils.isBlank(name)) {
@@ -57,7 +58,7 @@ public interface SmsProvider extends SettingsBackedObject {
                 }
             }
 
-            return INSTANCES.get(name);
+            return INSTANCES.getUnchecked(name);
         }
 
         /**

@@ -94,21 +94,21 @@ public final class Password {
      * {@code true} if they're the same.
      */
     public boolean check(String string) {
-        String algorithm = "SHA-1";
-        String salt = "";
-        String hash = data;
+        String[] dataParts = parseData();
 
-        int colon1At = data.indexOf(':');
-        if (colon1At >= 0) {
-            int colon2At = data.indexOf(':', colon1At + 1);
-            if (colon2At >= 0) {
-                algorithm = data.substring(0, colon1At);
-                salt = data.substring(colon1At + 1, colon2At);
-                hash = data.substring(colon2At + 1);
-            }
-        }
+        String algorithm = dataParts[0];
+        String salt = dataParts[1];
+        String hash = dataParts[2];
 
         return hash.equals(hash(algorithm, salt, string));
+    }
+
+    public String getAlgorithm() {
+        return parseData()[0];
+    }
+
+    public String getSalt() {
+        return parseData()[1];
     }
 
     // --- Object support ---
@@ -129,5 +129,30 @@ public final class Password {
     @Override
     public String toString() {
         return data;
+    }
+
+    /* Decomposes the password data and returns an array of size 3 containing
+     * the algorithm, salt, and hash respectively. */
+    private String[] parseData() {
+        String algorithm = "SHA-1";
+        String salt = "";
+        String hash = data;
+
+        int colon1At = data.indexOf(':');
+        if (colon1At >= 0) {
+            int colon2At = data.indexOf(':', colon1At + 1);
+            if (colon2At >= 0) {
+                algorithm = data.substring(0, colon1At);
+                salt = data.substring(colon1At + 1, colon2At);
+                hash = data.substring(colon2At + 1);
+            }
+        }
+
+        String[] dataParts = new String[3];
+        dataParts[0] = algorithm;
+        dataParts[1] = salt;
+        dataParts[2] = hash;
+
+        return dataParts;
     }
 }

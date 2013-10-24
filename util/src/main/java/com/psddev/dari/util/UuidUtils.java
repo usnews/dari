@@ -6,9 +6,6 @@ import java.util.UUID;
 /** {@link UUID} utility methods. */
 public final class UuidUtils {
 
-    private UuidUtils() {
-    }
-
     /** Zero-filled byte array that matches the size of an UUID. */
     public static final byte[] ZERO_BYTES = new byte[16];
 
@@ -19,33 +16,33 @@ public final class UuidUtils {
     public static synchronized UUID createSequentialUuid() {
         long time = System.currentTimeMillis();
 
-        if (time < LAST_TIME) {
-            time = LAST_TIME;
+        if (time < lastTime) {
+            time = lastTime;
         }
 
-        if (time == LAST_TIME) {
-            if (SEQUENCE == 0xffff) {
+        if (time == lastTime) {
+            if (sequence == 0xffff) {
                 ++ time;
-                LAST_TIME = time;
-                SEQUENCE = 0;
+                lastTime = time;
+                sequence = 0;
 
             } else {
-                ++ SEQUENCE;
+                ++ sequence;
             }
 
         } else {
-            LAST_TIME = time;
-            SEQUENCE = 0;
+            lastTime = time;
+            sequence = 0;
         }
 
         return new UUID(
                 (time & 0xffffffffffff0000L) | NODE_HIGH,
-                (time << 16) | NODE_LOW | SEQUENCE);
+                (time << 16) | NODE_LOW | sequence);
 
     }
 
-    private static long LAST_TIME = System.currentTimeMillis();
-    private static int SEQUENCE;
+    private static long lastTime = System.currentTimeMillis();
+    private static int sequence;
 
     private static final long NODE_HIGH;
     private static final long NODE_LOW;
@@ -53,7 +50,7 @@ public final class UuidUtils {
     static {
         SecureRandom random = new SecureRandom();
         NODE_HIGH = 0xd000L | (random.nextLong() & 0xfff);
-        NODE_LOW = 0xa000000000000000L| (random.nextLong() & 0x0fffffff00000000L);
+        NODE_LOW = 0xa000000000000000L | (random.nextLong() & 0x0fffffff00000000L);
     }
 
     /**
@@ -96,8 +93,7 @@ public final class UuidUtils {
 
         if (bytes.length != 16) {
             throw new UuidFormatException(
-                    "Can't convert the byte array into an UUID because"
-                    + " its length is not 16!");
+                    "Can't convert the byte array into an UUID because its length is not 16!");
         }
 
         long msb = 0;
@@ -114,6 +110,17 @@ public final class UuidUtils {
         return new UUID(msb, lsb);
     }
 
+    private static final int[] HEX_CHARACTERS;
+
+    static {
+        int length = Byte.MAX_VALUE - Byte.MIN_VALUE;
+        HEX_CHARACTERS = new int[length];
+
+        for (int i = 0; i < length; ++ i) {
+            HEX_CHARACTERS[i] = Character.digit(i, 16);
+        }
+    }
+
     /**
      * Converts the given {@code string} into an UUID.
      *
@@ -126,49 +133,39 @@ public final class UuidUtils {
             throw new UuidFormatException("Can't convert a null into an UUID!");
         }
 
-        PARSE: {
-            int length = string.length();
+        int length = string.length();
 
-            if (length == 32 || length == 36) {
-                char[] letters = string.toCharArray();
-                int letterIndex = 0;
-                char letter;
-                int letterDigit;
+        if (length == 32 || length == 36) {
+            byte[] letters = string.getBytes(StringUtils.UTF_8);
+            int read = 0;
+            int letterIndex = 0;
+            int letterDigit;
 
-                long msb = 0;
-                long lsb = 0;
+            long msb = 0;
+            long lsb = 0;
 
-                for (int i = 0; letterIndex < length && i < 16; ++ letterIndex) {
-                    letter = letters[letterIndex];
+            for (; read < 16 && letterIndex < length; ++ letterIndex) {
+                letterDigit = HEX_CHARACTERS[letters[letterIndex]];
 
-                    if (letter != '-') {
-                        letterDigit = Character.digit(letter, 16);
-
-                        if (letterDigit < 0) {
-                            break PARSE;
-                        }
-
-                        msb = (msb << 4) | letterDigit;
-                        ++ i;
-                    }
+                if (letterDigit >= 0) {
+                    msb = (msb << 4) | letterDigit;
+                    ++ read;
                 }
+            }
 
-                for (int i = 0; letterIndex < length && i < 16; ++ letterIndex) {
-                    letter = letters[letterIndex];
+            if (read == 16) {
+                for (; read < 32 && letterIndex < length; ++ letterIndex) {
+                    letterDigit = HEX_CHARACTERS[letters[letterIndex]];
 
-                    if (letter != '-') {
-                        letterDigit = Character.digit(letter, 16);
-
-                        if (letterDigit < 0) {
-                            break PARSE;
-                        }
-
+                    if (letterDigit >= 0) {
                         lsb = (lsb << 4) | letterDigit;
-                        ++ i;
+                        ++ read;
                     }
                 }
 
-                return new UUID(msb, lsb);
+                if (read == 32) {
+                    return new UUID(msb, lsb);
+                }
             }
         }
 

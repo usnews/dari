@@ -177,7 +177,7 @@ public abstract class ForwardingDatabase implements Database {
         s.append(super.toString());
         s.append("(delegate=");
         s.append(getDelegate().toString());
-        s.append(")");
+        s.append(')');
         return s.toString();
     }
 }

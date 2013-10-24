@@ -3,6 +3,7 @@ package com.psddev.dari.db;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -20,6 +21,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.SQLTimeoutException;
+import java.sql.Savepoint;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,11 +33,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
@@ -50,6 +54,8 @@ import zmq.ZError;
 import zmq.PollItem;
 import zmq.ZMQ;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.jolbox.bonecp.BoneCPDataSource;
@@ -83,6 +89,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String READ_JDBC_PASSWORD_SETTING = "readJdbcPassword";
     public static final String READ_JDBC_POOL_SIZE_SETTING = "readJdbcPoolSize";
 
+    public static final String CATALOG_SUB_SETTING = "catalog";
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
@@ -114,6 +121,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
 
+    public static final String SUB_DATA_COLUMN_ALIAS_PREFIX = "subData_";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
     private static final String SHORT_NAME = "SQL";
     private static final Stats STATS = new Stats(SHORT_NAME);
@@ -121,8 +130,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private static final String UPDATE_STATS_OPERATION = "Update";
     private static final String QUERY_PROFILER_EVENT = SHORT_NAME + " " + QUERY_STATS_OPERATION;
     private static final String UPDATE_PROFILER_EVENT = SHORT_NAME + " " + UPDATE_STATS_OPERATION;
+    private static final long NOW_EXPIRATION_SECONDS = 300;
 
-    private final static List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
+    private static final List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
 
     {
         INSTANCES.add(this);
@@ -130,6 +140,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private volatile DataSource dataSource;
     private volatile DataSource readDataSource;
+    private volatile String catalog;
+    private volatile transient String defaultCatalog;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
@@ -223,6 +235,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     }
 
                     try {
+                        defaultCatalog = connection.getCatalog();
                         DatabaseMetaData meta = connection.getMetaData();
                         String vendorName = meta.getDatabaseProductName();
                         Class<? extends SqlVendor> vendorClass = VENDOR_CLASSES.get(vendorName);
@@ -243,25 +256,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 symbols.invalidate();
 
                 if (writable) {
-                    vendor.createRecord(this);
-                    vendor.createRecordUpdate(this);
-                    vendor.createSymbol(this);
-
-                    for (SqlIndex index : SqlIndex.values()) {
-                        if (index != SqlIndex.CUSTOM) {
-                            vendor.createRecordIndex(
-                                    this,
-                                    index.getReadTable(this, null).getName(this, null),
-                                    index);
-                        }
-                    }
-
+                    vendor.setUp(this);
                     tableNames.refresh();
                     symbols.invalidate();
                 }
 
-            } catch (SQLException ex) {
-                throw new SqlDatabaseException(this, "Can't check for required tables!", ex);
+            } catch (IOException error) {
+                throw new IllegalStateException(error);
+
+            } catch (SQLException error) {
+                throw new SqlDatabaseException(this, "Can't check for required tables!", error);
             }
         }
     }
@@ -274,6 +278,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** Sets the JDBC data source used exclusively for read operations. */
     public void setReadDataSource(DataSource readDataSource) {
         this.readDataSource = readDataSource;
+    }
+
+    public String getCatalog() {
+        return catalog;
+    }
+
+    public void setCatalog(String catalog) {
+        this.catalog = catalog;
+
+        try {
+            getVendor().setUp(this);
+            tableNames.refresh();
+            symbols.invalidate();
+
+        } catch (IOException error) {
+            throw new IllegalStateException(error);
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't check for required tables!", error);
+        }
     }
 
     /** Returns the vendor-specific SQL engine information. */
@@ -337,7 +361,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             return false;
         } else {
             Set<String> names = tableNames.get();
-            return names != null && names.contains(name.toLowerCase());
+            return names != null && names.contains(name.toLowerCase(Locale.ENGLISH));
         }
     }
 
@@ -369,7 +393,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Set<String> loweredNames = new HashSet<String>();
 
                 for (String name : vendor.getTables(connection)) {
-                    String loweredName = name.toLowerCase();
+                    String loweredName = name.toLowerCase(Locale.ENGLISH);
 
                     loweredNames.add(loweredName);
 
@@ -422,7 +446,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 vendor.appendIdentifier(insertBuilder, VALUE_COLUMN);
                 insertBuilder.append(") VALUES (");
                 vendor.appendBindValue(insertBuilder, symbol, parameters);
-                insertBuilder.append(")");
+                insertBuilder.append(')');
 
                 String insertSql = insertBuilder.toString();
                 try {
@@ -441,7 +465,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 vendor.appendIdentifier(selectBuilder, SYMBOL_TABLE);
                 selectBuilder.append(" WHERE ");
                 vendor.appendIdentifier(selectBuilder, VALUE_COLUMN);
-                selectBuilder.append("=");
+                selectBuilder.append('=');
                 vendor.appendValue(selectBuilder, symbol);
 
                 String selectSql = selectBuilder.toString();
@@ -470,8 +494,43 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return id;
     }
 
+    private Supplier<Long> nowOffset = Suppliers.memoizeWithExpiration(new Supplier<Long>() {
+        public Long get() {
+            String selectSql = getVendor().getSelectTimestampMillisSql();
+            Connection connection;
+            Statement statement = null;
+            ResultSet result = null;
+            Long nowOffsetMillis = 0L;
+
+            try {
+                connection = openConnection();
+            } catch (DatabaseException error) {
+                LOGGER.debug("Can't read timestamp from the writable server!", error);
+                connection = openReadConnection();
+            }
+
+            try {
+                statement = connection.createStatement();
+                result = statement.executeQuery(selectSql);
+                if (result.next()) {
+                    nowOffsetMillis = System.currentTimeMillis() - result.getLong(1);
+                }
+            } catch (SQLException ex) {
+                throw createQueryException(ex, selectSql, null);
+            } finally {
+                closeResources(null, connection, statement, result);
+            }
+
+            return nowOffsetMillis;
+        }
+    }, NOW_EXPIRATION_SECONDS, TimeUnit.SECONDS);
+
+    public long now() {
+        return System.currentTimeMillis() - nowOffset.get();
+    }
+
     // Cache of all internal symbols.
-    private transient PullThroughValue<Map<String, Integer>> symbols = new PullThroughValue<Map<String, Integer>>() {
+    private final transient PullThroughValue<Map<String, Integer>> symbols = new PullThroughValue<Map<String, Integer>>() {
 
         @Override
         protected Map<String, Integer> produce() {
@@ -479,7 +538,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             StringBuilder selectBuilder = new StringBuilder();
             selectBuilder.append("SELECT ");
             vendor.appendIdentifier(selectBuilder, SYMBOL_ID_COLUMN);
-            selectBuilder.append(",");
+            selectBuilder.append(',');
             vendor.appendIdentifier(selectBuilder, VALUE_COLUMN);
             selectBuilder.append(" FROM ");
             vendor.appendIdentifier(selectBuilder, SYMBOL_TABLE);
@@ -594,19 +653,21 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return new SqlQuery(this, query).selectStatement();
     }
 
-    /** Closes all the given SQL resources safely. */
-    private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
+    // Closes all the given SQL resources safely.
+    protected void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
             try {
                 result.close();
-            } catch (SQLException ex) {
+            } catch (SQLException error) {
+                // Not likely and probably harmless.
             }
         }
 
         if (statement != null) {
             try {
                 statement.close();
-            } catch (SQLException ex) {
+            } catch (SQLException error) {
+                // Not likely and probably harmless.
             }
         }
 
@@ -614,8 +675,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 (query == null ||
                 !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
             try {
-                connection.close();
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
             } catch (SQLException ex) {
+                // Not likely and probably harmless.
             }
         }
     }
@@ -659,7 +723,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 dataBytes = Snappy.uncompress(dataBytes, 1, dataBytes.length - 1);
 
             } else if (format == '{') {
-                return (Map<String, Object>) ObjectUtils.fromJson(new String(dataBytes, StringUtils.UTF_8));
+                return (Map<String, Object>) ObjectUtils.fromJson(dataBytes);
 
             } else {
                 break;
@@ -683,10 +747,36 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    /**
-     * Creates a previously saved object using the given {@code resultSet}.
-     */
-    private <T> T createSavedObjectWithResultSet(ResultSet resultSet, Query<T> query) throws SQLException {
+    private class ConnectionRef {
+
+        private Connection connection;
+
+        public Connection getOrOpen(Query<?> query) {
+            if (connection == null) {
+                connection = SqlDatabase.super.openQueryConnection(query);
+            }
+            return connection;
+        }
+
+        public void close() {
+            if (connection != null) {
+                try {
+                    if (!connection.isClosed()) {
+                        connection.close();
+                    }
+                } catch (SQLException error) {
+                    // Not likely and probably harmless.
+                }
+            }
+        }
+    }
+
+    // Creates a previously saved object using the given resultSet.
+    private <T> T createSavedObjectWithResultSet(
+            ResultSet resultSet,
+            Query<T> query,
+            ConnectionRef extraConnectionRef)
+            throws SQLException {
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
 
@@ -726,7 +816,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     ResultSet result = null;
 
                     try {
-                        connection = super.openQueryConnection(query);
+                        connection = extraConnectionRef.getOrOpen(query);
                         statement = connection.createStatement();
                         result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
@@ -739,7 +829,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         throw createQueryException(error, sqlQuery.toString(), query);
 
                     } finally {
-                        closeResources(null, connection, statement, result);
+                        closeResources(null, null, statement, result);
                     }
                 }
 
@@ -748,7 +838,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
 
             if (data != null) {
-                objectState.putAll(unserializeData(data));
+                objectState.setValues(unserializeData(data));
                 Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
                 if (returnOriginal == null) {
                     returnOriginal = Boolean.FALSE;
@@ -761,9 +851,29 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
 
         ResultSetMetaData meta = resultSet.getMetaData();
+        Object subId = null, subTypeId = null;
+        byte[] subData;
+
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
-            if (query.getExtraSourceColumns().containsKey(columnName)) {
+            if (columnName.startsWith(SUB_DATA_COLUMN_ALIAS_PREFIX)) {
+                if (columnName.endsWith("_"+ID_COLUMN)) {
+                    subId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+TYPE_ID_COLUMN)) {
+                    subTypeId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+DATA_COLUMN)) {
+                    subData = resultSet.getBytes(i);
+                    if (subId != null && subTypeId != null && subData != null && ! subId.equals(objectState.getId())) {
+                        Object subObject = createSavedObject(subTypeId, subId, query);
+                        State subObjectState = State.getInstance(subObject);
+                        subObjectState.setValues(unserializeData(subData));
+                        subId = null;
+                        subTypeId = null;
+                        subData = null;
+                        objectState.getExtras().put(State.SUB_DATA_STATE_EXTRA_PREFIX + subObjectState.getId(), subObject);
+                    }
+                }
+            } else if (query.getExtraSourceColumns().containsKey(columnName)) {
                 objectState.put(query.getExtraSourceColumns().get(columnName), resultSet.getObject(i));
             } else {
                 objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
@@ -777,63 +887,44 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         ObjectType type = objectState.getType();
         HashSet<ObjectField> loadExtraFields = new HashSet<ObjectField>();
 
-        // Set up Metric fields
-        for (ObjectField field : getEnvironment().getFields()) {
-            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
-            }
-        }
-
         if (type != null) {
-            for (ObjectField field : type.getFields()) {
-                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
-                }
-            }
-
             if ((unresolvedTypeIds == null || !unresolvedTypeIds.contains(type.getId())) &&
                 !queryTypes.contains(type)) {
                 for (ObjectField field : type.getFields()) {
                     SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-                    MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
 
-                    if (fieldData.isIndexTableSource() && ! metricFieldData.isMetricValue()) {
+                    if (fieldData.isIndexTableSource() && !field.isMetric()) {
                         loadExtraFields.add(field);
                     }
                 }
             }
         }
 
-        if (loadExtraFields != null) {
-            Connection connection = openQueryConnection(query);
+        if (!loadExtraFields.isEmpty()) {
+            Connection connection = extraConnectionRef.getOrOpen(query);
 
-            try {
-                for (ObjectField field : loadExtraFields) {
-                    Statement extraStatement = null;
-                    ResultSet extraResult = null;
+            for (ObjectField field : loadExtraFields) {
+                Statement extraStatement = null;
+                ResultSet extraResult = null;
 
-                    try {
-                        extraStatement = connection.createStatement();
-                        extraResult = executeQueryBeforeTimeout(
-                                extraStatement,
-                                extraSourceSelectStatementById(field, objectState.getId(), objectState.getTypeId()),
-                                getQueryReadTimeout(query));
+                try {
+                    extraStatement = connection.createStatement();
+                    extraResult = executeQueryBeforeTimeout(
+                            extraStatement,
+                            extraSourceSelectStatementById(field, objectState.getId(), objectState.getTypeId()),
+                            getQueryReadTimeout(query));
 
-                        if (extraResult.next()) {
-                            meta = extraResult.getMetaData();
+                    if (extraResult.next()) {
+                        meta = extraResult.getMetaData();
 
-                            for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
-                                objectState.put(meta.getColumnLabel(i), extraResult.getObject(i));
-                            }
+                        for (int i = 1, count = meta.getColumnCount(); i <= count; ++ i) {
+                            objectState.put(meta.getColumnLabel(i), extraResult.getObject(i));
                         }
-
-                    } finally {
-                        closeResources(null, null, extraStatement, extraResult);
                     }
-                }
 
-            } finally {
-                closeResources(query, connection, null, null);
+                } finally {
+                    closeResources(null, null, extraStatement, extraResult);
+                }
             }
         }
 
@@ -851,7 +942,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         ObjectType parentType = field.getParentType();
         StringBuilder keyName = new StringBuilder(parentType.getInternalName());
 
-        keyName.append("/");
+        keyName.append('/');
         keyName.append(field.getInternalName());
 
         Query<?> query = Query.fromType(parentType);
@@ -937,6 +1028,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public <T> T selectFirstWithOptions(String sqlQuery, Query<T> query) {
         sqlQuery = vendor.rewriteQueryWithLimitClause(sqlQuery, 1, 0);
 
+        ConnectionRef extraConnectionRef = new ConnectionRef();
         Connection connection = null;
         Statement statement = null;
         ResultSet result = null;
@@ -945,13 +1037,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
-            return result.next() ? createSavedObjectWithResultSet(result, query) : null;
+            return result.next() ? createSavedObjectWithResultSet(result, query, extraConnectionRef) : null;
 
         } catch (SQLException ex) {
             throw createQueryException(ex, sqlQuery, query);
 
         } finally {
             closeResources(query, connection, statement, result);
+            extraConnectionRef.close();
         }
     }
 
@@ -968,6 +1061,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * with options from the given {@code query}.
      */
     public <T> List<T> selectListWithOptions(String sqlQuery, Query<T> query) {
+        ConnectionRef extraConnectionRef = new ConnectionRef();
         Connection connection = null;
         Statement statement = null;
         ResultSet result = null;
@@ -979,7 +1073,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
             while (result.next()) {
-                objects.add(createSavedObjectWithResultSet(result, query));
+                objects.add(createSavedObjectWithResultSet(result, query, extraConnectionRef));
             }
 
             return objects;
@@ -989,6 +1083,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         } finally {
             closeResources(query, connection, statement, result);
+            extraConnectionRef.close();
         }
     }
 
@@ -1021,6 +1116,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         private final String sqlQuery;
         private final Query<T> query;
+        private final ConnectionRef extraConnectionRef;
 
         private final Connection connection;
         private final Statement statement;
@@ -1031,6 +1127,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public SqlIterator(String initialSqlQuery, int fetchSize, Query<T> initialQuery) {
             sqlQuery = initialSqlQuery;
             query = initialQuery;
+            extraConnectionRef = new ConnectionRef();
 
             try {
                 connection = openQueryConnection(query);
@@ -1060,6 +1157,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public void close() {
             hasNext = false;
             closeResources(query, connection, statement, result);
+            extraConnectionRef.close();
         }
 
         @Override
@@ -1074,7 +1172,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
 
             try {
-                T object = createSavedObjectWithResultSet(result, query);
+                T object = createSavedObjectWithResultSet(result, query, extraConnectionRef);
                 moveToNext();
                 return object;
 
@@ -1165,13 +1263,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = dataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(dataSource);
+
             connection.setReadOnly(false);
+
+            if (vendor != null) {
+                vendor.setTransactionIsolation(connection);
+            }
+
             return connection;
 
         } catch (SQLException error) {
             throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
+    }
+
+    private Connection getConnectionFromDataSource(DataSource dataSource) throws SQLException {
+        Connection connection = dataSource.getConnection();
+        String catalog = getCatalog();
+
+        if (catalog != null) {
+            connection.setCatalog(catalog);
+        }
+
+        return connection;
     }
 
     @Override
@@ -1187,7 +1302,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = readDataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(readDataSource);
+
             connection.setReadOnly(true);
             return connection;
 
@@ -1223,8 +1339,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public void closeConnection(Connection connection) {
         if (connection != null) {
             try {
-                connection.close();
-            } catch (SQLException ex) {
+                if (defaultCatalog != null) {
+                    String catalog = getCatalog();
+
+                    if (catalog != null) {
+                        connection.setCatalog(defaultCatalog);
+                    }
+                }
+
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
+
+            } catch (SQLException error) {
+                // Not likely and probably harmless.
             }
         }
     }
@@ -1258,6 +1386,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 JDBC_USER_SETTING,
                 JDBC_PASSWORD_SETTING,
                 JDBC_POOL_SIZE_SETTING));
+
+        setCatalog(ObjectUtils.to(String.class, settings.get(CATALOG_SUB_SETTING)));
 
         String vendorClassName = ObjectUtils.to(String.class, settings.get(VENDOR_CLASS_SETTING));
         Class<?> vendorClass = null;
@@ -1782,7 +1912,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
 
             if (result.next()) {
-                Double date = result.getDouble(1);
+                Double date = ObjectUtils.to(Double.class, result.getObject(1));
                 if (date != null) {
                     return new Date((long) (date * 1000L));
                 }
@@ -1856,7 +1986,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlGrouping<T> grouping;
                 ResultSetMetaData meta = result.getMetaData();
                 String aggregateColumnName = meta.getColumnName(1);
-                if (aggregateColumnName.equals("_count")) {
+                if ("_count".equals(aggregateColumnName)) {
                     long count = ObjectUtils.to(long.class, result.getObject(1));
                     for (int j = 0; j < fieldsLength; ++ j) {
                         keys.add(result.getObject(j + 2));
@@ -1872,16 +2002,23 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         count = ObjectUtils.to(long.class, result.getObject(2));
                     }
                     grouping = new SqlGrouping<T>(keys, query, fields, count, groupings);
-                    if (amount == null) amount = 0d;
+                    if (amount == null) {
+                        amount = 0d;
+                    }
                     grouping.setSum(aggregateColumnName, amount);
                 }
                 groupings.add(grouping);
             }
 
             int groupingsSize = groupings.size();
+            List<Integer> removes = new ArrayList<Integer>();
 
             for (int i = 0; i < fieldsLength; ++ i) {
-                ObjectField field = query.mapEmbeddedKey(getEnvironment(), fields[i]).getField();
+                Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), fields[i]);
+                ObjectField field = key.getSubQueryKeyField();
+                if (field == null) {
+                    field = key.getField();
+                }
 
                 if (field != null) {
                     Map<String, Object> rawKeys = new HashMap<String, Object>();
@@ -1898,14 +2035,28 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         }
                     }
 
+                    Map<String, Object> rawKeysCopy = new HashMap<String, Object>(rawKeys);
                     Map<?, ?> convertedKeys = (Map<?, ?>) StateValueUtils.toJavaValue(query.getDatabase(), null, field, "map/" + itemType, rawKeys);
+
                     for (int j = 0; j < groupingsSize; ++ j) {
-                        groupings.get(j).getKeys().set(i, convertedKeys.get(String.valueOf(j)));
+                        String jString = String.valueOf(j);
+                        Object convertedKey = convertedKeys.get(jString);
+
+                        if (convertedKey == null &&
+                                rawKeysCopy.get(jString) != null) {
+                            removes.add(j - removes.size());
+                        }
+
+                        groupings.get(j).getKeys().set(i, convertedKey);
                     }
                 }
             }
 
-            return new PaginatedResult<Grouping<T>>(offset, limit, groupingsCount, groupings);
+            for (Integer i : removes) {
+                groupings.remove((int) i);
+            }
+
+            return new PaginatedResult<Grouping<T>>(offset, limit, groupingsCount - removes.size(), groupings);
 
         } catch (SQLException ex) {
             throw createQueryException(ex, sqlQuery, query);
@@ -1918,9 +2069,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** SQL-specific implementation of {@link Grouping}. */
     private class SqlGrouping<T> extends AbstractGrouping<T> {
 
-        private long count;
+        private final long count;
 
-        private final Map<String,Double> metricSums = new HashMap<String,Double>();
+        private final Map<String, Double> metricSums = new HashMap<String, Double>();
 
         private final List<Grouping<T>> groupings;
 
@@ -1934,8 +2085,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public double getSum(String field) {
             Query.MappedKey mappedKey = this.query.mapEmbeddedKey(getEnvironment(), field);
             ObjectField sumField = mappedKey.getField();
-            if (sumField.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                if (! metricSums.containsKey(field)) {
+            if (sumField.isMetric()) {
+                if (!metricSums.containsKey(field)) {
 
                     String sqlQuery = buildGroupedMetricStatement(query, field, fields);
                     Connection connection = null;
@@ -1948,7 +2099,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         if (this.getKeys().size() == 0) {
                             // Special case for .groupby() without any fields
-                            if (this.groupings.size() != 1) throw new RuntimeException("There should only be one grouping when grouping by nothing. Something went wrong internally.");
+                            if (this.groupings.size() != 1) {
+                                throw new RuntimeException("There should only be one grouping when grouping by nothing. Something went wrong internally.");
+                            }
                             if (result.next() && result.getBytes(1) != null) {
                                 this.setSum(field, result.getDouble(1));
                             } else {
@@ -1975,7 +2128,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                                 // TODO: limit/offset
                                 List<Object> keys = new ArrayList<Object>();
                                 for (int j = 0; j < objectFields.size(); ++ j) {
-                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j+3))); // 3 because _count and amount
+                                    keys.add(StateValueUtils.toJavaValue(query.getDatabase(), null, objectFields.get(j), objectFields.get(j).getInternalItemType(), result.getObject(j + 3))); // 3 because _count and amount
                                 }
                                 if (groupingMap.containsKey(keys)) {
                                     if (result.getBytes(1) != null) {
@@ -1992,10 +2145,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         closeResources(query, connection, statement, result);
                     }
                 }
-                if (metricSums.containsKey(field))
+                if (metricSums.containsKey(field)) {
                     return metricSums.get(field);
-                else
+                } else {
                     return 0;
+                }
             } else {
                 // If it's not a MetricValue, we don't need to override it.
                 return super.getSum(field);
@@ -2087,29 +2241,29 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendIdentifier(insertBuilder, RECORD_TABLE);
                         insertBuilder.append(" (");
                         vendor.appendIdentifier(insertBuilder, ID_COLUMN);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendIdentifier(insertBuilder, TYPE_ID_COLUMN);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendIdentifier(insertBuilder, DATA_COLUMN);
 
                         if (saveInRowIndex) {
-                            insertBuilder.append(",");
+                            insertBuilder.append(',');
                             vendor.appendIdentifier(insertBuilder, IN_ROW_INDEX_COLUMN);
                         }
 
                         insertBuilder.append(") VALUES (");
                         vendor.appendBindValue(insertBuilder, id, parameters);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendBindValue(insertBuilder, typeId, parameters);
-                        insertBuilder.append(",");
+                        insertBuilder.append(',');
                         vendor.appendBindValue(insertBuilder, dataBytes, parameters);
 
                         if (saveInRowIndex) {
-                            insertBuilder.append(",");
+                            insertBuilder.append(',');
                             vendor.appendBindValue(insertBuilder, inRowIndexBytes, parameters);
                         }
 
-                        insertBuilder.append(")");
+                        insertBuilder.append(')');
                         Static.executeUpdateWithList(connection, insertBuilder.toString(), parameters);
 
                     } catch (SQLException ex) {
@@ -2138,23 +2292,23 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
                         updateBuilder.append(" SET ");
                         vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, typeId, parameters);
-                        updateBuilder.append(",");
+                        updateBuilder.append(',');
 
                         if (saveInRowIndex) {
                             vendor.appendIdentifier(updateBuilder, IN_ROW_INDEX_COLUMN);
-                            updateBuilder.append("=");
+                            updateBuilder.append('=');
                             vendor.appendBindValue(updateBuilder, inRowIndexBytes, parameters);
-                            updateBuilder.append(",");
+                            updateBuilder.append(',');
                         }
 
                         vendor.appendIdentifier(updateBuilder, DATA_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, dataBytes, parameters);
                         updateBuilder.append(" WHERE ");
                         vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, id, parameters);
 
                         if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
@@ -2184,7 +2338,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         for (AtomicOperation operation : atomicOperations) {
                             String field = operation.getField();
-                            state.putValue(field, oldState.getValue(field));
+                            state.put(field, oldState.get(field));
                         }
 
                         for (AtomicOperation operation : atomicOperations) {
@@ -2203,31 +2357,31 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
                         updateBuilder.append(" SET ");
                         vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, typeId, parameters);
 
                         if (saveInRowIndex) {
-                            updateBuilder.append(",");
+                            updateBuilder.append(',');
                             vendor.appendIdentifier(updateBuilder, IN_ROW_INDEX_COLUMN);
-                            updateBuilder.append("=");
+                            updateBuilder.append('=');
                             vendor.appendBindValue(updateBuilder, inRowIndexBytes, parameters);
                         }
 
-                        updateBuilder.append(",");
+                        updateBuilder.append(',');
                         vendor.appendIdentifier(updateBuilder, DATA_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, dataBytes, parameters);
                         updateBuilder.append(" WHERE ");
                         vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, id, parameters);
                         updateBuilder.append(" AND ");
                         vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, oldTypeId, parameters);
                         updateBuilder.append(" AND ");
                         vendor.appendIdentifier(updateBuilder, DATA_COLUMN);
-                        updateBuilder.append("=");
+                        updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, oldData, parameters);
 
                         if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
@@ -2249,17 +2403,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     vendor.appendIdentifier(insertBuilder, RECORD_UPDATE_TABLE);
                     insertBuilder.append(" (");
                     vendor.appendIdentifier(insertBuilder, ID_COLUMN);
-                    insertBuilder.append(",");
+                    insertBuilder.append(',');
                     vendor.appendIdentifier(insertBuilder, TYPE_ID_COLUMN);
-                    insertBuilder.append(",");
+                    insertBuilder.append(',');
                     vendor.appendIdentifier(insertBuilder, UPDATE_DATE_COLUMN);
                     insertBuilder.append(") VALUES (");
-                    vendor.appendValue(insertBuilder, id);
-                    insertBuilder.append(",");
+                    vendor.appendBindValue(insertBuilder, id, parameters);
+                    insertBuilder.append(',');
                     vendor.appendBindValue(insertBuilder, typeId, parameters);
-                    insertBuilder.append(",");
-                    vendor.appendValue(insertBuilder, now);
-                    insertBuilder.append(")");
+                    insertBuilder.append(',');
+                    vendor.appendBindValue(insertBuilder, now, parameters);
+                    insertBuilder.append(')');
 
                     try {
                         Static.executeUpdateWithList(connection, insertBuilder.toString(), parameters);
@@ -2281,16 +2435,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     vendor.appendIdentifier(updateBuilder, RECORD_UPDATE_TABLE);
                     updateBuilder.append(" SET ");
                     vendor.appendIdentifier(updateBuilder, TYPE_ID_COLUMN);
-                    updateBuilder.append("=");
+                    updateBuilder.append('=');
                     vendor.appendBindValue(updateBuilder, typeId, parameters);
-                    updateBuilder.append(",");
+                    updateBuilder.append(',');
                     vendor.appendIdentifier(updateBuilder, UPDATE_DATE_COLUMN);
-                    updateBuilder.append("=");
-                    vendor.appendValue(updateBuilder, now);
+                    updateBuilder.append('=');
+                    vendor.appendBindValue(updateBuilder, now, parameters);
                     updateBuilder.append(" WHERE ");
                     vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-                    updateBuilder.append("=");
-                    vendor.appendValue(updateBuilder, id);
+                    updateBuilder.append('=');
+                    vendor.appendBindValue(updateBuilder, id, parameters);
 
                     if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
                         isNew = true;
@@ -2319,11 +2473,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             vendor.appendIdentifier(updateBuilder, RECORD_TABLE);
             updateBuilder.append(" SET ");
             vendor.appendIdentifier(updateBuilder, IN_ROW_INDEX_COLUMN);
-            updateBuilder.append("=");
+            updateBuilder.append('=');
             vendor.appendValue(updateBuilder, entry.getValue());
             updateBuilder.append(" WHERE ");
             vendor.appendIdentifier(updateBuilder, ID_COLUMN);
-            updateBuilder.append("=");
+            updateBuilder.append('=');
             vendor.appendValue(updateBuilder, entry.getKey().getId());
             Static.executeUpdateWithArray(connection, updateBuilder.toString());
         }
@@ -2361,7 +2515,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         for (State state : states) {
             vendor.appendValue(whereBuilder, state.getId());
-            whereBuilder.append(",");
+            whereBuilder.append(',');
         }
 
         whereBuilder.setCharAt(whereBuilder.length() - 1, ')');
@@ -2379,7 +2533,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         vendor.appendIdentifier(updateBuilder, RECORD_UPDATE_TABLE);
         updateBuilder.append(" SET ");
         vendor.appendIdentifier(updateBuilder, UPDATE_DATE_COLUMN);
-        updateBuilder.append("=");
+        updateBuilder.append('=');
         vendor.appendValue(updateBuilder, System.currentTimeMillis() / 1000.0);
         updateBuilder.append(whereBuilder);
         Static.executeUpdateWithArray(connection, updateBuilder.toString());
@@ -2491,9 +2645,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** {@link SqlDatabase} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         public static List<SqlDatabase> getAll() {
             return INSTANCES;
         }
@@ -2517,25 +2668,31 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
          */
         static void logBatchUpdateException(BatchUpdateException bue, String sqlQuery, List<? extends List<?>> parameters) {
             int i = 0;
-            int failureOffset = bue.getUpdateCounts().length;
-            List<?> rowData = parameters.get(failureOffset);
 
             StringBuilder errorBuilder = new StringBuilder();
-            errorBuilder.append("Batch update failed with query '");
-            errorBuilder.append(sqlQuery);
-            errorBuilder.append("' with values (");
-            for (Object value : rowData) {
-                if (i++ != 0) {
-                    errorBuilder.append(", ");
+            for (int code : bue.getUpdateCounts()) {
+                if (code == Statement.EXECUTE_FAILED) {
+                    List<?> rowData = parameters.get(i);
+
+                    errorBuilder.append("Batch update failed with query '");
+                    errorBuilder.append(sqlQuery);
+                    errorBuilder.append("' with values (");
+                    for (Object value : rowData) {
+                        if (i++ != 0) {
+                            errorBuilder.append(", ");
+                        }
+
+                        if (value instanceof byte[]) {
+                            errorBuilder.append(StringUtils.hex((byte[]) value));
+                        } else {
+                            errorBuilder.append(value);
+                        }
+                    }
+                    errorBuilder.append(')');
                 }
 
-                if (value instanceof byte[]) {
-                    errorBuilder.append(StringUtils.hex((byte[]) value));
-                } else {
-                    errorBuilder.append(value);
-                }
+                i++;
             }
-            errorBuilder.append(")");
 
             Exception ex = bue.getNextException() != null ? bue.getNextException() : bue;
             LOGGER.error(errorBuilder.toString(), ex);
@@ -2559,7 +2716,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     errorBuilder.append(value);
                 }
             }
-            errorBuilder.append(")");
+            errorBuilder.append(')');
 
             LOGGER.error(errorBuilder.toString());
         }
@@ -2569,6 +2726,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         private static void bindParameter(PreparedStatement statement, int index, Object parameter) throws SQLException {
             if (parameter instanceof String) {
                 parameter = ((String) parameter).getBytes(StringUtils.UTF_8);
+            }
+
+            if (parameter instanceof StringBuilder) {
+                parameter = ((StringBuilder) parameter).toString();
             }
 
             if (parameter instanceof byte[]) {
@@ -2615,7 +2776,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Profiler.Static.startThreadEvent(UPDATE_PROFILER_EVENT);
 
                 try {
-                    return (affected = prepared.executeBatch());
+                    affected = prepared.executeBatch();
+
+                    return affected;
 
                 } finally {
                     double time = timer.stop(UPDATE_STATS_OPERATION);
@@ -2636,6 +2799,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 try {
                     prepared.close();
                 } catch (SQLException error) {
+                    // Not likely and probably harmless.
                 }
             }
         }
@@ -2696,13 +2860,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Integer affected = null;
                 Stats.Timer timer = STATS.startTimer();
                 Profiler.Static.startThreadEvent(UPDATE_PROFILER_EVENT);
+                Savepoint savePoint = null;
 
                 try {
-                    return (affected = hasParameters ?
+                    if (!connection.getAutoCommit()) {
+                        savePoint = connection.setSavepoint();
+                    }
+
+                    affected = hasParameters ?
                             prepared.executeUpdate() :
-                            statement.executeUpdate(sqlQuery));
+                            statement.executeUpdate(sqlQuery);
+
+                    return affected;
+                } catch(SQLException sqlEx) {
+                    if (savePoint != null) {
+                        connection.rollback(savePoint);
+                    }
+
+                    throw sqlEx;
 
                 } finally {
+                    if (savePoint != null) {
+                        connection.releaseSavepoint(savePoint);
+                    }
+
                     double time = timer.stop(UPDATE_STATS_OPERATION);
                     Profiler.Static.stopThreadEvent(sqlQuery);
 
@@ -2716,7 +2897,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             } finally {
                 try {
                     statement.close();
-                } catch (SQLException ex) {
+                } catch (SQLException error) {
+                    // Not likely and probably harmless.
                 }
             }
         }

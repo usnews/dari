@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 
@@ -22,9 +21,6 @@ public final class IoUtils {
 
     private static final int BUFFER_SIZE = 0x1000;
     private static final Logger LOGGER = LoggerFactory.getLogger(IoUtils.class);
-
-    private IoUtils() {
-    }
 
     /**
      * Closes the given {@code closeable}.
@@ -60,6 +56,7 @@ public final class IoUtils {
         try {
             close(closeable, true);
         } catch (IOException error) {
+            // This should never trigger with #close(suppressError = true).
         }
     }
 
@@ -89,34 +86,23 @@ public final class IoUtils {
      * @return Number of bytes copied.
      */
     public static long copy(File source, File destination) throws IOException {
-        if (!destination.exists()) {
-            File parent = destination.getParentFile();
-            if (!parent.exists()) {
-                parent.mkdirs();
-            }
-            destination.createNewFile();
-        }
+        createFile(destination);
 
         FileInputStream sourceInput = new FileInputStream(source);
-        long total = -1L;
 
         try {
-            FileChannel sourceChannel = sourceInput.getChannel();
-            total = sourceChannel.size();
             FileOutputStream destinationOutput = new FileOutputStream(destination);
 
             try {
-                sourceChannel.transferTo(0, total, destinationOutput.getChannel());
+                return copy(sourceInput, destinationOutput);
 
             } finally {
-                close(destinationOutput, true);
+                destinationOutput.close();
             }
 
         } finally {
-            closeQuietly(sourceInput);
+            sourceInput.close();
         }
-
-        return total;
     }
 
     /**
@@ -257,8 +243,8 @@ public final class IoUtils {
 
     /**
      * Reads all bytes from the given {@code url} and converts them
-     * into a string using the response content encoding. If that encoding
-     * isn't a valid Java charset, uses {@link StringUtils#UTF_8} instead.
+     * into a string using the response content encoding. If the encoding
+     * isn't provided, uses {@link StringUtils#UTF_8} instead.
      *
      * @param url Can't be {@code null}.
      * @return Never {@code null}.
@@ -268,22 +254,97 @@ public final class IoUtils {
         InputStream input = connection.getInputStream();
 
         try {
-            Charset charset = null;
+            String encoding = connection.getContentEncoding();
+            Charset charset;
 
-            try {
-                charset = Charset.forName(connection.getContentEncoding());
-            } catch (IllegalCharsetNameException error) {
-            } catch (IllegalArgumentException error) {
-            }
-
-            if (charset == null) {
+            if (encoding == null) {
                 charset = StringUtils.UTF_8;
+
+            } else {
+                try {
+                    charset = Charset.forName(encoding);
+                } catch (IllegalCharsetNameException error) {
+                    throw new IOException(error);
+                }
             }
 
             return new String(toByteArray(input), charset);
 
         } finally {
             closeQuietly(input);
+        }
+    }
+
+    /**
+     * Creates all directories leading up to and including the given
+     * {@code directory} if any of them doesn't exist.
+     *
+     * @param directory Can't be {@code null}.
+     * @throws IOException If any of the directories couldn't be created.
+     */
+    public static void createDirectories(File directory) throws IOException {
+        if (directory.exists() && !directory.isDirectory()) {
+            throw new IOException("[" + directory + "] already exists but isn't a directory!");
+
+        } else if (!directory.mkdirs() && !directory.isDirectory()) {
+            throw new IOException("Can't create [" + directory + "] directory!");
+        }
+    }
+
+    /**
+     * Creates all the parent directories leading up to the given
+     * {@code fileOrDirectory} if any of them doesn't exist.
+     *
+     * @param fileOrDirectory Can't be {@code null}.
+     * @throws IOException If any of the parent directories couldn't be
+     * created.
+     */
+    public static void createParentDirectories(File fileOrDirectory) throws IOException {
+        createDirectories(fileOrDirectory.getParentFile());
+    }
+
+    /**
+     * Creates the given {@code file} if it doesn't exist. This method will
+     * also create all the parent directories leading up to the given
+     * {@code file} using {@link #createParentDirectories}.
+     *
+     * @param file Can't be {@code null}.
+     * @throws IOException If the given {@code file} couldn't be created.
+     */
+    public static void createFile(File file) throws IOException {
+        createParentDirectories(file);
+
+        if (!file.createNewFile() &&
+                !file.isFile()) {
+            throw new IOException("[" + file + "] already exists but isn't a file!");
+        }
+    }
+
+    /**
+     * Renames the given {@code source} to {@code destination}.
+     *
+     * @param source Can't be {@code null}.
+     * @param destination Can't be {@code null}.
+     * @throws IOException If the given {@code source} couldn't be renamed.
+     */
+    public static void rename(File source, File destination) throws IOException {
+        if (!source.renameTo(destination)) {
+            throw new IOException("[" + source + "] can't be renamed to [" + destination + "]!");
+        }
+    }
+
+    /**
+     * Deletes the given {@code fileOrDirectory} if it exists.
+     *
+     * @param fileOrDirectory If {@code null}, does nothing.
+     * @throws IOException If the given {@code file} couldn't be deleted.
+     */
+    public static void delete(File fileOrDirectory) throws IOException {
+        if (fileOrDirectory != null &&
+                fileOrDirectory.exists() &&
+                !fileOrDirectory.delete() &&
+                fileOrDirectory.exists()) {
+            throw new IOException("Can't delete [" + fileOrDirectory + "]!");
         }
     }
 }

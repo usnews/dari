@@ -1,6 +1,7 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
 import javax.servlet.FilterChain;
@@ -61,7 +62,8 @@ public class FrameFilter extends AbstractFilter {
             if (body != null) {
                 PrintWriter writer = response.getWriter();
 
-                if (JspUtils.isAjaxRequest(request)) {
+                if (JspUtils.isAjaxRequest(request) ||
+                        "html".equals(request.getParameter("_result"))) {
                     response.setContentType("text/plain");
                     writer.write(body);
 
@@ -105,13 +107,8 @@ public class FrameFilter extends AbstractFilter {
 
         public final String donePath;
 
-        private final ServletOutputStream output = new ServletOutputStream() {
-            @Override
-            public void write(int b) {
-            }
-        };
-
-        private final PrintWriter writer = new PrintWriter(output);
+        private final ServletOutputStream output = new DiscardingOutputStream();
+        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StringUtils.UTF_8));
 
         public DiscardingResponse(HttpServletResponse response, String donePath) {
             super(response);
@@ -126,6 +123,13 @@ public class FrameFilter extends AbstractFilter {
         @Override
         public PrintWriter getWriter() throws IOException {
             return writer;
+        }
+    }
+
+    private static final class DiscardingOutputStream extends ServletOutputStream {
+
+        @Override
+        public void write(int b) {
         }
     }
 }

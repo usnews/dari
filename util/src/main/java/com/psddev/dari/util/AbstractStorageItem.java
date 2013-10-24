@@ -204,8 +204,10 @@ public abstract class AbstractStorageItem implements StorageItem {
                         url.getQuery(),
                         url.getRef()).
                         toASCIIString();
-            } catch (MalformedURLException ex) {
-            } catch (URISyntaxException ex) {
+            } catch (MalformedURLException error) {
+                // Return the path as is if the given path is malformed.
+            } catch (URISyntaxException error) {
+                // Return the path as is if the resolved path is malformed.
             }
         }
         return path;

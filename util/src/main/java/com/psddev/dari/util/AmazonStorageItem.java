@@ -109,96 +109,95 @@ public class AmazonStorageItem extends AbstractStorageItem {
 
     @Override
     protected void saveData(InputStream data) throws IOException {
-        RestS3Service service = null;
-
         try {
-            service = new RestS3Service(new AWSCredentials(getAccess(), getSecret()));
-            S3Object object = new S3Object(getPath());
+            RestS3Service service = null;
 
-            object.setContentType(getContentType());
+            try {
+                service = new RestS3Service(new AWSCredentials(getAccess(), getSecret()));
+                S3Object object = new S3Object(getPath());
 
-            Map<String, Object> metadata = getMetadata();
-            if (metadata != null) {
+                object.setContentType(getContentType());
 
+                Map<String, Object> metadata = getMetadata();
                 @SuppressWarnings("unchecked")
                 Map<String, List<String>> headers = (Map<String, List<String>>) metadata.get(HTTP_HEADERS);
 
-                if (headers != null) for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                if (headers != null) {
+                    for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                        String key = entry.getKey();
+                        List<String> values = entry.getValue();
 
-                    String key = entry.getKey();
-                    List<String> values = entry.getValue();
+                        if (values != null && !values.isEmpty()) {
+                            String value = values.get(0);
 
-                    if (values != null && !values.isEmpty()) {
-                        String value = values.get(0);
+                            if (key.equalsIgnoreCase("Content-Disposition")) {
+                                object.setContentDisposition(value);
 
-                        if (key.equalsIgnoreCase("Content-Disposition")) {
-                            object.setContentDisposition(value);
+                            } else if (key.equalsIgnoreCase("Content-Language")) {
+                                object.setContentLanguage(value);
 
-                        } else if (key.equalsIgnoreCase("Content-Language")) {
-                            object.setContentLanguage(value);
+                            } else if (key.equalsIgnoreCase("Content-Length")) {
+                                object.setContentLength(ObjectUtils.to(long.class, value));
 
-                        } else if (key.equalsIgnoreCase("Content-Length")) {
-                            object.setContentLength(ObjectUtils.to(long.class, value));
+                            } else if (key.equalsIgnoreCase("Content-Encoding")) {
+                                object.setContentEncoding(value);
 
-                        } else if (key.equalsIgnoreCase("Content-Encoding")) {
-                            object.setContentEncoding(value);
+                            } else if (key.equalsIgnoreCase("Content-Type")) {
+                                object.setContentType(value);
 
-                        } else if (key.equalsIgnoreCase("Content-Type")) {
-                            object.setContentType(value);
-
-                        } else {
-                            object.addMetadata(key, value);
+                            } else {
+                                object.addMetadata(key, value);
+                            }
                         }
                     }
                 }
-            }
 
-            // TODO: Decide which additional metadata is relevant to this StorageItem
-            /*
-            for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-                Object value = entry.getValue();
-                if (value instanceof String) {
-                    object.addMetadata(entry.getKey(), (String) value);
+                // TODO: Decide which additional metadata is relevant to this StorageItem
+                /*
+                for (Map.Entry<String, Object> entry : metadata.entrySet()) {
+                    Object value = entry.getValue();
+                    if (value instanceof String) {
+                        object.addMetadata(entry.getKey(), (String) value);
+                    }
                 }
-            }
-            */
+                */
 
-            object.setDataInputStream(data);
-            object.setAcl(AccessControlList.REST_CANNED_PUBLIC_READ);
-            service.putObject(getBucket(), object);
+                object.setDataInputStream(data);
+                object.setAcl(AccessControlList.REST_CANNED_PUBLIC_READ);
+                service.putObject(getBucket(), object);
 
-        } catch (ServiceException ex) {
-            throw new IOException(String.format("Unable to store [%s] file!", getPath()), ex);
 
-        } finally {
-            if (service != null) {
-                try {
+            } finally {
+                if (service != null) {
                     service.shutdown();
-                } catch (ServiceException ex) {
                 }
             }
+
+        } catch (ServiceException error) {
+            throw new IOException(String.format(
+                    "Can't store [%s] file!", getPath()),
+                    error);
         }
     }
 
     @Override
     public boolean isInStorage() {
-        RestS3Service service = null;
-
         try {
-            service = new RestS3Service(new AWSCredentials(getAccess(), getSecret()));
-            service.getObjectDetails(getBucket(), getPath());
-            return true;
+            RestS3Service service = null;
 
-        } catch (ServiceException ex) {
-            return false;
+            try {
+                service = new RestS3Service(new AWSCredentials(getAccess(), getSecret()));
+                service.getObjectDetails(getBucket(), getPath());
+                return true;
 
-        } finally {
-            if (service != null) {
-                try {
+            } finally {
+                if (service != null) {
                     service.shutdown();
-                } catch (ServiceException ex) {
                 }
             }
+
+        } catch (ServiceException error) {
+            return false;
         }
     }
 
@@ -227,7 +226,10 @@ public class AmazonStorageItem extends AbstractStorageItem {
             } finally {
                 try {
                     service.shutdown();
-                } catch (ServiceException ex) {
+                } catch (ServiceException error) {
+                    throw new IOException(String.format(
+                            "Can't shut down [%s] service!", service),
+                            error);
                 }
             }
         }

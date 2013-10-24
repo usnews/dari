@@ -16,15 +16,20 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.base.Optional;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** Object utility methods. */
 public abstract class ObjectUtils {
 
-    private static final ClassFinder CLASS_FINDER = new ClassFinder();
     private static final JsonProcessor JSON_PROCESSOR = new JsonProcessor();
 
     private static final Map<String, Class<?>> PRIMITIVE_CLASSES; static {
@@ -38,27 +43,31 @@ public abstract class ObjectUtils {
     }
 
     // Because Class.forName is pretty slow.
-    private static Map<ClassLoader, Map<String, Class<?>>>
-            CLASSES_BY_LOADER = new PullThroughCache<ClassLoader, Map<String, Class<?>>>() {
-
-        @Override
-        protected Map<String, Class<?>> produce(final ClassLoader loader) {
-            return new PullThroughCache<String, Class<?>>() {
+    private static final LoadingCache<Optional<ClassLoader>, LoadingCache<String, Optional<Class<?>>>>
+            CLASSES_BY_LOADER = CacheBuilder.newBuilder().build(new CacheLoader<Optional<ClassLoader>, LoadingCache<String, Optional<Class<?>>>>() {
 
                 @Override
-                protected Class<?> produce(String name) {
-                    if (name != null) {
-                        try {
-                            return Class.forName(name, false, loader);
-                        } catch (ClassNotFoundException ex) {
-                        } catch (NoClassDefFoundError ex) {
+                public LoadingCache<String, Optional<Class<?>>> load(final Optional<ClassLoader> loader) {
+                    return CacheBuilder.newBuilder().build(new CacheLoader<String, Optional<Class<?>>>() {
+
+                        @Override
+                        @SuppressWarnings({ "rawtypes", "unchecked" })
+                        public Optional<Class<?>> load(String className) {
+                            try {
+                                return (Optional) Optional.of((Class) Class.forName(className, false, loader.orNull()));
+
+                            } catch (ClassNotFoundException error) {
+                                // Falls through to return absent below.
+
+                            } catch (NoClassDefFoundError error) {
+                                // Falls through to return absent below.
+                            }
+
+                            return Optional.absent();
                         }
-                    }
-                    return null;
+                    });
                 }
-            };
-        }
-    };
+            });
 
     /**
      * Returns {@code true} if the given {@code object1} and {@code object2},
@@ -104,8 +113,11 @@ public abstract class ObjectUtils {
     /**
      * Returns the first non-{@code null} value among the given
      * {@code values}.
+     *
+     * @param values If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
      */
-    public static <T> T coalesce(T... values) {
+    public static <T> T firstNonNull(T... values) {
         if (values != null) {
             for (T value : values) {
                 if (value != null) {
@@ -113,7 +125,38 @@ public abstract class ObjectUtils {
                 }
             }
         }
+
         return null;
+    }
+
+    /**
+     * Returns the first non-{@link #isBlank blank} value among the given
+     * {@code values}.
+     *
+     * @param values If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public static <T> T firstNonBlank(T... values) {
+        if (values != null) {
+            for (T value : values) {
+                if (!ObjectUtils.isBlank(value)) {
+                    return value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the first non-{@code null} value among the given
+     * {@code values}.
+     *
+     * @deprecated Use {@link #firstNonNull} instead.
+     */
+    @Deprecated
+    public static <T> T coalesce(T... values) {
+        return firstNonNull(values);
     }
 
     /**
@@ -134,7 +177,15 @@ public abstract class ObjectUtils {
      * doesn't exist.
      */
     public static Class<?> getClassFromLoader(ClassLoader loader, String name) {
-        return CLASSES_BY_LOADER.get(loader).get(name);
+        if (ObjectUtils.isBlank(name)) {
+            return null;
+
+        } else {
+            return CLASSES_BY_LOADER.
+                    getUnchecked(Optional.fromNullable(loader)).
+                    getUnchecked(name).
+                    orNull();
+        }
     }
 
     /**
@@ -223,7 +274,14 @@ public abstract class ObjectUtils {
 
         } else if (object instanceof String) {
             String string = (String) object;
-            return string.length() == 0 || string.trim().length() == 0;
+
+            for (int i = 0, length = string.length(); i < length; ++ i) {
+                if (!Character.isWhitespace(string.charAt(i))) {
+                    return false;
+                }
+            }
+
+            return true;
 
         } else if (object instanceof Collection) {
             return ((Collection<?>) object).isEmpty();
@@ -245,28 +303,44 @@ public abstract class ObjectUtils {
     // --- ClassFinder bridge ---
 
     /**
-     * {@linkplain ClassFinder#find Finds all classes} that are
-     * compatible with the given {@code baseClass} within the given
-     * class {@code loader}.
+     * Finds all classes that are compatible with the given {@code baseClass}
+     * within the given class {@code loader}.
+     *
+     * @param loader If {@code null}, uses the current class loader.
+     * @param baseClass Can't be {@code null}.
+     * @return Never {@code null}.
+     * @deprecated Use {@link ClassFinder.Static#findClassesFromLoader} instead.
      */
+    @Deprecated
     public static <T> Set<Class<? extends T>> findClassesFromLoader(ClassLoader loader, Class<T> baseClass) {
-        return CLASS_FINDER.find(loader, baseClass);
+        return ClassFinder.Static.findClassesFromLoader(loader, baseClass);
     }
 
     /**
-     * {@linkplain ClassFinder#find Finds all classes} that are
-     * compatible with the given {@code baseClass} within the
-     * {@linkplain #getCurrentClassLoader current class loader}.
+     * Finds all classes that are compatible with the given {@code baseClass}
+     * within the current class loader.
+     *
+     * @param baseClass Can't be {@code null}.
+     * @return Never {@code null}.
+     * @deprecated Use {@link ClassFinder.Static#findClasses} instead.
      */
+    @Deprecated
     public static <T> Set<Class<? extends T>> findClasses(Class<T> baseClass) {
-        return findClassesFromLoader(getCurrentClassLoader(), baseClass);
+        return ClassFinder.Static.findClasses(baseClass);
     }
 
     // --- Converter bridge ---
 
-    private static final Converter CONVERTER; static {
+    private static final Converter CONVERTER;
+    private static final Converter ERRORING_CONVERTER;
+
+    static {
         CONVERTER = new Converter();
         CONVERTER.putAllStandardFunctions();
+
+        ERRORING_CONVERTER = new Converter();
+        ERRORING_CONVERTER.setThrowError(true);
+        ERRORING_CONVERTER.putAllStandardFunctions();
     }
 
     /**
@@ -299,6 +373,39 @@ public abstract class ObjectUtils {
         return CONVERTER.convert(returnTypeReference, object);
     }
 
+    /**
+     * Converts the given {@code object} into an instance of the given
+     * {@code returnType}.
+     *
+     * @throws ConversionException If the conversion fails.
+     * @see Converter#convert(Type, Object)
+     */
+    public static Object toOrError(Type returnType, Object object) {
+        return ERRORING_CONVERTER.convert(returnType, object);
+    }
+
+    /**
+     * Converts the given {@code object} into an instance of the given
+     * {@code returnClass}.
+     *
+     * @throws ConversionException If the conversion fails.
+     * @see Converter#convert(Class, Object)
+     */
+    public static <T> T toOrError(Class<T> returnClass, Object object) {
+        return ERRORING_CONVERTER.convert(returnClass, object);
+    }
+
+    /**
+     * Converts the given {@code object} into an instance of the type
+     * referenced by the given {@code returnTypeReference}.
+     *
+     * @throws ConversionException If the conversion fails.
+     * @see Converter#convert(TypeReference, Object)
+     */
+    public static <T> T toOrError(TypeReference<T> returnTypeReference, Object object) {
+        return ERRORING_CONVERTER.convert(returnTypeReference, object);
+    }
+
     // --- JsonProcessor bridge ---
 
     /**
@@ -308,6 +415,16 @@ public abstract class ObjectUtils {
      */
     public static Object fromJson(String string) {
         return JSON_PROCESSOR.parse(string);
+    }
+
+    /**
+     * Parses the given JSON {@code bytes} into an object.
+     *
+     * @param bytes If {@code null}, returns {@code null}.
+     * @see JsonProcessor#parse(byte[])
+     */
+    public static Object fromJson(byte[] bytes) {
+        return JSON_PROCESSOR.parse(bytes);
     }
 
     /**
@@ -350,18 +467,18 @@ public abstract class ObjectUtils {
 
     // --- Content type ---
 
-    /** Default content type for {@link #getContentType}. */
+    /**
+     * The default content type returned by {@link #getContentType} when
+     * a file extension isn't mapped to a known content type.
+     */
     public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
-    /**
-     * File name extensions to content types cache from:
-     * <a href="http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types"
-     * >http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types</a>
-     */
-    private static final PullThroughValue<Map<String, String>> CONTENT_TYPES = new PullThroughValue<Map<String, String>>() {
+    // File name extensions to content types cache from:
+    // http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
+    private static final Lazy<Map<String, String>> CONTENT_TYPES = new Lazy<Map<String, String>>() {
 
         @Override
-        protected Map<String, String> produce() throws IOException {
+        protected Map<String, String> create() throws IOException {
             Map<String, String> contentTypes = new HashMap<String, String>();
             InputStream mimeInput = getClass().getResourceAsStream("mime.types");
             BufferedReader mimeInputReader = new BufferedReader(new InputStreamReader(mimeInput, StringUtils.UTF_8));
@@ -370,10 +487,10 @@ public abstract class ObjectUtils {
                 for (String line; (line = mimeInputReader.readLine()) != null; ) {
                     if (!line.startsWith("#")) {
                         String[] items = StringUtils.split(line.trim(), "\\s+");
-                        String contentType = items[0].toLowerCase();
+                        String contentType = items[0].toLowerCase(Locale.ENGLISH);
 
                         for (int j = 1, length = items.length; j < length; ++ j) {
-                            contentTypes.put(items[j].toLowerCase(), contentType);
+                            contentTypes.put(items[j].toLowerCase(Locale.ENGLISH), contentType);
                         }
                     }
                 }
@@ -389,12 +506,16 @@ public abstract class ObjectUtils {
     /**
      * Returns the content type associated with the given {@code fileName}
      * extension, or {@value DEFAULT_CONTENT_TYPE} if not found.
+     *
+     * @param fileName If {@code null}, returns {@value DEFAULT_CONTENT_TYPE}.
+     * @return Never {@code null}.
      */
     public static String getContentType(String fileName) {
         int dotAt = fileName.lastIndexOf('.');
 
         if (dotAt > -1) {
-            String type = CONTENT_TYPES.get().get(fileName.substring(dotAt + 1).toLowerCase());
+            String type = CONTENT_TYPES.get().get(fileName.substring(dotAt + 1).toLowerCase(Locale.ENGLISH));
+
             if (type != null) {
                 return type;
             }
@@ -514,13 +635,15 @@ public abstract class ObjectUtils {
 
             try {
                 getter = c.getDeclaredMethod(name);
-            } catch (NoSuchMethodException ex) {
+            } catch (NoSuchMethodException error) {
+                // Try the next getter check.
             }
 
             if (getter == null) {
                 try {
                     getter = c.getDeclaredMethod("get" + capitalize(name));
-                } catch (NoSuchMethodException ex) {
+                } catch (NoSuchMethodException error) {
+                    // Getter doesn't exist. Oh well.
                 }
             }
 
@@ -545,13 +668,15 @@ public abstract class ObjectUtils {
 
                 try {
                     field = c.getDeclaredField(name);
-                } catch (NoSuchFieldException ex) {
+                } catch (NoSuchFieldException error) {
+                    // Try the next field check.
                 }
 
                 if (field == null) {
                     try {
                         field = c.getDeclaredField("_" + name);
-                    } catch (NoSuchFieldException ex) {
+                    } catch (NoSuchFieldException error) {
+                        // Field doesn't exist. Oh well.
                     }
                 }
 
@@ -574,7 +699,7 @@ public abstract class ObjectUtils {
     private static String capitalize(String string) {
         return string == null || string.length() == 0 ?
                 string :
-                string.substring(0, 1).toUpperCase() + string.substring(1);
+                string.substring(0, 1).toUpperCase(Locale.ENGLISH) + string.substring(1);
     }
 
     /** @deprecated Use {@link #findClassesFromLoader} instead. */

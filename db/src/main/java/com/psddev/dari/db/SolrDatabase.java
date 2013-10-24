@@ -38,10 +38,10 @@ import org.apache.solr.common.params.MoreLikeThisParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsException;
 import com.psddev.dari.util.Stats;
@@ -57,12 +57,14 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
     public static final String SERVER_URL_SUB_SETTING = "serverUrl";
     public static final String READ_SERVER_URL_SUB_SETTING = "readServerUrl";
+    public static final String TENANT_SUB_SETTING = "tenant";
     public static final String COMMIT_WITHIN_SUB_SETTING = "commitWithin";
     public static final String VERSION_SUB_SETTING = "version";
     public static final String SAVE_DATA_SUB_SETTING = "saveData";
 
     public static final double DEFAULT_COMMIT_WITHIN = 0.0;
 
+    public static final String TENANT_FIELD = "_s__tenant";
     public static final String ID_FIELD = "id";
     public static final String TYPE_ID_FIELD = "typeId";
     public static final String DATA_FIELD = "data";
@@ -92,6 +94,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
     private volatile SolrServer server;
     private volatile SolrServer readServer;
+    private volatile String tenant;
     private volatile Double commitWithin;
     private volatile String version;
     private volatile boolean saveData = true;
@@ -104,7 +107,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     /** Sets the underlying Solr server. */
     public void setServer(SolrServer server) {
         this.server = server;
-        schema.invalidate();
+        schema.reset();
     }
 
     /** Returns the underlying Solr read server. */
@@ -115,7 +118,15 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     /** Sets the underlying Solr read server. */
     public void setReadServer(SolrServer readServer) {
         this.readServer = readServer;
-        schema.invalidate();
+        schema.reset();
+    }
+
+    public String getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(String tenant) {
+        this.tenant = tenant;
     }
 
     public Double getCommitWithin() {
@@ -217,18 +228,21 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
-    private final transient PullThroughValue<SolrSchema> schema = new PullThroughValue<SolrSchema>() {
+    private final transient Lazy<SolrSchema> schema = new Lazy<SolrSchema>() {
 
         @Override
-        protected SolrSchema produce() {
+        protected SolrSchema create() {
             Exception error = query("*:*");
+
             if (error != null) {
                 throw new IllegalStateException("Solr server isn't available!", error);
             }
 
             SolrSchema schema;
+
             if (query("_e_test:1") == null) {
                 schema = new SolrSchema(10);
+
                 schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -238,6 +252,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else if (query("_query_:\"{!geofilt pt=0.0,0.0 sfield=_g_test d=1}\"") == null) {
                 schema = new SolrSchema(9);
+
                 schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -247,6 +262,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else if (query("_sl_test:1") == null) {
                 schema = new SolrSchema(8);
+
                 schema.setDefaultField(new SolrField("_sl_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -255,6 +271,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else if (query("_ss_test:1") == null) {
                 schema = new SolrSchema(7);
+
                 schema.setDefaultField(new SolrField("_s_", "_t_", "_ss_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_bs_"), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_ds_"), ObjectField.NUMBER_TYPE);
@@ -263,6 +280,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             } else {
                 schema = new SolrSchema(6);
+
                 schema.setDefaultField(new SolrField("_s_", "_t_", "_s_"));
                 schema.mapFields(new SolrField("_b_", "_b_", "_b_", true), ObjectField.BOOLEAN_TYPE);
                 schema.mapFields(new SolrField("_d_", "_d_", "_d_", true), ObjectField.NUMBER_TYPE);
@@ -277,12 +295,15 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         private Exception query(String query) {
             SolrServer server = openReadConnection();
             SolrQuery solrQuery = new SolrQuery(query);
+
             solrQuery.setRows(0);
+
             try {
                 server.query(solrQuery);
                 return null;
-            } catch (SolrServerException ex) {
-                return ex;
+
+            } catch (SolrServerException error) {
+                return error;
             }
         }
     };
@@ -342,10 +363,11 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         Map<String, Object> facetedFields = query.getFacetedFields();
-        if (facetedFields.size() > 0) {
+        if (!facetedFields.isEmpty()) {
             boolean facet = false;
-            for(String field : facetedFields.keySet()) {
-                Object value = facetedFields.get(field);
+            for (Map.Entry<String, Object> entry : facetedFields.entrySet()) {
+                String field = entry.getKey();
+                Object value = entry.getValue();
                 if (value != null) {
                     Predicate p = new ComparisonPredicate(PredicateParser.EQUALS_ANY_OPERATOR, false, field, ObjectUtils.to(Iterable.class, value));
                     StringBuilder filter = new StringBuilder();
@@ -386,7 +408,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                         queryBuilder.append(" || ");
                     }
                     queryBuilder.setLength(queryBuilder.length() - 4);
-                    queryBuilder.append(")");
+                    queryBuilder.append(')');
                 }
             }
         }
@@ -428,7 +450,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 }
 
                 solrQuery.addSortField(SCORE_FIELD, SolrQuery.ORDER.desc);
-                sortBuilder.append("(");
+                sortBuilder.append('(');
                 appendPredicate(query, sortBuilder, sortPredicate);
                 sortBuilder.append(")^");
                 sortBuilder.append(boost);
@@ -454,9 +476,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     StringBuilder geoBuilder = new StringBuilder();
                     geoBuilder.append("geodist(");
                     geoBuilder.append(location.getX());
-                    geoBuilder.append(",");
+                    geoBuilder.append(',');
                     geoBuilder.append(location.getY());
-                    geoBuilder.append(")");
+                    geoBuilder.append(')');
 
                     solrQuery.setSortField(geoBuilder.toString(), closest ? SolrQuery.ORDER.asc : SolrQuery.ORDER.desc);
                     continue;
@@ -471,6 +493,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             queryBuilder.append(") && (");
             queryBuilder.append(sortBuilder);
             queryBuilder.append("*:*)");
+        }
+
+        String tenant = getTenant();
+
+        if (tenant != null) {
+            queryBuilder.insert(0, '(');
+            queryBuilder.append(") && ");
+            queryBuilder.append(TENANT_FIELD);
+            queryBuilder.append(':');
+            queryBuilder.append(tenant);
         }
 
         solrQuery.setQuery(queryBuilder.toString());
@@ -562,9 +594,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 for (Predicate child : children) {
                     queryBuilder.append(" && -(");
                     database.appendPredicate(query, queryBuilder, child);
-                    queryBuilder.append(")");
+                    queryBuilder.append(')');
                 }
-                queryBuilder.append(")");
+                queryBuilder.append(')');
             }
         });
 
@@ -595,11 +627,11 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 List<Predicate> children) {
 
             for (Predicate child : children) {
-                queryBuilder.append("(");
+                queryBuilder.append('(');
                 database.appendPredicate(query, queryBuilder, child);
                 queryBuilder.append(") ");
                 queryBuilder.append(join);
-                queryBuilder.append(" ");
+                queryBuilder.append(' ');
             }
 
             queryBuilder.setLength(queryBuilder.length() - join.length() - 2);
@@ -626,7 +658,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             @Override
             protected void addNonMissingValue(StringBuilder comparisonBuilder, String solrField, Object value) {
                 comparisonBuilder.append(escapeValue(value));
-                comparisonBuilder.append("*");
+                comparisonBuilder.append('*');
             }
         });
 
@@ -676,10 +708,10 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 queryBuilder.append(changeSolrField(solrField));
                 queryBuilder.append(":(");
                 queryBuilder.append(comparisonBuilder);
-                queryBuilder.append(")");
+                queryBuilder.append(')');
 
                 if (isNegate) {
-                    queryBuilder.append(")");
+                    queryBuilder.append(')');
                 }
 
             } else if (isAny) {
@@ -843,7 +875,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     comparisonBuilder.append(escapedValue);
 
                 } else {
-                    comparisonBuilder.append("(");
+                    comparisonBuilder.append('(');
                     comparisonBuilder.append(escapedValue);
                     comparisonBuilder.append(" || ");
                     comparisonBuilder.append(escapedValue);
@@ -877,9 +909,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             comparisonBuilder.append(prefix);
-            comparisonBuilder.append("\"");
+            comparisonBuilder.append('"');
             comparisonBuilder.append(valueString.replaceAll("([\\\\\"])", "\\\\$1"));
-            comparisonBuilder.append("\"");
+            comparisonBuilder.append('"');
             comparisonBuilder.append(suffix);
         }
     }
@@ -920,7 +952,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         } else {
             streamBody.append(value);
-            streamBody.append(" ");
+            streamBody.append(' ');
         }
     }
 
@@ -1018,13 +1050,13 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             if (ObjectUtils.isBlank(data)) {
                 Object original = objectState.getDatabase().readFirst(Query.from(Object.class).where("_id = ?", objectState.getId()));
                 if (original != null) {
-                    objectState.putAll(State.getInstance(original).getValues());
+                    objectState.setValues(State.getInstance(original).getValues());
                 }
 
             } else {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> values = (Map<String, Object>) ObjectUtils.fromJson(data);
-                objectState.putAll(values);
+                objectState.setValues(values);
             }
         }
 
@@ -1037,23 +1069,6 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             extras.put(NORMALIZED_SCORE_EXTRA, ((Number) score).floatValue() / maxScore);
         }
 
-        // Set up Metric fields
-        for (ObjectField field : getEnvironment().getFields()) {
-            if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
-            }
-        }
-
-        ObjectType type = objectState.getType();
-
-        if (type != null) {
-            for (ObjectField field : type.getFields()) {
-                if (field.as(MetricDatabase.FieldData.class).isMetricValue()) {
-                    objectState.putByPath(field.getInternalName(), new Metric(objectState, field));
-                }
-            }
-        }
-
         return swapObjectType(query, object);
     }
 
@@ -1063,6 +1078,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     }
 
     private void doCommit(SolrServer server) {
+        Throwable error = null;
+
         try {
             Stats.Timer timer = STATS.startTimer();
             Profiler.Static.startThreadEvent(COMMIT_PROFILER_EVENT);
@@ -1077,8 +1094,14 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 LOGGER.debug("Solr commit time: [{}]ms", duration);
             }
 
-        } catch (Exception ex) {
-            throw new DatabaseException(this, "Can't commit to Solr!", ex);
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
+            throw new DatabaseException(this, "Can't commit to Solr!", error);
         }
     }
 
@@ -1107,6 +1130,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     String.format("[%s] is not a valid URL!", url));
         }
 
+        setTenant(ObjectUtils.to(String.class, settings.get(TENANT_SUB_SETTING)));
         setCommitWithin(ObjectUtils.to(Double.class, settings.get(COMMIT_WITHIN_SUB_SETTING)));
         setVersion(ObjectUtils.to(String.class, settings.get(VERSION_SUB_SETTING)));
 
@@ -1224,9 +1248,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     }
 
     /** Solr-specific implementation of {@link Grouping}. */
-    private class SolrGrouping<T> extends AbstractGrouping<T> {
+    private static class SolrGrouping<T> extends AbstractGrouping<T> {
 
-        private long count;
+        private final long count;
 
         public SolrGrouping(List<Object> keys, Query<T> query, String[] fields, long count) {
             super(keys, query, fields);
@@ -1248,15 +1272,23 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
     @Override
     public void deleteByQuery(Query<?> query) {
+        Throwable error = null;
+
         try {
             SolrServer server = openConnection();
             server.deleteByQuery(buildQuery(query).getQuery());
             doCommit(server);
 
-        } catch (Exception ex) {
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
             throw new DatabaseException(this, String.format(
                     "Can't delete documents matching [%s] from Solr!",
-                    query), ex);
+                    query), error);
         }
     }
 
@@ -1287,6 +1319,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     protected void doSaves(SolrServer server, boolean isImmediate, List<State> states) {
         Set<String> databaseGroups = getGroups();
         List<SolrInputDocument> documents = new ArrayList<SolrInputDocument>();
+        String tenant = getTenant();
 
         for (State state : states) {
             ObjectType type = state.getType();
@@ -1327,7 +1360,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
                 if (!typeAheadFields.isEmpty()) {
                     for (String typeAheadField : typeAheadFields) {
-                        String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
+                        String value = ObjectUtils.to(String.class, state.getByPath(typeAheadField));
 
                         // Hack for a client.
                         if (!ObjectUtils.isBlank(value)) {
@@ -1341,7 +1374,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     for (Map.Entry<String, List<String>> entry : typeAheadFieldsMap.entrySet()) {
                         String typeAheadField = entry.getKey();
                         List<String> targetFields = entry.getValue();
-                        String value = ObjectUtils.to(String.class, state.getValue(typeAheadField));
+                        String value = ObjectUtils.to(String.class, state.getByPath(typeAheadField));
 
                         if (!ObjectUtils.isBlank(targetFields)) {
                             for (String targetField : targetFields) {
@@ -1374,12 +1407,18 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             document.setField(ALL_FIELD, allBuilder.toString());
+
+            if (tenant != null) {
+                document.setField(TENANT_FIELD, tenant);
+            }
         }
 
         int documentsSize = documents.size();
         if (documentsSize == 0) {
             return;
         }
+
+        Throwable error = null;
 
         try {
             Stats.Timer timer = STATS.startTimer();
@@ -1397,10 +1436,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 LOGGER.debug("Solr add: [{}], Time: [{}]ms", documentsSize, duration);
             }
 
-        } catch (Exception ex) {
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
             throw new DatabaseException(this, String.format(
                     "Can't add [%s] documents to Solr!",
-                    documentsSize), ex);
+                    documentsSize), error);
         }
     }
 
@@ -1549,6 +1594,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         int statesSize = states.size();
+        Throwable error = null;
 
         try {
             Stats.Timer timer = STATS.startTimer();
@@ -1566,10 +1612,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 LOGGER.debug("Solr delete: [{}], Time: [{}]ms", statesSize, duration);
             }
 
-        } catch (Exception ex) {
+        } catch (IOException e) {
+            error = e;
+        } catch (SolrServerException e) {
+            error = e;
+        }
+
+        if (error != null) {
             throw new DatabaseException(this, String.format(
                     "Can't delete [%s] documents from Solr!",
-                    statesSize), ex);
+                    statesSize), error);
         }
     }
 
@@ -1577,9 +1629,6 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public static final class Static {
 
         private static final Pattern ESCAPE_PATTERN = Pattern.compile("([-+&|!(){}\\[\\]^\"~*?:\\\\\\s])");
-
-        private Static() {
-        }
 
         /**
          * Escapes the given {@code value} so that it's safe to use

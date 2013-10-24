@@ -23,9 +23,11 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
 
@@ -39,15 +41,16 @@ public class ObjectType extends Record implements ObjectStruct {
     private static final Logger
             LOGGER = LoggerFactory.getLogger(ObjectType.class);
 
-    // Cache that contains record and field annotation processors.
-    private static Map<Class<?>, Object>
-            ANNOTATION_PROCESSORS = new PullThroughCache<Class<?>, Object>() {
+    // Cache that contains type and field annotation processors.
+    private static final LoadingCache<Class<?>, Object> ANNOTATION_PROCESSORS = CacheBuilder.newBuilder().
+            weakKeys().
+            build(new CacheLoader<Class<?>, Object>() {
 
-        @Override
-        protected Object produce(Class<?> processorClass) {
-            return TypeDefinition.getInstance(processorClass).newInstance();
-        }
-    };
+                @Override
+                public Object load(Class<?> processorClass) {
+                    return TypeDefinition.getInstance(processorClass).newInstance();
+                }
+            });
 
     @DisplayName("Display Name")
     @Indexed
@@ -72,6 +75,7 @@ public class ObjectType extends Record implements ObjectStruct {
 
     private String sourceDatabaseClassName;
     private String sourceDatabaseName;
+    private String javaBeanProperty;
 
     @DisplayName("Java Object Class")
     @Indexed(unique = true)
@@ -98,16 +102,6 @@ public class ObjectType extends Record implements ObjectStruct {
             List<ObjectField> localFields,
             List<ObjectIndex> localIndexes,
             boolean hasGlobalChanges) {
-
-        Object defaultObject = null;
-        try {
-            defaultObject = definition.newInstance();
-        } catch (Exception ex) {
-            LOGGER.debug(String.format(
-                    "Can't create an instance of [%s] to get the default values!",
-                    definition.getObjectClass().getName()), ex);
-        }
-
         FieldInternalNamePrefix prefixAnnotation = definition.getObjectClass().getAnnotation(FieldInternalNamePrefix.class);
         String prefix = prefixAnnotation != null ? prefixAnnotation.value() : "";
 
@@ -174,25 +168,13 @@ public class ObjectType extends Record implements ObjectStruct {
 
             field.setJavaFieldName(javaField.getName());
             field.setJavaDeclaringClassName(declaringClass);
-
-            if (defaultObject != null &&
-                    !ObjectField.DATE_TYPE.equals(field.getInternalType())) {
-                try {
-                    field.setDefaultValue(javaField.get(defaultObject));
-                } catch (Exception ex) {
-                    LOGGER.debug(String.format(
-                            "Can't get the default value of [%s] from an instance of [%s]!",
-                            internalName, defaultObject.getClass().getName()), ex);
-                }
-            }
-
             field.setDeprecated(javaField.isAnnotationPresent(Deprecated.class));
 
             for (Annotation annotation : javaField.getAnnotations()) {
                 ObjectField.AnnotationProcessorClass processorClass = annotation.annotationType().getAnnotation(ObjectField.AnnotationProcessorClass.class);
                 if (processorClass != null) {
                     @SuppressWarnings("unchecked")
-                    ObjectField.AnnotationProcessor<Annotation> processor = (ObjectField.AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.get(processorClass.value());
+                    ObjectField.AnnotationProcessor<Annotation> processor = (ObjectField.AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.getUnchecked(processorClass.value());
                     processor.process(type, field, annotation);
                 }
             }
@@ -261,6 +243,11 @@ public class ObjectType extends Record implements ObjectStruct {
      * the given {@code modificationClass}.
      */
     public static void modifyAll(Database database, Class<?> modificationClass) {
+        if (Modification.class.isAssignableFrom(modificationClass) &&
+                Modifier.isAbstract(modificationClass.getModifiers())) {
+            return;
+        }
+
         DatabaseEnvironment environment = database.getEnvironment();
         List<ObjectField> globalFields = environment.getFields();
         List<ObjectIndex> globalIndexes = environment.getIndexes();
@@ -427,9 +414,10 @@ public class ObjectType extends Record implements ObjectStruct {
         return new ArrayList<ObjectField>(fieldsCache.get().values());
     }
 
-    private final transient PullThroughValue<Map<String, ObjectField>> fieldsCache = new PullThroughValue<Map<String, ObjectField>>() {
+    private final transient Lazy<Map<String, ObjectField>> fieldsCache = new Lazy<Map<String, ObjectField>>() {
+
         @Override
-        protected Map<String, ObjectField> produce() {
+        protected Map<String, ObjectField> create() {
             return ObjectField.Static.convertDefinitionsToInstances(ObjectType.this, fields);
         }
     };
@@ -437,8 +425,28 @@ public class ObjectType extends Record implements ObjectStruct {
     /** Sets the list of all fields. */
     public void setFields(List<ObjectField> fields) {
         this.fields = ObjectField.Static.convertInstancesToDefinitions(fields);
-        fieldsCache.invalidate();
+        fieldsCache.reset();
+        metricFieldsCache.reset();
     }
+
+    public List<ObjectField> getMetricFields() {
+        return metricFieldsCache.get();
+    }
+
+    private final transient Lazy<List<ObjectField>> metricFieldsCache = new Lazy<List<ObjectField>>() {
+        @Override
+        protected List<ObjectField> create() {
+            List<ObjectField> metricFields = new ArrayList<ObjectField>();
+
+            for (ObjectField field : getFields()) {
+                if (field.isMetric()) {
+                    metricFields.add(field);
+                }
+            }
+
+            return Collections.unmodifiableList(metricFields);
+        }
+    };
 
     /**
      * Returns the field associated with the given {@code name} in this type.
@@ -493,29 +501,14 @@ public class ObjectType extends Record implements ObjectStruct {
         return field;
     }
 
-    /** Returns all fields that are indexed. */
+    /**
+     * Returns all fields that are indexed.
+     *
+     * @deprecated Use {@link ObjectStruct.Static#findIndexedFields} instead.
+     */
+    @Deprecated
     public List<ObjectField> getIndexedFields() {
-        Set<String> indexed = new HashSet<String>();
-
-        for (ObjectIndex index : getIndexes()) {
-            List<String> fields = index.getFields();
-
-            if (fields != null) {
-                indexed.addAll(fields);
-            }
-        }
-
-        List<ObjectField> fields = getFields();
-
-        for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
-            ObjectField field = i.next();
-
-            if (!indexed.contains(field.getInternalName())) {
-                i.remove();
-            }
-        }
-
-        return fields;
+        return ObjectStruct.Static.findIndexedFields(this);
     }
 
     /** Returns a list of all the indexes. */
@@ -537,9 +530,10 @@ public class ObjectType extends Record implements ObjectStruct {
         return null;
     }
 
-    private final transient PullThroughValue<Map<String, ObjectIndex>> indexesCache = new PullThroughValue<Map<String, ObjectIndex>>() {
+    private final transient Lazy<Map<String, ObjectIndex>> indexesCache = new Lazy<Map<String, ObjectIndex>>() {
+
         @Override
-        protected Map<String, ObjectIndex> produce() {
+        protected Map<String, ObjectIndex> create() {
             return ObjectIndex.Static.convertDefinitionsToInstances(ObjectType.this, indexes);
         }
     };
@@ -547,7 +541,7 @@ public class ObjectType extends Record implements ObjectStruct {
     /** Sets the list of all indexes. */
     public void setIndexes(List<ObjectIndex> indexes) {
         this.indexes = ObjectIndex.Static.convertInstancesToDefinitions(indexes);
-        indexesCache.invalidate();
+        indexesCache.reset();
     }
 
     /** Returns the index with the given {@code name}. */
@@ -555,14 +549,16 @@ public class ObjectType extends Record implements ObjectStruct {
         ObjectIndex index = indexesCache.get().get(name);
         if (index == null && name.indexOf('/') != -1) {
             DatabaseEnvironment environment = getState().getDatabase().getEnvironment();
-            String field = "";
+            StringBuilder fieldBuilder = new StringBuilder();
             for (String part : name.split("/")) {
                 if (environment.getTypeByName(part) == null) {
-                    field += part + "/";
+                    fieldBuilder.append(part);
+                    fieldBuilder.append('/');
                 }
             }
-            field = field.substring(0, field.length() - 1);
+            fieldBuilder.setLength(fieldBuilder.length() - 1);
 
+            String field = fieldBuilder.toString();
             index = getEmbeddedIndex(field, this);
             if (index != null) {
                 // create a new index with the current type info
@@ -606,7 +602,7 @@ public class ObjectType extends Record implements ObjectStruct {
             for (ObjectType valueType : field.findConcreteTypes()) {
                 if (field.isEmbedded() || valueType.isEmbedded()) {
                     index = getEmbeddedIndex(fullName.substring(
-                            slashIndex+1), valueType);
+                            slashIndex + 1), valueType);
                     if (index != null) {
                         break;
                     }
@@ -618,9 +614,9 @@ public class ObjectType extends Record implements ObjectStruct {
 
     /** Returns name of the class used to create objects of this type. */
     public String getObjectClassName() {
-        return "com.psddev.dari.db.RecordType".equals(objectClassName)
-                ? ObjectType.class.getName()
-                : objectClassName;
+        return "com.psddev.dari.db.RecordType".equals(objectClassName) ?
+                ObjectType.class.getName() :
+                objectClassName;
     }
 
     /** Sets name of the class used to create objects of this type. */
@@ -675,6 +671,14 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         return null;
+    }
+
+    public String getJavaBeanProperty() {
+        return javaBeanProperty;
+    }
+
+    public void setJavaBeanProperty(String javaBeanProperty) {
+        this.javaBeanProperty = javaBeanProperty;
     }
 
     /** Returns the set of modification class names. */
@@ -815,9 +819,9 @@ public class ObjectType extends Record implements ObjectStruct {
 
         // Set the abstract flag on non-Recordable classes (temporary),
         // interfaces, and abstract classes so that they cannot be saved.
-        setAbstract(!Recordable.class.isAssignableFrom(objectClass)
-                || objectClass.isInterface()
-                || Modifier.isAbstract(objectClass.getModifiers()));
+        setAbstract(!Recordable.class.isAssignableFrom(objectClass) ||
+                objectClass.isInterface() ||
+                Modifier.isAbstract(objectClass.getModifiers()));
 
         setEmbedded(false);
 
@@ -878,6 +882,10 @@ public class ObjectType extends Record implements ObjectStruct {
      */
     @SuppressWarnings("deprecation")
     public void modify(Class<?> modificationClass) {
+        if (Modification.class.isAssignableFrom(modificationClass) &&
+                Modifier.isAbstract(modificationClass.getModifiers())) {
+            return;
+        }
 
         getModificationClassNames().add(modificationClass.getName());
 
@@ -922,9 +930,9 @@ public class ObjectType extends Record implements ObjectStruct {
             ObjectField field = i.next();
             String declaringClassName = field.getJavaDeclaringClassName();
             if (!ObjectUtils.isBlank(declaringClassName)) {
-                if ((((isModification && modificationClass.getName().equals(declaringClassName)))
-                        || (!isModification && assignableClassNames.contains(declaringClassName)))
-                        && !fieldInternalNames.contains(field.getInternalName())) {
+                if ((((isModification && modificationClass.getName().equals(declaringClassName))) ||
+                        (!isModification && assignableClassNames.contains(declaringClassName))) &&
+                        !fieldInternalNames.contains(field.getInternalName())) {
                     i.remove();
                 }
             }
@@ -934,9 +942,9 @@ public class ObjectType extends Record implements ObjectStruct {
             ObjectIndex index = i.next();
             String declaringClassName = index.getJavaDeclaringClassName();
             if (!ObjectUtils.isBlank(declaringClassName)) {
-                if ((((isModification && modificationClass.getName().equals(declaringClassName)))
-                        || (!isModification && assignableClassNames.contains(declaringClassName)))
-                        && !fieldInternalNames.contains(index.getField())) {
+                if ((((isModification && modificationClass.getName().equals(declaringClassName))) ||
+                        (!isModification && assignableClassNames.contains(declaringClassName))) &&
+                        !fieldInternalNames.contains(index.getField())) {
                     i.remove();
                 }
             }
@@ -949,7 +957,7 @@ public class ObjectType extends Record implements ObjectStruct {
             AnnotationProcessorClass processorClass = annotation.annotationType().getAnnotation(AnnotationProcessorClass.class);
             if (processorClass != null) {
                 @SuppressWarnings("unchecked")
-                AnnotationProcessor<Annotation> processor = (AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.get(processorClass.value());
+                AnnotationProcessor<Annotation> processor = (AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.getUnchecked(processorClass.value());
                 processor.process(this, annotation);
             }
         }

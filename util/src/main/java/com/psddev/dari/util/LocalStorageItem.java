@@ -45,7 +45,7 @@ public class LocalStorageItem extends AbstractStorageItem {
     @Override
     protected void saveData(InputStream data) throws IOException {
         File file = new File(getRootPath() + "/" + getPath());
-        file.getParentFile().mkdirs();
+        IoUtils.createParentDirectories(file);
         FileOutputStream output = null;
 
         try {

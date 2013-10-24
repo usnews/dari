@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -7,7 +8,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.BasicResponseHandler;
@@ -50,6 +52,8 @@ public class WebDatabase extends AbstractDatabase<Void> {
     public static final String ERROR_STATUS = "error";
 
     private String remoteUrl;
+    private String remoteUsername;
+    private String remotePassword;
     private String remoteDatabase;
 
     /** Returns the remote URL. */
@@ -60,6 +64,22 @@ public class WebDatabase extends AbstractDatabase<Void> {
     /** Sets the remote URL. */
     public void setRemoteUrl(String remoteUrl) {
         this.remoteUrl = remoteUrl;
+    }
+
+    public String getRemoteUsername() {
+        return remoteUsername;
+    }
+
+    public void setRemoteUsername(String remoteUsername) {
+        this.remoteUsername = remoteUsername;
+    }
+
+    public String getRemotePassword() {
+        return remotePassword;
+    }
+
+    public void setRemotePassword(String remotePassword) {
+        this.remotePassword = remotePassword;
     }
 
     /** Returns the remote database name. */
@@ -146,14 +166,21 @@ public class WebDatabase extends AbstractDatabase<Void> {
 
     private Object sendRequest(List<NameValuePair> params) {
         String response;
-        HttpClient client = new DefaultHttpClient();
+        DefaultHttpClient client = new DefaultHttpClient();
+        String username = getRemoteUsername();
+        String password = getRemotePassword();
+
+        if (!ObjectUtils.isBlank(username) ||
+                !ObjectUtils.isBlank(password)) {
+            client.getCredentialsProvider().setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
+        }
 
         try {
             HttpPost post = new HttpPost(getRemoteUrl());
             post.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
             response = client.execute(post, new BasicResponseHandler());
 
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             throw new DatabaseException(this, ex);
 
         } finally {

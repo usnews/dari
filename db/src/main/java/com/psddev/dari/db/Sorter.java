@@ -19,7 +19,7 @@ import com.psddev.dari.util.StringUtils;
  * </ul>
  */
 @Sorter.Embedded
-public class Sorter extends Record implements Cloneable {
+public class Sorter extends Record {
 
     public static final String ASCENDING_OPERATOR = "ascending";
     public static final String DESCENDING_OPERATOR = "descending";
@@ -78,8 +78,8 @@ public class Sorter extends Record implements Cloneable {
 
         } else if (other instanceof Sorter) {
             Sorter otherSorter = (Sorter) other;
-            return getOperator().equals(otherSorter.getOperator())
-                    && getOptions().equals(otherSorter.getOptions());
+            return getOperator().equals(otherSorter.getOperator()) &&
+                    getOptions().equals(otherSorter.getOptions());
         } else {
             return false;
         }

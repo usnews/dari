@@ -15,6 +15,9 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.AggregateException;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -32,14 +35,14 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     private static final String FAKE_GROUP = UUID.randomUUID().toString();
     private static final Logger LOGGER = LoggerFactory.getLogger(AggregateDatabase.class);
 
-    private Database defaultDelegate;
-    private Database defaultReadDelegate;
-    public final Map<Database, Set<String>> delegateGroupsMap = new LinkedHashMap<Database, Set<String>>();
-    private Map<String, Database> delegates;
-    private Map<String, Database> readDelegates;
+    private volatile Database defaultDelegate;
+    private volatile Database defaultReadDelegate;
+    private final Map<Database, Set<String>> delegateGroupsMap = new LinkedHashMap<Database, Set<String>>();
+    private volatile Map<String, Database> delegates;
+    private volatile Map<String, Database> readDelegates;
 
-    private String name;
-    private DatabaseEnvironment environment;
+    private volatile String name;
+    private volatile DatabaseEnvironment environment;
 
     /** Returns the default delegate database. */
     public Database getDefaultDelegate() {
@@ -47,7 +50,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     }
 
     /** Sets the default delegate database. */
-    public synchronized void setDefaultDelegate(Database defaultDelegate) {
+    public void setDefaultDelegate(Database defaultDelegate) {
         this.defaultDelegate = defaultDelegate;
     }
 
@@ -63,9 +66,9 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
     /** Returns the unmodifiable map of all delegate databases. */
     public Map<String, Database> getDelegates() {
-        return delegates != null
-                ? delegates
-                : Collections.<String, Database>emptyMap();
+        return delegates == null ?
+                Collections.<String, Database>emptyMap() :
+                delegates;
     }
 
     /**
@@ -98,20 +101,20 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     }
 
     /** Sets the map of all delegate databases. */
-    public synchronized void setDelegates(Map<String, Database> delegates) {
+    public void setDelegates(Map<String, Database> delegates) {
         this.delegates = Collections.unmodifiableMap(
                 new LinkedHashMap<String, Database>(delegates));
     }
 
     /** Returns the unmodifiable map of all delegate databases used for reading. */
     public Map<String, Database> getReadDelegates() {
-        return readDelegates != null
-                ? readDelegates
-                : Collections.<String, Database>emptyMap();
+        return readDelegates == null ?
+                Collections.<String, Database>emptyMap() :
+                readDelegates;
     }
 
     /** Sets the map of all delegate databases used for reading. */
-    public synchronized void setReadDelegates(Map<String, Database> readDelegates) {
+    public void setReadDelegates(Map<String, Database> readDelegates) {
         this.readDelegates = Collections.unmodifiableMap(
                 new LinkedHashMap<String, Database>(readDelegates));
     }
@@ -194,20 +197,29 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     }
 
     @Override
-    public synchronized void setName(String name) {
+    public void setName(String name) {
         this.name = name;
     }
+
+    private static final LoadingCache<Database, DatabaseEnvironment> DEFAULT_ENVIRONMENTS = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<Database, DatabaseEnvironment>() {
+                @Override
+                public DatabaseEnvironment load(Database database) {
+                    return new DatabaseEnvironment(database);
+                }
+            });
 
     @Override
     public DatabaseEnvironment getEnvironment() {
         if (environment == null) {
-            setEnvironment(new DatabaseEnvironment(this));
+            environment = DEFAULT_ENVIRONMENTS.getUnchecked(this);
         }
         return environment;
     }
 
     @Override
-    public synchronized void setEnvironment(DatabaseEnvironment environment) {
+    public void setEnvironment(DatabaseEnvironment environment) {
         this.environment = environment;
     }
 
@@ -396,7 +408,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     }
 
     /** Common logic for all read operations. */
-    private static abstract class ReadOperation {
+    private abstract static class ReadOperation {
 
         protected abstract Object read(Database delegate, Query<?> query, Object... arguments);
 
@@ -502,7 +514,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     };
 
     /** Common logic for all batch operations. */
-    private static abstract class BatchOperation {
+    private abstract static class BatchOperation {
 
         protected abstract boolean batch(Database delegate);
 
@@ -561,7 +573,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     };
 
     /** Common logic for all write operations. */
-    private static abstract class WriteOperation {
+    private abstract static class WriteOperation {
 
         protected abstract void write(Database delegate, State state);
 
@@ -617,13 +629,13 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
         Collection<Database> delegates = getDelegates().values();
         if (!delegates.isEmpty()) {
-            sb.append("(");
+            sb.append('(');
             for (Database delegate : delegates) {
                 sb.append(delegate.getName());
                 sb.append(", ");
             }
             sb.setLength(sb.length() - 2);
-            sb.append(")");
+            sb.append(')');
         }
 
         return sb.toString();

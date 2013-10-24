@@ -24,7 +24,9 @@ public abstract class AbstractFormInputProcessor implements FormInputProcessor {
         HtmlWriter writer = new HtmlWriter(string);
         try {
             doDisplay(inputId, inputName, field, state, state.get(field.getInternalName()), writer);
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            // This should never happen since StringWriter doesn't throw
+            // IOException.
         }
         return string.toString();
     }

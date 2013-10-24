@@ -11,14 +11,15 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
-import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsBackedObject;
 import com.psddev.dari.util.SettingsException;
-import com.psddev.dari.util.TypeReference;
 
 /** Database of objects. */
 public interface Database extends SettingsBackedObject {
@@ -152,22 +153,20 @@ public interface Database extends SettingsBackedObject {
     public void deleteByQuery(Query<?> query);
 
     /** {@link Database} utility methods. */
-    public final static class Static {
+    public static final class Static {
 
         private static final ThreadLocal<Deque<Database>> DEFAULT_OVERRIDES = new ThreadLocal<Deque<Database>>();
         private static final ThreadLocal<Boolean> IGNORE_READ_CONNECTION = new ThreadLocal<Boolean>();
 
-        protected static final PullThroughCache<String, Database> INSTANCES = new PullThroughCache<String, Database>() {
-            @Override
-            public Database produce(String name) {
-                Database database = Settings.newInstance(Database.class, SETTING_PREFIX + "/" + name);
-                database.setName(name);
-                return database;
-            }
-        };
-
-        private Static() {
-        }
+        private static final LoadingCache<String, Database> INSTANCES = CacheBuilder.newBuilder().
+                build(new CacheLoader<String, Database>() {
+                    @Override
+                    public Database load(String name) {
+                        Database database = Settings.newInstance(Database.class, SETTING_PREFIX + "/" + name);
+                        database.setName(name);
+                        return database;
+                    }
+                });
 
         /**
          * Returns a list of all databases.
@@ -175,15 +174,17 @@ public interface Database extends SettingsBackedObject {
          * @return Never {@code null}. Mutable.
          */
         public static List<Database> getAll() {
-            Map<String, Object> names = Settings.get(new TypeReference<Map<String, Object>>() { }, SETTING_PREFIX);
+            Object databases = Settings.get(Object.class, SETTING_PREFIX);
 
-            if (names != null) {
-                for (String name : names.keySet()) {
-                    getInstance(name);
+            if (databases instanceof Map) {
+                for (Object name : ((Map<?, ?>) databases).keySet()) {
+                    if (name != null) {
+                        getInstance(name.toString());
+                    }
                 }
             }
 
-            return new ArrayList<Database>(INSTANCES.values());
+            return new ArrayList<Database>(INSTANCES.asMap().values());
         }
 
         /**
@@ -193,7 +194,7 @@ public interface Database extends SettingsBackedObject {
          * @return Never {@code null}.
          */
         public static Database getInstance(String name) {
-            return ObjectUtils.isBlank(name) ? getDefault() : INSTANCES.get(name);
+            return ObjectUtils.isBlank(name) ? getDefault() : INSTANCES.getUnchecked(name);
         }
 
         /**
@@ -308,7 +309,8 @@ public interface Database extends SettingsBackedObject {
             for (String name : getNames()) {
                 try {
                     addByClass(databases, databaseClass, getInstance(name));
-                } catch (SettingsException ex) {
+                } catch (SettingsException error) {
+                    // Ignore misconfigured databases.
                 }
             }
             return databases;

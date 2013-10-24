@@ -24,7 +24,7 @@ import java.util.Set;
 @SuppressWarnings("unchecked")
 public class CompactMap<K, V> implements Map<K, V> {
 
-    private static int ARRAY_SIZE = 8;
+    private static final int ARRAY_SIZE = 8;
 
     private Object delegate;
     private int size;
@@ -140,7 +140,7 @@ public class CompactMap<K, V> implements Map<K, V> {
                                 @Override
                                 public String toString() {
                                     StringBuilder string = new StringBuilder();
-                                    
+
                                     string.append(getKey());
                                     string.append('=');
                                     string.append(getValue());

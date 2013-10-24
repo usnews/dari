@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -46,6 +47,8 @@ public class State implements Map<String, Object> {
     public static final String REFERENCE_FIELD_QUERY_OPTION = "dari.referenceField";
 
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
+
+    public static final String SUB_DATA_STATE_EXTRA_PREFIX = "dari.subDataState.";
 
     private static final String ATOMIC_OPERATIONS_EXTRA = "dari.atomicOperations";
 
@@ -471,9 +474,9 @@ public class State implements Map<String, Object> {
             State valueState = ((Recordable) value).getState();
             if (valueState.isNew()) {
                 ObjectType type;
-                if (isEmbedded
-                        || ((type = valueState.getType()) != null
-                        && type.isEmbedded())) {
+                if (isEmbedded ||
+                        ((type = valueState.getType()) != null &&
+                        type.isEmbedded())) {
                     return valueState.getSimpleValues();
                 }
             }
@@ -483,17 +486,17 @@ public class State implements Map<String, Object> {
             map.put(StateValueUtils.TYPE_KEY, valueState.getTypeId().toString());
             return map;
 
-        } else if (value instanceof Boolean
-                || value instanceof Number
-                || value instanceof String) {
+        } else if (value instanceof Boolean ||
+                value instanceof Number ||
+                value instanceof String) {
             return value;
 
-        } else if (value instanceof Character
-                || value instanceof CharSequence
-                || value instanceof String
-                || value instanceof URI
-                || value instanceof URL
-                || value instanceof UUID) {
+        } else if (value instanceof Character ||
+                value instanceof CharSequence ||
+                value instanceof String ||
+                value instanceof URI ||
+                value instanceof URL ||
+                value instanceof UUID) {
             return value.toString();
 
         } else if (value instanceof Date) {
@@ -518,6 +521,7 @@ public class State implements Map<String, Object> {
             return null;
         }
 
+        DatabaseEnvironment environment = getDatabase().getEnvironment();
         Object value = this;
 
         KEY: for (String key; path != null; ) {
@@ -530,6 +534,11 @@ public class State implements Map<String, Object> {
             } else {
                 key = path;
                 path = null;
+            }
+
+            if (key.indexOf('.') > -1 &&
+                    environment.getTypeByName(key) != null) {
+                continue;
             }
 
             if (value instanceof Recordable) {
@@ -563,10 +572,14 @@ public class State implements Map<String, Object> {
                             value = keyMethod.invoke(value);
                             continue KEY;
 
-                        } catch (NoSuchMethodException error) {
+                        } catch (IllegalAccessException error) {
+                            throw new IllegalStateException(error);
 
-                        } catch (Exception error) {
-                            ErrorUtils.rethrow(error);
+                        } catch (InvocationTargetException error) {
+                            ErrorUtils.rethrow(error.getCause());
+
+                        } catch (NoSuchMethodException error) {
+                            // Try to find the method in the super class.
                         }
                     }
                 }
@@ -719,11 +732,11 @@ public class State implements Map<String, Object> {
                     StringBuilder builder2 = new StringBuilder();
 
                     if (parentFieldName != null) {
-                        builder.append(parentFieldName).append("/");
-                        builder2.append(parentFieldName).append("/");
+                        builder.append(parentFieldName).append('/');
+                        builder2.append(parentFieldName).append('/');
                     }
-                    builder.append(field.getInternalName()).append("/");
-                    builder2.append(field.getInternalName()).append("/");
+                    builder.append(field.getInternalName()).append('/');
+                    builder2.append(field.getInternalName()).append('/');
                     builder.append(i.getField());
                     builder2.append(i.getUniqueName());
 
@@ -756,7 +769,7 @@ public class State implements Map<String, Object> {
                 if (parentFieldName == null) {
                     parentFieldName = field.getInternalName();
                 } else {
-                    parentFieldName += "/"+field.getInternalName();
+                    parentFieldName += "/" + field.getInternalName();
                 }
                 Map<String, Object> values = state.getValues();
 
@@ -773,7 +786,7 @@ public class State implements Map<String, Object> {
                 getEmbeddedIndexes(indexes, parentFieldName, field, entry.getValue());
             }
         } else if (fieldValue instanceof Iterable) {
-            for (Object listItem : (Iterable<?>)fieldValue) {
+            for (Object listItem : (Iterable<?>) fieldValue) {
                 getEmbeddedIndexes(indexes, parentFieldName, field, listItem);
             }
         }
@@ -856,9 +869,9 @@ public class State implements Map<String, Object> {
 
     /** Returns all the fields with validation errors from this record. */
     public Set<ObjectField> getErrorFields() {
-        return errors != null
-                ? Collections.unmodifiableSet(errors.keySet())
-                : Collections.<ObjectField>emptySet();
+        return errors != null ?
+                Collections.unmodifiableSet(errors.keySet()) :
+                Collections.<ObjectField>emptySet();
     }
 
     /**
@@ -868,7 +881,7 @@ public class State implements Map<String, Object> {
     public List<String> getErrors(ObjectField field) {
         if (errors != null) {
             List<String> messages = errors.get(field);
-            if (messages != null && messages.size() > 0) {
+            if (messages != null && !messages.isEmpty()) {
                 return Collections.unmodifiableList(messages);
             }
         }
@@ -971,7 +984,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveToReferenceOnly() {
-        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) > 0;
+        return (flags & RESOLVE_TO_REFERENCE_ONLY_FLAG) != 0;
     }
 
     public void setResolveToReferenceOnly(boolean resolveToReferenceOnly) {
@@ -995,7 +1008,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveUsingMaster() {
-        return (flags & RESOLVE_USING_MASTER) > 0;
+        return (flags & RESOLVE_USING_MASTER) != 0;
     }
 
     public void setResolveUsingMaster(boolean resolveUsingMaster) {
@@ -1007,7 +1020,7 @@ public class State implements Map<String, Object> {
     }
 
     public boolean isResolveInvisible() {
-        return (flags & RESOLVE_INVISIBLE) > 0;
+        return (flags & RESOLVE_INVISIBLE) != 0;
     }
 
     public void setResolveInvisible(boolean resolveInvisible) {
@@ -1018,9 +1031,12 @@ public class State implements Map<String, Object> {
         }
     }
 
-    /** Returns a descriptive label for this state. */
+    /**
+     * Returns a descriptive label for this state.
+     */
     public String getLabel() {
-        Object object = getOriginalObject();
+        Object object = getOriginalObjectOrNull();
+
         return object instanceof Record ?
                 ((Record) object).getLabel() :
                 getDefaultLabel();
@@ -1078,7 +1094,7 @@ public class State implements Map<String, Object> {
 
                     } else if (value instanceof Iterable<?>) {
                         StringBuilder iterableLabel = new StringBuilder();
-                        iterableLabel.append("[");
+                        iterableLabel.append('[');
 
                         for (Object item : (Iterable<?>) value) {
                             if (item instanceof Recordable) {
@@ -1092,7 +1108,7 @@ public class State implements Map<String, Object> {
                         if (iterableLabel.length() > 2) {
                             iterableLabel.setLength(iterableLabel.length() - 2);
                         }
-                        iterableLabel.append("]");
+                        iterableLabel.append(']');
                         valueString = iterableLabel.toString();
 
                     } else {
@@ -1187,14 +1203,53 @@ public class State implements Map<String, Object> {
         return object;
     }
 
-    /** Returns the original object. */
-    public Object getOriginalObject() {
-        for (Object object : linkedObjects.values()) {
-            if (!(object instanceof Modification)) {
-                return object;
+    /**
+     * Returns the original object, which is an instance of the Java class
+     * associated with the type.
+     *
+     * @return May be {@code null}.
+     */
+    public Object getOriginalObjectOrNull() {
+        ObjectType type = getType();
+
+        if (type != null) {
+            Class<?> objectClass = type.getObjectClass();
+
+            if (objectClass == null) {
+                objectClass = Record.class;
             }
+
+            for (Object object : linkedObjects.values()) {
+                if (objectClass.equals(object.getClass())) {
+                    return object;
+                }
+            }
+
+            return as(objectClass);
         }
-        throw new IllegalStateException("No original object!");
+
+        return null;
+    }
+
+    /**
+     * Returns the original object, which is an instance of the Java class
+     * associated with the type.
+     *
+     * @return Never {@code null}.
+     * @throws IllegalStateException If the state is type-less or the type
+     * isn't associated with a Java class.
+     */
+    public Object getOriginalObject() {
+        Object object = getOriginalObjectOrNull();
+
+        if (object != null) {
+            return object;
+
+        } else {
+            throw new IllegalStateException(String.format(
+                    "No original object associated with [%s]!",
+                    getId()));
+        }
     }
 
     /** Returns a set of all objects that can be used with this state. */
@@ -1223,12 +1278,12 @@ public class State implements Map<String, Object> {
      * @param field If {@code null}, resolves all references.
      */
     public void resolveReference(String field) {
-        if ((flags & ALL_RESOLVED_FLAG) > 0) {
+        if ((flags & ALL_RESOLVED_FLAG) != 0) {
             return;
         }
 
         synchronized (this) {
-            if ((flags & ALL_RESOLVED_FLAG) > 0) {
+            if ((flags & ALL_RESOLVED_FLAG) != 0) {
                 return;
             }
 
@@ -1241,6 +1296,7 @@ public class State implements Map<String, Object> {
             Object object = linkedObjects.values().iterator().next();
             Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
+            resolveMetricReferences(resolved);
 
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
                 UUID id = StateValueUtils.toIdIfReference(e.getValue());
@@ -1252,6 +1308,24 @@ public class State implements Map<String, Object> {
             for (Map.Entry<String, Object> e : resolved.entrySet()) {
                 put(e.getKey(), e.getValue());
             }
+        }
+    }
+
+    /**
+     * Instantiate all Metric objects.
+     */
+    private void resolveMetricReferences(Map<String, Object> map) {
+        for (Object obj : linkedObjects.values()) {
+            ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
+            if (type != null) {
+                for (ObjectField metricField : type.getMetricFields()) {
+                    map.put(metricField.getInternalName(), new Metric(this, metricField));
+                }
+            }
+        }
+
+        for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
+            map.put(metricField.getInternalName(), new Metric(this, metricField));
         }
     }
 
@@ -1388,6 +1462,7 @@ public class State implements Map<String, Object> {
                     return;
 
                 } catch (IllegalArgumentException error) {
+                    // Ignore since it will be retried below.
                 }
             }
 
@@ -1403,7 +1478,7 @@ public class State implements Map<String, Object> {
                     javaField.set(object, CONVERTER.convert(javaFieldType, value));
                 }
 
-            } catch (Exception error) {
+            } catch (RuntimeException error) {
                 Throwable cause;
 
                 if (error instanceof ConversionException) {
@@ -1571,6 +1646,11 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
+                Map<String,Object> metricObjects = new HashMap<String, Object>();
+                resolveMetricReferences(metricObjects);
+                for (Map.Entry<? extends String, ? extends Object> e : metricObjects.entrySet()) {
+                    put(e.getKey(), e.getValue());
+                }
                 flags &= ~ALL_RESOLVED_FLAG;
                 return;
 
@@ -1640,7 +1720,7 @@ public class State implements Map<String, Object> {
         sb.append(", simpleValues=").append(getSimpleValues());
         sb.append(", extras=").append(extras);
         sb.append(", errors=").append(errors);
-        sb.append("}");
+        sb.append('}');
         return sb.toString();
     }
 
@@ -1651,11 +1731,14 @@ public class State implements Map<String, Object> {
     public Map<String, Object> getAs() {
         if (modifications == null) {
             modifications = new PullThroughCache<String, Object>() {
+
                 @Override
                 protected Object produce(String modificationClassName) {
                     Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
+
                     if (modificationClass != null) {
                         return as(modificationClass);
+
                     } else {
                         throw new IllegalArgumentException(String.format(
                                 "[%s] isn't a valid class name!", modificationClassName));
@@ -1663,6 +1746,7 @@ public class State implements Map<String, Object> {
                 }
             };
         }
+
         return modifications;
     }
 
@@ -1737,7 +1821,7 @@ public class State implements Map<String, Object> {
             throw new IllegalStateException("No type!");
         }
 
-        Query<?> query = Query.fromType(type).noCache();
+        Query<?> query = Query.fromType(type).noCache().master();
 
         for (ObjectIndex index : type.getIndexes()) {
             if (index.isUnique()) {
@@ -1753,31 +1837,23 @@ public class State implements Map<String, Object> {
         }
 
         Exception lastError = null;
-        boolean ignoreRead = Database.Static.isIgnoreReadConnection();
 
-        try {
-            Database.Static.setIgnoreReadConnection(true);
+        for (int i = 0; i < 10; ++ i) {
+            Object object = query.first();
 
-            for (int i = 0; i < 10; ++ i) {
-                Object object = query.first();
+            if (object != null) {
+                setValues(State.getInstance(object).getValues());
+                return;
 
-                if (object != null) {
-                    setValues(State.getInstance(object).getValues());
+            } else {
+                try {
+                    saveImmediately();
                     return;
 
-                } else {
-                    try {
-                        saveImmediately();
-                        return;
-
-                    } catch (Exception error) {
-                        lastError = error;
-                    }
+                } catch (Exception error) {
+                    lastError = error;
                 }
             }
-
-        } finally {
-            Database.Static.setIgnoreReadConnection(ignoreRead);
         }
 
         ErrorUtils.rethrow(lastError);
@@ -1814,16 +1890,13 @@ public class State implements Map<String, Object> {
         }
     }
 
-    public static abstract class Listener {
+    public abstract static class Listener {
         public void beforeFieldGet(State state, String name) {
         }
     }
 
     /** {@link State} utility methods. */
     public static final class Static {
-
-        private Static() {
-        }
 
         public static void addListener(Listener listener) {
             List<Listener> listeners = LISTENERS_LOCAL.get();

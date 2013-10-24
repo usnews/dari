@@ -46,9 +46,6 @@ public abstract class ClassEnhancer extends ClassAdapter {
     /** {@linkplain ClassEnhancer Class enhancer} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         /**
          * Enhances the given {@code bytecode} with the instances of
          * the given {@code enhancerClasses}.
@@ -87,7 +84,7 @@ public abstract class ClassEnhancer extends ClassAdapter {
          * found in the current class loader.
          */
         public static void main(String[] paths) throws IOException {
-            Set<Class<? extends ClassEnhancer>> enhancerClasses = ObjectUtils.findClasses(ClassEnhancer.class);
+            Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
             System.out.println("Enhancers: " + enhancerClasses);
 
             int count = 0;

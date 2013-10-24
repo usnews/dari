@@ -44,7 +44,7 @@ public final class TaskExecutor implements ScheduledExecutorService {
      * @throws IllegalArgumentException If the given {@code name} is
      *         {@code null}.
      */
-    private TaskExecutor(String name) {
+    protected TaskExecutor(String name) {
         if (name == null) {
             throw new IllegalArgumentException("Name can't be null!");
         }
@@ -244,9 +244,6 @@ public final class TaskExecutor implements ScheduledExecutorService {
 
     /** {@link TaskExecutor} utility methods. */
     public static final class Static {
-
-        private Static() {
-        }
 
         private static final String DEFAULT_INSTANCE_NAME = "Miscellaneous Tasks";
         private static final Map<String, WeakReference<TaskExecutor>> INSTANCES = new ConcurrentHashMap<String, WeakReference<TaskExecutor>>();

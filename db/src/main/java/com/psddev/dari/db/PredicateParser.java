@@ -146,6 +146,7 @@ public class PredicateParser {
         m.put(GREATER_THAN_OPERATOR, new GreaterThanEvaluator());
         m.put(GREATER_THAN_OR_EQUALS_OPERATOR, new GreaterThanOrEqualsEvaluator());
         m.put(STARTS_WITH_OPERATOR, new StartsWithEvaluator());
+        m.put(CONTAINS_OPERATOR, new ContainsEvaluator());
         m.put(MATCHES_ANY_OPERATOR, new MatchesAnyEvaluator());
         m.put(MATCHES_ALL_OPERATOR, new MatchesAllEvaluator());
 
@@ -170,8 +171,16 @@ public class PredicateParser {
     /**
      * Parses the given {@code predicateString} along with the given
      * {@code parameters}.
+     *
+     * @param predicateString If {@code null}, returns {@code null}.
+     * @param parameters May be {@code null}.
+     * @return May be {@code null}.
      */
     public Predicate parse(String predicateString, Object... parameters) {
+        if (predicateString == null) {
+            return null;
+        }
+
         Queue<String> tokens = new LinkedList<String>();
 
         char[] predicateChars = predicateString.toCharArray();
@@ -252,13 +261,13 @@ public class PredicateParser {
         if (predicate != null) {
             for (String operator; (operator = tokens.peek()) != null; ) {
 
-                operator = operator.toLowerCase();
+                operator = operator.toLowerCase(Locale.ENGLISH);
                 String compoundOperator = getCompoundOperators().get(operator);
                 if (compoundOperator == null) {
                     break;
                 }
 
-                tokens.poll();
+                tokens.remove();
                 predicate = CompoundPredicate.combine(
                         compoundOperator,
                         predicate,
@@ -275,7 +284,7 @@ public class PredicateParser {
         String nextToken = tokens.peek();
 
         if ("(".equals(nextToken)) {
-            tokens.poll();
+            tokens.remove();
             predicate = readPredicate(tokens, parameters);
             if (predicate == null) {
                 throw new IllegalArgumentException("Empty group!");
@@ -286,7 +295,7 @@ public class PredicateParser {
 
         } else if ("not".equals(nextToken) ||
                 NOT_OPERATOR.equals(nextToken)) {
-            tokens.poll();
+            tokens.remove();
             predicate = new CompoundPredicate(
                     NOT_OPERATOR,
                     Arrays.asList(readGroup(tokens, parameters)));
@@ -308,7 +317,7 @@ public class PredicateParser {
             List<Object> values = new ArrayList<Object>();
             while (true) {
                 if ("]".equals(tokens.peek())) {
-                    tokens.poll();
+                    tokens.remove();
                     break;
                 }
 
@@ -347,7 +356,7 @@ public class PredicateParser {
             throw new IllegalArgumentException(String.format(
                     "No operator after [%s] key!", key));
         } else {
-            operator = operator.toLowerCase();
+            operator = operator.toLowerCase(Locale.ENGLISH);
             if (operator.endsWith("[c]")) {
                 operator = operator.substring(0, operator.length() - 3);
                 isIgnoreCase = true;
@@ -393,7 +402,7 @@ public class PredicateParser {
 
                     if (value != null && path.length() > 0) {
                         if (value instanceof Recordable) {
-                            value = ((Recordable) value).getState().getValue(path);
+                            value = ((Recordable) value).getState().getByPath(path);
                         } else {
                             value = CollectionUtils.getByPath(value, path);
                         }
@@ -432,10 +441,20 @@ public class PredicateParser {
     /**
      * Returns {@code true} if the given {@code predicate} matches
      * the given {@code object}.
+     *
+     * @throws UnsupportedOperationException If the given {@code predicate}
+     * operator isn't supported.
      */
     public boolean evaluate(Object object, Predicate predicate) {
-        Evaluator evaluator = evaluators.get(predicate.getOperator());
-        return evaluator != null ? evaluator.evaluate(this, object, predicate) : false;
+        String operator = predicate.getOperator();
+        Evaluator evaluator = evaluators.get(operator);
+
+        if (evaluator == null) {
+            throw new UnsupportedOperationException(String.format(
+                    "[%s] operator not supported!", operator));
+        }
+
+        return evaluator.evaluate(this, object, predicate);
     }
 
     public interface Evaluator {
@@ -483,7 +502,7 @@ public class PredicateParser {
         public final boolean evaluate(PredicateParser parser, Object object, Predicate predicate) {
             State state = State.getInstance(object);
             ComparisonPredicate comparison = (ComparisonPredicate) predicate;
-            Object keyValue = state.getValue(comparison.getKey());
+            Object keyValue = state.getByPath(comparison.getKey());
             List<Object> values = comparison.resolveValues(state.getDatabase());
 
             if (keyValue == null) {
@@ -612,6 +631,23 @@ public class PredicateParser {
                 for (Object value : values) {
                     if (value != null &&
                             keyValueString.startsWith(value.toString().trim().toLowerCase(Locale.ENGLISH))) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    }
+
+    private static class ContainsEvaluator extends ComparisonEvaluator {
+
+        @Override
+        protected boolean compare(State state, Object keyValue, List<Object> values) {
+            if (keyValue != null) {
+                String keyValueString = keyValue.toString().trim().toLowerCase(Locale.ENGLISH);
+                for (Object value : values) {
+                    if (value != null &&
+                            keyValueString.contains(value.toString().trim().toLowerCase(Locale.ENGLISH))) {
                         return true;
                     }
                 }

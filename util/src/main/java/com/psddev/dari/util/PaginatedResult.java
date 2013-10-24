@@ -96,7 +96,10 @@ public class PaginatedResult<E> {
         return getOffset() + 1;
     }
 
-    /** @deprecated Use {@link #hasPages} instead. */
+    /**
+     * @deprecated Use {@code !instance.getItems().isEmpty()} instead}.
+     * @see #hasPages
+     */
     @Deprecated
     public boolean hasItems() {
         return getItems().size() > 0;
