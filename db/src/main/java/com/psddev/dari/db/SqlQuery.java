@@ -657,7 +657,6 @@ class SqlQuery {
                         ++ subClauseCount;
                         hasMissing = true;
 
-                        join.type = JoinType.LEFT_OUTER;
                         comparisonBuilder.append(joinValueField);
 
                         if (isNotEqualsAll) {
@@ -666,6 +665,7 @@ class SqlQuery {
                             }
                             comparisonBuilder.append(" IS NOT NULL");
                         } else {
+                            join.type = JoinType.LEFT_OUTER;
                             comparisonBuilder.append(" IS NULL");
                         }
 
