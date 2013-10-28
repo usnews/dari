@@ -2453,8 +2453,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     errorBuilder.append("Batch update failed with query '");
                     errorBuilder.append(sqlQuery);
                     errorBuilder.append("' with values (");
+                    int o = 0;
                     for (Object value : rowData) {
-                        if (i++ != 0) {
+                        if (o++ != 0) {
                             errorBuilder.append(", ");
                         }
 
