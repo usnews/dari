@@ -318,6 +318,7 @@ public class CodeDebugServlet extends HttpServlet {
                                         "overflow: auto;" +
                                         "padding: 0px 20px 5px 10px;" +
                                         "position: fixed;" +
+                                        "z-index: 3;" +
                                         "right: 0px;" +
                                         "width: 35%;");
                             writeStart("h2").writeHtml("Result").writeEnd();
