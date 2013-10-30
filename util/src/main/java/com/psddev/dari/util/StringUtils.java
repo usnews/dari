@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.MatchResult;
@@ -27,7 +28,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang.StringEscapeUtils;
 
 /** String utility methods. */
-public class StringUtils {
+public final class StringUtils {
 
     public static final Charset US_ASCII = Charset.forName("US-ASCII");
     public static final Charset ISO_8859_1 = Charset.forName("ISO-8859-1");
@@ -45,24 +46,24 @@ public class StringUtils {
             'a', 'b', 'c', 'd', 'e', 'f' };
 
     /**
-     * Converts given string into a value of given type, throwing an exception 
+     * Converts given string into a value of given type, throwing an exception
      * if conversion was unsuccessful.
-     * 
+     *
      * If the return type is an array, an array is returned.
      * <code>fromString(int[].class, "1", "2")<code> =&gt; <code>int[] {1,2}</code>
-     * 
+     *
      * If no values are provided and the return type is an array, an empty array is returned.
      * <code>fromString(int[].class)<code> =&gt; <code>int[] {}</code>
-     * 
+     *
      * If no values are provided and the return type is not an array, an exception
      * appropriate to the conversion type is thrown.
      * <code>fromString(int.class)<code> =&gt; <code>NumberFormatException</code>
-     * 
+     *
      * If the {@code strings} contains more than one value and the {@code returnType} is not
      * an array, all but the first value are ignored.
-     * 
-     * If the method cannot convert to the class specified, an IllegalArgumentException is thrown. 
-     * 
+     *
+     * If the method cannot convert to the class specified, an IllegalArgumentException is thrown.
+     *
      * @param <T>
      * @param returnType The class for the String input(s) to be converted to
      * @param strings the input(s) to be converted
@@ -130,18 +131,18 @@ public class StringUtils {
         }
     }
 
-    
+
     /**
      * Helper method to split a string by case change or common delimiters.
-     * 
+     *
      * Multiple delimeters in a row are reduced to a single word boundry.
-     * 
-     * Leading delimeters (a space at the beginning of the string) will cause an 
+     *
+     * Leading delimeters (a space at the beginning of the string) will cause an
      * empty first word to be detected (bug?). Trailing delemeters do not cause empty
      * words to be detected.
-     * 
+     *
      * Returned words are all lowercased.
-     * 
+     *
      * @param string
      * @return the list of words detected in the string
      */
@@ -151,17 +152,17 @@ public class StringUtils {
         for (int i = 0; i < l; i++) {
             char c = string.charAt(i);
             if (" -_.$".indexOf(c) > -1) {
-                words.add(string.substring(m, i).toLowerCase());
+                words.add(string.substring(m, i).toLowerCase(Locale.ENGLISH));
                 while (++i < l && " -_.$".indexOf(string.charAt(i)) > -1) {
                 }
                 m = i;
             } else if (Character.isUpperCase(c) && i > 0 && Character.isLowerCase(string.charAt(i - 1))) {
-                words.add(string.substring(m, i).toLowerCase());
+                words.add(string.substring(m, i).toLowerCase(Locale.ENGLISH));
                 m = i;
             }
         }
         if (m + 1 < l) {
-            words.add(string.substring(m).toLowerCase());
+            words.add(string.substring(m).toLowerCase(Locale.ENGLISH));
         }
         return words;
     }
@@ -214,13 +215,13 @@ public class StringUtils {
     }
 
     /**
-     * Converts the string to one suitable for use as "a label"? 
-     * 
+     * Converts the string to one suitable for use as "a label"?
+     *
      * Splits {@code string} into words, joining it back together "In Title Case"
-     * with known {@code ABBREVIATIONS} replaced in all caps. If the first word of 
+     * with known {@code ABBREVIATIONS} replaced in all caps. If the first word of
      * {@code string} is "is", that word is removed and a question mark is
      * added to the end of the resulting string.
-     *  
+     *
      * @param string
      */
     public static String toLabel(String string) {
@@ -231,7 +232,7 @@ public class StringUtils {
 
         boolean isQuestion = false;
         List<String> words = splitString(string);
-        if (words.size() > 0 && "is".equals(words.get(0))) {
+        if (!words.isEmpty() && "is".equals(words.get(0))) {
             isQuestion = true;
             words.remove(0);
         }
@@ -243,7 +244,7 @@ public class StringUtils {
             }
 
             if (ABBREVIATIONS.contains(word)) {
-                nb.append(word.toUpperCase());
+                nb.append(word.toUpperCase(Locale.ENGLISH));
             } else {
                 nb.append(Character.toUpperCase(word.charAt(0)));
                 nb.append(word.substring(1));
@@ -255,7 +256,7 @@ public class StringUtils {
         }
 
         if (isQuestion) {
-            nb.append("?");
+            nb.append('?');
         }
 
         return nb.toString();
@@ -263,12 +264,12 @@ public class StringUtils {
 
     /**
      * Normalizes a string, removing or replacing non-alphanumeric characters and lowercasing
-     * 
+     *
      * - Removes all accented characters.
      * - Removes single quotes
      * - Replaces non-alphanumeric characters remaining with a dash
      * - Removes dashes
-     * 
+     *
      * Lowercases the result
      */
     public static String toNormalized(CharSequence string) {
@@ -279,7 +280,7 @@ public class StringUtils {
                 "\\.", "",
                 "[^a-zA-Z0-9]+", "-",
                 "^-+|-+$", ""
-        ).toLowerCase();
+        ).toLowerCase(Locale.ENGLISH);
     }
 
     /** Splits the given string by commas, and returns each part unescaped.
@@ -332,7 +333,7 @@ public class StringUtils {
                         }
                         if(quoteCount % 2 == 1) {
                             value = escaped[++i];
-                            builder.append(",");
+                            builder.append(',');
                         }
                     } while(quoteCount % 2 == 1);
                     value = builder.toString();
@@ -351,7 +352,7 @@ public class StringUtils {
         }
         StringBuilder builder = new StringBuilder();
         for (String string : strings) {
-            builder.append(escapeCsv(string)).append(",");
+            builder.append(escapeCsv(string)).append(',');
         }
         if (builder.length() > 0) {
             builder.setLength(builder.length()-1);
@@ -520,7 +521,7 @@ public class StringUtils {
 
         // Convert "path?a=b&c=d" to "&a=b&c=d".
         StringBuilder query = new StringBuilder();
-        int questionAt = uri.indexOf("?");
+        int questionAt = uri.indexOf('?');
         if (questionAt > -1) {
 
             String queryString = uri.substring(questionAt + 1);
@@ -533,12 +534,12 @@ public class StringUtils {
                 String param = queryString.substring(beginAt, ampIndex > -1 ? ampIndex : queryString.length());
 
                 if (!param.isEmpty() || ampIndex > -1) {
-                    query.append("&");
+                    query.append('&');
 
                     int equalsIndex = param.indexOf('=');
                     if (equalsIndex > -1) {
                         query.append(encodeUri(decodeUri(param.substring(0, equalsIndex))));
-                        query.append("=");
+                        query.append('=');
                         query.append(encodeUri(decodeUri(param.substring(equalsIndex+1))));
 
                     } else {
@@ -589,9 +590,9 @@ public class StringUtils {
                 if (value != null) {
                     for (Object item : ObjectUtils.to(Iterable.class, value)) {
                         if (item != null) {
-                            query.append("&");
+                            query.append('&');
                             query.append(encodeUri(name));
-                            query.append("=");
+                            query.append('=');
                             query.append(encodeUri(item instanceof Enum ?
                                     ((Enum<?>) item).name() :
                                     item.toString()));
@@ -633,7 +634,7 @@ public class StringUtils {
         if (uri != null) {
 
             // Strip out the path before the query string.
-            int questionAt = uri.indexOf("?");
+            int questionAt = uri.indexOf('?');
             if (questionAt > -1) {
                 uri = uri.substring(questionAt + 1);
             }
@@ -644,7 +645,7 @@ public class StringUtils {
             int prefixLength = prefix.length();
             for (int nameAt = 0; (nameAt = uri.indexOf(prefix, nameAt)) > -1;) {
                 nameAt += prefixLength;
-                int andAt = uri.indexOf("&", nameAt);
+                int andAt = uri.indexOf('&', nameAt);
                 values.add(decodeUri(andAt > -1 ?
                         uri.substring(nameAt, andAt) :
                         uri.substring(nameAt)));
@@ -924,7 +925,7 @@ public class StringUtils {
     /**
      * Escapes the input string so that the resulting output can be used
      * inside a JavaScript string AND none of the characters in the output
-     * need to be HTML escaped. 
+     * need to be HTML escaped.
      * @param string
      * @return the escaped string, or null if the input was null
      * This is not the same as HTML escaping a JavaScript escaped string,
@@ -1180,5 +1181,34 @@ public class StringUtils {
         }
 
         return null;
+    }
+
+    private static final int ASCII_SIZE = 256;
+    private static final char[] LOWER_CASE_ASCII;
+
+    static {
+        LOWER_CASE_ASCII = new char[ASCII_SIZE];
+
+        for (int i = 0; i < ASCII_SIZE; ++ i) {
+            LOWER_CASE_ASCII[i] = (char) Character.toLowerCase(i);
+        }
+    }
+
+    /**
+     * @param string Can't be {@code null}.
+     */
+    public static String toLowerCaseAscii(String string) {
+        char[] letters = string.toCharArray();
+        char letter;
+
+        for (int i = 0, length = letters.length; i < length; ++ i) {
+            letter = letters[i];
+
+            if (letter < ASCII_SIZE) {
+                letters[i] = LOWER_CASE_ASCII[letter];
+            }
+        }
+
+        return new String(letters);
     }
 }

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -72,7 +73,7 @@ public class HttpServletRequestMap implements Map<String, String> {
 
         for (Enumeration<String> e = request.getHeaderNames(); e.hasMoreElements(); ) {
             String headerName = e.nextElement();
-            String key = headerName.toUpperCase().replace('-', '_');
+            String key = headerName.toUpperCase(Locale.ENGLISH).replace('-', '_');
             if (!(AUTHORIZATION_KEY.equals(key)
                     || PROXY_AUTHORIZATION_KEY.equals(key))) {
                 all.put(HTTP_PREFIX + key, request.getHeader(headerName));
@@ -135,7 +136,7 @@ public class HttpServletRequestMap implements Map<String, String> {
     @Override
     public String get(Object key) {
         Lazy lazy = lazies.get(key);
-        if (lazy != null) { 
+        if (lazy != null) {
             lazies.remove(key);
             String keyString = (String) key;
             Object value = lazy.resolve(keyString);

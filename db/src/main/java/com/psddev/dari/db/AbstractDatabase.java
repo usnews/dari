@@ -96,14 +96,125 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         public void addToSaves(State state) {
+            saveJunctions(state, state.getDatabase().getEnvironment());
+
+            ObjectType type = state.getType();
+
+            if (type != null) {
+                saveJunctions(state, type);
+            }
+
             for (Iterator<State> i = saves.iterator(); i.hasNext(); ) {
                 State s = i.next();
+
                 if (s.equals(state)) {
                     i.remove();
                     state.getAtomicOperations().addAll(0, s.getAtomicOperations());
                 }
             }
+
             saves.add(state);
+        }
+
+        private void saveJunctions(State state, ObjectStruct struct) {
+            for (ObjectField field : struct.getFields()) {
+                String junctionField = field.getJunctionField();
+
+                if (!ObjectUtils.isBlank(junctionField)) {
+                    String fieldName = field.getInternalName();
+                    List<Object> oldItems = field.findJunctionItems(state);
+                    Iterable<?> newItems = ObjectUtils.to(Iterable.class, state.get(fieldName));
+
+                    if (newItems != null) {
+                        Iterator<?> i = newItems.iterator();
+
+                        if (i.hasNext()) {
+                            Double lastPosition = null;
+                            String positionField = field.getJunctionPositionField();
+
+                            for (Object item = i.next(), next = null; item != null; item = next) {
+                                next = i.hasNext() ? i.next() : null;
+                                State itemState = State.getInstance(item);
+                                Object junction = itemState.get(junctionField);
+                                double position;
+                                boolean save = false;
+
+                                oldItems.remove(item);
+
+                                if (junction == null ||
+                                        (junction instanceof Recordable &&
+                                        !State.getInstance(junction).equals(state))) {
+                                    save = true;
+
+                                    itemState.put(junctionField, state.getOriginalObject());
+
+                                } else if (junction instanceof Collection) {
+                                    save = true;
+                                    @SuppressWarnings("unchecked")
+                                    Collection<Object> junctionCollection = (Collection<Object>) junction;
+                                    Object stateObject = state.getOriginalObject();
+
+                                    if (!junctionCollection.contains(stateObject)) {
+                                        junctionCollection.add(stateObject);
+                                    }
+                                }
+
+                                if (!ObjectUtils.isBlank(positionField)) {
+                                    position = ObjectUtils.to(double.class, itemState.get(positionField));
+
+                                    if (position == 0.0) {
+                                        position = 0.1;
+                                        save = true;
+                                    }
+
+                                    if (lastPosition == null) {
+                                        if (next != null) {
+                                            double nextPosition = ObjectUtils.to(double.class, State.getInstance(next).get(positionField));
+
+                                            if (nextPosition <= position) {
+                                                position = nextPosition - 1.0;
+                                                save = true;
+                                            }
+                                        }
+
+                                    } else if (lastPosition >= position) {
+                                        if (next == null) {
+                                            position = lastPosition + 1.0;
+
+                                        } else {
+                                            double nextPosition = ObjectUtils.to(double.class, State.getInstance(next).get(positionField));
+                                            position = (lastPosition + nextPosition) / 2.0;
+
+                                            if (lastPosition >= position) {
+                                                position = lastPosition + 1.0;
+                                            }
+                                        }
+
+                                        save = true;
+                                    }
+
+                                    lastPosition = position;
+
+                                    if (save) {
+                                        itemState.put(positionField, position);
+                                    }
+                                }
+
+                                if (save) {
+                                    addToSaves(itemState);
+                                }
+                            }
+                        }
+                    }
+
+                    for (Object item : oldItems) {
+                        State itemState = State.getInstance(item);
+
+                        itemState.remove(junctionField);
+                        addToSaves(itemState);
+                    }
+                }
+            }
         }
 
         public void addToIndexes(State state) {
@@ -198,6 +309,7 @@ public abstract class AbstractDatabase<C> implements Database {
      *
      * @return Can't be {@code null}.
      */
+    @SuppressWarnings("deprecation")
     public final C openReadConnection() {
         return Database.Static.isIgnoreReadConnection() ?
                 openConnection() :
@@ -311,22 +423,24 @@ public abstract class AbstractDatabase<C> implements Database {
 
     @Override
     public <T> Iterable<T> readIterable(Query<T> query, int fetchSize) {
-        return new ByIdIterable<T>(query, fetchSize);
+        return new PaginatedIterable<T>(query, fetchSize);
     }
 
-    private static class ByIdIterable<T> implements Iterable<T> {
+    private static class PaginatedIterable<T> implements Iterable<T> {
 
         private final Query<T> query;
         private final int fetchSize;
 
-        public ByIdIterable(Query<T> initialQuery, int initialFetchSize) {
-            query = initialQuery;
-            fetchSize = initialFetchSize;
+        public PaginatedIterable(Query<T> query, int fetchSize) {
+            this.query = query;
+            this.fetchSize = fetchSize;
         }
 
         @Override
         public Iterator<T> iterator() {
-            return new ByIdIterator<T>(query, fetchSize);
+            return query.getSorters().isEmpty() ?
+                    new ByIdIterator<T>(query, fetchSize) :
+                    new PaginatedIterator<T>(query, fetchSize);
         }
     }
 
@@ -339,10 +453,6 @@ public abstract class AbstractDatabase<C> implements Database {
         private int index;
 
         public ByIdIterator(Query<T> query, int fetchSize) {
-            if (!query.getSorters().isEmpty()) {
-                throw new IllegalArgumentException("Can't iterate over a query that has sorters!");
-            }
-
             this.query = query.clone().sortAscending("_id");
             this.fetchSize = fetchSize > 0 ? fetchSize : 200;
         }
@@ -396,6 +506,63 @@ public abstract class AbstractDatabase<C> implements Database {
         }
     }
 
+    private static class PaginatedIterator<T> implements Iterator<T> {
+
+        private final Query<T> query;
+        private PaginatedResult<T> result;
+        private long offset;
+        private final int limit;
+        private int index;
+
+        public PaginatedIterator(Query<T> query, int limit) {
+            this.query = query;
+            this.limit = limit > 0 ? limit : 200;
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (result != null && index >= result.getItems().size()) {
+                if (result.hasNext()) {
+                    result = null;
+                } else {
+                    return false;
+                }
+            }
+
+            if (result == null) {
+                result = query.select(offset, limit);
+                List<T> items = result.getItems();
+
+                int size = items.size();
+                if (size < 1) {
+                    return false;
+                }
+
+                offset += limit;
+                index = 0;
+            }
+
+            return true;
+        }
+
+        @Override
+        public T next() {
+            if (hasNext()) {
+                T object = result.getItems().get(index);
+                ++ index;
+                return object;
+
+            } else {
+                throw new NoSuchElementException();
+            }
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
     @Override
     public <T> PaginatedResult<Grouping<T>> readPartialGrouped(Query<T> query, long offset, int limit, String... fields) {
         Map<List<Object>, BasicGrouping<T>> groupingsMap = new LinkedHashMap<List<Object>, BasicGrouping<T>>();
@@ -405,7 +572,7 @@ public abstract class AbstractDatabase<C> implements Database {
             List<Object> keys = new ArrayList<Object>();
             if (fields != null) {
                 for (String field : fields) {
-                    keys.add(itemState.getValue(field));
+                    keys.add(itemState.getByPath(field));
                 }
             }
 
@@ -441,13 +608,13 @@ public abstract class AbstractDatabase<C> implements Database {
 
             ITEM: for (Object item : readIterable(aggregateQuery, 0)) {
                 State itemState = State.getInstance(item);
-                Object value = itemState.getValue(field);
+                Object value = itemState.getByPath(field);
                 if (value == null) {
                     continue;
                 }
 
                 for (int i = 0, length = fields.length; i < length; ++ i) {
-                    if (!ObjectUtils.equals(keys.get(i), itemState.getValue(fields[i]))) {
+                    if (!ObjectUtils.equals(keys.get(i), itemState.getByPath(fields[i]))) {
                         continue ITEM;
                     }
                 }
@@ -583,10 +750,34 @@ public abstract class AbstractDatabase<C> implements Database {
             }
         },
 
+        AFTER_SAVE("afterSave") {
+            @Override
+            protected void doExecute(Record record) {
+                try {
+                    record.afterSave();
+                } catch (RuntimeException error) {
+                    LOGGER.warn(
+                            String.format("Couldn't run afterSave on [%s]", record.getId()),
+                            error);
+                }
+            }
+        },
+
         BEFORE_DELETE("beforeDelete") {
             @Override
             protected void doExecute(Record record) {
                 record.beforeDelete();
+            }
+        },
+
+        AFTER_DELETE("afterDelete") {
+            @Override
+            protected void doExecute(Record record) {
+                try {
+                    record.afterDelete();
+                } catch (RuntimeException error) {
+                    LOGGER.warn("Couldn't run afterDelete on [{}]", record.getId());
+                }
             }
         };
 
@@ -602,11 +793,6 @@ public abstract class AbstractDatabase<C> implements Database {
 
         @SuppressWarnings("unchecked")
         public final void execute(State state) {
-            ObjectType type = state.getType();
-
-            if (type == null) {
-                return;
-            }
 
             // Global modifications.
             for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
@@ -615,17 +801,34 @@ public abstract class AbstractDatabase<C> implements Database {
                 if (modClass != null &&
                         Modification.class.isAssignableFrom(modClass) &&
                         Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class)) {
-                    executeForModClass(state, modClass);
+                    executeForModification(state, modClass);
                 }
             }
 
-            // Type-specific modifications.
-            for (String modClassName : type.getModificationClassNames()) {
-                Class<?> modClass = ObjectUtils.getClassByName(modClassName);
+            ObjectType type = state.getType();
 
-                if (modClass != null) {
-                    executeForModClass(state, modClass);
+            if (type == null) {
+                return;
+            }
+
+            // Type-specific modifications.
+            TYPE_CHANGE: while (true) {
+                for (String modClassName : type.getModificationClassNames()) {
+                    Class<?> modClass = ObjectUtils.getClassByName(modClassName);
+
+                    if (modClass != null) {
+                        executeForModification(state, modClass);
+
+                        ObjectType newType = state.getType();
+
+                        if (!type.equals(newType)) {
+                            type = newType;
+                            continue TYPE_CHANGE;
+                        }
+                    }
                 }
+
+                break;
             }
 
             // Embedded objects.
@@ -634,7 +837,7 @@ public abstract class AbstractDatabase<C> implements Database {
             }
         }
 
-        private void executeForModClass(State state, Class<?> modClass) {
+        private void executeForModification(State state, Class<?> modClass) {
             Object modObject;
 
             try {
@@ -644,7 +847,7 @@ public abstract class AbstractDatabase<C> implements Database {
                     return;
                 }
 
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 return;
             }
 
@@ -705,6 +908,7 @@ public abstract class AbstractDatabase<C> implements Database {
         checkState(state);
 
         ObjectType type = state.getType();
+
         if (type != null && !type.isConcrete()) {
             throw new IllegalStateException(String.format(
                     "Can't save a non-concrete object! (%s)",
@@ -714,13 +918,17 @@ public abstract class AbstractDatabase<C> implements Database {
         Trigger.BEFORE_SAVE.execute(state);
 
         Writes writes = getCurrentWrites();
+
         if (writes != null) {
             writes.addToValidates(state);
             writes.addToSaves(state);
 
         } else {
-            List<State> wrapped = Arrays.asList(state);
-            write(wrapped, wrapped, null, null, true);
+            writes = new Writes();
+
+            writes.addToValidates(state);
+            writes.addToSaves(state);
+            write(writes.validates, writes.saves, null, null, true);
         }
     }
 
@@ -911,11 +1119,14 @@ public abstract class AbstractDatabase<C> implements Database {
         if (hasSaves) {
             for (State state : saves) {
                 state.setStatus(StateStatus.SAVED);
+                Trigger.AFTER_SAVE.execute(state);
             }
         }
+
         if (hasDeletes) {
             for (State state : deletes) {
                 state.setStatus(StateStatus.DELETED);
+                Trigger.AFTER_DELETE.execute(state);
             }
         }
     }
@@ -931,7 +1142,7 @@ public abstract class AbstractDatabase<C> implements Database {
         Map<String, State> keys = null;
         DatabaseEnvironment environment = getEnvironment();
 
-        for (State state : states) {
+        for (State state : states) { RETRY_STATE: do {
             if (beforeLocks) {
                 if (!state.validate()) {
                     if (errors == null) {
@@ -968,7 +1179,9 @@ public abstract class AbstractDatabase<C> implements Database {
                                 from(Object.class).
                                 where("id != ?", state.getId()).
                                 using(state.getDatabase()).
-                                referenceOnly();
+                                referenceOnly().
+                                noCache().
+                                master();
 
                         StringBuilder keyBuilder = new StringBuilder();
                         keyBuilder.append(indexName);
@@ -981,15 +1194,7 @@ public abstract class AbstractDatabase<C> implements Database {
                             duplicateQuery.and(indexPrefix + fields.get(j) + " = ?", values[j]);
                         }
 
-                        Object duplicate;
-                        boolean ignore = Database.Static.isIgnoreReadConnection();
-
-                        try {
-                            Database.Static.setIgnoreReadConnection(true);
-                            duplicate = duplicateQuery.first();
-                        } finally {
-                            Database.Static.setIgnoreReadConnection(ignore);
-                        }
+                        Object duplicate = duplicateQuery.first();
 
                         if (duplicate == null) {
                             if (!beforeLocks) {
@@ -1012,6 +1217,10 @@ public abstract class AbstractDatabase<C> implements Database {
                             }
                         }
 
+                        if (triggerOnDuplicate(state, index)) {
+                            continue RETRY_STATE;
+                        }
+
                         if (errors == null) {
                             errors = new ArrayList<State>();
                         }
@@ -1024,7 +1233,7 @@ public abstract class AbstractDatabase<C> implements Database {
                     }
                 }
             }
-        }
+        } while (false); }
 
         if (errors != null && !errors.isEmpty()) {
             throw new ValidationException(errors);
@@ -1040,6 +1249,63 @@ public abstract class AbstractDatabase<C> implements Database {
             }
             return locks;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean triggerOnDuplicate(State state, ObjectIndex index) {
+        ObjectType type = state.getType();
+
+        if (type == null) {
+            return false;
+        }
+
+        // Global modifications.
+        for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
+            Class<?> modClass = modType.getObjectClass();
+
+            if (modClass != null &&
+                    Modification.class.isAssignableFrom(modClass) &&
+                    Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class) &&
+                    triggerOnDuplicateForModification(state, modClass, index)) {
+                return true;
+            }
+        }
+
+        // Type-specific modifications.
+        for (String modClassName : type.getModificationClassNames()) {
+            Class<?> modClass = ObjectUtils.getClassByName(modClassName);
+
+            if (modClass != null &&
+                    triggerOnDuplicateForModification(state, modClass, index)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean triggerOnDuplicateForModification(State state, Class<?> modClass, ObjectIndex index) {
+        Object modObject;
+
+        try {
+            modObject = state.as(modClass);
+
+            if (!(modObject instanceof Record)) {
+                return false;
+            }
+
+        } catch (RuntimeException ex) {
+            return false;
+        }
+
+        Record modRecord = (Record) modObject;
+        State modState = modRecord.getState();
+
+        LOGGER.debug(
+                "Triggering onDuplicate from [{}] on [{}]",
+                new Object[] { name, modClass.getName(), modState.getId() });
+
+        return modRecord.onDuplicate(index);
     }
 
     /**
@@ -1216,10 +1482,21 @@ public abstract class AbstractDatabase<C> implements Database {
                 object = (T) environment.createObject(state.getTypeId(), state.getId());
                 state = State.getInstance(object);
 
+                state.setDatabase(oldState.getRealDatabase());
+                state.setResolveToReferenceOnly(oldState.isResolveToReferenceOnly());
+                state.setResolveUsingCache(oldState.isResolveUsingCache());
+                state.setResolveUsingMaster(oldState.isResolveUsingMaster());
+                state.setResolveInvisible(oldState.isResolveInvisible());
                 state.setStatus(oldState.getStatus());
                 state.setValues(oldState);
                 state.getExtras().putAll(oldState.getExtras());
             }
+        }
+
+        populateJunctions(state, environment);
+
+        if (type != null) {
+            populateJunctions(state, type);
         }
 
         if (object instanceof ObjectType) {
@@ -1231,6 +1508,16 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         return object;
+    }
+
+    private void populateJunctions(State state, ObjectStruct struct) {
+        for (ObjectField field : struct.getFields()) {
+            String junctionField = field.getJunctionField();
+
+            if (!ObjectUtils.isBlank(junctionField)) {
+                state.put(field.getInternalName(), new JunctionList(state, field));
+            }
+        }
     }
 
     // --- Object support ---

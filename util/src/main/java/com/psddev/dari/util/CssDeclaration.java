@@ -2,8 +2,8 @@ package com.psddev.dari.util;
 
 public class CssDeclaration {
 
-    private String property;
-    private String value;
+    private final String property;
+    private final String value;
 
     public CssDeclaration(String property, String value) {
         this.property = property;
@@ -25,10 +25,10 @@ public class CssDeclaration {
         StringBuilder css = new StringBuilder();
 
         css.append(property);
-        css.append(":");
+        css.append(':');
 
         css.append(value);
-        css.append(";");
+        css.append(';');
 
         return css.toString();
     }

@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.instrument.ClassDefinition;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -96,7 +98,6 @@ public class SourceFilter extends AbstractFilter {
     public static final String RELOADER_CONTEXT_PATH_PARAMETER = "contextPath";
     public static final String RELOADER_REQUEST_PATH_PARAMETER = "requestPath";
 
-    private static final JavaCompiler COMPILER = ToolProvider.getSystemJavaCompiler();
     private static final Logger LOGGER = LoggerFactory.getLogger(SourceFilter.class);
 
     private static final String CLASSES_PATH = "/WEB-INF/classes/";
@@ -114,15 +115,16 @@ public class SourceFilter extends AbstractFilter {
 
     private File classOutput;
     private final Set<File> javaSourcesSet = new HashSet<File>();
+    private Map<JavaFileObject, Long> javaSourceFileModifieds;
     private final Map<String, File> webappSourcesMap = new HashMap<String, File>();
-    private final Map<JavaFileObject, Long> sourceModifieds = new HashMap<JavaFileObject, Long>();
-    private final Map<String, Date> changedClasses = new TreeMap<String, Date>();
+    private final Map<File, Long> webappSourceFileModifieds = new ConcurrentHashMap<File, Long>();
+    private final Map<String, Date> changedClassTimes = new TreeMap<String, Date>();
 
     // --- AbstractFilter support ---
 
     @Override
     protected void doInit() {
-        if (COMPILER == null) {
+        if (ToolProvider.getSystemJavaCompiler() == null) {
             LOGGER.info("Java compiler not available!");
             return;
         }
@@ -192,7 +194,8 @@ public class SourceFilter extends AbstractFilter {
                 buildPropertiesInput.close();
             }
 
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            LOGGER.debug("Can't read WAR build properties!", error);
         }
     }
 
@@ -200,9 +203,10 @@ public class SourceFilter extends AbstractFilter {
     protected void doDestroy() {
         classOutput = null;
         javaSourcesSet.clear();
+        javaSourceFileModifieds = null;
         webappSourcesMap.clear();
-        sourceModifieds.clear();
-        changedClasses.clear();
+        webappSourceFileModifieds.clear();
+        changedClassTimes.clear();
     }
 
     @Override
@@ -223,10 +227,7 @@ public class SourceFilter extends AbstractFilter {
 
         IsolatingResponse isolatingResponse = (IsolatingResponse) request.getAttribute(ISOLATING_RESPONSE_ATTRIBUTE);
         if (isolatingResponse != null) {
-            if (!JspUtils.getCurrentServletPath(request).equals(isolatingResponse.jsp)) {
-                isolatingResponse = null;
-
-            } else {
+            if (JspUtils.getCurrentServletPath(request).equals(isolatingResponse.jsp)) {
                 @SuppressWarnings("all")
                 HtmlWriter html = new HtmlWriter(isolatingResponse.getResponse().getWriter());
                 html.putAllStandardDefaults();
@@ -238,7 +239,7 @@ public class SourceFilter extends AbstractFilter {
                         html.writeHtml(writer.toString().trim());
                     html.writeEnd();
 
-                } catch (Exception ex) {
+                } catch (RuntimeException ex) {
                     html.writeStart("pre", "class", "alert alert-error");
                         html.writeObject(ex);
                     html.writeEnd();
@@ -266,7 +267,7 @@ public class SourceFilter extends AbstractFilter {
         // Intercept special actions.
         if (!ObjectUtils.isBlank(request.getParameter("_reload")) &&
                 isReloaderAvailable(request)) {
-            compileJavaSources();
+            compileJavaSourceFiles();
             response.sendRedirect(StringUtils.addQueryParameters(
                     getReloaderPath(),
                     RELOADER_CONTEXT_PATH_PARAMETER, request.getContextPath(),
@@ -302,26 +303,25 @@ public class SourceFilter extends AbstractFilter {
         }
 
         String contentType = ObjectUtils.getContentType(servletPath);
-        if (contentType != null &&
-                (contentType.startsWith("image/") ||
+        if (contentType.startsWith("image/") ||
                 contentType.startsWith("video/") ||
                 contentType.equals("text/css") ||
-                contentType.equals("text/javascript"))) {
+                contentType.equals("text/javascript")) {
             chain.doFilter(request, response);
             return;
         }
 
-        final DiagnosticCollector<JavaFileObject> errors = compileJavaSources();
+        final DiagnosticCollector<JavaFileObject> errors = compileJavaSourceFiles();
         final boolean hasBackgroundTasks;
         if (errors == null &&
-                !changedClasses.isEmpty() &&
+                !changedClassTimes.isEmpty() &&
                 !JspUtils.isAjaxRequest(request)) {
 
             if (hasBackgroundTasks()) {
                 hasBackgroundTasks = true;
 
             } else if (isReloaderAvailable(request)) {
-                changedClasses.clear();
+                changedClassTimes.clear();
                 response.sendRedirect(StringUtils.addQueryParameters(
                         getReloaderPath(),
                         RELOADER_CONTEXT_PATH_PARAMETER, request.getContextPath(),
@@ -348,7 +348,7 @@ public class SourceFilter extends AbstractFilter {
 
         chain.doFilter(request, response);
         if (errors == null && (
-                changedClasses.isEmpty() ||
+                changedClassTimes.isEmpty() ||
                 JspUtils.isAjaxRequest(request) ||
                 isolatingResponse != null)) {
             return;
@@ -362,74 +362,71 @@ public class SourceFilter extends AbstractFilter {
             return;
         }
 
-        try {
-            new HtmlWriter(response.getWriter()) {{
-                putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
-                putDefault(Throwable.class, HtmlFormatter.THROWABLE);
+        new HtmlWriter(response.getWriter()) {{
+            putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
+            putDefault(Throwable.class, HtmlFormatter.THROWABLE);
 
-                write("<div style=\"" +
-                        "background: rgba(204, 0, 0, 0.8);" +
-                        "-moz-border-radius: 5px;" +
-                        "-webkit-border-radius: 5px;" +
-                        "border-radius: 5px;" +
-                        "color: white;" +
-                        "font-family: 'Helvetica Neue', 'Arial', sans-serif;" +
-                        "font-size: 13px;" +
-                        "line-height: 18px;" +
-                        "margin: 0;" +
-                        "max-height: 50%;" +
-                        "max-width: 350px;" +
-                        "overflow: auto;" +
-                        "padding: 5px;" +
-                        "position: fixed;" +
-                        "right: 5px;" +
-                        "top: 5px;" +
-                        "word-wrap: break-word;" +
-                        "z-index: 1000000;" +
-                        "\">");
+            write("<div style=\"" +
+                    "background: rgba(204, 0, 0, 0.8);" +
+                    "-moz-border-radius: 5px;" +
+                    "-webkit-border-radius: 5px;" +
+                    "border-radius: 5px;" +
+                    "color: white;" +
+                    "font-family: 'Helvetica Neue', 'Arial', sans-serif;" +
+                    "font-size: 13px;" +
+                    "line-height: 18px;" +
+                    "margin: 0;" +
+                    "max-height: 50%;" +
+                    "max-width: 350px;" +
+                    "overflow: auto;" +
+                    "padding: 5px;" +
+                    "position: fixed;" +
+                    "right: 5px;" +
+                    "top: 5px;" +
+                    "word-wrap: break-word;" +
+                    "z-index: 1000000;" +
+                    "\">");
 
-                    if (errors == null) {
-                        if (hasBackgroundTasks) {
-                            writeHtml("The application wasn't reloaded automatically because there are background tasks running!");
-
-                        } else {
-                            writeHtml("The application must be reloaded before the changes to these classes become visible. ");
-                            writeStart("a",
-                                    "href", JspUtils.getAbsolutePath(request, getInterceptPath(),
-                                            "action", "install",
-                                            "requestPath", JspUtils.getAbsolutePath(request, "")),
-                                    "style", "color: white; text-decoration: underline;");
-                                writeHtml("Install the reloader");
-                            writeEnd();
-                            writeHtml(" to automate this process.");
-                            writeTag("br");
-                            writeTag("br");
-
-                            for (Map.Entry<String, Date> entry : changedClasses.entrySet()) {
-                                writeHtml(entry.getKey());
-                                writeHtml(" - ");
-                                writeObject(entry.getValue());
-                                writeTag("br");
-                            }
-                        }
+                if (errors == null) {
+                    if (hasBackgroundTasks) {
+                        writeHtml("The application wasn't reloaded automatically because there are background tasks running!");
 
                     } else {
-                        writeHtml("Syntax errors!");
-                        writeStart("ol");
-                            for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
-                                if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
-                                    writeStart("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
-                                        writeHtml(diagnostic.getMessage(null));
-                                    writeEnd();
-                                }
-                            }
+                        writeHtml("The application must be reloaded before the changes to these classes become visible. ");
+                        writeStart("a",
+                                "href", JspUtils.getAbsolutePath(request, getInterceptPath(),
+                                        "action", "install",
+                                        "requestPath", JspUtils.getAbsolutePath(request, "")),
+                                "style", "color: white; text-decoration: underline;");
+                            writeHtml("Install the reloader");
                         writeEnd();
+                        writeHtml(" to automate this process.");
+                        writeTag("br");
+                        writeTag("br");
+
+                        for (Map.Entry<String, Date> entry : changedClassTimes.entrySet()) {
+                            writeHtml(entry.getKey());
+                            writeHtml(" - ");
+                            writeObject(entry.getValue());
+                            writeTag("br");
+                        }
                     }
 
-                write("</div>");
-            }};
-        } catch (Exception ex) {
-        }
+                } else {
+                    writeHtml("Syntax errors!");
+                    writeStart("ol");
+                        for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
+                            if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
+                                writeStart("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
+                                    writeHtml(diagnostic.getMessage(null));
+                                writeEnd();
+                            }
+                        }
+                    writeEnd();
+                }
+
+            write("</div>");
+        }};
     }
 
     /**
@@ -480,7 +477,9 @@ public class SourceFilter extends AbstractFilter {
                     pingInput.close();
                 }
 
-            } catch (IOException ex) {
+            } catch (IOException error) {
+                // If the ping fails for any reason, assume that the reloader
+                // isn't available.
             }
         }
 
@@ -504,7 +503,7 @@ public class SourceFilter extends AbstractFilter {
     }
 
     /** Copies all resources. */
-    private PullThroughValue<Void> COPY_RESOURCES = new PullThroughValue<Void>() {
+    private final PullThroughValue<Void> COPY_RESOURCES = new PullThroughValue<Void>() {
 
         @Override
         protected boolean isExpired(Date lastProduce) {
@@ -542,58 +541,52 @@ public class SourceFilter extends AbstractFilter {
         }
     };
 
-    /**
-     * Compile any Java source files that's changed and redefine them
-     * in place if possible.
-     */
-    private DiagnosticCollector<JavaFileObject> compileJavaSources() throws IOException {
+    // Compile any Java source files that's changed and redefine them
+    // in place if possible.
+    private synchronized DiagnosticCollector<JavaFileObject> compileJavaSourceFiles() throws IOException {
         if (javaSourcesSet.isEmpty()) {
             return null;
         }
 
-        StandardJavaFileManager fileManager = COMPILER.getStandardFileManager(null, null, null);
+        boolean firstRun;
+
+        if (javaSourceFileModifieds == null) {
+            firstRun = true;
+            javaSourceFileModifieds = new HashMap<JavaFileObject, Long>();
+
+        } else {
+            firstRun = false;
+        }
+
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
         Set<JavaFileObject> newSourceFiles = new HashSet<JavaFileObject>();
-        Map<JavaFileObject, String> expectedOutputFiles = new HashMap<JavaFileObject, String>();
-        Map<String, Date> notRedefinedClasses = new HashMap<String, Date>();
+        Map<String, Date> newChangedClassTimes = new HashMap<String, Date>();
         List<ClassDefinition> toBeRedefined = new ArrayList<ClassDefinition>();
 
         try {
             fileManager.setLocation(StandardLocation.SOURCE_PATH, javaSourcesSet);
             fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(classOutput));
 
+            // Find all source files that's changed.
             for (JavaFileObject sourceFile : fileManager.list(
                     StandardLocation.SOURCE_PATH,
                     "",
                     Collections.singleton(JavaFileObject.Kind.SOURCE),
                     true)) {
 
-                String className = fileManager.inferBinaryName(StandardLocation.SOURCE_PATH, sourceFile);
-                JavaFileObject outputFile = fileManager.getJavaFileForOutput(
-                        StandardLocation.CLASS_OUTPUT,
-                        className,
-                        JavaFileObject.Kind.CLASS,
-                        null);
+                // On first run, assume nothing has changed.
+                if (firstRun) {
+                    javaSourceFileModifieds.put(sourceFile, sourceFile.getLastModified());
 
-                // Did the source file originate from a JAR?
-                Long jarModified = null;
-                String sourcePath = sourceFile.toUri().getPath();
-                for (File javaSources : javaSourcesSet) {
-                    if (sourcePath.startsWith(javaSources.getPath())) {
-                        jarModified = CodeUtils.getJarLastModified(javaSources);
-                        break;
+                } else {
+                    Long oldModified = javaSourceFileModifieds.get(sourceFile);
+                    long newModified = sourceFile.getLastModified();
+
+                    if (oldModified == null || oldModified != newModified) {
+                        javaSourceFileModifieds.put(sourceFile, newModified);
+                        newSourceFiles.add(sourceFile);
                     }
-                }
-
-                long sourceModified = sourceFile.getLastModified();
-                Long outputModified = outputFile.getLastModified();
-                if ((jarModified == null || sourceModified > jarModified) &&
-                        ((outputModified != 0 && sourceModified > outputModified) ||
-                        (outputModified == 0 &&
-                                ((outputModified = sourceModifieds.get(outputFile)) == null ||
-                                sourceModified > outputModified)))) {
-                    newSourceFiles.add(sourceFile);
-                    expectedOutputFiles.put(outputFile, className);
-                    sourceModifieds.put(outputFile, sourceModified);
                 }
             }
 
@@ -603,12 +596,14 @@ public class SourceFilter extends AbstractFilter {
                 // Compiler can't use the current class loader so try to
                 // guess all of its class paths.
                 Set<File> classPaths = new LinkedHashSet<File>();
+
                 for (ClassLoader loader = ObjectUtils.getCurrentClassLoader();
                         loader != null;
                         loader = loader.getParent()) {
                     if (loader instanceof URLClassLoader) {
                         for (URL url : ((URLClassLoader) loader).getURLs()) {
                             File file = IoUtils.toFile(url, StringUtils.UTF_8);
+
                             if (file != null) {
                                 classPaths.add(file);
                             }
@@ -617,76 +612,97 @@ public class SourceFilter extends AbstractFilter {
                 }
 
                 fileManager.setLocation(StandardLocation.CLASS_PATH, classPaths);
+
+                // Remember the current class file modified times for later
+                // when we need to figure out what changed.
+                Map<JavaFileObject, Long> outputFileModifieds = new HashMap<JavaFileObject, Long>();
+
+                for (JavaFileObject outputFile : fileManager.list(
+                        StandardLocation.CLASS_OUTPUT,
+                        "",
+                        Collections.singleton(JavaFileObject.Kind.CLASS),
+                        true)) {
+                    outputFileModifieds.put(outputFile, outputFile.getLastModified());
+                }
+
                 DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
 
-                // Compiler can't process multiple tasks at the same time.
-                synchronized (COMPILER) {
+                if (!compiler.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles).call()) {
+                    return diagnostics;
 
-                    // File systems can't usually handle microsecond resolution.
-                    long compileStart = System.currentTimeMillis() / 1000 * 1000;
+                } else {
+                    Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
 
-                    if (!COMPILER.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles).call()) {
-                        return diagnostics;
+                    // Process any class files that's changed.
+                    for (JavaFileObject outputFile : fileManager.list(
+                            StandardLocation.CLASS_OUTPUT,
+                            "",
+                            Collections.singleton(JavaFileObject.Kind.CLASS),
+                            true)) {
+                        Long oldModified = outputFileModifieds.get(outputFile);
+                        long newModified = outputFile.getLastModified();
 
-                    } else {
-                        Set<Class<? extends ClassEnhancer>> enhancerClasses = ObjectUtils.findClasses(ClassEnhancer.class);
-
-                        for (JavaFileObject outputFile : fileManager.list(
-                                StandardLocation.CLASS_OUTPUT,
-                                "",
-                                Collections.singleton(JavaFileObject.Kind.CLASS),
-                                true)) {
-                            if (outputFile.getLastModified() < compileStart) {
-                                continue;
-                            }
-
-                            InputStream input = outputFile.openInputStream();
-                            byte[] bytecode;
-                            try {
-                                bytecode = IoUtils.toByteArray(input);
-                            } finally {
-                                input.close();
-                            }
-
-                            byte[] enhancedBytecode = ClassEnhancer.Static.enhance(bytecode, enhancerClasses);
-                            if (enhancedBytecode != null) {
-                                bytecode = enhancedBytecode;
-                            }
-
-                            OutputStream output = outputFile.openOutputStream();
-                            try {
-                                output.write(bytecode);
-                            } finally {
-                                output.close();
-                            }
-
-                            String outputClassName = fileManager.inferBinaryName(StandardLocation.CLASS_OUTPUT, outputFile);
-                            notRedefinedClasses.put(outputClassName, new Date(outputFile.getLastModified()));
-
-                            Class<?> outputClass = ObjectUtils.getClassByName(outputClassName);
-                            if (outputClass != null) {
-                                toBeRedefined.add(new ClassDefinition(outputClass, bytecode));
-                            }
+                        if (oldModified != null && oldModified == newModified) {
+                            continue;
                         }
 
-                        // Try to redefine the classes in place.
-                        List<ClassDefinition> failures = CodeUtils.redefineClasses(toBeRedefined);
-                        toBeRedefined.removeAll(failures);
+                        // Enhance the bytecode.
+                        InputStream input = outputFile.openInputStream();
+                        byte[] bytecode;
 
-                        for (ClassDefinition success : toBeRedefined) {
-                            notRedefinedClasses.remove(success.getDefinitionClass().getName());
+                        try {
+                            bytecode = IoUtils.toByteArray(input);
+
+                        } finally {
+                            input.close();
                         }
 
-                        if (!failures.isEmpty() && LOGGER.isInfoEnabled()) {
-                            StringBuilder messageBuilder = new StringBuilder();
-                            messageBuilder.append("Can't redefine [");
-                            for (ClassDefinition failure : failures) {
-                                messageBuilder.append(failure.getDefinitionClass().getName());
-                                messageBuilder.append(", ");
-                            }
-                            messageBuilder.setLength(messageBuilder.length() - 2);
-                            messageBuilder.append("]!");
+                        byte[] enhancedBytecode = ClassEnhancer.Static.enhance(bytecode, enhancerClasses);
+
+                        if (enhancedBytecode != null) {
+                            bytecode = enhancedBytecode;
                         }
+
+                        OutputStream output = outputFile.openOutputStream();
+
+                        try {
+                            output.write(bytecode);
+
+                        } finally {
+                            output.close();
+                        }
+
+                        String outputClassName = fileManager.inferBinaryName(StandardLocation.CLASS_OUTPUT, outputFile);
+                        Class<?> outputClass = ObjectUtils.getClassByName(outputClassName);
+
+                        newChangedClassTimes.put(outputClassName, new Date(newModified));
+
+                        if (outputClass != null) {
+                            toBeRedefined.add(new ClassDefinition(outputClass, bytecode));
+                        }
+                    }
+
+                    // Try to redefine the classes in place.
+                    List<ClassDefinition> failures = CodeUtils.redefineClasses(toBeRedefined);
+
+                    toBeRedefined.removeAll(failures);
+
+                    for (ClassDefinition success : toBeRedefined) {
+                        newChangedClassTimes.remove(success.getDefinitionClass().getName());
+                    }
+
+                    if (!failures.isEmpty() && LOGGER.isInfoEnabled()) {
+                        StringBuilder messageBuilder = new StringBuilder();
+
+                        messageBuilder.append("Can't redefine [");
+
+                        for (ClassDefinition failure : failures) {
+                            messageBuilder.append(failure.getDefinitionClass().getName());
+                            messageBuilder.append(", ");
+                        }
+
+                        messageBuilder.setLength(messageBuilder.length() - 2);
+                        messageBuilder.append("]!");
                     }
                 }
             }
@@ -696,47 +712,50 @@ public class SourceFilter extends AbstractFilter {
         }
 
         // Remember all classes that's changed but not yet redefined.
-        changedClasses.putAll(notRedefinedClasses);
+        changedClassTimes.putAll(newChangedClassTimes);
         return null;
     }
 
-    /**
-     * Copies the webapp source associated with the given {@code request}.
-     *
-     * @param request Can't be {@code null}.
-     */
+    // Copies the webapp source associated with the given request.
     private void copyWebappSource(HttpServletRequest request) throws IOException {
         ServletContext context = getServletContext();
         String path = JspUtils.getCurrentServletPath(request);
+
         if (path.startsWith("/WEB-INF/_draft/")) {
             return;
         }
 
         String contextPath = JspUtils.getEmbeddedContextPath(context, path);
         File webappSources = webappSourcesMap.get(contextPath);
+
         if (webappSources == null) {
             return;
         }
 
         String outputFileString = context.getRealPath(path);
+
         if (outputFileString == null) {
             return;
         }
 
         @SuppressWarnings("unchecked")
         Set<String> copied = (Set<String>) request.getAttribute(COPIED_ATTRIBUTE);
+
         if (copied == null) {
             copied = new HashSet<String>();
             request.setAttribute(COPIED_ATTRIBUTE, copied);
         }
+
         if (copied.contains(outputFileString)) {
             return;
+
         } else {
             copied.add(outputFileString);
         }
 
         File sourceFile = new File(webappSources, path.substring(contextPath.length()).replace('/', File.separatorChar));
         File outputFile = new File(outputFileString);
+
         if (sourceFile.isDirectory() ||
                 outputFile.isDirectory()) {
             return;
@@ -744,12 +763,22 @@ public class SourceFilter extends AbstractFilter {
 
         if (sourceFile.exists()) {
             if (!outputFile.exists()) {
-                File outputParent = outputFile.getParentFile();
-                if (!outputParent.exists()) {
-                    outputParent.mkdirs();
+                IoUtils.createParentDirectories(outputFile);
+
+            } else {
+                Long oldModified = webappSourceFileModifieds.get(sourceFile);
+                long newModified = sourceFile.lastModified();
+
+                if (oldModified == null) {
+                    webappSourceFileModifieds.put(sourceFile, newModified);
+                    return;
+
+                } else if (oldModified != newModified) {
+                    webappSourceFileModifieds.put(sourceFile, newModified);
+
+                } else if (newModified <= outputFile.lastModified()) {
+                    return;
                 }
-            } else if (sourceFile.lastModified() <= outputFile.lastModified()) {
-                return;
             }
 
             IoUtils.copy(sourceFile, outputFile);
@@ -763,9 +792,6 @@ public class SourceFilter extends AbstractFilter {
 
     /** {@linkplain SourceFilter} utility methods. */
     public static final class Static {
-
-        private Static() {
-        }
 
         /**
          * Returns the servlet path for pinging this web application to
@@ -838,7 +864,7 @@ public class SourceFilter extends AbstractFilter {
                             } finally {
                                 writeEnd();
                             }
-                        } catch (Exception ex) {
+                        } catch (RuntimeException ex) {
                             writeObject(ex);
                         }
                     writeEnd();
@@ -913,16 +939,15 @@ public class SourceFilter extends AbstractFilter {
                 reloaderPath = reloaderPath.substring(1, reloaderPath.length() - 1);
                 File reloaderWar = new File(webappsDirectory, reloaderPath + ".war");
 
-                reloaderWar.delete();
-                new File(catalinaBase,
+                IoUtils.delete(reloaderWar);
+                IoUtils.delete(new File(catalinaBase,
                         "conf" + File.separator +
                         "Catalina" + File.separator +
                         "localhost" + File.separator +
-                        reloaderPath + ".xml").
-                        delete();
+                        reloaderPath + ".xml"));
 
                 addProgress("Deploying it to ", "/" + reloaderPath);
-                war.renameTo(reloaderWar);
+                IoUtils.rename(war, reloaderWar);
 
                 for (int i = 0; i < 20; ++ i) {
                     if (isReloaderAvailable(request)) {
@@ -940,7 +965,7 @@ public class SourceFilter extends AbstractFilter {
                 throw new IllegalStateException("Can't deploy!");
 
             } finally {
-                war.delete();
+                IoUtils.delete(war);
             }
         }
     }
@@ -949,13 +974,8 @@ public class SourceFilter extends AbstractFilter {
 
         public final String jsp;
 
-        private final ServletOutputStream output = new ServletOutputStream() {
-            @Override
-            public void write(int b) {
-            }
-        };
-
-        private final PrintWriter writer = new PrintWriter(output);
+        private final ServletOutputStream output = new IsolatingOutputStream();
+        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StringUtils.UTF_8));
 
         public IsolatingResponse(HttpServletResponse response, String jsp) {
             super(response);
@@ -970,6 +990,13 @@ public class SourceFilter extends AbstractFilter {
         @Override
         public PrintWriter getWriter() throws IOException {
             return writer;
+        }
+    }
+
+    private static final class IsolatingOutputStream extends ServletOutputStream {
+
+        @Override
+        public void write(int b) {
         }
     }
 }

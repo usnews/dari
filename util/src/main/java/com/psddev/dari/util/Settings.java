@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 import javax.naming.Binding;
 import javax.naming.Context;
@@ -21,8 +22,12 @@ import javax.naming.NamingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** Global map of settings. */
-public class Settings {
+public final class Settings {
 
     /**
      * Sub-key used to identify the implementation class for
@@ -42,11 +47,23 @@ public class Settings {
     /** Default properties file that contains all settings. */
     public static final String SETTINGS_FILE = "/settings.properties";
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
     private static final String JNDI_PREFIX = "java:comp/env";
+    private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
+    private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
     private static final String RANDOM_SECRET = UUID.randomUUID().toString();
 
-    private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
+    private static final LoadingCache<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<Class<?>, Constructor<?>>() {
+
+                @Override
+                public Constructor<?> load(Class<?> instanceClass) throws NoSuchMethodException {
+                    Constructor<?> constructor = instanceClass.getDeclaredConstructor();
+
+                    constructor.setAccessible(true);
+                    return constructor;
+                }
+            });
 
     private static final PullThroughValue<Map<String, Object>> SETTINGS = new PullThroughValue<Map<String, Object>>() {
 
@@ -81,6 +98,7 @@ public class Settings {
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
                     } catch (Throwable error) {
+                        LOGGER.warn("Can't read from JNDI!", error);
                     }
 
                     return Collections.unmodifiableMap(settings);
@@ -391,11 +409,9 @@ public class Settings {
                     interfaceClass.getName()));
         }
 
-        Class<?> instanceClass = null;
+        Class<?> instanceClass = ObjectUtils.getClassByName(instanceClassName);
 
-        try {
-            instanceClass = Class.forName(instanceClassName);
-        } catch (ClassNotFoundException ex) {
+        if (instanceClass == null) {
             throw new SettingsException(classKey, String.format(
                     "[%s] isn't a valid class!",
                     instanceClassName));
@@ -415,16 +431,17 @@ public class Settings {
         Constructor<?> constructor = null;
 
         try {
-            constructor = instanceClass.getDeclaredConstructor();
-        } catch (NoSuchMethodException ex) {
+            constructor = CONSTRUCTOR_CACHE.get(instanceClass);
+
+        } catch (ExecutionException error) {
             throw new SettingsException(classKey, String.format(
-                    "[%s] doesn't have a nullary constructor!"));
+                    "[%s] doesn't have a nullary constructor!",
+                    instanceClass.getName()));
         }
 
         T object;
 
         try {
-            constructor.setAccessible(true);
             object = (T) constructor.newInstance();
 
         } catch (IllegalAccessException ex) {

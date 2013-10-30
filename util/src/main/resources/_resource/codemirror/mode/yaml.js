@@ -1,1 +1,97 @@
-CodeMirror.defineMode("yaml",function(){var a=["true","false","on","off","yes","no"],b=new RegExp("\\b(("+a.join(")|(")+"))$","i");return{token:function(a,c){var d=a.peek(),e=c.escaped;c.escaped=!1;if(d=="#")return a.skipToEnd(),"comment";if(c.literal&&a.indentation()>c.keyCol)return a.skipToEnd(),"string";c.literal&&(c.literal=!1);if(a.sol()){c.keyCol=0,c.pair=!1,c.pairStart=!1;if(a.match(/---/))return"def";if(a.match(/\.\.\./))return"def";if(a.match(/\s*-\s+/))return"meta"}if(!c.pair&&a.match(/^\s*([a-z0-9\._-])+(?=\s*:)/i))return c.pair=!0,c.keyCol=a.indentation(),"atom";if(c.pair&&a.match(/^:\s*/))return c.pairStart=!0,"meta";if(a.match(/^(\{|\}|\[|\])/))return d=="{"?c.inlinePairs++:d=="}"?c.inlinePairs--:d=="["?c.inlineList++:c.inlineList--,"meta";if(c.inlineList>0&&!e&&d==",")return a.next(),"meta";if(c.inlinePairs>0&&!e&&d==",")return c.keyCol=0,c.pair=!1,c.pairStart=!1,a.next(),"meta";if(c.pairStart){if(a.match(/^\s*(\||\>)\s*/))return c.literal=!0,"meta";if(a.match(/^\s*(\&|\*)[a-z0-9\._-]+\b/i))return"variable-2";if(c.inlinePairs==0&&a.match(/^\s*-?[0-9\.\,]+\s?$/))return"number";if(c.inlinePairs>0&&a.match(/^\s*-?[0-9\.\,]+\s?(?=(,|}))/))return"number";if(a.match(b))return"keyword"}return c.pairStart=!1,c.escaped=d=="\\",a.next(),null},startState:function(){return{pair:!1,pairStart:!1,keyCol:0,inlinePairs:0,inlineList:0,literal:!1,escaped:!1}}}}),CodeMirror.defineMIME("text/x-yaml","yaml");
+CodeMirror.defineMode("yaml", function() {
+
+  var cons = ['true', 'false', 'on', 'off', 'yes', 'no'];
+  var keywordRegex = new RegExp("\\b(("+cons.join(")|(")+"))$", 'i');
+
+  return {
+    token: function(stream, state) {
+      var ch = stream.peek();
+      var esc = state.escaped;
+      state.escaped = false;
+      /* comments */
+      if (ch == "#" && (stream.pos == 0 || /\s/.test(stream.string.charAt(stream.pos - 1)))) {
+        stream.skipToEnd(); return "comment";
+      }
+      if (state.literal && stream.indentation() > state.keyCol) {
+        stream.skipToEnd(); return "string";
+      } else if (state.literal) { state.literal = false; }
+      if (stream.sol()) {
+        state.keyCol = 0;
+        state.pair = false;
+        state.pairStart = false;
+        /* document start */
+        if(stream.match(/---/)) { return "def"; }
+        /* document end */
+        if (stream.match(/\.\.\./)) { return "def"; }
+        /* array list item */
+        if (stream.match(/\s*-\s+/)) { return 'meta'; }
+      }
+      /* inline pairs/lists */
+      if (stream.match(/^(\{|\}|\[|\])/)) {
+        if (ch == '{')
+          state.inlinePairs++;
+        else if (ch == '}')
+          state.inlinePairs--;
+        else if (ch == '[')
+          state.inlineList++;
+        else
+          state.inlineList--;
+        return 'meta';
+      }
+
+      /* list seperator */
+      if (state.inlineList > 0 && !esc && ch == ',') {
+        stream.next();
+        return 'meta';
+      }
+      /* pairs seperator */
+      if (state.inlinePairs > 0 && !esc && ch == ',') {
+        state.keyCol = 0;
+        state.pair = false;
+        state.pairStart = false;
+        stream.next();
+        return 'meta';
+      }
+
+      /* start of value of a pair */
+      if (state.pairStart) {
+        /* block literals */
+        if (stream.match(/^\s*(\||\>)\s*/)) { state.literal = true; return 'meta'; };
+        /* references */
+        if (stream.match(/^\s*(\&|\*)[a-z0-9\._-]+\b/i)) { return 'variable-2'; }
+        /* numbers */
+        if (state.inlinePairs == 0 && stream.match(/^\s*-?[0-9\.\,]+\s?$/)) { return 'number'; }
+        if (state.inlinePairs > 0 && stream.match(/^\s*-?[0-9\.\,]+\s?(?=(,|}))/)) { return 'number'; }
+        /* keywords */
+        if (stream.match(keywordRegex)) { return 'keyword'; }
+      }
+
+      /* pairs (associative arrays) -> key */
+      if (!state.pair && stream.match(/^\s*\S+(?=\s*:($|\s))/i)) {
+        state.pair = true;
+        state.keyCol = stream.indentation();
+        return "atom";
+      }
+      if (state.pair && stream.match(/^:\s*/)) { state.pairStart = true; return 'meta'; }
+
+      /* nothing found, continue */
+      state.pairStart = false;
+      state.escaped = (ch == '\\');
+      stream.next();
+      return null;
+    },
+    startState: function() {
+      return {
+        pair: false,
+        pairStart: false,
+        keyCol: 0,
+        inlinePairs: 0,
+        inlineList: 0,
+        literal: false,
+        escaped: false
+      };
+    }
+  };
+});
+
+CodeMirror.defineMIME("text/x-yaml", "yaml");

@@ -6,7 +6,6 @@ import java.util.List;
 import javax.servlet.Filter;
 
 import com.psddev.dari.util.AbstractFilter;
-import com.psddev.dari.util.SourceFilter;
 import com.psddev.dari.util.StandardFilter;
 
 /**
@@ -16,7 +15,6 @@ import com.psddev.dari.util.StandardFilter;
  * <p>This filter loads:</p>
  *
  * <ul>
- * <li>{@link SourceFilter}</li>
  * <li>{@link ResetFilter}</li>
  * <li>{@link StandardFilter}</li>
  * <li>{@link ProfilingDatabaseFilter}</li>
@@ -30,7 +28,6 @@ public class ApplicationFilter extends AbstractFilter {
     @Override
     protected Iterable<Class<? extends Filter>> dependencies() {
         List<Class<? extends Filter>> dependencies = new ArrayList<Class<? extends Filter>>();
-        dependencies.add(SourceFilter.class);
         dependencies.add(StandardFilter.class);
         dependencies.add(ResetFilter.class);
         dependencies.add(ProfilingDatabaseFilter.class);

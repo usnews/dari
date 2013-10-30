@@ -41,7 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** JSP utility methods. */
-public class JspUtils {
+public final class JspUtils {
 
     private static final Pattern ABSOLUTE_URI_PATTERN = Pattern.compile("(?i)[a-z][-a-z0-9+.]*:.*");
     private static final String DEFAULT_COOKIE_SECRET = UUID.randomUUID().toString();
@@ -97,8 +97,11 @@ public class JspUtils {
                 try {
                     byte[] decodedBytes = DatatypeConverter.parseBase64Binary(authHeader.substring(spaceAt + 1));
                     decoded = new String(decodedBytes, encoding);
-                } catch (IllegalArgumentException ex) {
-                } catch (UnsupportedEncodingException ex) {
+                } catch (IllegalArgumentException error) {
+                    // Not a valid Base64 string, so just ignore the header
+                    // value.
+                } catch (UnsupportedEncodingException error) {
+                    throw new IllegalStateException(error);
                 }
 
                 if (!ObjectUtils.isBlank(decoded)) {
@@ -115,7 +118,7 @@ public class JspUtils {
         StringBuilder hb = new StringBuilder();
         hb.append("Basic realm=\"");
         hb.append(StringUtils.replaceAll(realm, "\"", "\\\""));
-        hb.append("\"");
+        hb.append('"');
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setHeader("WWW-Authenticate", hb.toString());
@@ -272,8 +275,15 @@ public class JspUtils {
      * Returns the URI that caused the error currently being handled
      * by the given {@code request}.
      */
-    public static String getErrorRequestUri(HttpServletRequest request) {
+    public static String getErrorRequestUri(ServletRequest request) {
         return (String) request.getAttribute("javax.servlet.error.request_uri");
+    }
+
+    /**
+     * Use {@link #getErrorRequestUri(ServletRequest)} instead.
+     */
+    public static String getErrorRequestUri(HttpServletRequest request) {
+        return getErrorRequestUri((ServletRequest) request);
     }
 
     /**
@@ -316,6 +326,11 @@ public class JspUtils {
     /** Returns the host URL from the given {@code request}. */
     public static String getHostUrl(HttpServletRequest request) {
         return request.getScheme() + "://" + getHost(request);
+    }
+
+    /** Returns the protocol relative host URL from the given {@code request}. */
+    public static String getProtocolRelativeHostUrl(HttpServletRequest request) {
+        return "//" + getHost(request);
     }
 
     /**
@@ -475,8 +490,15 @@ public class JspUtils {
      * Returns {@code true} if the given {@code request} is currently
      * handling an error.
      */
-    public static boolean isError(HttpServletRequest request) {
+    public static boolean isError(ServletRequest request) {
         return getErrorRequestUri(request) != null;
+    }
+
+    /**
+     * Use {@link #isError(ServletRequest)} instead.
+     */
+    public static boolean isError(HttpServletRequest request) {
+        return isError((ServletRequest) request);
     }
 
     /**
@@ -494,9 +516,9 @@ public class JspUtils {
     public static boolean isIncluded(ServletRequest request) {
         return request.getAttribute("javax.servlet.include.context_path") != null;
     }
-    
+
     /**
-     * Returns {@code true} if the given {@code request} is secure. This method 
+     * Returns {@code true} if the given {@code request} is secure. This method
      * checks:
      *
      * <ul>
@@ -558,7 +580,7 @@ public class JspUtils {
 
             connection.connect();
 
-            if (method.equals("POST")) {
+            if ("POST".equalsIgnoreCase(method)) {
                 connectionOut = new BufferedOutputStream(connection.getOutputStream());
                 // first try to get the input stream
                 try {
@@ -851,8 +873,11 @@ public class JspUtils {
                 String pathString = pathUri.toString();
                 contextPath = pathString.substring(0, pathString.length() - 1);
 
-            } catch (MalformedURLException ex) {
-            } catch (URISyntaxException ex) {
+            } catch (MalformedURLException error) {
+                // Default context path if the given path is malformed.
+
+            } catch (URISyntaxException error) {
+                // Default context path if the resolved URI is malformed.
             }
 
             if (contextPath == null) {
@@ -913,7 +938,10 @@ public class JspUtils {
                         } finally {
                             input.close();
                         }
-                    } catch (IOException ex) {
+                    } catch (IOException error) {
+                        LOGGER.warn(String.format(
+                                "Can't read [%s] settings file!", file),
+                                error);
                     }
                 }
 
@@ -964,6 +992,16 @@ public class JspUtils {
             Object... parameters) {
 
         return getHostUrl(request) + getAbsolutePath(context, request, url, parameters);
+    }
+
+    /** Returns the absolute protocol relative version of the given {@code url}. */
+    public static String getEmbeddedAbsoluteProtocolRelativeUrl(
+            ServletContext context,
+            HttpServletRequest request,
+            String url,
+            Object... parameters) {
+
+        return getProtocolRelativeHostUrl(request) + getAbsolutePath(context, request, url, parameters);
     }
 
     /**

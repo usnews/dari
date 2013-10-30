@@ -43,14 +43,14 @@ public abstract class AtomicOperation {
         @Override
         public void execute(State state) {
             String field = getField();
-            Object oldValue = state.getValue(field);
+            Object oldValue = state.getByPath(field);
             double newValue = value;
 
             if (oldValue instanceof Number) {
                 newValue += ((Number) oldValue).doubleValue();
             }
 
-            state.putValue(field, newValue);
+            state.putByPath(field, newValue);
         }
     }
 
@@ -70,7 +70,7 @@ public abstract class AtomicOperation {
         @Override
         public void execute(State state) {
             String field = getField();
-            Object oldValue = state.getValue(field);
+            Object oldValue = state.getByPath(field);
 
             if (oldValue instanceof Collection) {
                 @SuppressWarnings("unchecked")
@@ -80,7 +80,7 @@ public abstract class AtomicOperation {
             } else {
                 List<Object> values = new ArrayList<Object>();
                 values.add(value);
-                state.putValue(field, values);
+                state.putByPath(field, values);
             }
         }
     }
@@ -101,7 +101,7 @@ public abstract class AtomicOperation {
         @Override
         public void execute(State state) {
             String field = getField();
-            Object oldValue = state.getValue(field);
+            Object oldValue = state.getByPath(field);
 
             if (oldValue instanceof Collection) {
                 Collection<?> collection = (Collection<?>) oldValue;
@@ -131,8 +131,8 @@ public abstract class AtomicOperation {
         public void execute(State state) {
             String field = getField();
 
-            if (ObjectUtils.equals(state.getValue(field), oldValue)) {
-                state.putValue(field, newValue);
+            if (ObjectUtils.equals(state.getByPath(field), oldValue)) {
+                state.putByPath(field, newValue);
 
             } else {
                 throw new ReplacementException(state, field, oldValue, newValue);
@@ -153,7 +153,7 @@ public abstract class AtomicOperation {
 
         @Override
         public void execute(State state) {
-            state.putValue(getField(), value);
+            state.putByPath(getField(), value);
         }
     }
 
@@ -161,7 +161,7 @@ public abstract class AtomicOperation {
      * Thrown if the object state changes between when an atomic
      * replacement operation is requested and executed.
      */
-    public class ReplacementException extends RuntimeException {
+    public static class ReplacementException extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 

@@ -88,7 +88,9 @@ public interface FormInputProcessor {
     /** {@link FormInputProcessor} for {@link ObjectField#LIST_TYPE}. */
     public static class ForListRecord extends AbstractFormInputProcessor {
 
-        private FormInputProcessor.ForRecord forRecord;
+        private static final TypeReference<List<UUID>> LIST_UUID_TYPE = new TypeReference<List<UUID>>() { };
+
+        private final FormInputProcessor.ForRecord forRecord;
 
         public ForListRecord(FormWriter delegateWriter) {
             this.forRecord = new FormInputProcessor.ForRecord(delegateWriter);
@@ -126,7 +128,7 @@ public interface FormInputProcessor {
                 List<Object> objects = new ArrayList<Object>();
                 if (type != null) {
 
-                    List<UUID> objectIds = ObjectUtils.to(new TypeReference<List<UUID>>() {}, request.getParameterValues(inputName));
+                    List<UUID> objectIds = ObjectUtils.to(LIST_UUID_TYPE, request.getParameterValues(inputName));
                     for (UUID objectId : objectIds) {
                         if (objectId != null) {
                             Object object = forRecord.update(objectId.toString(), field, request);
@@ -141,7 +143,7 @@ public interface FormInputProcessor {
                 return objects;
 
             } else {
-                return ObjectUtils.to(new TypeReference<List<UUID>>() {}, request.getParameterValues(inputName));
+                return ObjectUtils.to(LIST_UUID_TYPE, request.getParameterValues(inputName));
             }
         }
     }
@@ -173,16 +175,19 @@ public interface FormInputProcessor {
 
         @Override
         public Object update(String inputName, ObjectField field, HttpServletRequest request) {
-            return ObjectUtils.to(new TypeReference<List<String>>() {}, request.getParameterValues(inputName));
+            return ObjectUtils.to(LIST_STRING_TYPE, request.getParameterValues(inputName));
         }
     }
 
     /** {@link FormInputProcessor} for {@link ObjectField#RECORD_TYPE}. */
     public static class ForRecord extends AbstractFormInputProcessor {
 
-        private FormWriter delegateWriter;
+        private final FormWriter delegateWriter;
 
+        /** Use {@link #ForRecord(FormWriter)} instead */
+        @Deprecated
         public ForRecord() {
+            this.delegateWriter = null;
         }
 
         public ForRecord(FormWriter delegateWriter) {
@@ -301,7 +306,9 @@ public interface FormInputProcessor {
     /** {@link FormInputProcessor} for {@link ObjectField#SET_TYPE}. */
     public static class ForSetRecord extends AbstractFormInputProcessor {
 
-        private FormInputProcessor.ForRecord forRecord;
+        private static final TypeReference<Set<UUID>> SET_UUID_TYPE = new TypeReference<Set<UUID>>() { };
+
+        private final FormInputProcessor.ForRecord forRecord;
 
         public ForSetRecord(FormWriter delegateWriter) {
             this.forRecord = new FormInputProcessor.ForRecord(delegateWriter);
@@ -328,7 +335,7 @@ public interface FormInputProcessor {
 
         @Override
         public Object update(String inputName, ObjectField field, HttpServletRequest request) {
-            return ObjectUtils.to(new TypeReference<Set<UUID>>() {}, request.getParameterValues(inputName));
+            return ObjectUtils.to(SET_UUID_TYPE, request.getParameterValues(inputName));
         }
     }
 

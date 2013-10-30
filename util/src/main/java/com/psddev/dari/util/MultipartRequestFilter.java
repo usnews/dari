@@ -36,9 +36,6 @@ public class MultipartRequestFilter extends AbstractFilter {
     /** {@link MultipartRequestFilter} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         public static MultipartRequest getInstance(HttpServletRequest request) {
             return (MultipartRequest) request.getAttribute(INSTANCE_ATTRIBUTE);
         }

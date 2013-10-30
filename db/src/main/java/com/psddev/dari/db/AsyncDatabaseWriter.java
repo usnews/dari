@@ -99,7 +99,7 @@ public class AsyncDatabaseWriter<E> extends AsyncConsumer<E> {
             }
 
         // Can't write in batch so try one by one.
-        } catch (Exception error1) {
+        } catch (RuntimeException error1) {
             for (E item : toBeCommitted) {
                 try {
                     database.beginWrites();
@@ -112,7 +112,7 @@ public class AsyncDatabaseWriter<E> extends AsyncConsumer<E> {
                         database.commitWrites();
                     }
 
-                } catch (Exception error2) {
+                } catch (RuntimeException error2) {
                     handleError(item, error2);
 
                 } finally {

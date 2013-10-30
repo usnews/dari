@@ -35,7 +35,7 @@ public class StringLogger extends MarkerIgnoringBase {
         printWriter = new PrintWriter(stringWriter);
         startTime = System.currentTimeMillis();
     }
-    
+
     private void log(String level, String message, Throwable throwable) {
 
         printWriter.print(System.currentTimeMillis() - startTime);

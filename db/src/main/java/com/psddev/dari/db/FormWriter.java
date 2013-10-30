@@ -84,7 +84,7 @@ public class FormWriter extends HtmlWriter {
         inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForListRecord(this));
         inputProcessors.put(ObjectField.LIST_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForListText());
         inputProcessors.put(ObjectField.NUMBER_TYPE, new FormInputProcessor.ForText());
-        inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor.ForRecord());
+        inputProcessors.put(ObjectField.RECORD_TYPE, new FormInputProcessor.ForRecord(this));
         inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.RECORD_TYPE, new FormInputProcessor.ForSetRecord(this));
         inputProcessors.put(ObjectField.SET_TYPE + "/" + ObjectField.TEXT_TYPE, new FormInputProcessor.ForSetText());
         inputProcessors.put(ObjectField.TEXT_TYPE, new FormInputProcessor.ForText());

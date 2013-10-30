@@ -24,7 +24,7 @@ public interface MailProvider extends SettingsBackedObject {
      */
     public static final class Static {
 
-        protected static final PullThroughCache<String, MailProvider>
+        private static final PullThroughCache<String, MailProvider>
                 INSTANCES = new PullThroughCache<String, MailProvider>() {
 
             @Override
@@ -32,9 +32,6 @@ public interface MailProvider extends SettingsBackedObject {
                 return Settings.newInstance(MailProvider.class, SETTING_PREFIX + "/" + name);
             }
         };
-
-        private Static() {
-        }
 
         /**
          * Returns the MailProvider instance associated with the given

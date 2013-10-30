@@ -198,6 +198,12 @@ public class SmtpMailProvider extends AbstractMailProvider {
         this.setUsername(ObjectUtils.to(String.class, settings.get("username")));
         this.setPassword(ObjectUtils.to(String.class, settings.get("password")));
 
+        Integer port = ObjectUtils.to(Integer.class, settings.get("port"));
+
+        if (port != null) {
+            this.setPort(port);
+        }
+
         Object useTls = settings.get("useTls");
         if (useTls != null) {
             this.setUseTls(ObjectUtils.to(Boolean.class, useTls));

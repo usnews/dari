@@ -59,7 +59,7 @@ public class SqlDatabaseException extends DatabaseException {
         if (sqlQuery != null) {
             messageBuilder.append(" (");
             messageBuilder.append(sqlQuery);
-            messageBuilder.append(")");
+            messageBuilder.append(')');
         }
 
         return messageBuilder.toString();

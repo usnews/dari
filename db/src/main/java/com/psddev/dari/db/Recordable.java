@@ -47,6 +47,38 @@ public interface Recordable {
         boolean value() default true;
     }
 
+    /**
+     * Specifies the JavaBeans property name that can be used to access an
+     * instance of the target type as a modification.
+     *
+     * <p>For example, given the following modification:</p>
+     *
+     * <blockquote><pre><code data-type="java">
+     *@Modification.BeanProperty("css")
+     *class CustomCss extends Modification&lt;Object&gt; {
+     *    public String getBodyClass() {
+     *        return getOriginalObject().getClass().getName().replace('.', '_');
+     *    }
+     *}
+     * </code></pre></blockquote>
+     *
+     *
+     * <p>The following becomes valid and will invoke the {@code getBodyClass}
+     * above, even if the {@code content} object doesn't define a
+     * {@code getCss} method.</p>
+     *
+     * <blockquote><pre><code data-type="jsp">
+     *${content.css.bodyClass}
+     * </code></pre></blockquote>
+     */
+    @Documented
+    @ObjectType.AnnotationProcessorClass(BeanPropertyProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BeanProperty {
+        String value();
+    }
+
     /** Specifies the maximum number of items allowed in the target field. */
     @Documented
     @ObjectField.AnnotationProcessorClass(CollectionMaximumProcessor.class)
@@ -143,6 +175,30 @@ public interface Recordable {
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ ElementType.FIELD, ElementType.TYPE })
     public @interface InternalName {
+        String value();
+    }
+
+    /**
+     * Specifies the name of the field in the junction query that should be
+     * used to populate the target field.
+     */
+    @Documented
+    @ObjectField.AnnotationProcessorClass(JunctionFieldProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface JunctionField {
+        String value();
+    }
+
+    /**
+     * Specifies the name of the position field in the junction query that
+     * should be used to order the collection in the target field.
+     */
+    @Documented
+    @ObjectField.AnnotationProcessorClass(JunctionPositionFieldProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface JunctionPositionField {
         String value();
     }
 
@@ -471,6 +527,15 @@ class AbstractProcessor implements ObjectType.AnnotationProcessor<Recordable.Abs
     }
 }
 
+class BeanPropertyProcessor implements ObjectType.AnnotationProcessor<Recordable.BeanProperty> {
+    @Override
+    public void process(ObjectType type, Recordable.BeanProperty annotation) {
+        if (type.getGroups().contains(Modification.class.getName())) {
+            type.setJavaBeanProperty(annotation.value());
+        }
+    }
+}
+
 class CollectionMaximumProcessor implements ObjectField.AnnotationProcessor<Annotation> {
     @Override
     @SuppressWarnings({ "all", "deprecation" })
@@ -579,6 +644,22 @@ class InternalNameProcessor implements ObjectType.AnnotationProcessor<Recordable
     }
 }
 
+class JunctionFieldProcessor implements ObjectField.AnnotationProcessor<Recordable.JunctionField> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.JunctionField annotation) {
+        field.setJunctionField(annotation.value());
+    }
+}
+
+class JunctionPositionFieldProcessor implements ObjectField.AnnotationProcessor<Recordable.JunctionPositionField> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.JunctionPositionField annotation) {
+        field.setJunctionPositionField(annotation.value());
+    }
+}
+
 class LabelFieldsProcessor implements ObjectType.AnnotationProcessor<Recordable.LabelFields> {
     @Override
     public void process(ObjectType type, Recordable.LabelFields annotation) {
@@ -605,10 +686,10 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
+        MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
 
-        fieldData.setIndexTable(MetricDatabase.METRIC_TABLE);
-        fieldData.setIndexTableColumnName(MetricDatabase.METRIC_DATA_FIELD);
+        fieldData.setIndexTable(MetricAccess.METRIC_TABLE);
+        fieldData.setIndexTableColumnName(MetricAccess.METRIC_DATA_FIELD);
         fieldData.setIndexTableSameColumnNames(false);
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);

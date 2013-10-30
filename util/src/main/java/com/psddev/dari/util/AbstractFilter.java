@@ -80,13 +80,6 @@ public abstract class AbstractFilter implements Filter {
     private static final String EXECUTED_MAP_ATTRIBUTE = ATTRIBUTE_PREFIX + "executedMap";
     private static final String FILTERS_ATTRIBUTE = ATTRIBUTE_PREFIX + "filters";
 
-    private static final PullThroughValue<Set<Class<? extends Auto>>> AUTO_CLASSES = new PullThroughValue<Set<Class<? extends Auto>>>() {
-        @Override
-        protected Set<Class<? extends Auto>> produce() {
-            return ObjectUtils.findClasses(Auto.class);
-        }
-    };
-
     private FilterConfig filterConfig;
     private ServletContext servletContext;
     private final List<Filter> initialized = new ArrayList<Filter>();
@@ -241,7 +234,7 @@ public abstract class AbstractFilter implements Filter {
             }
         }
 
-        for (Class<? extends Auto> autoClass : AUTO_CLASSES.get()) {
+        for (Class<? extends Auto> autoClass : ClassFinder.Static.findClasses(Auto.class)) {
             getFilter(autoClass).updateDependencies(getClass(), dependencyClasses);
         }
 
@@ -262,7 +255,7 @@ public abstract class AbstractFilter implements Filter {
                             continue;
                         }
 
-                    } else if (JspUtils.isError((HttpServletRequest) request)) {
+                    } else if (JspUtils.isError(request)) {
                         if (!hasErrorOverride(dependencyClass)) {
                             continue;
                         }
@@ -384,6 +377,7 @@ public abstract class AbstractFilter implements Filter {
                     override = Boolean.TRUE;
                     break;
                 } catch (NoSuchMethodException error) {
+                    // Try to find the method in the super class.
                 }
             }
         }

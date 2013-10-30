@@ -56,7 +56,9 @@ public class BuildDebugServlet extends HttpServlet {
         Properties build = null;
         try {
             build = getProperties(context);
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            // If the build properties can't be read, pretend it's empty so
+            // that the default label can be returned.
         }
         if (build == null) {
             build = new Properties();
@@ -137,7 +139,7 @@ public class BuildDebugServlet extends HttpServlet {
                     int prefixAt = issueUrl.indexOf(prefix);
                     if (prefixAt > -1) {
                         prefixAt += prefix.length();
-                        int slashAt = issueUrl.indexOf("/", prefixAt);
+                        int slashAt = issueUrl.indexOf('/', prefixAt);
                         String jiraId = slashAt > -1 ?
                                 issueUrl.substring(prefixAt, slashAt) :
                                 issueUrl.substring(prefixAt);
@@ -311,33 +313,31 @@ public class BuildDebugServlet extends HttpServlet {
                     writeEnd();
 
                 } else {
-                    MessageDigest md5 = null;
+                    MessageDigest md5;
+
                     try {
                         md5 = MessageDigest.getInstance("MD5");
-                    } catch (NoSuchAlgorithmException ex) {
+                    } catch (NoSuchAlgorithmException error) {
+                        throw new IllegalStateException(error);
                     }
 
                     try {
                         InputStream input = getServletContext().getResourceAsStream(path);
+
                         if (input != null) {
                             try {
-
-                                if (md5 != null) {
-                                    input = new DigestInputStream(input, md5);
-                                }
-
+                                input = new DigestInputStream(input, md5);
                                 int totalBytesRead = 0;
                                 int bytesRead = 0;
                                 byte[] buffer = new byte[4096];
+
                                 while ((bytesRead = input.read(buffer)) > 0) {
                                     totalBytesRead += bytesRead;
                                 }
 
                                 writeStart("td", "class", "num").writeObject(totalBytesRead).writeEnd();
                                 writeStart("td");
-                                    if (md5 != null) {
-                                        write(StringUtils.hex(md5.digest()));
-                                    }
+                                    write(StringUtils.hex(md5.digest()));
                                 writeEnd();
 
                             } finally {
@@ -345,7 +345,8 @@ public class BuildDebugServlet extends HttpServlet {
                             }
                         }
 
-                    } catch (IOException ex) {
+                    } catch (IOException error) {
+                        writeObject(error);
                     }
 
                     writeEnd();

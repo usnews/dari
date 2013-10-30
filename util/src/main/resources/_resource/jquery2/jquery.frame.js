@@ -106,8 +106,8 @@ $.plugin2('frame', {
 
                 } else {
                     body = $wrapper.html();
-                    body = body.replace(/^.*?<body[^>]*>/ig, '');
-                    body = body.replace(/<\/body>.*?$/ig, '');
+                    body = body.replace(/^[^]*?<body[^>]*>/ig, '');
+                    body = body.replace(/<\/body>[^]*?$/ig, '');
                 }
 
                 $frame.add($popup).removeClass(loadingClassName).addClass(loadedClassName);

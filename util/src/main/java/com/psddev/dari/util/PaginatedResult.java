@@ -96,6 +96,11 @@ public class PaginatedResult<E> {
         return getOffset() + 1;
     }
 
+    /**
+     * @deprecated Use {@code !instance.getItems().isEmpty()} instead}.
+     * @see #hasPages
+     */
+    @Deprecated
     public boolean hasItems() {
         return getItems().size() > 0;
     }
@@ -114,6 +119,10 @@ public class PaginatedResult<E> {
         return (long) Math.ceil((double) getCount() / getLimit());
     }
 
+    public boolean hasPages() {
+        return getOffset() > 0 || !getItems().isEmpty();
+    }
+
     // --- Expression Language support ---
 
     /** @see #hasPrevious() */
@@ -126,8 +135,14 @@ public class PaginatedResult<E> {
         return hasNext();
     }
 
-    /** @see #hasItems() */
+    /** @deprecated Use {@link #getHasPages} instead. */
+    @Deprecated
     public boolean getHasItems() {
         return hasItems();
+    }
+
+    /** @see #hasPages */
+    public boolean getHasPages() {
+        return hasPages();
     }
 }

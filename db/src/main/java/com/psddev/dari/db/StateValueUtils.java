@@ -4,23 +4,21 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.psddev.dari.util.DateUtils;
-import com.psddev.dari.util.ObjectMap;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.ObjectMap;
 import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.StorageItem;
 
 /** State value utility methods. */
 abstract class StateValueUtils {
@@ -42,8 +40,6 @@ abstract class StateValueUtils {
      * {@link #resolveReferences}.
      */
     private static final ThreadLocal<Map<UUID, Object>> CIRCULAR_REFERENCES = new ThreadLocal<Map<UUID, Object>>();
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(StateValueUtils.class);
 
     /** Converts the given {@code object} into an ID if it's a reference. */
     public static UUID toIdIfReference(Object object) {
@@ -124,6 +120,8 @@ abstract class StateValueUtils {
                 if (id != null) {
                     if (circularReferences.containsKey(id)) {
                         references.put(id, circularReferences.get(id));
+                    } else if (parentState != null && parentState.getExtras().containsKey(State.SUB_DATA_STATE_EXTRA_PREFIX + id)) {
+                       references.put(id, parentState.getExtras().get(State.SUB_DATA_STATE_EXTRA_PREFIX + id));
                     } else {
                         unresolvedIds.add(id);
                         unresolvedTypeIds.add(ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get(TYPE_KEY)));
@@ -201,7 +199,7 @@ abstract class StateValueUtils {
             String type,
             Object value) {
 
-        if (value == null) {
+        if (value == null && (field == null || ! field.isMetric())) {
             return null;
         }
 
@@ -286,7 +284,7 @@ abstract class StateValueUtils {
                     return new Date(((Number) value).longValue());
 
                 } else {
-                    return DateUtils.fromString(value.toString());
+                    return ObjectUtils.to(Date.class, value);
                 }
             }
         });
@@ -363,6 +361,32 @@ abstract class StateValueUtils {
             }
         });
 
+        m.put(ObjectField.REGION_TYPE, new Converter() {
+            @Override
+            public Object toJavaValue(
+                    Database database,
+                    Object object,
+                    ObjectField field,
+                    String subType,
+                    Object value) {
+
+                if (value instanceof Region) {
+                    return value;
+
+                } else if (value instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) value;
+
+                    Region region = Region.parseGeoJson(map);
+                    Region.parseCircles(region, (List<List<Double>>) map.get("circles"));
+
+                    return region;
+                }
+
+                throw new IllegalArgumentException();
+            }
+        });
+
         m.put(ObjectField.MAP_TYPE, new Converter() {
             @Override
             public Object toJavaValue(
@@ -382,6 +406,25 @@ abstract class StateValueUtils {
 
                 } else {
                     throw new IllegalArgumentException();
+                }
+            }
+        });
+
+        m.put(ObjectField.METRIC_TYPE, new Converter() {
+            @Override
+            public Object toJavaValue(
+                    Database database,
+                    Object object,
+                    ObjectField field,
+                    String subType,
+                    Object value) {
+
+                if (value instanceof Metric) {
+                    return value;
+
+                } else {
+                    Metric metric = new Metric(State.getInstance(object), field);
+                    return metric;
                 }
             }
         });

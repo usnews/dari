@@ -39,7 +39,7 @@ public class RoutingFilter extends AbstractFilter {
     protected void doInit() {
         servletWrappers = new ArrayList<ServletWrapper>();
 
-        for (Class<? extends Servlet> servletClass : ObjectUtils.findClasses(Servlet.class)) {
+        for (Class<? extends Servlet> servletClass : ClassFinder.Static.findClasses(Servlet.class)) {
             try {
                 if (Modifier.isAbstract(servletClass.getModifiers())) {
                     continue;
@@ -60,13 +60,15 @@ public class RoutingFilter extends AbstractFilter {
             }
         }
 
-        Collections.sort(servletWrappers, new Comparator<ServletWrapper>() {
-            @Override
-            public int compare(ServletWrapper x, ServletWrapper y) {
-                return y.getPath().length() - x.getPath().length();
-            }
-        });
+        Collections.sort(servletWrappers, PATH_LENGTH_COMPARATOR);
     }
+
+    private static final Comparator<ServletWrapper> PATH_LENGTH_COMPARATOR = new Comparator<ServletWrapper>() {
+        @Override
+        public int compare(ServletWrapper x, ServletWrapper y) {
+            return y.getPath().length() - x.getPath().length();
+        }
+    };
 
     @Override
     protected void doDestroy() {
@@ -113,11 +115,8 @@ public class RoutingFilter extends AbstractFilter {
     /** {@link RoutingFilter} utility methods. */
     public static final class Static {
 
-        private Static() {
-        }
-
         public static String getApplicationPath(String application) {
-            if (application == null) {
+            if (application == null || application.length() == 0) {
                 return "";
 
             } else {

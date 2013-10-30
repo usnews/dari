@@ -56,8 +56,8 @@ public class LogCapture {
 
     private class CaptureHandler extends Handler {
 
-        private Level _oldLevel;
-        private Level _newLevel;
+        private final Level _oldLevel;
+        private final Level _newLevel;
 
         public CaptureHandler(Level oldLevel, Level newLevel) {
             _oldLevel = oldLevel;

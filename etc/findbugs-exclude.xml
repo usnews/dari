@@ -1,0 +1,32 @@
+<FindBugsFilter>
+    <Match>
+        <Or>
+            <Bug code="DP" />
+            <Bug code="Se" />
+            <Bug pattern="SE_NO_SERIALVERSIONID" />
+            <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD" />
+        </Or>
+    </Match>
+
+    <Match>
+        <Bug pattern="PZLA_PREFER_ZERO_LENGTH_ARRAYS" />
+        <Or>
+            <And>
+                <Class name="com.psddev.dari.util.ClassEnhancer$Static" />
+                <Method name="enhance" />
+            </And>
+            <And>
+                <Class name="com.psddev.dari.util.CodeUtils$JspTransformer" />
+                <Method name="transform" />
+            </And>
+            <And>
+                <Class name="com.psddev.dari.util.MultipartRequest" />
+                <Method name="getFileItems" />
+            </And>
+            <And>
+                <Class name="com.psddev.dari.util.StringUtils" />
+                <Method name="fromCsv" />
+            </And>
+        </Or>
+    </Match>
+</FindBugsFilter>

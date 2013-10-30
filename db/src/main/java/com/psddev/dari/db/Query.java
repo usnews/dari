@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +15,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.psddev.dari.util.HtmlObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -102,7 +105,7 @@ import com.psddev.dari.util.UuidUtils;
  * @see <a href="http://developer.apple.com/mac/library/documentation/Cocoa/Conceptual/Predicates/predicates.html">Cocoa Predicates</a>
  * @see <a href="http://msdn.microsoft.com/en-us/netframework/aa904594.aspx">LINQ</a>
  */
-public class Query<E> extends Record implements Cloneable, HtmlObject {
+public class Query<E> extends Record {
 
     public static final Object MISSING_VALUE = new Object() {
         @Override
@@ -121,6 +124,8 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Query.class);
+
     private final String group;
     private final transient Class<?> objectClass;
 
@@ -134,7 +139,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     private boolean resolveInvisible;
     private Double timeout;
     private transient Map<String, Object> options;
-    private transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
+    private final transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
@@ -166,7 +171,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         } else {
             Query<Object> query = new Query<Object>(type.getInternalName(), type.getObjectClass());
 
-            query.setDatabase(type.getState().getRealDatabase());
+            // query.setDatabase(type.getState().getRealDatabase());
             return query;
         }
     }
@@ -264,20 +269,20 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
             // Change the query database if it's only querying over a single
             // type that has a source database.
-            for (ObjectType groupType : defaultDatabase.getEnvironment().getTypesByGroup(getGroup())) {
+            GROUP_TYPE: for (ObjectType groupType : defaultDatabase.getEnvironment().getTypesByGroup(getGroup())) {
                 for (ObjectType type : groupType.findConcreteTypes()) {
                     Database typeSource = type.getSourceDatabase();
 
                     if (typeSource == null) {
                         source = null;
-                        break;
+                        break GROUP_TYPE;
 
                     } else if (source == null) {
                         source = typeSource;
 
                     } else if (!source.equals(typeSource)) {
                         source = null;
-                        break;
+                        break GROUP_TYPE;
                     }
                 }
             }
@@ -634,17 +639,31 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
     }
 
     /**
-     * Returns all types that belong to the group in the given
-     * {@code environment}.
+     * Returns all types that belong to this query's group in the given
+     * {@code environment}. If this query was initialized with an object
+     * class, the types that don't have backing Java classes are excluded.
+     *
+     * @param environment Can't be {@code null}.
+     * @return Never {@code null}.
      */
     public Set<ObjectType> getConcreteTypes(DatabaseEnvironment environment) {
         Set<ObjectType> types = environment.getTypesByGroup(getGroup());
+        Class<?> queryObjectClass = getObjectClass();
+
         for (Iterator<ObjectType> i = types.iterator(); i.hasNext(); ) {
             ObjectType type = i.next();
+            Class<?> typeObjectClass = type.getObjectClass();
+
             if (!type.isConcrete()) {
+                i.remove();
+
+            } else if (queryObjectClass != null &&
+                    (typeObjectClass == null ||
+                    !queryObjectClass.isAssignableFrom(typeObjectClass))) {
                 i.remove();
             }
         }
+
         return types;
     }
 
@@ -761,14 +780,13 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
                 if (field == null) {
                     for (ObjectType fieldType : fieldTypes) {
                         field = fieldType.getField(keyFirst);
-                        if (field != null) {
-                            fieldTypes = field.getTypes();
-                            break;
-                        }
+                        break;
                     }
                 }
 
                 if (field != null) {
+                    fieldTypes = field.getTypes();
+
                     if (hasMore && ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
                         boolean isEmbedded = field.isEmbedded();
 
@@ -884,6 +902,10 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         public Query<?> getSubQueryWithComparison(ComparisonPredicate comparison);
 
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index);
+
+        public Query<?> getSubQueryWithGroupBy();
+
+        public ObjectField getSubQueryKeyField();
 
         public String getHashAttribute();
 
@@ -1014,9 +1036,41 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         }
 
         @Override
+        public Query<?> getSubQueryWithGroupBy() {
+            if (subQueryTypes == null) {
+                return null;
+            }
+
+            Query<?> subQuery = Query.fromAll();
+            String keySuffix = "/" + subQueryKey;
+
+            for (ObjectType type : subQueryTypes) {
+                subQuery.sortAscending(type.getInternalName() + keySuffix);
+            }
+
+            return subQuery;
+        }
+
+        @Override
+        public ObjectField getSubQueryKeyField() {
+            if (subQueryTypes == null || subQueryKey == null) {
+                return null;
+            }
+            for (ObjectType subQueryType : subQueryTypes) {
+                ObjectField keyField = subQueryType.getField(subQueryKey);
+                if (keyField != null) {
+                    return keyField;
+                }
+            }
+            return null;
+        }
+
+        @Override
         public String getHashAttribute() {
-            if (hashAttribute == null) return null;
-            return hashAttribute.toLowerCase();
+            if (hashAttribute == null) {
+                return null;
+            }
+            return hashAttribute.toLowerCase(Locale.ENGLISH);
         }
     }
 
@@ -1065,6 +1119,16 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
 
         @Override
         public Query<?> getSubQueryWithSorter(Sorter sorter, int index) {
+            return null;
+        }
+
+        @Override
+        public Query<?> getSubQueryWithGroupBy() {
+            return null;
+        }
+
+        @Override
+        public ObjectField getSubQueryKeyField() {
             return null;
         }
 
@@ -1223,32 +1287,32 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         for (Sorter sorter : getSorters()) {
             codeBuilder.append(".sort(\"");
             codeBuilder.append(sorter.getOperator());
-            codeBuilder.append("\"");
+            codeBuilder.append('"');
             for (Object option : sorter.getOptions()) {
                 codeBuilder.append(", ");
                 if (option instanceof String) {
-                    codeBuilder.append("\"");
+                    codeBuilder.append('"');
                     codeBuilder.append(((String) option).replaceAll("\"", "\\\""));
-                    codeBuilder.append("\"");
+                    codeBuilder.append('"');
                 } else {
                     codeBuilder.append(option);
                 }
             }
-            codeBuilder.append(")");
+            codeBuilder.append(')');
         }
 
         List<String> fields = getFields();
         if (fields != null) {
             codeBuilder.append(".fields(");
             for (String field : fields) {
-                codeBuilder.append("\"");
+                codeBuilder.append('"');
                 codeBuilder.append(field);
                 codeBuilder.append("\", ");
             }
             if (!fields.isEmpty()) {
                 codeBuilder.setLength(codeBuilder.length() - 2);
             }
-            codeBuilder.append(")");
+            codeBuilder.append(')');
         }
 
         writer.writeStart("span", "class", "dari-query");
@@ -1325,7 +1389,7 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         stringBuilder.append(", isResolveToReferenceOnly=").append(isResolveToReferenceOnly);
         stringBuilder.append(", timeout=").append(timeout);
         stringBuilder.append(", options=").append(options);
-        stringBuilder.append("}");
+        stringBuilder.append('}');
         return stringBuilder.toString();
     }
 
@@ -1422,6 +1486,58 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
         return !getDatabase().readPartial(this.clone().referenceOnly(), count, 1).getItems().isEmpty();
     }
 
+    /**
+     * Returns a partial list of all objects matching this query filtered
+     * by the given {@code filter} within the range of the given
+     * {@code offset} and {@code limit}.
+     *
+     * @param offset Must be greater than or equal to {@code 0}.
+     * @param limit Must be greater than {@code 0}.
+     * @param filter If {@code null}, doesn't filter.
+     * @return The paginated result's count won't be absolutely accurate,
+     * but it'll be enough to allow pagination methods like
+     * {@link PaginatedResult#hasNext} to work.
+     */
+    public PaginatedResult<E> selectFiltered(long offset, int limit, QueryFilter<? super E> filter) {
+        if (filter == null) {
+            return select(offset, limit);
+        }
+
+        Iterator<E> iterator = iterable(0).iterator();
+        List<E> items = new ArrayList<E>();
+
+        try {
+            int index = 0;
+
+            while (iterator.hasNext()) {
+                E item = iterator.next();
+
+                if (item != null && filter.include(item)) {
+                    ++ index;
+
+                    if (index > offset) {
+                        items.add(item);
+
+                        if (items.size() > limit) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+        } finally {
+            if (iterator instanceof Closeable) {
+                try {
+                    ((Closeable) iterator).close();
+                } catch (IOException error) {
+                    LOGGER.debug("Can't close iterator [{}]!", iterator);
+                }
+            }
+        }
+
+        return new PaginatedResult<E>(offset, limit, offset + items.size(), items);
+    }
+
     // --- Database.Static bridge ---
 
     /**
@@ -1454,9 +1570,6 @@ public class Query<E> extends Record implements Cloneable, HtmlObject {
             m.put("_count", COUNT_KEY);
             m.put("_fields", ANY_KEY);
             KEY_ALIASES = m;
-        }
-
-        private Static() {
         }
 
         /** Returns the canonical form of the given {@code key}. */

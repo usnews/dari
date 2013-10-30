@@ -1,10 +1,13 @@
 package com.psddev.dari.db;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 import com.psddev.dari.util.ObjectUtils;
 
-public class ObjectFieldComparator implements Comparator<Object> {
+public class ObjectFieldComparator implements Comparator<Object>, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final String field;
     private final boolean isNullGreatest;
@@ -29,8 +32,8 @@ public class ObjectFieldComparator implements Comparator<Object> {
         State xState = State.getInstance(x);
         State yState = State.getInstance(y);
 
-        Object xValue = xState != null ? filter(xState.getValue(field)) : null;
-        Object yValue = yState != null ? filter(yState.getValue(field)) : null;
+        Object xValue = xState != null ? filter(xState.getByPath(field)) : null;
+        Object yValue = yState != null ? filter(yState.getByPath(field)) : null;
 
         return ObjectUtils.compare(xValue, yValue, isNullGreatest);
     }

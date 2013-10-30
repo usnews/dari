@@ -3,15 +3,23 @@ package com.psddev.dari.util;
 /** Simple email message class with builder pattern support **/
 public class MailMessage {
 
-    private final String to;
+    private String to;
     private String from;
     private String replyTo;
     private String subject;
     private String bodyPlain;
     private String bodyHtml;
 
+    public MailMessage() {
+    }
+
     public MailMessage(String to) {
         this.to = to;
+    }
+
+    public MailMessage to(String to) {
+        this.to = to;
+        return this;
     }
 
     public MailMessage from(String from) {

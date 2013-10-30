@@ -39,7 +39,7 @@ public class AggregateException extends RuntimeException {
         } else {
             StringBuilder mb = new StringBuilder();
             for (Throwable cause : causes) {
-                mb.append("\n").append(cause.getClass().getName());
+                mb.append('\n').append(cause.getClass().getName());
                 mb.append(": ").append(cause.getMessage());
             }
             return mb.toString();

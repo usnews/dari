@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
@@ -95,6 +96,9 @@ public class SolrDebugServlet extends HttpServlet {
                         }
                     }
                     solrQuery.setParam("debugQuery", true);
+
+                    Throwable error = null;
+
                     try {
                         long startTime = System.nanoTime();
                         QueryResponse response = server.query(solrQuery, SolrRequest.METHOD.POST);
@@ -137,9 +141,15 @@ public class SolrDebugServlet extends HttpServlet {
                             writeEnd();
                         writeEnd();
 
-                    } catch (Exception ex) {
+                    } catch (IOException e) {
+                        error = e;
+                    } catch (SolrServerException e) {
+                        error = e;
+                    }
+
+                    if (error != null) {
                         writeStart("div", "class", "alert alert-error");
-                            writeObject(ex);
+                            writeObject(error);
                         writeEnd();
                     }
                 }

@@ -332,10 +332,7 @@ public class Stats {
     }
 
     /** {@link Stats} utility methods. */
-    public final static class Static {
-
-        private Static() {
-        }
+    public static final class Static {
 
         /**
          * Returns all active stats instances.

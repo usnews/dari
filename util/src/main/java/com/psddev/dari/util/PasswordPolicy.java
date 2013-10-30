@@ -23,7 +23,7 @@ public interface PasswordPolicy extends SettingsBackedObject {
      */
     public static final class Static {
 
-        protected static final PullThroughCache<String, PasswordPolicy>
+        private static final PullThroughCache<String, PasswordPolicy>
                 INSTANCES = new PullThroughCache<String, PasswordPolicy>() {
 
             @Override
@@ -31,9 +31,6 @@ public interface PasswordPolicy extends SettingsBackedObject {
                 return Settings.newInstance(PasswordPolicy.class, SETTING_PREFIX + "/" + name);
             }
         };
-
-        private Static() {
-        }
 
         /**
          * Returns the password policy associated with the given

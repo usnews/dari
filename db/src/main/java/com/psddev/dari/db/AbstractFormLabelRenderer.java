@@ -22,7 +22,9 @@ public abstract class AbstractFormLabelRenderer implements FormLabelRenderer {
         HtmlWriter html = new HtmlWriter(string);
         try {
             doDisplay(inputId, inputName, field, html);
-        } catch (IOException ex) {
+        } catch (IOException error) {
+            // This should never happen since StringWriter doesn't throw
+            // IOException.
         }
         return string.toString();
     }

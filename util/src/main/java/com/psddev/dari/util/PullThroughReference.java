@@ -38,13 +38,13 @@ public interface PullThroughReference<K, V> {
      */
     public static class Soft<K, V> extends SoftReference<V> implements PullThroughReference<K, V> {
 
-        public final K key;
-        public final Date produceDate;
+        private final K key;
+        private final Long produceTime;
 
         public Soft(ReferenceQueue<V> queue, K key, V value, Date produceDate) {
             super(value, queue);
             this.key = key;
-            this.produceDate = produceDate;
+            this.produceTime = produceDate != null ? produceDate.getTime() : null;
         }
 
         @Override
@@ -54,7 +54,7 @@ public interface PullThroughReference<K, V> {
 
         @Override
         public Date getProduceDate() {
-            return produceDate;
+            return produceTime != null ? new Date(produceTime) : null;
         }
 
         @Override
@@ -71,12 +71,12 @@ public interface PullThroughReference<K, V> {
 
         private final K key;
         private final V value;
-        private final Date produceDate;
+        private final Long produceTime;
 
         public Strong(K key, V value, Date produceDate) {
             this.key = key;
             this.value = value;
-            this.produceDate = produceDate;
+            this.produceTime = produceDate != null ? produceDate.getTime() : null;
         }
 
         @Override
@@ -91,7 +91,7 @@ public interface PullThroughReference<K, V> {
 
         @Override
         public Date getProduceDate() {
-            return produceDate;
+            return produceTime != null ? new Date(produceTime) : null;
         }
 
         @Override
@@ -107,13 +107,13 @@ public interface PullThroughReference<K, V> {
      */
     public static class Weak<K, V> extends WeakReference<V> implements PullThroughReference<K, V> {
 
-        public final K key;
-        public final Date produceDate;
+        private final K key;
+        private final Long produceTime;
 
         public Weak(ReferenceQueue<V> queue, K key, V value, Date produceDate) {
             super(value, queue);
             this.key = key;
-            this.produceDate = produceDate;
+            this.produceTime = produceDate != null ? produceDate.getTime() : null;
         }
 
         @Override
@@ -123,7 +123,7 @@ public interface PullThroughReference<K, V> {
 
         @Override
         public Date getProduceDate() {
-            return produceDate;
+            return produceTime != null ? new Date(produceTime) : null;
         }
 
         @Override

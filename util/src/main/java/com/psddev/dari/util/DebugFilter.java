@@ -58,14 +58,27 @@ public class DebugFilter extends AbstractFilter {
 
     public static final String WEB_INF_DEBUG = "/WEB-INF/_debug/";
 
-    private final PullThroughValue<Map<String, ServletWrapper>>
-            debugServletWrappers = new PullThroughValue<Map<String, ServletWrapper>>() {
+    private final transient Lazy<Map<String, ServletWrapper>> debugServletWrappers = new Lazy<Map<String, ServletWrapper>>() {
+
+        {
+            CodeUtils.addRedefineClassesListener(new CodeUtils.RedefineClassesListener() {
+                @Override
+                public void redefined(Set<Class<?>> classes) {
+                    for (Class<?> c : classes) {
+                        if (Servlet.class.isAssignableFrom(c)) {
+                            reset();
+                            break;
+                        }
+                    }
+                }
+            });
+        }
 
         @Override
-        protected Map<String, ServletWrapper> produce() {
+        protected Map<String, ServletWrapper> create() {
             Map<String, ServletWrapper> wrappers = new TreeMap<String, ServletWrapper>();
 
-            for (Class<?> servletClass : ObjectUtils.findClasses(Servlet.class)) {
+            for (Class<? extends Servlet> servletClass : ClassFinder.Static.findClasses(Servlet.class)) {
                 try {
                     if (Modifier.isAbstract(servletClass.getModifiers())) {
                         continue;
@@ -73,12 +86,14 @@ public class DebugFilter extends AbstractFilter {
 
                     String path = null;
                     Path pathAnnotation = servletClass.getAnnotation(Path.class);
+
                     if (pathAnnotation != null) {
                         path = pathAnnotation.value();
                     }
 
                     if (ObjectUtils.isBlank(path)) {
                         Name nameAnnotation = servletClass.getAnnotation(Name.class);
+
                         if (nameAnnotation != null) {
                             path = nameAnnotation.value();
                         }
@@ -88,9 +103,7 @@ public class DebugFilter extends AbstractFilter {
                         continue;
                     }
 
-                    @SuppressWarnings("unchecked")
-                    ServletWrapper wrapper = new ServletWrapper((Class<? extends Servlet>) servletClass);
-                    wrappers.put(path, wrapper);
+                    wrappers.put(path, new ServletWrapper(servletClass));
 
                 } catch (Throwable ex) {
                     LOGGER.warn(String.format(
@@ -101,6 +114,13 @@ public class DebugFilter extends AbstractFilter {
 
             LOGGER.info("Found debug servlets: {}", wrappers.keySet());
             return wrappers;
+        }
+
+        @Override
+        protected void destroy(Map<String, ServletWrapper> wrappers) {
+            for (ServletWrapper wrapper : wrappers.values()) {
+                wrapper.destroyServlet();
+            }
         }
     };
 
@@ -118,11 +138,7 @@ public class DebugFilter extends AbstractFilter {
 
     @Override
     protected void doDestroy() {
-        if (debugServletWrappers.isProduced()) {
-            for (ServletWrapper wrapper : debugServletWrappers.get().values()) {
-                wrapper.destroyServlet();
-            }
-        }
+        debugServletWrappers.reset();
     }
 
     @Override
@@ -139,77 +155,8 @@ public class DebugFilter extends AbstractFilter {
             try {
                 super.doDispatch(request, response, chain);
 
-            } catch (final Throwable ex) {
-                new PageWriter(getServletContext(), request, response) {{
-                    String id = page.createId();
-                    String servletPath = JspUtils.getCurrentServletPath(page.getRequest());
-
-                    writeStart("div", "id", id);
-                        writeStart("pre", "class", "alert alert-error");
-                            String noFile = null;
-                            if (ex instanceof ServletException) {
-                                String message = ex.getMessage();
-                                if (message != null) {
-                                    Matcher noFileMatcher = NO_FILE_PATTERN.matcher(message);
-                                    if (noFileMatcher.matches()) {
-                                        noFile = noFileMatcher.group(1);
-                                    }
-                                }
-                            }
-
-                            if (noFile != null) {
-                                writeStart("strong").writeHtml(servletPath).writeEnd().writeHtml(" doesn't exist!");
-
-                            } else {
-                                writeHtml("Can't render ");
-                                writeStart("a",
-                                        "target", "_blank",
-                                        "href", DebugFilter.Static.getServletPath(page.getRequest(), "code",
-                                                "action", "edit",
-                                                "type", "JSP",
-                                                "servletPath", servletPath));
-                                    writeHtml(servletPath);
-                                writeEnd();
-                                writeHtml("!\n\n");
-
-                                List<String> paramNames = page.paramNamesList();
-                                if (!ObjectUtils.isBlank(paramNames)) {
-                                    writeHtml("Parameters:\n");
-                                    for (String name : paramNames) {
-                                        for (String value : page.params(String.class, name)) {
-                                            writeHtml(name);
-                                            writeHtml('=');
-                                            writeHtml(value);
-                                            writeHtml('\n');
-                                        }
-                                    }
-                                    writeHtml('\n');
-                                }
-
-                                writeObject(ex);
-                            }
-                        writeEnd();
-                    writeEnd();
-
-                    writeStart("script", "type", "text/javascript");
-                        write("(function() {");
-                            write("var f = document.createElement('iframe');");
-                            write("f.frameBorder = '0';");
-                            write("var fs = f.style;");
-                            write("fs.background = 'transparent';");
-                            write("fs.border = 'none';");
-                            write("fs.overflow = 'hidden';");
-                            write("fs.width = '100%';");
-                            write("f.src = '");
-                            write(page.js(JspUtils.getAbsolutePath(page.getRequest(), "/_resource/dari/alert.html", "id", id)));
-                            write("';");
-                            write("var a = document.getElementById('");
-                            write(id);
-                            write("');");
-                            write("a.parentNode.insertBefore(f, a.nextSibling);");
-                        write("})();");
-                    writeEnd();
-                }};
+            } catch (Throwable error) {
+                Static.writeError(request, response, error);
             }
         }
     }
@@ -278,12 +225,7 @@ public class DebugFilter extends AbstractFilter {
         if (!ObjectUtils.isBlank(action)) {
             ServletWrapper wrapper = debugServletWrappers.get().get(action);
             if (wrapper != null) {
-                wrapper.serviceServlet(new HttpServletRequestWrapper(request) {
-                    @Override
-                    public String getPathInfo() {
-                        return pathInfo;
-                    }
-                }, response);
+                wrapper.serviceServlet(new PathInfoOverrideRequest(request, pathInfo), response);
                 return;
             }
 
@@ -293,7 +235,10 @@ public class DebugFilter extends AbstractFilter {
                     JspUtils.forward(request, response, actionJsp);
                     return;
                 }
-            } catch (MalformedURLException ex) {
+            } catch (MalformedURLException error) {
+                // If actionJsp isn't a valid URL, pretend that the action
+                // parameter wasn't provided by falling through to the code
+                // path below.
             }
         }
 
@@ -388,11 +333,23 @@ public class DebugFilter extends AbstractFilter {
         }};
     }
 
+    private static final class PathInfoOverrideRequest extends HttpServletRequestWrapper {
+
+        private final String pathInfo;
+
+        public PathInfoOverrideRequest(HttpServletRequest request, String pathInfo) {
+            super(request);
+            this.pathInfo = pathInfo;
+        }
+
+        @Override
+        public String getPathInfo() {
+            return pathInfo;
+        }
+    }
+
     /** {@link DebugFilter} utility methods. */
     public static final class Static {
-
-        private Static() {
-        }
 
         /**
          * Returns the path to the debugging servlet described in the
@@ -400,6 +357,104 @@ public class DebugFilter extends AbstractFilter {
          */
         public static String getServletPath(HttpServletRequest request, String path, Object... parameters) {
             return JspUtils.getAbsolutePath(request, getInterceptPath() + path, parameters);
+        }
+
+        /**
+         * Writes a pretty message about the given {@code error}.
+         *
+         * @param request Can't be {@code null}.
+         * @param response Can't be {@code null}.
+         * @param error Can't be {@code null}.
+         */
+        public static void writeError(
+                HttpServletRequest request,
+                HttpServletResponse response,
+                Throwable error)
+                throws IOException {
+
+            @SuppressWarnings("resource")
+            WebPageContext page = new WebPageContext((ServletContext) null, request, response);
+            String id = page.createId();
+            String servletPath = JspUtils.getCurrentServletPath(request);
+
+            response.setContentType("text/html");
+            page.putAllStandardDefaults();
+
+            page.writeStart("div", "id", id);
+                page.writeStart("pre", "class", "alert alert-error");
+                    String noFile = null;
+
+                    if (error instanceof ServletException) {
+                        String message = error.getMessage();
+
+                        if (message != null) {
+                            Matcher noFileMatcher = NO_FILE_PATTERN.matcher(message);
+
+                            if (noFileMatcher.matches()) {
+                                noFile = noFileMatcher.group(1);
+                            }
+                        }
+                    }
+
+                    if (noFile != null) {
+                        page.writeStart("strong");
+                            page.writeHtml(servletPath);
+                        page.writeEnd();
+                        page.writeHtml(" doesn't exist!");
+
+                    } else {
+                        page.writeHtml("Can't render ");
+                        page.writeStart("a",
+                                "target", "_blank",
+                                "href", DebugFilter.Static.getServletPath(request, "code",
+                                        "action", "edit",
+                                        "type", "JSP",
+                                        "servletPath", servletPath));
+                            page.writeHtml(servletPath);
+                        page.writeEnd();
+                        page.writeHtml("!");
+                    }
+
+                    page.writeHtml("\n\n");
+                    page.writeObject(error);
+
+                    List<String> paramNames = page.paramNamesList();
+
+                    if (!ObjectUtils.isBlank(paramNames)) {
+                        page.writeHtml("Parameters:\n");
+
+                        for (String name : paramNames) {
+                            for (String value : page.params(String.class, name)) {
+                                page.writeHtml(name);
+                                page.writeHtml('=');
+                                page.writeHtml(value);
+                                page.writeHtml('\n');
+                            }
+                        }
+
+                        page.writeHtml('\n');
+                    }
+                page.writeEnd();
+            page.writeEnd();
+
+            page.writeStart("script", "type", "text/javascript");
+                page.writeRaw("(function() {");
+                    page.writeRaw("var f = document.createElement('iframe');");
+                    page.writeRaw("f.frameBorder = '0';");
+                    page.writeRaw("var fs = f.style;");
+                    page.writeRaw("fs.background = 'transparent';");
+                    page.writeRaw("fs.border = 'none';");
+                    page.writeRaw("fs.overflow = 'hidden';");
+                    page.writeRaw("fs.width = '100%';");
+                    page.writeRaw("f.src = '");
+                    page.writeRaw(page.js(JspUtils.getAbsolutePath(page.getRequest(), "/_resource/dari/alert.html", "id", id)));
+                    page.writeRaw("';");
+                    page.writeRaw("var a = document.getElementById('");
+                    page.writeRaw(id);
+                    page.writeRaw("');");
+                    page.writeRaw("a.parentNode.insertBefore(f, a.nextSibling);");
+                page.writeRaw("})();");
+            page.writeEnd();
         }
     }
 
@@ -469,6 +524,7 @@ public class DebugFilter extends AbstractFilter {
         public void includeStandardStylesheetsAndScripts() throws IOException {
             includeStylesheet("/_resource/bootstrap/css/bootstrap.min.css");
             includeStylesheet("/_resource/codemirror/lib/codemirror.css");
+            includeStylesheet("/_resource/codemirror/addon/dialog/dialog.css");
 
             writeStart("style", "type", "text/css");
                 write("@font-face { font-family: 'AauxNextMedium'; src: url('/_resource/aauxnext-md-webfont.eot'); src: local('☺'), url('/_resource/aauxnext-md-webfont.woff') format('woff'), url('/_resource/aauxnext-md-webfont.ttf') format('truetype'), url('/_resource/aauxnext-md-webfont.svg#webfontfLsPAukW') }");
@@ -482,7 +538,8 @@ public class DebugFilter extends AbstractFilter {
                 write(".popup .content { background-color: white; -moz-border-radius: 5px; -webkit-border-radius: 5px; border-radius: 5px; -moz-box-shadow: 0 0 10px #777; -webkit-box-shadow: 0 0 10px #777; box-shadow: 0 0 10px #777; position: relative; top: 10px; }");
                 write(".popup .content .marker { border-color: transparent transparent white transparent; border-style: solid; border-width: 10px; left: 5px; position: absolute; top: -20px; }");
                 write(".CodeMirror-scroll { height: auto; overflow-x: auto; overflow-y: hidden; width: 100%; }");
-                write(".CodeMirror pre { font-family: Menlo, Monaco, 'Courier New', monospace; font-size: 12px; }");
+                write(".CodeMirror { height: auto; }");
+                write(".CodeMirror pre { font-family: Menlo, Monaco, 'Courier New', monospace; font-size: 12px; line-height: 1.5em;}");
                 write(".CodeMirror .selected { background-color: #FCF8E3; }");
                 write(".CodeMirror .errorLine { background-color: #F2DEDE; }");
                 write(".CodeMirror .errorColumn { background-color: #B94A48; color: white; }");
@@ -497,6 +554,10 @@ public class DebugFilter extends AbstractFilter {
             includeScript("/_resource/jquery/jquery.popup.js");
             includeScript("/_resource/codemirror/lib/codemirror.js");
             includeScript("/_resource/codemirror/mode/clike.js");
+            includeScript("/_resource/codemirror/keymap/vim.js");
+            includeScript("/_resource/codemirror/addon/dialog/dialog.js");
+            includeScript("/_resource/codemirror/addon/search/searchcursor.js");
+            includeScript("/_resource/codemirror/addon/search/search.js");
 
             writeStart("script", "type", "text/javascript");
                 write("$(function() {");

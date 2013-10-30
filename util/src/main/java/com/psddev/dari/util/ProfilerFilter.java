@@ -269,13 +269,10 @@ public class ProfilerFilter extends AbstractFilter {
     }
 
     /** {@link ProfilerFilter} utility methods. */
-    public final static class Static {
+    public static final class Static {
 
         private static final String ATTRIBUTE_PREFIX = ProfilerFilter.class.getName() + ".";
         private static final String RESULT_WRITER_ATTRIBUTE = ATTRIBUTE_PREFIX + ".resultWriter";
-
-        private Static() {
-        }
 
         /**
          * Returns the HTML writer used to render the result.
@@ -337,7 +334,9 @@ public class ProfilerFilter extends AbstractFilter {
                 writer.write(String.valueOf(eventIndex));
                 writer.write("\"></span>");
 
-            } catch (IOException ex) {
+            } catch (IOException error) {
+                // Writing the marker to the output isn't strictly necessary
+                // for this filter to function, so ignore the error.
             }
 
             return event;

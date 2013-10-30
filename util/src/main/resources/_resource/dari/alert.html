@@ -5,26 +5,64 @@
 <link href="../bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css">
 <style type="text/css">
 p { font-family: inherit; font-size: inherit; }
+.dari-throwable { margin-bottom: 20px; }
+.dari-stack-trace { margin-bottom: 0; }
+.showMore { margin-left: 25px; }
 </style>
 
 </head>
 <body style="background: transparent; overflow: hidden;">
 
+<script type="text/javascript" src="../jquery/jquery-1.7.1.min.js"></script>
 <script type="text/javascript">
 (function() {
-    var alertMessage = parent.document.getElementById(/[?&]id=([^&]*)(&|$)/.exec(location.search)[1]);
+    var alertMessage = parent.document.getElementById(/[?&]id=([^&]*)(&|$)/.exec(location.search)[1]),
+            body,
+            resizeFrame;
 
     if (alertMessage) {
-        var body = document.body;
-        var documentElement = document.documentElement;
-
+        body = document.body;
         body.innerHTML = alertMessage.innerHTML;
-        alertMessage.parentNode.removeChild(alertMessage);
-        window.frameElement.style.height = Math.max(
-                Math.max(body.scrollHeight, documentElement.scrollHeight),
-                Math.max(body.offsetHeight, documentElement.offsetHeight),
-                Math.max(body.clientHeight, documentElement.clientHeight)) +
-                'px';
+        alertMessage.style.display = 'none';
+
+        resizeFrame = function() {
+            var documentElement = document.documentElement;
+
+            window.frameElement.style.height = Math.max(
+                    Math.max(body.scrollHeight, documentElement.scrollHeight),
+                    Math.max(body.offsetHeight, documentElement.offsetHeight),
+                    Math.max(body.clientHeight, documentElement.clientHeight)) +
+                    'px';
+        };
+
+        $('.dari-stack-trace').each(function() {
+            var $st = $(this),
+                    $summary,
+                    $more;
+
+            $summary = $('<div/>', {
+                'html': $st.clone()
+            });
+
+            $more = $('<a/>', {
+                'class': 'showMore',
+                'href': '#',
+                'text': 'Toggle Stack Traces',
+                'click': function() {
+                    $st.toggle();
+                    $summary.toggle();
+                    resizeFrame();
+                    return false;
+                }
+            });
+
+            $summary.find('li:gt(2)').remove();
+            $st.after($summary);
+            $summary.after($more);
+            $st.hide();
+        });
+
+        resizeFrame();
     }
 })();
 </script>

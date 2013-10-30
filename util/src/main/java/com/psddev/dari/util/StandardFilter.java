@@ -11,6 +11,7 @@ import javax.servlet.Filter;
  * <p>This filter loads:</p>
  *
  * <ul>
+ * <li>{@link Utf8Filter}</li>
  * <li>{@link SourceFilter}</li>
  * <li>{@link LogCaptureFilter}</li>
  * <li>{@link DebugFilter}</li>
@@ -20,8 +21,8 @@ import javax.servlet.Filter;
  * <li>{@link MultipartRequestFilter}</li>
  * <li>{@link PageContextFilter}</li>
  * <li>{@link SessionIdFilter}</li>
- * <li>{@link Utf8Filter}</li>
  * <li>{@link JspBufferFilter}</li>
+ * <li>{@link HtmlApiFilter}</li>
  * <li>{@link PingFilter}</li>
  * <li>{@link ResourceFilter}</li>
  * <li>{@link TaskFilter}</li>
@@ -33,6 +34,7 @@ public class StandardFilter extends AbstractFilter {
     protected Iterable<Class<? extends Filter>> dependencies() {
         List<Class<? extends Filter>> dependencies = new ArrayList<Class<? extends Filter>>();
 
+        dependencies.add(Utf8Filter.class);
         dependencies.add(SourceFilter.class);
         dependencies.add(LogCaptureFilter.class);
         dependencies.add(DebugFilter.class);
@@ -44,8 +46,8 @@ public class StandardFilter extends AbstractFilter {
         dependencies.add(MultipartRequestFilter.class);
         dependencies.add(PageContextFilter.class);
         dependencies.add(SessionIdFilter.class);
-        dependencies.add(Utf8Filter.class);
         dependencies.add(JspBufferFilter.class);
+        dependencies.add(HtmlApiFilter.class);
 
         dependencies.add(PingFilter.class);
         dependencies.add(ResourceFilter.class);

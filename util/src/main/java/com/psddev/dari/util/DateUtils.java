@@ -13,7 +13,7 @@ import org.joda.time.format.DateTimeFormatter;
 
 /** @deprecated Use <a href="http://joda-time.sourceforge.net/">Joda Time</a> instead. */
 @Deprecated
-public class DateUtils {
+public final class DateUtils {
 
     private static final long DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -23,7 +23,8 @@ public class DateUtils {
             "(GMT)yyyy-MM-dd'T'HH:mm:ss.S'Z'",
             "EEE MMM dd HH:mm:ss z yyyy",
             "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd" };
+            "yyyy-MM-dd",
+            "yyyy-MM-dd'T'HH:mm" };
 
     /** To make SimpleDateFormat thread-safe. */
     private static final Map<String, DateTimeFormatter>
@@ -60,13 +61,15 @@ public class DateUtils {
         string = string.trim();
         try {
             return new Date(FORMATTERS.get(format).parseMillis(string));
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException error) {
+            // Try a different conversion or error below.
         }
 
         if (format.contains("z")) {
             try {
                 return new SimpleDateFormat(format).parse(string);
-            } catch (ParseException ex) {
+            } catch (ParseException error) {
+                // Error below.
             }
         }
 
@@ -79,7 +82,7 @@ public class DateUtils {
      * Converts the given formatted date string into a date object
      * Each of the predefined formats is checked to see if they can parse
      * the input using both JodaTime and, if that fails, SimpleDateFormat
-     * 
+     *
      * @throws DateFormatException
      *         If the given string is null or is not a valid date.
      */
@@ -95,13 +98,15 @@ public class DateUtils {
 
             try {
                 return new Date(FORMATTERS.get(format).parseMillis(string));
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException error) {
+                // Try a different conversion or the next format.
             }
 
             if (format.contains("z")) {
                 try {
                     return new SimpleDateFormat(format).parse(string);
-                } catch (ParseException ex) {
+                } catch (ParseException error) {
+                    // Try the next format.
                 }
             }
         }
@@ -177,7 +182,7 @@ public class DateUtils {
     /**
      * Converts the duration between the current datetime and the provided one
      * into an easier-to-read label, such as "5 minutes ago", "1 hour ago", or
-     * "2 days ago".  
+     * "2 days ago".
      */
     public static String toSimpleElapsedTime(Date date) {
         long diff = (System.currentTimeMillis() - date.getTime()) / 1000;

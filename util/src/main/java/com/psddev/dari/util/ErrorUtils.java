@@ -3,9 +3,6 @@ package com.psddev.dari.util;
 /** Error utility methods. */
 public final class ErrorUtils {
 
-    private ErrorUtils() {
-    }
-
     /**
      * Throws an {@link IllegalArgumentException} if the given
      * {@code condition} is {@code true}.

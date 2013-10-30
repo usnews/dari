@@ -32,6 +32,8 @@ public class HtmlWriter extends Writer {
     private final Map<Class<?>, HtmlFormatter<Object>> defaultFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Map<Class<?>, HtmlFormatter<Object>> overrideFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Deque<String> tags = new ArrayDeque<String>();
+    private boolean indent;
+    private int indentLevel;
 
     /** Creates an instance. */
     public HtmlWriter() {
@@ -62,6 +64,20 @@ public class HtmlWriter extends Writer {
      */
     public void setDelegate(Writer delegate) {
         this.delegate = delegate;
+    }
+
+    /**
+     * Returns {@code true} if the tags should be written indented.
+     */
+    public boolean isIndent() {
+        return indent;
+    }
+
+    /**
+     * Sets whether the tags should be written indented.
+     */
+    public void setIndent(boolean indent) {
+        this.indent = indent;
     }
 
     @SuppressWarnings("unchecked")
@@ -117,8 +133,14 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter writeRaw(Object object) throws IOException {
         if (object != null) {
-            write(object.toString());
+            if (object instanceof CharSequence) {
+                append((CharSequence) object);
+
+            } else {
+                write(object.toString());
+            }
         }
+
         return this;
     }
 
@@ -133,7 +155,14 @@ public class HtmlWriter extends Writer {
             throw new IllegalArgumentException("Tag can't be null!");
         }
 
+        boolean indent = isIndent();
         Writer delegate = getDelegate();
+
+        if (indent) {
+            for (int i = 0; i < indentLevel; ++ i) {
+                writeRaw("    ");
+            }
+        }
 
         delegate.write('<');
         delegate.write(tag);
@@ -158,6 +187,11 @@ public class HtmlWriter extends Writer {
         }
 
         delegate.write('>');
+
+        if (indent) {
+            writeRaw("\n");
+        }
+
         return this;
     }
 
@@ -199,6 +233,11 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter writeStart(String tag, Object... attributes) throws IOException {
         writeTag(tag, attributes);
+
+        if (isIndent()) {
+            ++ indentLevel;
+        }
+
         tags.addFirst(tag);
         return this;
     }
@@ -211,11 +250,25 @@ public class HtmlWriter extends Writer {
             throw new IllegalStateException("No more tags!");
         }
 
+        boolean indent = isIndent();
+
+        if (indent) {
+            -- indentLevel;
+
+            for (int i = 0; i < indentLevel; ++ i) {
+                writeRaw("    ");
+            }
+        }
+
         Writer delegate = getDelegate();
 
         delegate.write("</");
         delegate.write(tag);
         delegate.write('>');
+
+        if (indent) {
+            writeRaw("\n");
+        }
 
         return this;
     }
@@ -329,9 +382,7 @@ public class HtmlWriter extends Writer {
         writeCss(".dari-grid-area",
                 "-moz-box-sizing", "content-box",
                 "-webkit-box-sizing", "content-box",
-                "box-sizing", "content-box",
-                "float", "left",
-                "margin", "0 -100% 0 -30000px");
+                "box-sizing", "content-box");
 
         writeCss(".dari-grid-adj",
                 "float", "left");
@@ -349,6 +400,29 @@ public class HtmlWriter extends Writer {
         writeCss(".dari-grid-mh",
                 "width", 0);
 
+        if (isGridDebug()) {
+            writeCss(".dari-grid-debug",
+                    "outline", "solid 1px rgba(0, 0, 0, 0.3)");
+
+            writeCss(".dari-grid-debug:before",
+                    "background-color", "rgba(0, 0, 0, 0.3)",
+                    "color", "black",
+                    "content", "attr(data-grid-selector) ' / ' attr(data-grid-area)",
+                    "display", "block",
+                    "font-family", "'Andale Mono', 'Lucida Console', monospace",
+                    "font-size", "14px",
+                    "line-height", "25px",
+                    "padding", "0 5px");
+
+            writeCss(".dari-grid-debug:hover",
+                    "outline-color", "rgba(0, 0, 0, 0.7)",
+                    "outline-width", "5px");
+
+            writeCss(".dari-grid-debug:hover:before",
+                    "background-color", "rgba(0, 0, 0, 0.7)",
+                    "color", "white");
+        }
+
         return this;
     }
 
@@ -356,12 +430,12 @@ public class HtmlWriter extends Writer {
      * Writes grid CSS for the given {@code selector} and {@code grid}.
      */
     public HtmlWriter writeGridCss(String selector, HtmlGrid grid) throws IOException {
-        String cssSuffix = "";
+        StringBuilder cssSuffix = new StringBuilder();
 
         for (int lastBraceAt = 0, braceAt;
                 (braceAt = selector.indexOf('{', lastBraceAt)) > -1;
                 lastBraceAt = braceAt + 1) {
-            cssSuffix += '}';
+            cssSuffix.append('}');
         }
 
         CssUnit minWidth = grid.getMinimumWidth().getSingle();
@@ -369,48 +443,56 @@ public class HtmlWriter extends Writer {
         if (minWidth != null) {
             writeCss(selector,
                     "min-width", minWidth);
-            write(cssSuffix);
+            writeRaw(cssSuffix);
         }
 
         writeCss(selector + " > .dari-grid-area[data-grid-area]",
                 "display", "none");
-        write(cssSuffix);
+        writeRaw(cssSuffix);
 
         for (Area area : createAreas(grid).values()) {
+            String selectorPrefix = selector + " > .dari-grid-area";
             String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
 
-            writeCss(selector + " > .dari-grid-area" + selectorSuffix,
-                    "clear", area.clear ? "left" : null,
+            writeCss(selectorPrefix + selectorSuffix,
+                    "clear", area.clearLeft ? "left" : null,
                     "display", "block",
-                    "padding-left", area.frPaddingLeft + "%",
+                    "float", area.floatRight ? "right" : "left",
+                    "margin", area.floatRight ? "0 0 0 -100%" : "0 -100% 0 -30000px",
+                    "padding", area.floatRight ? "0 " + area.frPaddingRight + "% 0 0" : "0 0 0 " + area.frPaddingLeft + "%",
                     "width", area.frWidth + "%");
-            write(cssSuffix);
+            writeRaw(cssSuffix);
 
             for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
                 String unit = entry.getKey();
                 Adjustment adjustment = entry.getValue();
+                selectorPrefix += " > .dari-grid-adj-" + unit;
 
-                writeCss(selector + " .dari-grid-adj-" + unit + selectorSuffix,
+                writeCss(selectorPrefix + selectorSuffix,
                         "height", adjustment.height != null ? adjustment.height : "auto",
-                        "margin", adjustment.getMargin(unit),
+                        "margin", adjustment.getMargin(unit, area.floatRight),
                         "width", adjustment.width != null ? adjustment.width : "auto");
-                write(cssSuffix);
+                writeRaw(cssSuffix);
             }
 
-            for (CssUnit width : area.width.getAll()) {
-                String unit = width.getUnit();
+            Map<String, CssUnit> widths = new HashMap<String, CssUnit>();
 
-                if (!"fr".equals(unit)) {
-                    writeCss(selector + " .dari-grid-mw-" + unit + selectorSuffix,
-                            "padding-left", width);
-                    write(cssSuffix);
-                }
+            for (CssUnit width : area.width.getAll()) {
+                widths.put(width.getUnit(), width);
+            }
+
+            for (String unit : new String[] { "em", "fr", "pt", "px", "%" }) {
+                CssUnit width = widths.get(unit);
+
+                writeCss(selectorPrefix + " .dari-grid-mw-" + unit + selectorSuffix,
+                        "padding-left", width != null ? width : 0);
+                writeRaw(cssSuffix);
             }
 
             for (CssUnit height : area.height.getAll()) {
-                writeCss(selector + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
+                writeCss(selectorPrefix + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
                         "padding-top", height);
-                write(cssSuffix);
+                writeRaw(cssSuffix);
             }
         }
 
@@ -449,6 +531,24 @@ public class HtmlWriter extends Writer {
     @Deprecated
     public HtmlWriter writeGridJavaScript(ServletContext context, HttpServletRequest request) throws IOException {
         return writeAllGridJavaScript(context, request);
+    }
+
+    // Returns true if in grid debugging mode.
+    private boolean isGridDebug() {
+        try {
+            return !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
+        } catch (IllegalStateException error) {
+            return false;
+        }
+    }
+
+    // Writes JavaScript console logging message.
+    private void logJavaScript(String message) throws IOException {
+        if (isGridDebug()) {
+            write("console.log('[GRID] ' + ");
+            write(message);
+            write(");");
+        }
     }
 
     /**
@@ -493,53 +593,62 @@ public class HtmlWriter extends Writer {
             write("if (!window.matchMedia) return;");
 
             write("reorder = function() {");
+                Map<String, Map<String, Collection<String>>> gridsByMediaJson = new CompactMap<String, Map<String, Collection<String>>>();
+
                 for (Map.Entry<String, Map<String, HtmlGrid>> entry : gridsByMedia.entrySet()) {
                     String media = entry.getKey();
-                    Map<String, HtmlGrid> grids = entry.getValue();
+                    Map<String, Collection<String>> gridsJson = new CompactMap<String, Collection<String>>();
 
-                    if (media == null) {
-                        write("if (true) {");
+                    gridsByMediaJson.put(media == null ? "DEFAULT" : media, gridsJson);
 
-                    } else {
-                        write("if (window.matchMedia('");
-                        write(StringUtils.escapeJavaScript(media));
-                        write("').matches) {");
+                    for (Map.Entry<String, HtmlGrid> gridEntry : entry.getValue().entrySet()) {
+                        gridsJson.put(gridEntry.getKey(), gridEntry.getValue().getAreas());
                     }
-
-                    for (Map.Entry<String, HtmlGrid> gridEntry : grids.entrySet()) {
-                        String selector = gridEntry.getKey();
-                        HtmlGrid grid = gridEntry.getValue();
-
-                        write("$('"); write(StringUtils.escapeJavaScript(selector)); write("').each(function() {");
-                            write("var $layout = $(this), $child, $clear;");
-
-                            for (String area : grid.getAreas()) {
-                                write("$child = $layout.find('> .dari-grid-area[data-grid-area=\"");
-                                write(StringUtils.escapeJavaScript(area));
-                                write("\"]');");
-                                write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
-                            }
-
-                            write("$clear = $layout.find('> .dari-grid-clear');");
-                            write("if ($clear.length > 0) { $layout[0].appendChild($clear[0]); }");
-                        write("});");
-                    }
-                    write("return;");
-
-                    write("}");
                 }
+
+                write("$.each(");
+                write(ObjectUtils.toJson(gridsByMediaJson));
+                write(", function(media, grids) {");
+                    write("if (media === 'DEFAULT' || window.matchMedia(media).matches) {");
+                        logJavaScript("'Matched [' + media + ']'");
+
+                        write("$.each(grids, function(selector, areas) {");
+                            write("$(selector).each(function() {");
+                                write("var $layout = $(this),");
+                                        write("$children = $layout.find('> .dari-grid-area'),");
+                                        write("expected = areas.join(', '),");
+                                        write("current = $.map($children, function(area) { return $(area).attr('data-grid-area'); }).join(', '),");
+                                        write("$clear;");
+
+                                write("if (expected === current) { return; }");
+
+                                logJavaScript("'Rearranging [' + selector + '] from [' + current + '] to [' + expected + ']'");
+
+                                write("$.each(areas, function(index, area) {");
+                                    write("var $child = $children.filter('[data-grid-area=\"' + area + '\"]');");
+                                    write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
+                                write("});");
+
+                                write("$clear = $layout.find('> .dari-grid-clear');");
+                                write("if ($clear.length > 0) { $layout[0].appendChild($clear[0]); }");
+                            write("});");
+                        write("});");
+
+                        write("return false;");
+                    write("}");
+                write("});");
             write("};");
 
             write("$(reorder);");
 
-            /*write("$(win).resize(function() {");
+            write("$(win).resize(function() {");
                 write("if (!reorderTimer) {");
                     write("reorderTimer = setTimeout(function() {");
                         write("reorder();");
                         write("reorderTimer = null;");
                     write("}, 100);");
                 write("}");
-            write("});");*/
+            write("});");
         write("})(jQuery, window);");
 
         return this;
@@ -553,13 +662,7 @@ public class HtmlWriter extends Writer {
      */
     public HtmlWriter writeGrid(Object object, HtmlGrid grid) throws IOException {
         Map<String, Area> areas = createAreas(grid);
-        boolean debug;
-
-        try {
-            debug = !Settings.isProduction() && ObjectUtils.to(boolean.class, PageContextFilter.Static.getRequest().getParameter("_grid"));
-        } catch (Exception error) {
-            debug = false;
-        }
+        boolean debug = isGridDebug();
 
         if (object == null) {
             object = areas;
@@ -587,9 +690,10 @@ public class HtmlWriter extends Writer {
                 }
 
                 if (debug) {
-                    writeStart("div", "style", cssString(
-                            "border", "3px dashed red",
-                            "padding", "3px"));
+                    writeStart("div",
+                            "class", "dari-grid-debug",
+                            "data-grid-selector", grid.getSelector(),
+                            "data-grid-area", areaName);
                 }
 
                 // Minimum width with multiple units.
@@ -654,7 +758,7 @@ public class HtmlWriter extends Writer {
 
         writeStart("div",
                 "class", "dari-grid-clear",
-                "style", cssString("clear", "left"));
+                "style", cssString("clear", "both"));
         writeEnd();
 
         return this;
@@ -672,6 +776,7 @@ public class HtmlWriter extends Writer {
 
         Map<String, Area> areaInstances = new LinkedHashMap<String, Area>();
         int clearAt = -1;
+        boolean hasFloatRight = false;
 
         for (int rowStart = 0, rowSize = rows.size(); rowStart < rowSize; ++ rowStart) {
             List<String> areas = template.get(rowStart);
@@ -744,6 +849,7 @@ public class HtmlWriter extends Writer {
                 double frAfterRatio = frAfter / frMax;
 
                 areaInstance.frPaddingLeft = frBeforeRatio * 100.0;
+                areaInstance.frPaddingRight = frAfterRatio * 100.0;
                 areaInstance.frWidth = (frMax - frBefore - frAfter) * 100.0 / frMax;
 
                 // Adjust left and width.
@@ -815,11 +921,32 @@ public class HtmlWriter extends Writer {
                 // Clear because of "auto" height?
                 if (clearAt >= 0 && clearAt <= rowStart) {
                     clearAt = -1;
-                    areaInstance.clear = true;
+                    areaInstance.clearLeft = true;
                 }
 
                 if (height.hasAuto() && rowStop > clearAt) {
                     clearAt = rowStop;
+                }
+
+                int autoCount = 0;
+
+                for (CssUnit row : rows.subList(rowStart, rowStop)) {
+                    if ("auto".equals(row.getUnit())) {
+                        ++ autoCount;
+                    }
+                }
+
+                if (autoCount >= 2) {
+                    areaInstance.floatRight = true;
+                    hasFloatRight = true;
+                }
+            }
+        }
+
+        if (hasFloatRight) {
+            for (Area areaInstance :  areaInstances.values()) {
+                if (!areaInstance.floatRight) {
+                    areaInstance.clearLeft = true;
                 }
             }
         }
@@ -840,14 +967,16 @@ public class HtmlWriter extends Writer {
     private static class Area {
 
         public final String name;
-        public boolean clear;
+        public boolean clearLeft;
         public double frPaddingLeft;
+        public double frPaddingRight;
         public double frWidth;
         public CssCombinedUnit width;
         public CssUnit singleWidth;
         public CssCombinedUnit height;
         public CssUnit singleHeight;
         public final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
+        public boolean floatRight;
 
         public Area(String name) {
             this.name = name;
@@ -871,10 +1000,18 @@ public class HtmlWriter extends Writer {
         public CssUnit width;
         public CssUnit height;
 
-        public String getMargin(String unit) {
+        public String getMargin(String unit, boolean floatRight) {
+            double l = left;
+            double r = right;
+
+            if (floatRight) {
+                l -= 30000;
+                r += 30000;
+            }
+
             return new CssUnit(top, unit) + " " +
-                    new CssUnit(right, unit) + " 0 " +
-                    new CssUnit(left, unit);
+                    new CssUnit(r, unit) + " 0 " +
+                    new CssUnit(l, unit);
         }
     }
 
@@ -947,7 +1084,7 @@ public class HtmlWriter extends Writer {
                     if (property != null) {
                         Object value = properties[i];
 
-                        if (value != null) {
+                        if (!ObjectUtils.isBlank(value)) {
                             css.append(property);
                             css.append(':');
                             css.append(value);
