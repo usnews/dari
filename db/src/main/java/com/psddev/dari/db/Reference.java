@@ -1,5 +1,8 @@
 package com.psddev.dari.db;
 
+import java.util.Map;
+import java.util.Set;
+
 @Reference.Embedded
 public class Reference extends Record {
 
@@ -27,5 +30,13 @@ public class Reference extends Record {
         } else {
             getState().put(OBJECT_KEY, object);
         }
+    }
+
+    /**
+     * @deprecated No replacement.
+     */
+    @Deprecated
+    public Set<Map.Entry<String, Object>> entrySet() {
+        return getState().entrySet();
     }
 }
