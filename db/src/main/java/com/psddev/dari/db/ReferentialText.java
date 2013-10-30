@@ -100,17 +100,13 @@ public class ReferentialText extends AbstractList<Object> {
 
         for (Element enhancement : body.getElementsByClass("enhancement")) {
             if (!enhancement.hasClass("state-removing")) {
-
                 Reference reference = null;
-
                 String referenceData = enhancement.dataset().remove("reference");
+
                 if (!StringUtils.isBlank(referenceData)) {
-
                     Map<?, ?> referenceMap = (Map<?, ?>) ObjectUtils.fromJson(referenceData);
-
                     UUID id = ObjectUtils.to(UUID.class, referenceMap.get("_id"));
                     UUID typeId = ObjectUtils.to(UUID.class, referenceMap.get("_type"));
-
                     ObjectType type = Database.Static.getDefault().getEnvironment().getTypeById(typeId);
 
                     if (type != null) {
@@ -264,10 +260,8 @@ public class ReferentialText extends AbstractList<Object> {
 
         } else if (item instanceof Map) {
             Reference ref = null;
-
             UUID id = ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get("_id"));
             UUID typeId = ObjectUtils.to(UUID.class, ((Map<?, ?>) item).get("_type"));
-
             ObjectType type = Database.Static.getDefault().getEnvironment().getTypeById(typeId);
 
             if (type != null) {
@@ -284,8 +278,10 @@ public class ReferentialText extends AbstractList<Object> {
 
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) item).entrySet()) {
                 Object key = entry.getKey();
+
                 ref.getState().put(key != null ? key.toString() : null, entry.getValue());
             }
+
             return ref;
 
         } else {

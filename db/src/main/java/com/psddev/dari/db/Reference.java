@@ -1,8 +1,6 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.db.Recordable.Embedded;
-
-@Embedded
+@Reference.Embedded
 public class Reference extends Record {
 
     public static final String OBJECT_KEY = "_object";
@@ -12,9 +10,11 @@ public class Reference extends Record {
 
     public Object getObject() {
         Object value = getState().get(OBJECT_KEY);
+
         if (value == null) {
             value = object;
         }
+
         return value instanceof Record ?
                 value :
                 Query.findById(Object.class, StateValueUtils.toIdIfReference(value));
@@ -23,6 +23,7 @@ public class Reference extends Record {
     public void setObject(Object object) {
         if (object instanceof Record) {
             this.object = (Record) object;
+
         } else {
             getState().put(OBJECT_KEY, object);
         }
