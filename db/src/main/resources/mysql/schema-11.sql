@@ -29,6 +29,17 @@ CREATE TABLE IF NOT EXISTS RecordNumber2 (
 
 CREATE OR REPLACE VIEW RecordNumber2_d AS SELECT hex(id) AS id, symbolId, VALUE FROM RecordNumber2;
 
+CREATE TABLE IF NOT EXISTS RecordRegion (
+    id BINARY(16) NOT NULL,
+    symbolId INT NOT NULL,
+    value POLYGON NOT NULL,
+    PRIMARY KEY (symbolId, value(25), id),
+    KEY k_id (id),
+    SPATIAL KEY k_value (value)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+
+CREATE OR REPLACE VIEW RecordRegion_d AS SELECT hex(id) AS id, symbolId, VALUE FROM RecordRegion;
+
 CREATE TABLE IF NOT EXISTS RecordString3 (
     id BINARY(16) NOT NULL,
     symbolId INT NOT NULL,
@@ -89,8 +100,8 @@ SELECT c.id
 , c.typeId
 , c.symbolId
 , c.dimensionId
-, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, 10) / 1000000, 6) amount
-, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, 10) / 1000000, 6) cumulativeAmount
+, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, -10) / 1000000, 6) amount
+, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, -10) / 1000000, 6) cumulativeAmount
 , CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000 eventDate
 , data AS data
 FROM Metric c;
@@ -102,8 +113,8 @@ SELECT hex(c.id) AS id
 , hex(c.dimensionId) as dimensionId
 , d.value AS dimension
 , ls.value as symbol
-, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, 10) / 1000000, 6) amount
-, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, 10) / 1000000, 6) cumulativeAmount
+, ROUND(CONV(HEX(SUBSTR(data, 13, 8)), 16, -10) / 1000000, 6) amount
+, ROUND(CONV(HEX(SUBSTR(data, 5, 8)), 16, -10) / 1000000, 6) cumulativeAmount
 , FROM_UNIXTIME(CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60) eventDate
 , HEX(data) AS data
 , CONV(HEX(SUBSTR(data, 1, 4)), 16, 10) * 60000 eventTimestamp

@@ -48,6 +48,8 @@ public class State implements Map<String, Object> {
 
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
 
+    public static final String SUB_DATA_STATE_EXTRA_PREFIX = "dari.subDataState.";
+
     private static final String ATOMIC_OPERATIONS_EXTRA = "dari.atomicOperations";
 
     private static final int STATUS_FLAG_OFFSET = 16;
@@ -1294,19 +1296,7 @@ public class State implements Map<String, Object> {
             Object object = linkedObjects.values().iterator().next();
             Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
             Map<String, Object> resolved = new HashMap<String, Object>();
-
-            for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
-                resolved.put(metricField.getInternalName(), new Metric(this, metricField));
-            }
-
-            for (Object obj : linkedObjects.values()) {
-                ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
-                if (type != null) {
-                    for (ObjectField metricField : type.getMetricFields()) {
-                        resolved.put(metricField.getInternalName(), new Metric(this, metricField));
-                    }
-                }
-            }
+            resolveMetricReferences(resolved);
 
             for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
                 UUID id = StateValueUtils.toIdIfReference(e.getValue());
@@ -1318,6 +1308,24 @@ public class State implements Map<String, Object> {
             for (Map.Entry<String, Object> e : resolved.entrySet()) {
                 put(e.getKey(), e.getValue());
             }
+        }
+    }
+
+    /**
+     * Instantiate all Metric objects.
+     */
+    private void resolveMetricReferences(Map<String, Object> map) {
+        for (Object obj : linkedObjects.values()) {
+            ObjectType type = getDatabase().getEnvironment().getTypeByClass(obj.getClass());
+            if (type != null) {
+                for (ObjectField metricField : type.getMetricFields()) {
+                    map.put(metricField.getInternalName(), new Metric(this, metricField));
+                }
+            }
+        }
+
+        for (ObjectField metricField : getDatabase().getEnvironment().getMetricFields()) {
+            map.put(metricField.getInternalName(), new Metric(this, metricField));
         }
     }
 
@@ -1637,6 +1645,11 @@ public class State implements Map<String, Object> {
                     } else {
                         put(key, value);
                     }
+                }
+                Map<String,Object> metricObjects = new HashMap<String, Object>();
+                resolveMetricReferences(metricObjects);
+                for (Map.Entry<? extends String, ? extends Object> e : metricObjects.entrySet()) {
+                    put(e.getKey(), e.getValue());
                 }
                 flags &= ~ALL_RESOLVED_FLAG;
                 return;

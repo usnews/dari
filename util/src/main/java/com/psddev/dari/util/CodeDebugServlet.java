@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +28,8 @@ public class CodeDebugServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     public static final String INPUTS_ATTRIBUTE = CodeDebugServlet.class.getName() + ".inputs";
+    public static final String INCLUDE_IMPORTS_SETTING = "dari/code/includeImports";
+    public static final String EXCLUDE_IMPORTS_SETTING = "dari/code/excludeImports";
 
     private static final String WEB_INF_CLASSES_PATH = "/WEB-INF/classes/";
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<Map<String, Object>>() { };
@@ -178,15 +181,30 @@ public class CodeDebugServlet extends HttpServlet {
             }
 
         } else {
-            Set<String> packages = findPackages();
-            packages.add("com.psddev.dari.db.");
-            packages.add("com.psddev.dari.util.");
-            packages.add("java.util.");
+            Set<String> imports = findImports();
 
-            for (String packageName : packages) {
+            imports.add("com.psddev.dari.db.*");
+            imports.add("com.psddev.dari.util.*");
+            imports.add("java.util.*");
+
+            String includes = Settings.get(String.class, INCLUDE_IMPORTS_SETTING);
+
+            if (!ObjectUtils.isBlank(includes)) {
+                Collections.addAll(imports, includes.trim().split("\\s*,?\\s+"));
+            }
+
+            String excludes = Settings.get(String.class, EXCLUDE_IMPORTS_SETTING);
+
+            if (!ObjectUtils.isBlank(excludes)) {
+                for (String exclude : excludes.trim().split("\\s*,?\\s+")) {
+                    imports.remove(exclude);
+                }
+            }
+
+            for (String i : imports) {
                 codeBuilder.append("import ");
-                codeBuilder.append(packageName);
-                codeBuilder.append("*;\n");
+                codeBuilder.append(i);
+                codeBuilder.append(";\n");
             }
 
             codeBuilder.append('\n');
@@ -273,6 +291,13 @@ public class CodeDebugServlet extends HttpServlet {
                                     writeTag("input", "name", "isLiveResult", "type", "checkbox");
                                     writeHtml("Live Result");
                                 writeEnd();
+                                writeStart("label", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;", "title", "Shortcut: ?_vim=true");
+                                    boolean vimMode = page.param(boolean.class, "_vim");
+                                    writeStart("label", "class", "checkbox", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;");
+                                        writeTag("input", "name", "_vim", "type", "checkbox", "value", "true", vimMode ? "checked" : "_unchecked", "true");
+                                        writeHtml("Vim Mode");
+                                    writeEnd();
+                                writeEnd();
                                 writeTag("input",
                                         "class", "btn btn-success pull-right",
                                         "name", "isSave",
@@ -293,6 +318,7 @@ public class CodeDebugServlet extends HttpServlet {
                                         "overflow: auto;" +
                                         "padding: 0px 20px 5px 10px;" +
                                         "position: fixed;" +
+                                        "z-index: 3;" +
                                         "right: 0px;" +
                                         "width: 35%;");
                             writeStart("h2").writeHtml("Result").writeEnd();
@@ -319,6 +345,10 @@ public class CodeDebugServlet extends HttpServlet {
                                     write("}");
                                 write("})");
                             write("});");
+                            write("$('input[name=_vim]').change(function() {");
+                                write("codeMirror.setOption('vimMode', $(this).is(':checked'));");
+                            write("});");
+                            write("$('input[name=_vim]').change();");
 
                             int line = page.param(int.class, "line");
                             if (line > 0) {
@@ -419,19 +449,19 @@ public class CodeDebugServlet extends HttpServlet {
         };
     }
 
-    private Set<String> findPackages() {
-        Set<String> packages = new TreeSet<String>();
-        addPackages(packages, WEB_INF_CLASSES_PATH.length(), WEB_INF_CLASSES_PATH);
-        return packages;
+    private Set<String> findImports() {
+        Set<String> imports = new TreeSet<String>();
+        addImports(imports, WEB_INF_CLASSES_PATH.length(), WEB_INF_CLASSES_PATH);
+        return imports;
     }
 
     @SuppressWarnings("unchecked")
-    private void addPackages(Set<String> packages, int prefixLength, String path) {
+    private void addImports(Set<String> imports, int prefixLength, String path) {
         for (String subPath : (Set<String>) getServletContext().getResourcePaths(path)) {
             if (subPath.endsWith("/")) {
-                addPackages(packages, prefixLength, subPath);
+                addImports(imports, prefixLength, subPath);
             } else if (subPath.endsWith(".class")) {
-                packages.add(path.substring(prefixLength).replace('/', '.'));
+                imports.add(path.substring(prefixLength).replace('/', '.') + "*");
             }
         }
     }

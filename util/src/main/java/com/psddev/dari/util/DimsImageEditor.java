@@ -284,28 +284,6 @@ public class DimsImageEditor extends AbstractImageEditor {
                 }
             }
 
-            Command lastResizeCommand = dimsUrl.getLastResizeCommand();
-            if (lastResizeCommand instanceof AbstractResizeCommand) {
-                AbstractResizeCommand lastResize = (AbstractResizeCommand) lastResizeCommand;
-
-                StorageItem override = StorageItem.Static.createIn(image.getStorage());
-                new ObjectMap(override).putAll(new ObjectMap(image));
-
-                boolean overridden = ImageResizeStorageItemListener.overridePathWithNearestSize(override,
-                        lastResize.getWidth(),
-                        lastResize.getHeight());
-
-                if (overridden) {
-                    try {
-                        dimsUrl.setImageUrl(new URL(override.getPublicUrl()));
-                    } catch (MalformedURLException error) {
-                        // If #getPublicUrl doesn't return a proper URL,
-                        // that's OK, because this will just fall through
-                        // to the non-optimized code path below.
-                    }
-                }
-            }
-
             newImage = dimsUrl.toStorageItem();
         }
 
@@ -341,7 +319,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                 throw new MalformedURLException("Cannot create DIMS URL for item [" + item + "] with url [null]");
             }
 
-            String baseUrl = DimsImageEditor.this.getBaseUrl();
+            String baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getBaseUrl(), "/");
             if (url.startsWith(baseUrl)) {
 
                 // It's an existing DIMS URL that we're further modifying
@@ -401,7 +379,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                     imagePath.toLowerCase(Locale.ENGLISH).endsWith(".tiff")) {
                     addCommand(new FormatCommand(ImageFormat.png));
                 }
-                
+
                 Integer quality = DimsImageEditor.this.getQuality();
                 if (quality != null) {
                     addCommand(new QualityCommand(quality));
@@ -599,12 +577,9 @@ public class DimsImageEditor extends AbstractImageEditor {
             StringBuilder dimsUrlBuilder = new StringBuilder();
 
             String imageUrl = this.imageUrl.toString();
-            String baseUrl = DimsImageEditor.this.getBaseUrl();
+            String baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getBaseUrl(), "/");
 
             dimsUrlBuilder.append(baseUrl);
-            if(!baseUrl.endsWith("/")) {
-                dimsUrlBuilder.append('/');
-            }
 
             StringBuilder commandsBuilder = new StringBuilder();
             for(Command command : getCommands()) {

@@ -25,6 +25,15 @@ CREATE TABLE IF NOT EXISTS RecordNumber2 (
 
 CREATE INDEX IF NOT EXISTS k_RecordNumber2_id ON RecordNumber2 (id);
 
+CREATE TABLE IF NOT EXISTS RecordRegion (
+    id UUID NOT NULL,
+    symbolId INT NOT NULL,
+    value DOUBLE NOT NULL,
+    PRIMARY KEY (symbolId, value, id)
+);
+
+CREATE INDEX IF NOT EXISTS k_RecordRegion_id ON RecordRegion (id);
+
 CREATE TABLE IF NOT EXISTS RecordString3 (
     id UUID NOT NULL,
     symbolId INT NOT NULL,

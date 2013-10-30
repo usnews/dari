@@ -328,6 +328,11 @@ public final class JspUtils {
         return request.getScheme() + "://" + getHost(request);
     }
 
+    /** Returns the protocol relative host URL from the given {@code request}. */
+    public static String getProtocolRelativeHostUrl(HttpServletRequest request) {
+        return "//" + getHost(request);
+    }
+
     /**
      * Returns the unique ID last created within the given
      * {@code request}.
@@ -987,6 +992,16 @@ public final class JspUtils {
             Object... parameters) {
 
         return getHostUrl(request) + getAbsolutePath(context, request, url, parameters);
+    }
+
+    /** Returns the absolute protocol relative version of the given {@code url}. */
+    public static String getEmbeddedAbsoluteProtocolRelativeUrl(
+            ServletContext context,
+            HttpServletRequest request,
+            String url,
+            Object... parameters) {
+
+        return getProtocolRelativeHostUrl(request) + getAbsolutePath(context, request, url, parameters);
     }
 
     /**

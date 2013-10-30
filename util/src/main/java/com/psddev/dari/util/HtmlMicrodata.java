@@ -5,7 +5,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -96,7 +95,7 @@ public class HtmlMicrodata {
                 value = prop.attr("value");
 
             } else if (" time ".contains(tagName)) {
-                value = ObjectUtils.to(Date.class, ObjectUtils.coalesce(prop.attr("datetime"), prop.text()));
+                value = ObjectUtils.firstNonNull(prop.attr("datetime"), prop.text());
 
             } else {
                 value = prop.text();

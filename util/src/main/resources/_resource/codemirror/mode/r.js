@@ -1,1 +1,141 @@
-CodeMirror.defineMode("r",function(a){function b(a){var b=a.split(" "),c={};for(var d=0;d<b.length;++d)c[b[d]]=!0;return c}function i(a,b){h=null;var i=a.next();if(i=="#")return a.skipToEnd(),"comment";if(i=="0"&&a.eat("x"))return a.eatWhile(/[\da-f]/i),"number";if(i=="."&&a.eat(/\d/))return a.match(/\d*(?:e[+\-]?\d+)?/),"number";if(/\d/.test(i))return a.match(/\d*(?:\.\d+)?(?:e[+\-]\d+)?L?/),"number";if(i=="'"||i=='"')return b.tokenize=j(i),"string";if(i=="."&&a.match(/.[.\d]+/))return"keyword";if(/[\w\.]/.test(i)&&i!="_"){a.eatWhile(/[\w\.]/);var k=a.current();return c.propertyIsEnumerable(k)?"atom":e.propertyIsEnumerable(k)?(f.propertyIsEnumerable(k)&&(h="block"),"keyword"):d.propertyIsEnumerable(k)?"builtin":"variable"}return i=="%"?(a.skipTo("%")&&a.next(),"variable-2"):i=="<"&&a.eat("-")?"arrow":i=="="&&b.ctx.argList?"arg-is":g.test(i)?i=="$"?"dollar":(a.eatWhile(g),"operator"):/[\(\){}\[\];]/.test(i)?(h=i,i==";"?"semi":null):null}function j(a){return function(b,c){if(b.eat("\\")){var d=b.next();return d=="x"?b.match(/^[a-f0-9]{2}/i):(d=="u"||d=="U")&&b.eat("{")&&b.skipTo("}")?b.next():d=="u"?b.match(/^[a-f0-9]{4}/i):d=="U"?b.match(/^[a-f0-9]{8}/i):/[0-7]/.test(d)&&b.match(/^[0-7]{1,2}/),"string-2"}var e;while((e=b.next())!=null){if(e==a){c.tokenize=i;break}if(e=="\\"){b.backUp(1);break}}return"string"}}function k(a,b,c){a.ctx={type:b,indent:a.indent,align:null,column:c.column(),prev:a.ctx}}function l(a){a.indent=a.ctx.indent,a.ctx=a.ctx.prev}var c=b("NULL NA Inf NaN NA_integer_ NA_real_ NA_complex_ NA_character_"),d=b("list quote bquote eval return call parse deparse"),e=b("if else repeat while function for in next break"),f=b("if else repeat while function for"),g=/[+\-*\/^<>=!&|~$:]/,h;return{startState:function(b){return{tokenize:i,ctx:{type:"top",indent:-a.indentUnit,align:!1},indent:0,afterIdent:!1}},token:function(a,b){a.sol()&&(b.ctx.align==null&&(b.ctx.align=!1),b.indent=a.indentation());if(a.eatSpace())return null;var c=b.tokenize(a,b);c!="comment"&&b.ctx.align==null&&(b.ctx.align=!0);var d=b.ctx.type;return(h==";"||h=="{"||h=="}")&&d=="block"&&l(b),h=="{"?k(b,"}",a):h=="("?(k(b,")",a),b.afterIdent&&(b.ctx.argList=!0)):h=="["?k(b,"]",a):h=="block"?k(b,"block",a):h==d&&l(b),b.afterIdent=c=="variable"||c=="keyword",c},indent:function(b,c){if(b.tokenize!=i)return 0;var d=c&&c.charAt(0),e=b.ctx,f=d==e.type;return e.type=="block"?e.indent+(d=="{"?0:a.indentUnit):e.align?e.column+(f?0:1):e.indent+(f?0:a.indentUnit)}}}),CodeMirror.defineMIME("text/x-rsrc","r");
+CodeMirror.defineMode("r", function(config) {
+  function wordObj(str) {
+    var words = str.split(" "), res = {};
+    for (var i = 0; i < words.length; ++i) res[words[i]] = true;
+    return res;
+  }
+  var atoms = wordObj("NULL NA Inf NaN NA_integer_ NA_real_ NA_complex_ NA_character_");
+  var builtins = wordObj("list quote bquote eval return call parse deparse");
+  var keywords = wordObj("if else repeat while function for in next break");
+  var blockkeywords = wordObj("if else repeat while function for");
+  var opChars = /[+\-*\/^<>=!&|~$:]/;
+  var curPunc;
+
+  function tokenBase(stream, state) {
+    curPunc = null;
+    var ch = stream.next();
+    if (ch == "#") {
+      stream.skipToEnd();
+      return "comment";
+    } else if (ch == "0" && stream.eat("x")) {
+      stream.eatWhile(/[\da-f]/i);
+      return "number";
+    } else if (ch == "." && stream.eat(/\d/)) {
+      stream.match(/\d*(?:e[+\-]?\d+)?/);
+      return "number";
+    } else if (/\d/.test(ch)) {
+      stream.match(/\d*(?:\.\d+)?(?:e[+\-]\d+)?L?/);
+      return "number";
+    } else if (ch == "'" || ch == '"') {
+      state.tokenize = tokenString(ch);
+      return "string";
+    } else if (ch == "." && stream.match(/.[.\d]+/)) {
+      return "keyword";
+    } else if (/[\w\.]/.test(ch) && ch != "_") {
+      stream.eatWhile(/[\w\.]/);
+      var word = stream.current();
+      if (atoms.propertyIsEnumerable(word)) return "atom";
+      if (keywords.propertyIsEnumerable(word)) {
+        if (blockkeywords.propertyIsEnumerable(word)) curPunc = "block";
+        return "keyword";
+      }
+      if (builtins.propertyIsEnumerable(word)) return "builtin";
+      return "variable";
+    } else if (ch == "%") {
+      if (stream.skipTo("%")) stream.next();
+      return "variable-2";
+    } else if (ch == "<" && stream.eat("-")) {
+      return "arrow";
+    } else if (ch == "=" && state.ctx.argList) {
+      return "arg-is";
+    } else if (opChars.test(ch)) {
+      if (ch == "$") return "dollar";
+      stream.eatWhile(opChars);
+      return "operator";
+    } else if (/[\(\){}\[\];]/.test(ch)) {
+      curPunc = ch;
+      if (ch == ";") return "semi";
+      return null;
+    } else {
+      return null;
+    }
+  }
+
+  function tokenString(quote) {
+    return function(stream, state) {
+      if (stream.eat("\\")) {
+        var ch = stream.next();
+        if (ch == "x") stream.match(/^[a-f0-9]{2}/i);
+        else if ((ch == "u" || ch == "U") && stream.eat("{") && stream.skipTo("}")) stream.next();
+        else if (ch == "u") stream.match(/^[a-f0-9]{4}/i);
+        else if (ch == "U") stream.match(/^[a-f0-9]{8}/i);
+        else if (/[0-7]/.test(ch)) stream.match(/^[0-7]{1,2}/);
+        return "string-2";
+      } else {
+        var next;
+        while ((next = stream.next()) != null) {
+          if (next == quote) { state.tokenize = tokenBase; break; }
+          if (next == "\\") { stream.backUp(1); break; }
+        }
+        return "string";
+      }
+    };
+  }
+
+  function push(state, type, stream) {
+    state.ctx = {type: type,
+                 indent: state.indent,
+                 align: null,
+                 column: stream.column(),
+                 prev: state.ctx};
+  }
+  function pop(state) {
+    state.indent = state.ctx.indent;
+    state.ctx = state.ctx.prev;
+  }
+
+  return {
+    startState: function() {
+      return {tokenize: tokenBase,
+              ctx: {type: "top",
+                    indent: -config.indentUnit,
+                    align: false},
+              indent: 0,
+              afterIdent: false};
+    },
+
+    token: function(stream, state) {
+      if (stream.sol()) {
+        if (state.ctx.align == null) state.ctx.align = false;
+        state.indent = stream.indentation();
+      }
+      if (stream.eatSpace()) return null;
+      var style = state.tokenize(stream, state);
+      if (style != "comment" && state.ctx.align == null) state.ctx.align = true;
+
+      var ctype = state.ctx.type;
+      if ((curPunc == ";" || curPunc == "{" || curPunc == "}") && ctype == "block") pop(state);
+      if (curPunc == "{") push(state, "}", stream);
+      else if (curPunc == "(") {
+        push(state, ")", stream);
+        if (state.afterIdent) state.ctx.argList = true;
+      }
+      else if (curPunc == "[") push(state, "]", stream);
+      else if (curPunc == "block") push(state, "block", stream);
+      else if (curPunc == ctype) pop(state);
+      state.afterIdent = style == "variable" || style == "keyword";
+      return style;
+    },
+
+    indent: function(state, textAfter) {
+      if (state.tokenize != tokenBase) return 0;
+      var firstChar = textAfter && textAfter.charAt(0), ctx = state.ctx,
+          closing = firstChar == ctx.type;
+      if (ctx.type == "block") return ctx.indent + (firstChar == "{" ? 0 : config.indentUnit);
+      else if (ctx.align) return ctx.column + (closing ? 0 : 1);
+      else return ctx.indent + (closing ? 0 : config.indentUnit);
+    }
+  };
+});
+
+CodeMirror.defineMIME("text/x-rsrc", "r");

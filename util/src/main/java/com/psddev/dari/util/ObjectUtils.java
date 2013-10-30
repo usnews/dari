@@ -22,6 +22,11 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.base.Optional;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** Object utility methods. */
 public abstract class ObjectUtils {
 
@@ -38,29 +43,31 @@ public abstract class ObjectUtils {
     }
 
     // Because Class.forName is pretty slow.
-    private static final Map<ClassLoader, Map<String, Class<?>>>
-            CLASSES_BY_LOADER = new PullThroughCache<ClassLoader, Map<String, Class<?>>>() {
-
-        @Override
-        protected Map<String, Class<?>> produce(final ClassLoader loader) {
-            return new PullThroughCache<String, Class<?>>() {
+    private static final LoadingCache<Optional<ClassLoader>, LoadingCache<String, Optional<Class<?>>>>
+            CLASSES_BY_LOADER = CacheBuilder.newBuilder().build(new CacheLoader<Optional<ClassLoader>, LoadingCache<String, Optional<Class<?>>>>() {
 
                 @Override
-                protected Class<?> produce(String name) {
-                    if (name != null) {
-                        try {
-                            return Class.forName(name, false, loader);
-                        } catch (ClassNotFoundException error) {
-                            // Falls through to return null below.
-                        } catch (NoClassDefFoundError error) {
-                            // Falls through to return null below.
+                public LoadingCache<String, Optional<Class<?>>> load(final Optional<ClassLoader> loader) {
+                    return CacheBuilder.newBuilder().build(new CacheLoader<String, Optional<Class<?>>>() {
+
+                        @Override
+                        @SuppressWarnings({ "rawtypes", "unchecked" })
+                        public Optional<Class<?>> load(String className) {
+                            try {
+                                return (Optional) Optional.of((Class) Class.forName(className, false, loader.orNull()));
+
+                            } catch (ClassNotFoundException error) {
+                                // Falls through to return absent below.
+
+                            } catch (NoClassDefFoundError error) {
+                                // Falls through to return absent below.
+                            }
+
+                            return Optional.absent();
                         }
-                    }
-                    return null;
+                    });
                 }
-            };
-        }
-    };
+            });
 
     /**
      * Returns {@code true} if the given {@code object1} and {@code object2},
@@ -106,8 +113,11 @@ public abstract class ObjectUtils {
     /**
      * Returns the first non-{@code null} value among the given
      * {@code values}.
+     *
+     * @param values If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
      */
-    public static <T> T coalesce(T... values) {
+    public static <T> T firstNonNull(T... values) {
         if (values != null) {
             for (T value : values) {
                 if (value != null) {
@@ -115,7 +125,38 @@ public abstract class ObjectUtils {
                 }
             }
         }
+
         return null;
+    }
+
+    /**
+     * Returns the first non-{@link #isBlank blank} value among the given
+     * {@code values}.
+     *
+     * @param values If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public static <T> T firstNonBlank(T... values) {
+        if (values != null) {
+            for (T value : values) {
+                if (!ObjectUtils.isBlank(value)) {
+                    return value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the first non-{@code null} value among the given
+     * {@code values}.
+     *
+     * @deprecated Use {@link #firstNonNull} instead.
+     */
+    @Deprecated
+    public static <T> T coalesce(T... values) {
+        return firstNonNull(values);
     }
 
     /**
@@ -136,7 +177,15 @@ public abstract class ObjectUtils {
      * doesn't exist.
      */
     public static Class<?> getClassFromLoader(ClassLoader loader, String name) {
-        return CLASSES_BY_LOADER.get(loader).get(name);
+        if (ObjectUtils.isBlank(name)) {
+            return null;
+
+        } else {
+            return CLASSES_BY_LOADER.
+                    getUnchecked(Optional.fromNullable(loader)).
+                    getUnchecked(name).
+                    orNull();
+        }
     }
 
     /**

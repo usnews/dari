@@ -124,22 +124,24 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sets a value in the given {@code List} without throwing a
-     * {@link IndexOutOfBoundsException} on an index that may be greater
-     * than the size of the {@code List}.
+     * Sets the {@code given value} at the given {@code index} in the given
+     * {@code list}, growing the list as necessary with {@code null}s if the
+     * index is greater than the size of the list.
+     *
+     * @param list Can't be {@code null}.
+     * @param index Must be greater than or equal to {@code 0}.
+     * @return Previously stored value.
      */
     public static <T> T set(List<T> list, int index, T value) {
         if (index < 0) {
             throw new IndexOutOfBoundsException();
         }
-        int delta = index - list.size();
-        if (delta > 0) {
+
+        for (int delta = index - list.size(); delta >= 0; -- delta) {
             list.add(null);
-            list.add(value);
-            return null;
-        } else {
-            return list.set(index, value);
         }
+
+        return list.set(index, value);
     }
 
     /** Takes path like {@code 0/1/2} and puts into a {@code List}. */

@@ -243,6 +243,11 @@ public class ObjectType extends Record implements ObjectStruct {
      * the given {@code modificationClass}.
      */
     public static void modifyAll(Database database, Class<?> modificationClass) {
+        if (Modification.class.isAssignableFrom(modificationClass) &&
+                Modifier.isAbstract(modificationClass.getModifiers())) {
+            return;
+        }
+
         DatabaseEnvironment environment = database.getEnvironment();
         List<ObjectField> globalFields = environment.getFields();
         List<ObjectIndex> globalIndexes = environment.getIndexes();
@@ -439,7 +444,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 }
             }
 
-            return metricFields;
+            return Collections.unmodifiableList(metricFields);
         }
     };
 
@@ -877,6 +882,10 @@ public class ObjectType extends Record implements ObjectStruct {
      */
     @SuppressWarnings("deprecation")
     public void modify(Class<?> modificationClass) {
+        if (Modification.class.isAssignableFrom(modificationClass) &&
+                Modifier.isAbstract(modificationClass.getModifiers())) {
+            return;
+        }
 
         getModificationClassNames().add(modificationClass.getName());
 

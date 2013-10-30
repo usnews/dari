@@ -57,12 +57,14 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
     public static final String SERVER_URL_SUB_SETTING = "serverUrl";
     public static final String READ_SERVER_URL_SUB_SETTING = "readServerUrl";
+    public static final String TENANT_SUB_SETTING = "tenant";
     public static final String COMMIT_WITHIN_SUB_SETTING = "commitWithin";
     public static final String VERSION_SUB_SETTING = "version";
     public static final String SAVE_DATA_SUB_SETTING = "saveData";
 
     public static final double DEFAULT_COMMIT_WITHIN = 0.0;
 
+    public static final String TENANT_FIELD = "_s__tenant";
     public static final String ID_FIELD = "id";
     public static final String TYPE_ID_FIELD = "typeId";
     public static final String DATA_FIELD = "data";
@@ -92,6 +94,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
     private volatile SolrServer server;
     private volatile SolrServer readServer;
+    private volatile String tenant;
     private volatile Double commitWithin;
     private volatile String version;
     private volatile boolean saveData = true;
@@ -116,6 +119,14 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public void setReadServer(SolrServer readServer) {
         this.readServer = readServer;
         schema.reset();
+    }
+
+    public String getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(String tenant) {
+        this.tenant = tenant;
     }
 
     public Double getCommitWithin() {
@@ -482,6 +493,16 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             queryBuilder.append(") && (");
             queryBuilder.append(sortBuilder);
             queryBuilder.append("*:*)");
+        }
+
+        String tenant = getTenant();
+
+        if (tenant != null) {
+            queryBuilder.insert(0, '(');
+            queryBuilder.append(") && ");
+            queryBuilder.append(TENANT_FIELD);
+            queryBuilder.append(':');
+            queryBuilder.append(tenant);
         }
 
         solrQuery.setQuery(queryBuilder.toString());
@@ -1109,6 +1130,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                     String.format("[%s] is not a valid URL!", url));
         }
 
+        setTenant(ObjectUtils.to(String.class, settings.get(TENANT_SUB_SETTING)));
         setCommitWithin(ObjectUtils.to(Double.class, settings.get(COMMIT_WITHIN_SUB_SETTING)));
         setVersion(ObjectUtils.to(String.class, settings.get(VERSION_SUB_SETTING)));
 
@@ -1297,6 +1319,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     protected void doSaves(SolrServer server, boolean isImmediate, List<State> states) {
         Set<String> databaseGroups = getGroups();
         List<SolrInputDocument> documents = new ArrayList<SolrInputDocument>();
+        String tenant = getTenant();
 
         for (State state : states) {
             ObjectType type = state.getType();
@@ -1384,6 +1407,10 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             document.setField(ALL_FIELD, allBuilder.toString());
+
+            if (tenant != null) {
+                document.setField(TENANT_FIELD, tenant);
+            }
         }
 
         int documentsSize = documents.size();

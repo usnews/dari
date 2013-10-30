@@ -1,1 +1,73 @@
-CodeMirror.defineMode("htmlembedded",function(a,b){function g(a,b){return a.match(c,!1)?(b.token=h,e.token(a,b.scriptState)):f.token(a,b.htmlState)}function h(a,b){return a.match(d,!1)?(b.token=g,f.token(a,b.htmlState)):e.token(a,b.scriptState)}var c=b.scriptStartRegex||/^<%/i,d=b.scriptEndRegex||/^%>/i,e,f;return{startState:function(){return e=e||CodeMirror.getMode(a,b.scriptingModeSpec),f=f||CodeMirror.getMode(a,"htmlmixed"),{token:b.startOpen?h:g,htmlState:f.startState(),scriptState:e.startState()}},token:function(a,b){return b.token(a,b)},indent:function(a,b){return a.token==g?f.indent(a.htmlState,b):e.indent(a.scriptState,b)},copyState:function(a){return{token:a.token,htmlState:CodeMirror.copyState(f,a.htmlState),scriptState:CodeMirror.copyState(e,a.scriptState)}},electricChars:"/{}:"}}),CodeMirror.defineMIME("application/x-ejs",{name:"htmlembedded",scriptingModeSpec:"javascript"}),CodeMirror.defineMIME("application/x-aspx",{name:"htmlembedded",scriptingModeSpec:"text/x-csharp"}),CodeMirror.defineMIME("application/x-jsp",{name:"htmlembedded",scriptingModeSpec:"text/x-java"});
+CodeMirror.defineMode("htmlembedded", function(config, parserConfig) {
+
+  //config settings
+  var scriptStartRegex = parserConfig.scriptStartRegex || /^<%/i,
+      scriptEndRegex = parserConfig.scriptEndRegex || /^%>/i;
+
+  //inner modes
+  var scriptingMode, htmlMixedMode;
+
+  //tokenizer when in html mode
+  function htmlDispatch(stream, state) {
+      if (stream.match(scriptStartRegex, false)) {
+          state.token=scriptingDispatch;
+          return scriptingMode.token(stream, state.scriptState);
+          }
+      else
+          return htmlMixedMode.token(stream, state.htmlState);
+    }
+
+  //tokenizer when in scripting mode
+  function scriptingDispatch(stream, state) {
+      if (stream.match(scriptEndRegex, false))  {
+          state.token=htmlDispatch;
+          return htmlMixedMode.token(stream, state.htmlState);
+         }
+      else
+          return scriptingMode.token(stream, state.scriptState);
+         }
+
+
+  return {
+    startState: function() {
+      scriptingMode = scriptingMode || CodeMirror.getMode(config, parserConfig.scriptingModeSpec);
+      htmlMixedMode = htmlMixedMode || CodeMirror.getMode(config, "htmlmixed");
+      return {
+          token :  parserConfig.startOpen ? scriptingDispatch : htmlDispatch,
+          htmlState : CodeMirror.startState(htmlMixedMode),
+          scriptState : CodeMirror.startState(scriptingMode)
+      };
+    },
+
+    token: function(stream, state) {
+      return state.token(stream, state);
+    },
+
+    indent: function(state, textAfter) {
+      if (state.token == htmlDispatch)
+        return htmlMixedMode.indent(state.htmlState, textAfter);
+      else if (scriptingMode.indent)
+        return scriptingMode.indent(state.scriptState, textAfter);
+    },
+
+    copyState: function(state) {
+      return {
+       token : state.token,
+       htmlState : CodeMirror.copyState(htmlMixedMode, state.htmlState),
+       scriptState : CodeMirror.copyState(scriptingMode, state.scriptState)
+      };
+    },
+
+    electricChars: "/{}:",
+
+    innerMode: function(state) {
+      if (state.token == scriptingDispatch) return {state: state.scriptState, mode: scriptingMode};
+      else return {state: state.htmlState, mode: htmlMixedMode};
+    }
+  };
+}, "htmlmixed");
+
+CodeMirror.defineMIME("application/x-ejs", { name: "htmlembedded", scriptingModeSpec:"javascript"});
+CodeMirror.defineMIME("application/x-aspx", { name: "htmlembedded", scriptingModeSpec:"text/x-csharp"});
+CodeMirror.defineMIME("application/x-jsp", { name: "htmlembedded", scriptingModeSpec:"text/x-java"});
+CodeMirror.defineMIME("application/x-erb", { name: "htmlembedded", scriptingModeSpec:"ruby"});

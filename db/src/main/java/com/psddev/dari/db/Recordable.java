@@ -686,10 +686,10 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.MetricValue annotation) {
         SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
-        MetricDatabase.FieldData metricFieldData = field.as(MetricDatabase.FieldData.class);
+        MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
 
-        fieldData.setIndexTable(MetricDatabase.METRIC_TABLE);
-        fieldData.setIndexTableColumnName(MetricDatabase.METRIC_DATA_FIELD);
+        fieldData.setIndexTable(MetricAccess.METRIC_TABLE);
+        fieldData.setIndexTableColumnName(MetricAccess.METRIC_DATA_FIELD);
         fieldData.setIndexTableSameColumnNames(false);
         fieldData.setIndexTableSource(true);
         fieldData.setIndexTableReadOnly(true);

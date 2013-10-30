@@ -78,6 +78,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String READ_JDBC_PASSWORD_SETTING = "readJdbcPassword";
     public static final String READ_JDBC_POOL_SIZE_SETTING = "readJdbcPoolSize";
 
+    public static final String CATALOG_SUB_SETTING = "catalog";
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
@@ -109,6 +110,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
 
+    public static final String SUB_DATA_COLUMN_ALIAS_PREFIX = "subData_";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
     private static final String SHORT_NAME = "SQL";
     private static final Stats STATS = new Stats(SHORT_NAME);
@@ -126,6 +129,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private volatile DataSource dataSource;
     private volatile DataSource readDataSource;
+    private volatile String catalog;
+    private volatile transient String defaultCatalog;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
@@ -217,6 +222,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     }
 
                     try {
+                        defaultCatalog = connection.getCatalog();
                         DatabaseMetaData meta = connection.getMetaData();
                         String vendorName = meta.getDatabaseProductName();
                         Class<? extends SqlVendor> vendorClass = VENDOR_CLASSES.get(vendorName);
@@ -259,6 +265,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** Sets the JDBC data source used exclusively for read operations. */
     public void setReadDataSource(DataSource readDataSource) {
         this.readDataSource = readDataSource;
+    }
+
+    public String getCatalog() {
+        return catalog;
+    }
+
+    public void setCatalog(String catalog) {
+        this.catalog = catalog;
+
+        try {
+            getVendor().setUp(this);
+            tableNames.refresh();
+            symbols.invalidate();
+
+        } catch (IOException error) {
+            throw new IllegalStateException(error);
+
+        } catch (SQLException error) {
+            throw new SqlDatabaseException(this, "Can't check for required tables!", error);
+        }
     }
 
     /** Returns the vendor-specific SQL engine information. */
@@ -602,7 +628,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     // Closes all the given SQL resources safely.
-    private void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
+    protected void closeResources(Query<?> query, Connection connection, Statement statement, ResultSet result) {
         if (result != null) {
             try {
                 result.close();
@@ -623,8 +649,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 (query == null ||
                 !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
             try {
-                connection.close();
-            } catch (SQLException error) {
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
+            } catch (SQLException ex) {
                 // Not likely and probably harmless.
             }
         }
@@ -696,7 +724,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public void close() {
             if (connection != null) {
                 try {
-                    connection.close();
+                    if (!connection.isClosed()) {
+                        connection.close();
+                    }
                 } catch (SQLException error) {
                     // Not likely and probably harmless.
                 }
@@ -782,9 +812,29 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
 
         ResultSetMetaData meta = resultSet.getMetaData();
+        Object subId = null, subTypeId = null;
+        byte[] subData;
+
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
-            if (query.getExtraSourceColumns().containsKey(columnName)) {
+            if (columnName.startsWith(SUB_DATA_COLUMN_ALIAS_PREFIX)) {
+                if (columnName.endsWith("_"+ID_COLUMN)) {
+                    subId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+TYPE_ID_COLUMN)) {
+                    subTypeId = resultSet.getObject(i);
+                } else if (columnName.endsWith("_"+DATA_COLUMN)) {
+                    subData = resultSet.getBytes(i);
+                    if (subId != null && subTypeId != null && subData != null && ! subId.equals(objectState.getId())) {
+                        Object subObject = createSavedObject(subTypeId, subId, query);
+                        State subObjectState = State.getInstance(subObject);
+                        subObjectState.setValues(unserializeData(subData));
+                        subId = null;
+                        subTypeId = null;
+                        subData = null;
+                        objectState.getExtras().put(State.SUB_DATA_STATE_EXTRA_PREFIX + subObjectState.getId(), subObject);
+                    }
+                }
+            } else if (query.getExtraSourceColumns().containsKey(columnName)) {
                 objectState.put(query.getExtraSourceColumns().get(columnName), resultSet.getObject(i));
             } else {
                 objectState.getExtras().put(EXTRA_COLUMN_EXTRA_PREFIX + meta.getColumnLabel(i), resultSet.getObject(i));
@@ -1174,16 +1224,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = dataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(dataSource);
+
             connection.setReadOnly(false);
+
             if (vendor != null) {
                 vendor.setTransactionIsolation(connection);
             }
+
             return connection;
 
         } catch (SQLException error) {
             throw new SqlDatabaseException(this, "Can't connect to the SQL engine!", error);
         }
+    }
+
+    private Connection getConnectionFromDataSource(DataSource dataSource) throws SQLException {
+        Connection connection = dataSource.getConnection();
+        String catalog = getCatalog();
+
+        if (catalog != null) {
+            connection.setCatalog(catalog);
+        }
+
+        return connection;
     }
 
     @Override
@@ -1199,7 +1263,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         try {
-            Connection connection = readDataSource.getConnection();
+            Connection connection = getConnectionFromDataSource(readDataSource);
+
             connection.setReadOnly(true);
             return connection;
 
@@ -1235,7 +1300,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public void closeConnection(Connection connection) {
         if (connection != null) {
             try {
-                connection.close();
+                if (defaultCatalog != null) {
+                    String catalog = getCatalog();
+
+                    if (catalog != null) {
+                        connection.setCatalog(defaultCatalog);
+                    }
+                }
+
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
+
             } catch (SQLException error) {
                 // Not likely and probably harmless.
             }
@@ -1271,6 +1347,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 JDBC_USER_SETTING,
                 JDBC_PASSWORD_SETTING,
                 JDBC_POOL_SIZE_SETTING));
+
+        setCatalog(ObjectUtils.to(String.class, settings.get(CATALOG_SUB_SETTING)));
 
         String vendorClassName = ObjectUtils.to(String.class, settings.get(VENDOR_CLASS_SETTING));
         Class<?> vendorClass = null;
@@ -1718,7 +1796,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             List<Integer> removes = new ArrayList<Integer>();
 
             for (int i = 0; i < fieldsLength; ++ i) {
-                ObjectField field = query.mapEmbeddedKey(getEnvironment(), fields[i]).getField();
+                Query.MappedKey key = query.mapEmbeddedKey(getEnvironment(), fields[i]);
+                ObjectField field = key.getSubQueryKeyField();
+                if (field == null) {
+                    field = key.getField();
+                }
 
                 if (field != null) {
                     Map<String, Object> rawKeys = new HashMap<String, Object>();
@@ -2362,25 +2444,32 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
          */
         static void logBatchUpdateException(BatchUpdateException bue, String sqlQuery, List<? extends List<?>> parameters) {
             int i = 0;
-            int failureOffset = bue.getUpdateCounts().length;
-            List<?> rowData = parameters.get(failureOffset);
 
             StringBuilder errorBuilder = new StringBuilder();
-            errorBuilder.append("Batch update failed with query '");
-            errorBuilder.append(sqlQuery);
-            errorBuilder.append("' with values (");
-            for (Object value : rowData) {
-                if (i++ != 0) {
-                    errorBuilder.append(", ");
+            for (int code : bue.getUpdateCounts()) {
+                if (code == Statement.EXECUTE_FAILED) {
+                    List<?> rowData = parameters.get(i);
+
+                    errorBuilder.append("Batch update failed with query '");
+                    errorBuilder.append(sqlQuery);
+                    errorBuilder.append("' with values (");
+                    int o = 0;
+                    for (Object value : rowData) {
+                        if (o++ != 0) {
+                            errorBuilder.append(", ");
+                        }
+
+                        if (value instanceof byte[]) {
+                            errorBuilder.append(StringUtils.hex((byte[]) value));
+                        } else {
+                            errorBuilder.append(value);
+                        }
+                    }
+                    errorBuilder.append(')');
                 }
 
-                if (value instanceof byte[]) {
-                    errorBuilder.append(StringUtils.hex((byte[]) value));
-                } else {
-                    errorBuilder.append(value);
-                }
+                i++;
             }
-            errorBuilder.append(')');
 
             Exception ex = bue.getNextException() != null ? bue.getNextException() : bue;
             LOGGER.error(errorBuilder.toString(), ex);
@@ -2414,6 +2503,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         private static void bindParameter(PreparedStatement statement, int index, Object parameter) throws SQLException {
             if (parameter instanceof String) {
                 parameter = ((String) parameter).getBytes(StringUtils.UTF_8);
+            }
+
+            if (parameter instanceof StringBuilder) {
+                parameter = ((StringBuilder) parameter).toString();
             }
 
             if (parameter instanceof byte[]) {
