@@ -23,8 +23,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.BuildDebugServlet;
 import com.psddev.dari.util.DebugFilter;
@@ -33,7 +31,7 @@ import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TaskExecutor;
 import com.psddev.dari.util.WebPageContext;
 
-/** Debug servlet for running bulk database operations. */
+/** Debug servlet for importing/exporting data. */
 @DebugFilter.Path("db-bootstrap")
 @SuppressWarnings("serial")
 public class BootstrapDebugServlet extends HttpServlet {
@@ -42,7 +40,6 @@ public class BootstrapDebugServlet extends HttpServlet {
     public static final String SNAPSHOT_BUTTON_TEXT = "Save Snapshot";
     public static final String IMPORT_BUTTON_TEXT = "Import";
     public static final String DELETE_AND_IMPORT_BUTTON_TEXT = "Delete and Import";
-    private static final Logger LOGGER = LoggerFactory.getLogger(BootstrapDebugServlet.class);
 
     // --- HttpServlet support ---
 
@@ -73,7 +70,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                 String projectName = properties.getProperty("name");
                 BootstrapPackage pkg = null;
                 if (!StringUtils.isEmpty(pkgName)) {
-                    pkg = Bootstrap.Static.getPackage(selectedDatabase, pkgName);
+                    pkg = BootstrapPackage.Static.getPackage(selectedDatabase, pkgName);
                 }
                 if (pkg != null && LIVE_DOWNLOAD_BUTTON_TEXT.equals(action)) {
                     response.setContentType("application/gzip");
@@ -82,7 +79,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                     try {
                         GZIPOutputStream gzOut = new GZIPOutputStream(response.getOutputStream());
                         Writer outputWriter = new OutputStreamWriter(gzOut);
-                        Bootstrap.Static.writeContents(selectedDatabase, pkg, additionalTypes, outputWriter, projectName);
+                        BootstrapPackage.Static.writeContents(selectedDatabase, pkg, additionalTypes, outputWriter, projectName);
                         gzOut.finish();
                     } catch (IOException e) {
                         throw new RuntimeException(e);
@@ -117,7 +114,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 if (action.equals(DELETE_AND_IMPORT_BUTTON_TEXT)) {
                                     deleteFirst = true;
                                 }
-                                Bootstrap.Static.importContents(selectedDatabase, fileName, fileInput, deleteFirst);
+                                BootstrapPackage.Static.importContents(selectedDatabase, fileName, fileInput, deleteFirst);
                             }
                         }
                     }
@@ -132,16 +129,16 @@ public class BootstrapDebugServlet extends HttpServlet {
                     writeStart("div", "class", "span6"); // lhs/rhs
                         writeStart("h2").writeHtml("Download Bootstrap Packages").writeEnd();
 
-                        writeStart("p").writeHtml("These files contain all of the records of the specified type(s) in the database. ").writeStart("code").writeHtml("Metric").writeEnd().writeHtml(" data is ").writeStart("strong").writeHtml("not included").writeEnd().writeHtml(".").writeEnd();
+                        writeStart("p").writeHtml("Bootstrap Packages are created when a class is annotated with ").writeStart("code").writeRaw("@BootstrapPackages(\"My&nbsp;Package&nbsp;Name\")").writeEnd().writeHtml(". These files contain all of the records of the specified type(s) in the database. ").writeStart("code").writeHtml("Metric").writeEnd().writeHtml(" data is ").writeStart("strong").writeHtml("not included").writeEnd().writeHtml(".").writeEnd();
 
                         writeStart("table", "width", "100%");
 
-                        List<BootstrapPackage> packages = Bootstrap.Static.getPackages(selectedDatabase);
+                        List<BootstrapPackage> packages = BootstrapPackage.Static.getPackages(selectedDatabase);
                         for (BootstrapPackage pkg : packages) {
                             // if (pkgName != null && ! pkg.getName().equals(pkgName)) continue;
                             if (pkg.getName().equals(pkgName)) {
                                 if (! additionalTypes.isEmpty()) {
-                                    Bootstrap.Static.checkConsistency(selectedDatabase, pkg, new HashSet<BootstrapPackage>(packages), additionalTypes);
+                                    BootstrapPackage.Static.checkConsistency(selectedDatabase, pkg, new HashSet<BootstrapPackage>(packages), additionalTypes);
                                 }
                             }
                             writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
@@ -262,7 +259,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                     writeHtml(type.getDisplayName());
                                     writeEnd();
                                 }
-                                for (ObjectType type : Bootstrap.Static.getAllTypes(selectedDatabase, pkg)) {
+                                for (ObjectType type : BootstrapPackage.Static.getAllTypes(selectedDatabase, pkg)) {
                                     if (types.contains(type)) continue;
                                     if (!first) writeHtml(", "); else first = false;
                                     writeStart("abbr", "style", "text-transform: none;", "title", type.getInternalName());
@@ -279,7 +276,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                         writeHtml(type.getDisplayName());
                                         writeEnd();
                                     }
-                                    for (ObjectType type : Bootstrap.Static.getAllTypes(selectedDatabase, additionalTypes)) {
+                                    for (ObjectType type : BootstrapPackage.Static.getAllTypes(selectedDatabase, additionalTypes)) {
                                         if (additionalTypes.contains(type)) continue;
                                         if (!first) writeHtml(", "); else first = false;
                                         writeStart("abbr", "style", "text-transform: none;", "title", type.getInternalName());

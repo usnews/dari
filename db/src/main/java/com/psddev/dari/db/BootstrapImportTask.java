@@ -92,19 +92,19 @@ class BootstrapImportTask extends Task {
                 }
             } while (! "".equals((line = reader.readLine())));
 
-            if (! headers.containsKey(Bootstrap.Static.TYPES_HEADER) || headers.get(Bootstrap.Static.TYPES_HEADER) == null || "".equals(headers.get(Bootstrap.Static.TYPES_HEADER).trim())) {
-                throw new RuntimeException("Missing " + Bootstrap.Static.TYPES_HEADER + " header");
+            if (! headers.containsKey(BootstrapPackage.Static.TYPES_HEADER) || headers.get(BootstrapPackage.Static.TYPES_HEADER) == null || "".equals(headers.get(BootstrapPackage.Static.TYPES_HEADER).trim())) {
+                throw new RuntimeException("Missing " + BootstrapPackage.Static.TYPES_HEADER + " header");
             }
-            if (! headers.containsKey(Bootstrap.Static.TYPE_MAP_HEADER) || headers.get(Bootstrap.Static.TYPE_MAP_HEADER) == null || "".equals(headers.get(Bootstrap.Static.TYPE_MAP_HEADER).trim())) {
-                throw new RuntimeException("Missing " + Bootstrap.Static.TYPE_MAP_HEADER + " header");
+            if (! headers.containsKey(BootstrapPackage.Static.TYPE_MAP_HEADER) || headers.get(BootstrapPackage.Static.TYPE_MAP_HEADER) == null || "".equals(headers.get(BootstrapPackage.Static.TYPE_MAP_HEADER).trim())) {
+                throw new RuntimeException("Missing " + BootstrapPackage.Static.TYPE_MAP_HEADER + " header");
             }
-            if (! headers.containsKey(Bootstrap.Static.ROW_COUNT_HEADER) || headers.get(Bootstrap.Static.ROW_COUNT_HEADER) == null || "".equals(headers.get(Bootstrap.Static.ROW_COUNT_HEADER).trim())) {
-                throw new RuntimeException("Missing "+Bootstrap.Static.ROW_COUNT_HEADER+" header");
+            if (! headers.containsKey(BootstrapPackage.Static.ROW_COUNT_HEADER) || headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER) == null || "".equals(headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER).trim())) {
+                throw new RuntimeException("Missing "+BootstrapPackage.Static.ROW_COUNT_HEADER+" header");
             }
-            setProgressTotal(ObjectUtils.to(Long.class, headers.get(Bootstrap.Static.ROW_COUNT_HEADER)));
+            setProgressTotal(ObjectUtils.to(Long.class, headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER)));
             UUID localObjTypeId = database.getEnvironment().getTypeByClass(ObjectType.class).getId();
             UUID globalsId = new UUID(-1L, -1L);
-            for (String typeIdEqType : headers.get(Bootstrap.Static.TYPE_MAP_HEADER).split(",")) {
+            for (String typeIdEqType : headers.get(BootstrapPackage.Static.TYPE_MAP_HEADER).split(",")) {
                 String[] p = typeIdEqType.split("=", 2);
                 if (p.length != 2) continue;
                 UUID remoteTypeId = UuidUtils.fromString(p[0].trim());
@@ -122,7 +122,7 @@ class BootstrapImportTask extends Task {
                     remoteToLocalTypeIdMap.put(remoteTypeId, localTypeId);
                 }
             }
-            if (headers.get(Bootstrap.Static.TYPES_HEADER).trim().equals(Bootstrap.Static.ALL_TYPES_HEADER_VALUE)) {
+            if (headers.get(BootstrapPackage.Static.TYPES_HEADER).trim().equals(BootstrapPackage.Static.ALL_TYPES_HEADER_VALUE)) {
                 if (deleteFirst) {
                     LOGGER.info("Deleting all records in database to load " + filename);
                     for (Object obj : Query.fromAll().where("_type != ?", localObjTypeId).and("_id != ?", globalsId).noCache().using(database).resolveToReferenceOnly().iterable(100)) {
@@ -134,7 +134,7 @@ class BootstrapImportTask extends Task {
                 }
             } else {
                 List<UUID> typeIds = new ArrayList<UUID>();
-                for (String remoteTypeName : headers.get(Bootstrap.Static.TYPES_HEADER).split(",")) {
+                for (String remoteTypeName : headers.get(BootstrapPackage.Static.TYPES_HEADER).split(",")) {
                     remoteTypeName = remoteTypeName.trim();
                     UUID remoteTypeId = remoteTypeNameToTypeIdMap.get(remoteTypeName);
                     UUID localTypeId = remoteToLocalTypeIdMap.get(remoteTypeId);

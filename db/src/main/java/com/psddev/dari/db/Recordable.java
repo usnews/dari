@@ -341,6 +341,13 @@ public interface Recordable {
         String value();
     }
 
+    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapPackages {
+        String[] value();
+    }
+
     // --- Deprecated ---
 
     /** @deprecated Use {@link Denormalized} instead. */
@@ -796,5 +803,16 @@ class WhereProcessor implements ObjectField.AnnotationProcessor<Recordable.Where
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.Where annotation) {
         field.setPredicate(annotation.value());
+    }
+}
+
+class BootstrapPackagesProcessor implements ObjectType.AnnotationProcessor<Recordable.BootstrapPackages> {
+    @Override
+    public void process(ObjectType type, Recordable.BootstrapPackages annotation) {
+        Set<String> packageNames = new LinkedHashSet<String>();
+        for (String str : annotation.value()) {
+            packageNames.add(str);
+        }
+        type.as(BootstrapPackage.TypeData.class).setPackageNames(packageNames);
     }
 }
