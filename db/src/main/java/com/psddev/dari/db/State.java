@@ -213,7 +213,7 @@ public class State implements Map<String, Object> {
 
             if (visibilities != null && !visibilities.isEmpty()) {
                 String field = visibilities.get(visibilities.size() - 1);
-                Object value = toSimpleValue(get(field), false);
+                Object value = toSimpleValue(get(field), false, false);
 
                 if (value != null) {
                     byte[] typeId = UuidUtils.toBytes(getTypeId());
@@ -238,7 +238,7 @@ public class State implements Map<String, Object> {
         for (ObjectIndex index : indexes) {
             if (index.isVisibility()) {
                 String field = index.getField();
-                Object value = toSimpleValue(index.getValue(this), false);
+                Object value = toSimpleValue(index.getValue(this), false, false);
 
                 if (value == null) {
                     if (visibilities != null) {
@@ -396,6 +396,10 @@ public class State implements Map<String, Object> {
      * {@link java.util.LinkedHashMap}.
      */
     public Map<String, Object> getSimpleValues() {
+        return getSimpleValues(false);
+    }
+
+    public Map<String, Object> getSimpleValues(boolean withTypeNames) {
         Map<String, Object> values = new LinkedHashMap<String, Object>();
 
         for (Map.Entry<String, Object> entry : getValues().entrySet()) {
@@ -404,15 +408,19 @@ public class State implements Map<String, Object> {
             ObjectField field = getField(name);
 
             if (field == null) {
-                values.put(name, toSimpleValue(value, false));
+                values.put(name, toSimpleValue(value, false, withTypeNames));
 
             } else if (value != null && !(value instanceof Metric)) {
-                values.put(name, toSimpleValue(value, field.isEmbedded()));
+                values.put(name, toSimpleValue(value, field.isEmbedded(), withTypeNames));
             }
         }
 
         values.put(StateValueUtils.ID_KEY, getId().toString());
-        values.put(StateValueUtils.TYPE_KEY, getTypeId().toString());
+        if (withTypeNames && getType() != null) {
+            values.put(StateValueUtils.TYPE_KEY, getType().getInternalName());
+        } else {
+            values.put(StateValueUtils.TYPE_KEY, getTypeId().toString());
+        }
         return values;
     }
 
@@ -429,7 +437,7 @@ public class State implements Map<String, Object> {
             String name = e.getKey();
             ObjectField field = getField(name);
             if (field != null) {
-                values.put(name, toSimpleValue(e.getValue(), field.isEmbedded()));
+                values.put(name, toSimpleValue(e.getValue(), field.isEmbedded(), false));
             }
         }
         values.put(StateValueUtils.ID_KEY, getId().toString());
@@ -441,7 +449,7 @@ public class State implements Map<String, Object> {
      * Converts the given {@code value} into an instance of one of
      * the simple types listed in {@link #getSimpleValues}.
      */
-    private static Object toSimpleValue(Object value, boolean isEmbedded) {
+    private static Object toSimpleValue(Object value, boolean isEmbedded, boolean withTypeNames) {
         if (value == null) {
             return null;
         }
@@ -450,7 +458,7 @@ public class State implements Map<String, Object> {
         if (valueIterable != null) {
             List<Object> list = new ArrayList<Object>();
             for (Object item : valueIterable) {
-                list.add(toSimpleValue(item, isEmbedded));
+                list.add(toSimpleValue(item, isEmbedded, withTypeNames));
             }
             return list;
 
@@ -459,7 +467,7 @@ public class State implements Map<String, Object> {
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
                 Object key = entry.getKey();
                 if (key != null) {
-                    map.put(key.toString(), toSimpleValue(entry.getValue(), isEmbedded));
+                    map.put(key.toString(), toSimpleValue(entry.getValue(), isEmbedded, withTypeNames));
                 }
             }
             return map;
@@ -483,7 +491,11 @@ public class State implements Map<String, Object> {
 
             Map<String, Object> map = new LinkedHashMap<String, Object>();
             map.put(StateValueUtils.REFERENCE_KEY, valueState.getId().toString());
-            map.put(StateValueUtils.TYPE_KEY, valueState.getTypeId().toString());
+            if (withTypeNames && valueState.getType() != null) {
+                map.put(StateValueUtils.TYPE_KEY, valueState.getType().getInternalName());
+            } else {
+                map.put(StateValueUtils.TYPE_KEY, valueState.getTypeId().toString());
+            }
             return map;
 
         } else if (value instanceof Boolean ||
@@ -506,7 +518,7 @@ public class State implements Map<String, Object> {
             return ((Enum<?>) value).name();
 
         } else {
-            return toSimpleValue(ObjectUtils.to(Map.class, value), isEmbedded);
+            return toSimpleValue(ObjectUtils.to(Map.class, value), isEmbedded, withTypeNames);
         }
     }
 

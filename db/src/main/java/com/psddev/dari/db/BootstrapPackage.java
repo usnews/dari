@@ -100,9 +100,7 @@ public class BootstrapPackage extends Record {
         public static final String PACKAGE_NAME_HEADER = "Bootstrap Package Name";
         public static final String PROJECT_HEADER = "Project";
         public static final String DATE_HEADER = "Date";
-        public static final String JAVA_PACKAGES_HEADER = "Java Packages";
         public static final String TYPES_HEADER = "Types";
-        public static final String TYPE_MAP_HEADER = "Type Ids";
         public static final String ROW_COUNT_HEADER = "Row Count";
         public static final String ALL_TYPES_HEADER_VALUE = "ALL";
 
@@ -246,15 +244,6 @@ public class BootstrapPackage extends Record {
                     writer.write(type.getInternalName());
                 }
             }
-            writer.write("\n");
-            writer.write(TYPE_MAP_HEADER + ": ");
-            first = true;
-            for (ObjectType type : database.getEnvironment().getTypes()) {
-                if (!first) writer.write(","); else first = false;
-                writer.write(type.getId().toString());
-                writer.write("=");
-                writer.write(type.getInternalName());
-            }
             Long count;
             if (pkg.isInit()) {
                 count = Query.fromAll().using(database).noCache().count();
@@ -270,15 +259,15 @@ public class BootstrapPackage extends Record {
             for (Object o : query.noCache().resolveToReferenceOnly().iterable(100)) {
                 if (o instanceof Record) {
                     Record r = (Record) o;
-                    writer.write(ObjectUtils.toJson(r.getState().getSimpleValues()));
+                    writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
                     writer.write("\n");
                 }
             }
             writer.flush();
         }
 
-        public static void importContents(Database database, String filename, InputStream fileInputStream, boolean deleteFirst) throws IOException {
-            BootstrapImportTask importer = new BootstrapImportTask(database, filename, fileInputStream, deleteFirst);
+        public static void importContents(Database database, String filename, InputStream fileInputStream, boolean deleteFirst, int numWriters, int commitSize) throws IOException {
+            BootstrapImportTask importer = new BootstrapImportTask(database, filename, fileInputStream, deleteFirst, numWriters, commitSize);
             importer.submit();
         }
     }

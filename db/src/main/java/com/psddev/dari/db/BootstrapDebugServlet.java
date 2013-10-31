@@ -103,6 +103,16 @@ public class BootstrapDebugServlet extends HttpServlet {
 
                             FileItem file = req.getFileItem("file");
                             if (file != null) {
+                                int numWriters = wp.param(int.class, "numWriters");
+
+                                if (numWriters < 1) {
+                                    numWriters = 1;
+                                }
+                                int commitSize = wp.param(int.class, "commitSize");
+
+                                if (commitSize < 1) {
+                                    commitSize = 1;
+                                }
                                 String contentType = file.getContentType();
                                 String fileName = file.getName();
                                 InputStream input = file.getInputStream();
@@ -111,10 +121,11 @@ public class BootstrapDebugServlet extends HttpServlet {
                                     fileInput = new GZIPInputStream(input);
                                 }
                                 boolean deleteFirst = false;
+
                                 if (action.equals(DELETE_AND_IMPORT_BUTTON_TEXT)) {
                                     deleteFirst = true;
                                 }
-                                BootstrapPackage.Static.importContents(selectedDatabase, fileName, fileInput, deleteFirst);
+                                BootstrapPackage.Static.importContents(selectedDatabase, fileName, fileInput, deleteFirst, numWriters, commitSize);
                             }
                         }
                     }
@@ -329,6 +340,21 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 writeTag("input", "id", "deleteCheckbox", "type", "checkbox", "name", "deleteBeforeImport", "value", "true");
                             writeEnd();
                         writeEnd();
+
+                        writeStart("div", "class", "control-group");
+                            writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("# of Writers").writeEnd();
+                            writeStart("div", "class", "controls");
+                                writeTag("input", "id", "numWriters", "type", "text", "name", "numWriters", "value", 5);
+                            writeEnd();
+                        writeEnd();
+
+                        writeStart("div", "class", "control-group");
+                            writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Commit Size").writeEnd();
+                            writeStart("div", "class", "controls");
+                                writeTag("input", "name", "commitSize", "type", "text", "value", 50);
+                            writeEnd();
+                        writeEnd();
+
 
                         writeStart("div", "class", "form-actions");
                             writeTag("input", "id", "importBtn", "type", "submit", "name", "action", "class", "btn btn-primary", "value", IMPORT_BUTTON_TEXT);
