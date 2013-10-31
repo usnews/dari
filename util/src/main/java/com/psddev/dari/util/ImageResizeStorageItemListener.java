@@ -46,6 +46,12 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
                 continue;
             }
 
+            // Make sure the "resizes" StorageItems are of the same type of
+            // storage.
+            if (!resizedItem.getStorage().equals(item.getStorage())) {
+                continue;
+            }
+
             Map<String, Object> resizedMetadata = resizedItem.getMetadata();
 
             if (resizedMetadata != null && !resizedMetadata.isEmpty()) {
