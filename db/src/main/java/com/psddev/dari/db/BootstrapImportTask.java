@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import com.psddev.dari.util.AsyncQueue;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Task;
+import com.psddev.dari.util.UuidUtils;
 
 class BootstrapImportTask extends Task {
 
@@ -172,6 +173,9 @@ class BootstrapImportTask extends Task {
                 try {
                     state = new State();
                     state.setValues(stateMap);
+                    if (UuidUtils.ZERO_UUID.equals(state.getTypeId())) {
+                        continue;
+                    }
                     Object obj = state.getOriginalObjectOrNull();
                     if (obj instanceof Record) {
                         if (obj instanceof ObjectType) {

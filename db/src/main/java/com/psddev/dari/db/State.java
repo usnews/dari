@@ -1619,7 +1619,19 @@ public class State implements Map<String, Object> {
             if (key.equals(StateValueUtils.ID_KEY)) {
                 setId(ObjectUtils.to(UUID.class, value));
             } else if (key.equals(StateValueUtils.TYPE_KEY)) {
-                setTypeId(ObjectUtils.to(UUID.class, value));
+                UUID valueTypeId = ObjectUtils.to(UUID.class, value);
+
+                if (valueTypeId != null) {
+                    setTypeId(valueTypeId);
+                } else {
+                    if (value != null) {
+                        ObjectType valueType = getDatabase().getEnvironment().getTypeByName(ObjectUtils.to(String.class, value));
+
+                        if (valueType != null) {
+                            setTypeId(valueType.getId());
+                        }
+                    }
+                }
             }
             return null;
         }
