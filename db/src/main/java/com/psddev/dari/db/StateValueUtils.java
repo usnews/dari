@@ -461,6 +461,7 @@ abstract class StateValueUtils {
 
                             valueState.setDatabase(database);
                             valueState.setResolveToReferenceOnly(objectState.isResolveToReferenceOnly());
+                            valueState.setResolveInvisible(objectState.isResolveInvisible());
                             valueState.putAll(valueMap);
 
                             return value;
