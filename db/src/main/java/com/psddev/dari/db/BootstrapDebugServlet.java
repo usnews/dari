@@ -27,6 +27,7 @@ import org.joda.time.DateTime;
 import com.psddev.dari.util.BuildDebugServlet;
 import com.psddev.dari.util.DebugFilter;
 import com.psddev.dari.util.MultipartRequest;
+import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TaskExecutor;
 import com.psddev.dari.util.WebPageContext;
@@ -103,20 +104,22 @@ public class BootstrapDebugServlet extends HttpServlet {
 
                             FileItem file = req.getFileItem("file");
                             if (file != null) {
-                                int numWriters = wp.param(int.class, "numWriters");
+                                Integer numWriters = ObjectUtils.to(Integer.class, req.getParameter("numWriters"));
+                                Integer commitSize = ObjectUtils.to(Integer.class, req.getParameter("commitSize"));
 
-                                if (numWriters < 1) {
+                                if (numWriters == null || numWriters < 1) {
                                     numWriters = 1;
                                 }
-                                int commitSize = wp.param(int.class, "commitSize");
 
-                                if (commitSize < 1) {
+                                if (commitSize == null || commitSize < 1) {
                                     commitSize = 1;
                                 }
+
                                 String contentType = file.getContentType();
                                 String fileName = file.getName();
                                 InputStream input = file.getInputStream();
                                 InputStream fileInput = input;
+
                                 if (contentType != null && contentType.equals("application/x-gzip")) {
                                     fileInput = new GZIPInputStream(input);
                                 }
