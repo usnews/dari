@@ -839,8 +839,19 @@ public class ObjectType extends Record implements ObjectStruct {
         setGroups(groups);
         setSuperClassNames(superClassNames);
         setAssignableClassNames(assignableClassNames);
-
         getModificationClassNames().clear();
+
+        List<ObjectField> fields = getFields();
+
+        for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
+            ObjectField field = i.next();
+
+            if (!ObjectUtils.isBlank(field.getJavaDeclaringClassName())) {
+                i.remove();
+            }
+        }
+
+        setFields(fields);
         modify(objectClass);
 
         // Set the label fields to the first text field if not explicitly
