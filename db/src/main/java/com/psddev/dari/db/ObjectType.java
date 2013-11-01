@@ -842,6 +842,7 @@ public class ObjectType extends Record implements ObjectStruct {
         getModificationClassNames().clear();
 
         List<ObjectField> fields = getFields();
+        List<ObjectIndex> indexes = getIndexes();
 
         for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
             ObjectField field = i.next();
@@ -851,7 +852,16 @@ public class ObjectType extends Record implements ObjectStruct {
             }
         }
 
+        for (Iterator<ObjectIndex> i = indexes.iterator(); i.hasNext(); ) {
+            ObjectIndex index = i.next();
+
+            if (!ObjectUtils.isBlank(index.getJavaDeclaringClassName())) {
+                i.remove();
+            }
+        }
+
         setFields(fields);
+        setIndexes(indexes);
         modify(objectClass);
 
         // Set the label fields to the first text field if not explicitly
