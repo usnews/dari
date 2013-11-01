@@ -473,7 +473,7 @@ public class State implements Map<String, Object> {
             return map;
 
         } else if (value instanceof Query) {
-            return ((Query<?>) value).getState().getSimpleValues();
+            return ((Query<?>) value).getState().getSimpleValues(withTypeNames);
 
         } else if (value instanceof Metric) {
             return null;
@@ -485,7 +485,7 @@ public class State implements Map<String, Object> {
                 if (isEmbedded ||
                         ((type = valueState.getType()) != null &&
                         type.isEmbedded())) {
-                    return valueState.getSimpleValues();
+                    return valueState.getSimpleValues(withTypeNames);
                 }
             }
 
