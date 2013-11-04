@@ -10,11 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.logging.Level;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.AsyncQueue;
+import com.psddev.dari.util.LogCapture;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Task;
 import com.psddev.dari.util.UuidUtils;
@@ -166,30 +168,20 @@ class BootstrapImportTask extends Task {
                 if ("".equals(line)) continue;
                 if (line.startsWith("#")) continue;
                 if (! line.startsWith("{") || ! line.endsWith("}")) throw new RuntimeException("Invalid line in input file: " + line);
-                // line = translateTypeIds(line);
                 @SuppressWarnings("unchecked")
                 Map<String, Object> stateMap = (Map<String, Object>) ObjectUtils.fromJson(line);
-                State state;
                 try {
-                    state = new State();
-                    state.setValues(stateMap);
-                    if (UuidUtils.ZERO_UUID.equals(state.getTypeId())) {
+                    ObjectType type = database.getEnvironment().getTypeByName(ObjectUtils.to(String.class, stateMap.get("_type")));
+                    Object obj = type.createObject(ObjectUtils.to(UUID.class, stateMap.get("_id")));
+                    Record record;
+                    if (obj instanceof Record) {
+                        record = (Record) obj;
+                    } else {
+                        LOGGER.error("Unknown type in line: " + line);
                         continue;
                     }
-                    Object obj = state.getOriginalObjectOrNull();
-                    if (obj instanceof Record) {
-                        if (obj instanceof ObjectType) {
-                            ObjectType localObjType = database.getEnvironment().getTypeByName(((ObjectType) obj).getInternalName());
-                            if (localObjType != null && ! localObjType.getId().equals(((ObjectType) obj).getId())) {
-                                ((ObjectType) obj).getState().setId(localObjType.getId());
-                            }
-                        }
-                        saveQueue.add((Record) obj);
-                    } else {
-                        Record record = new Record();
-                        record.setState(state);
-                        saveQueue.add(record);
-                    }
+                    record.getState().setValues(stateMap);
+                    saveQueue.add(record);
                     setProgressIndex(++numRows);
                 } catch (RuntimeException t) {
                     LOGGER.error("Error when saving state at "+stateMap.get("_id")+": ", t);
