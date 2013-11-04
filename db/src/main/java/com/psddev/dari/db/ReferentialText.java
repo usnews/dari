@@ -100,48 +100,35 @@ public class ReferentialText extends AbstractList<Object> {
 
         for (Element enhancement : body.getElementsByClass("enhancement")) {
             if (!enhancement.hasClass("state-removing")) {
-                if (enhancement.hasClass("marker")) {
-                    Object marker = Query.fromAll().where("_id = ?", enhancement.dataset().remove("id")).first();
+                Reference reference = null;
+                String referenceData = enhancement.dataset().remove("reference");
 
-                    if (marker != null) {
-                        Reference reference = new Reference();
+                if (!StringUtils.isBlank(referenceData)) {
+                    Map<?, ?> referenceMap = (Map<?, ?>) ObjectUtils.fromJson(referenceData);
+                    UUID id = ObjectUtils.to(UUID.class, referenceMap.get("_id"));
+                    UUID typeId = ObjectUtils.to(UUID.class, referenceMap.get("_type"));
+                    ObjectType type = Database.Static.getDefault().getEnvironment().getTypeById(typeId);
 
-                        reference.setObject(marker);
-                        references.add(reference);
-                        enhancement.before(boundary);
-                    }
+                    if (type != null) {
+                        Object referenceObject = type.createObject(id);
 
-                } else {
-                    Reference reference = null;
-                    String referenceData = enhancement.dataset().remove("reference");
-
-                    if (!StringUtils.isBlank(referenceData)) {
-                        Map<?, ?> referenceMap = (Map<?, ?>) ObjectUtils.fromJson(referenceData);
-                        UUID id = ObjectUtils.to(UUID.class, referenceMap.get("_id"));
-                        UUID typeId = ObjectUtils.to(UUID.class, referenceMap.get("_type"));
-                        ObjectType type = Database.Static.getDefault().getEnvironment().getTypeById(typeId);
-
-                        if (type != null) {
-                            Object referenceObject = type.createObject(id);
-
-                            if (referenceObject instanceof Reference) {
-                                reference = (Reference) referenceObject;
-                            }
-                        }
-
-                        if (reference == null) {
-                            reference = new Reference();
-                        }
-
-                        for (Map.Entry<?, ?> entry : referenceMap.entrySet()) {
-                            reference.getState().put(entry.getKey().toString(), entry.getValue());
+                        if (referenceObject instanceof Reference) {
+                            reference = (Reference) referenceObject;
                         }
                     }
 
-                    if (reference != null) {
-                        references.add(reference);
-                        enhancement.before(boundary);
+                    if (reference == null) {
+                        reference = new Reference();
                     }
+
+                    for (Map.Entry<?, ?> entry : referenceMap.entrySet()) {
+                        reference.getState().put(entry.getKey().toString(), entry.getValue());
+                    }
+                }
+
+                if (reference != null) {
+                    references.add(reference);
+                    enhancement.before(boundary);
                 }
             }
 
