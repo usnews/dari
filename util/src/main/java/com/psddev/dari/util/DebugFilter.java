@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.naming.ldap.LdapContext;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.Servlet;
@@ -166,25 +167,43 @@ public class DebugFilter extends AbstractFilter {
     }
 
     private static boolean authenticate(HttpServletRequest request, HttpServletResponse response) {
-        String realm = ObjectUtils.coalesce(
+        LdapContext context = LdapUtils.createContext();
+        String[] credentials = JspUtils.getBasicCredentials(request);
+
+        if (context != null &&
+                credentials != null &&
+                LdapUtils.authenticate(context, credentials[0], credentials[1])) {
+            return true;
+        }
+
+        String username = ObjectUtils.firstNonNull(
+                Settings.get(String.class, "dari/debugUsername"),
+                Settings.get(String.class, "servlet/debugUsername"));
+
+        String password = ObjectUtils.firstNonNull(
+                Settings.get(String.class, "dari/debugPassword"),
+                Settings.get(String.class, "servlet/debugPassword"));
+
+        if (context == null &&
+                (ObjectUtils.isBlank(username) ||
+                ObjectUtils.isBlank(password))) {
+            if (!Settings.isProduction()) {
+                return true;
+            }
+
+        } else if (credentials != null &&
+                credentials[0].equals(username) &&
+                credentials[1].equals(password)) {
+            return true;
+        }
+
+        String realm = ObjectUtils.firstNonNull(
                 Settings.get(String.class, "dari/debugRealm"),
                 Settings.get(String.class, "servlet/debugRealm"),
                 "Debugging Tool");
 
-        String username = ObjectUtils.coalesce(
-                Settings.get(String.class, "dari/debugUsername"),
-                Settings.get(String.class, "servlet/debugUsername"));
-
-        String password = ObjectUtils.coalesce(
-                Settings.get(String.class, "dari/debugPassword"),
-                Settings.get(String.class, "servlet/debugPassword"));
-
-        return JspUtils.authenticateBasic(
-                request,
-                response,
-                realm,
-                username,
-                password);
+        JspUtils.setBasicAuthenticationHeader(response, realm);
+        return false;
     }
 
     @Override
