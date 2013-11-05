@@ -199,7 +199,7 @@ public final class IoUtils {
             ++ decodedIndex;
         }
 
-        return new File(new String(decoded, charset));
+        return new File(new String(decoded, 0, decodedIndex, charset));
     }
 
     private static final byte[] HEX_TO_BYTE;
