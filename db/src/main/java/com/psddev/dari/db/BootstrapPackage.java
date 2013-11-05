@@ -225,6 +225,7 @@ public class BootstrapPackage extends Record {
             boolean first;
             ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
             Query<?> query = Query.fromAll().using(database);
+            query.where("_type != ?", objType);
             writer.write(TYPES_HEADER + ": ");
             Set<ObjectType> exportTypes = new HashSet<ObjectType>();
             if (pkg.isInit()) {
@@ -237,6 +238,10 @@ public class BootstrapPackage extends Record {
                 if (exportTypes.contains(objType)) {
                     writer.write(objType.getInternalName());
                     first = false;
+                }
+                if (exportTypes.contains(objType)) {
+                    if (!first) writer.write(","); else first = false;
+                    writer.write(objType.getInternalName());
                 }
                 for (ObjectType type : exportTypes) {
                     if (type.equals(objType)) continue;
@@ -255,6 +260,13 @@ public class BootstrapPackage extends Record {
             writer.write(ObjectUtils.to(String.class, count));
             writer.write("\n\n"); // blank line between headers and data
             writer.flush();
+
+            if (exportTypes.contains(objType)) {
+                for (ObjectType r : Query.from(ObjectType.class).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
+                    writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
+                    writer.write("\n");
+                }
+            }
 
             for (Object o : query.noCache().resolveToReferenceOnly().iterable(100)) {
                 if (o instanceof Record) {

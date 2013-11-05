@@ -155,7 +155,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                     BootstrapPackage.Static.checkConsistency(selectedDatabase, pkg, new HashSet<BootstrapPackage>(packages), additionalTypes);
                                 }
                             }
-                            writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
+                            writeStart("form", "action", "/_debug/db-bootstrap", "class", "form-horizontal", "method", "post");
                             boolean first;
                             String showWarningsId = wp.createId();
                             String showTypesId = wp.createId();

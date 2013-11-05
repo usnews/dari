@@ -10,16 +10,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.AsyncQueue;
-import com.psddev.dari.util.LogCapture;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Task;
-import com.psddev.dari.util.UuidUtils;
+import com.psddev.dari.util.TypeReference;
 
 class BootstrapImportTask extends Task {
 
@@ -39,6 +39,11 @@ class BootstrapImportTask extends Task {
     private final List<AsyncDatabaseWriter<Record>> deleters = new ArrayList<AsyncDatabaseWriter<Record>>();
     private AsyncQueue<Record> deleteQueue;
     private final Map<UUID,ObjectType> unknownTypes = new HashMap<UUID,ObjectType>();
+    private boolean needsTranslation;
+    private Pattern typeIdTranslationPattern;
+    private final Map<UUID,UUID> remoteToLocalTypeIdMap = new HashMap<UUID,UUID>();
+    private final Map<String,String> remoteToLocalTypeIdStringMap = new HashMap<String,String>();
+    private final TypeReference<Map<String,Object>> MAP_STRING_OBJECT_TYPE = new TypeReference<Map<String,Object>>() {};
 
     public BootstrapImportTask(Database database, String filename, InputStream fileInputStream, boolean deleteFirst, int numWriters, int commitSize) {
         super(EXECUTOR_PREFIX, EXECUTOR_PREFIX + " " + filename);
@@ -162,14 +167,16 @@ class BootstrapImportTask extends Task {
             }
             LOGGER.info("Importing data from " + filename + " . . . ");
             int numRows = 0;
+            ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
+            boolean afterObjectTypes = false;
             while (null != (line = reader.readLine())) {
                 if (!shouldContinue()) break;
                 line = line.trim();
                 if ("".equals(line)) continue;
                 if (line.startsWith("#")) continue;
                 if (! line.startsWith("{") || ! line.endsWith("}")) throw new RuntimeException("Invalid line in input file: " + line);
-                @SuppressWarnings("unchecked")
-                Map<String, Object> stateMap = (Map<String, Object>) ObjectUtils.fromJson(line);
+                line = translateTypeIds(line);
+                Map<String, Object> stateMap = ObjectUtils.to(MAP_STRING_OBJECT_TYPE, ObjectUtils.fromJson(line));
                 try {
                     ObjectType type = database.getEnvironment().getTypeByName(ObjectUtils.to(String.class, stateMap.get("_type")));
                     Object obj = type.createObject(ObjectUtils.to(UUID.class, stateMap.get("_id")));
@@ -179,6 +186,19 @@ class BootstrapImportTask extends Task {
                     } else {
                         LOGGER.error("Unknown type in line: " + line);
                         continue;
+                    }
+                    if (!afterObjectTypes && objType.equals(type)) {
+                        ObjectType localType = database.getEnvironment().getTypeByName(ObjectUtils.to(String.class, stateMap.get("internalName")));
+                        if (localType != null) {
+                            remoteToLocalTypeIdMap.put(ObjectUtils.to(UUID.class, stateMap.get("_id")), localType.getId());
+                            stateMap.put("_id", localType.getId());
+                        }
+                    } else if (!afterObjectTypes) {
+                        afterObjectTypes = true;
+                        // this is the first line after all of the objectTypes, potentially need to re-parse it.
+                        prepareTypeIdTranslation();
+                        line = translateTypeIds(line);
+                        stateMap = ObjectUtils.to(MAP_STRING_OBJECT_TYPE, ObjectUtils.fromJson(line));
                     }
                     record.getState().setValues(stateMap);
                     saveQueue.add(record);
@@ -221,6 +241,50 @@ class BootstrapImportTask extends Task {
             }
             LOGGER.info("Done with import of " + filename + ".");
         }
+    }
+
+    private void prepareTypeIdTranslation() {
+        needsTranslation = ! remoteToLocalTypeIdMap.isEmpty();
+        for (Map.Entry<UUID,UUID> entry : remoteToLocalTypeIdMap.entrySet()) {
+            remoteToLocalTypeIdStringMap.put(entry.getKey().toString(), entry.getValue().toString());
+        }
+        if (!needsTranslation) return;
+        StringBuilder regexBuilder = new StringBuilder();
+        regexBuilder.append("(");
+        for (String remoteTypeId : remoteToLocalTypeIdStringMap.keySet()) {
+            regexBuilder.append(remoteTypeId);
+            regexBuilder.append("|");
+        }
+        regexBuilder.setLength(regexBuilder.length()-1);
+        regexBuilder.append(")");
+        typeIdTranslationPattern = Pattern.compile(regexBuilder.toString());
+    }
+
+    private String translateTypeIds(String line) {
+        if (!needsTranslation) return line;
+        StringBuilder newLine = new StringBuilder();
+        Matcher remoteTypeIdMatcher = typeIdTranslationPattern.matcher(line);
+        int cursor = 0;
+        while (remoteTypeIdMatcher.find()) {
+            int start = remoteTypeIdMatcher.start();
+            int end = remoteTypeIdMatcher.end();
+            newLine.append(line.substring(cursor, start));
+            String remoteTypeId = line.substring(start, end);
+            String localTypeId;
+            if ((localTypeId = remoteToLocalTypeIdStringMap.get(remoteTypeId)) != null) {
+                newLine.append(localTypeId);
+            } else {
+                newLine.append(remoteTypeId);
+            }
+            cursor = end;
+            ObjectType unknownType;
+            if ((unknownType = unknownTypes.remove(localTypeId)) != null) {
+                saveQueue.add(unknownType);
+            }
+        }
+        newLine.append(line.substring(cursor));
+
+        return newLine.toString();
     }
 
 }
