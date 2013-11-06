@@ -1412,5 +1412,9 @@ class MetricAccess {
             this.eventDateProcessorClassName = eventDateProcessorClass.getName();
         }
 
+        public void setEventDateProcessorClassName(String eventDateProcessorClassName) {
+            this.eventDateProcessorClassName = eventDateProcessorClassName;
+        }
+
     }
 }

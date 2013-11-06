@@ -12,6 +12,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.psddev.dari.util.Settings;
+
 public interface Recordable {
 
     /**
@@ -234,6 +236,7 @@ public interface Recordable {
     @Target(ElementType.FIELD)
     public @interface MetricValue {
         Class<? extends MetricInterval> interval() default MetricInterval.Hourly.class;
+        String intervalSetting() default "";
     }
 
     /**
@@ -695,6 +698,12 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         fieldData.setIndexTableReadOnly(true);
 
         metricFieldData.setEventDateProcessorClass(annotation.interval());
+        if (! "".equals(annotation.intervalSetting())) {
+            String settingValue = Settings.getOrDefault(String.class, annotation.intervalSetting(), null);
+            if (settingValue != null) {
+                metricFieldData.setEventDateProcessorClassName(settingValue);
+            }
+        }
 
         metricFieldData.setMetricValue(true);
     }
