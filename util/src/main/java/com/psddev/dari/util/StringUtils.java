@@ -131,39 +131,34 @@ public final class StringUtils {
         }
     }
 
-
-    /**
-     * Helper method to split a string by case change or common delimiters.
-     *
-     * Multiple delimeters in a row are reduced to a single word boundry.
-     *
-     * Leading delimeters (a space at the beginning of the string) will cause an
-     * empty first word to be detected (bug?). Trailing delemeters do not cause empty
-     * words to be detected.
-     *
-     * Returned words are all lowercased.
-     *
-     * @param string
-     * @return the list of words detected in the string
-     */
+    // Splits a string into a list words based on either case changes or
+    // special delimiters.
     protected static List<String> splitString(String string) {
         List<String> words = new ArrayList<String>();
-        int m = 0, l = string.length();
-        for (int i = 0; i < l; i++) {
-            char c = string.charAt(i);
+        char[] letters = string.toCharArray();
+        int length = letters.length;
+        int marker = 0;
+
+        for (int i = 0; i < length; ++ i) {
+            char c = letters[i];
+
             if (" -_.$".indexOf(c) > -1) {
-                words.add(string.substring(m, i).toLowerCase(Locale.ENGLISH));
-                while (++i < l && " -_.$".indexOf(string.charAt(i)) > -1) {
-                }
-                m = i;
-            } else if (Character.isUpperCase(c) && i > 0 && Character.isLowerCase(string.charAt(i - 1))) {
-                words.add(string.substring(m, i).toLowerCase(Locale.ENGLISH));
-                m = i;
+                words.add(string.substring(marker, i).toLowerCase(Locale.ENGLISH));
+                for (++ i; i < length && " -_.$".indexOf(letters[i]) > -1; ++ i) { }
+
+                marker = i;
+
+            } else if (Character.isUpperCase(c) && i > 0 && Character.isLowerCase(letters[i - 1])) {
+                words.add(string.substring(marker, i).toLowerCase(Locale.ENGLISH));
+
+                marker = i;
             }
         }
-        if (m + 1 < l) {
-            words.add(string.substring(m).toLowerCase(Locale.ENGLISH));
+
+        if (marker < length) {
+            words.add(string.substring(marker).toLowerCase(Locale.ENGLISH));
         }
+
         return words;
     }
 
