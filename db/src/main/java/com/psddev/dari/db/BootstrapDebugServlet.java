@@ -216,7 +216,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                                 if (f.getParentType() != null) allGlobalModifications = false;
                                             }
                                             String adtlStyle = "";
-                                            if (allGlobalModifications) adtlStyle = "color: #aaa;";
+                                            if (allGlobalModifications) adtlStyle = "color: #888;";
                                             writeStart("label", "class", "checkbox control-label", "style", adtlStyle);
                                                 String adtlChecked = "";
                                                 if (wp.params(UUID.class, "additionalTypeIds").contains(entry.getKey().getId())) {
