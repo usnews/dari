@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.Task;
 
 @Metric.Embedded
 public class Metric extends Record {
@@ -378,14 +379,14 @@ public class Metric extends Record {
          * @param parallel Number of tasks to run in parallel. If {@code null}, 1.
          *
          */
-        public static void submitResummarizeAllBetweenTask(Database database, ObjectType type, ObjectField field, MetricInterval interval, DateTime start, DateTime end, Integer parallel) {
+        public static Task submitResummarizeAllBetweenTask(Database database, ObjectType type, ObjectField field, MetricInterval interval, DateTime start, DateTime end, Integer parallel, String executor, String name) {
             Long startTimestamp = (start == null ? null : start.getMillis());
             Long endTimestamp = (end == null ? null : end.getMillis());
             MetricAccess mdb = MetricAccess.Static.getMetricAccess(database, type, field);
             if (parallel == null || parallel < 1) {
                 parallel = 1;
             }
-            mdb.submitResummarizeAllTask(interval, startTimestamp, endTimestamp, parallel);
+            return mdb.submitResummarizeAllTask(interval, startTimestamp, endTimestamp, parallel, executor, name);
         }
 
         private static void preFetchMetrics(State state, UUID dimensionId, Long startTimestamp, Long endTimestamp) {

@@ -291,9 +291,10 @@ class MetricAccess {
         clearCachedData(Static.getCachingDatabase(), id);
     }
 
-    public void submitResummarizeAllTask(MetricInterval interval, Long startTimestamp, Long endTimestamp, int numParallel) {
-        ResummarizeTask task = new ResummarizeTask(getDatabase(), getSymbolId(), interval, startTimestamp, endTimestamp, numParallel);
+    public Task submitResummarizeAllTask(MetricInterval interval, Long startTimestamp, Long endTimestamp, int numParallel, String executor, String name) {
+        ResummarizeTask task = new ResummarizeTask(getDatabase(), getSymbolId(), interval, startTimestamp, endTimestamp, numParallel, executor, name);
         task.submit();
+        return task;
     }
 
     public static UUID getDimensionIdByValue(SqlDatabase db, String dimensionValue) {
@@ -1584,11 +1585,11 @@ class MetricAccess {
         }
 
         public static MetricAccess getMetricAccess(Database db, ObjectType type, ObjectField field) {
-            if (db == null || type == null || field == null) return null;
+            if (db == null || field == null) return null;
             StringBuilder keyBuilder = new StringBuilder(db.getName());
             keyBuilder.append(':');
             // For some reason metrics are being created with the wrong typeId; make sure a new typeId busts the cache
-            keyBuilder.append(type.getId());
+            keyBuilder.append((type != null ? type.getId() : UuidUtils.ZERO_UUID));
             keyBuilder.append(':');
             keyBuilder.append(field.getUniqueName());
             keyBuilder.append(':');
@@ -1610,7 +1611,7 @@ class MetricAccess {
                     }
                 }
                 if (sqlDb != null) {
-                    metricAccess = new MetricAccess(sqlDb, type.getId(), field.getUniqueName(), field.as(MetricAccess.FieldData.class).getEventDateProcessor());
+                    metricAccess = new MetricAccess(sqlDb, (type != null ? type.getId() : UuidUtils.ZERO_UUID), field.getUniqueName(), field.as(MetricAccess.FieldData.class).getEventDateProcessor());
                     metricAccesses.put(maKey, metricAccess);
                 }
             }
@@ -1693,36 +1694,53 @@ class ResummarizeTask extends Task {
     private final Long startTimestamp;
     private final Long endTimestamp;
     private final int numConsumers;
+    private final String executor;
+    private final String name;
     private final AsyncQueue<List<UUID>> queue = new AsyncQueue<List<UUID>>(new ArrayBlockingQueue<List<UUID>>(QUEUE_SIZE));
     private final List<ResummarizeConsumer> consumers = new ArrayList<ResummarizeConsumer>();
 
-    public ResummarizeTask(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, int numConsumers) {
-        super("Metric Resummarizer", symbolId + " / " + startTimestamp + " - " + endTimestamp); // TODO: make this pretty
+    public ResummarizeTask(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, int numConsumers, String executor, String name) {
+        super(executor, name);
         this.database = database;
         this.symbolId = symbolId;
         this.interval = interval;
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
         this.numConsumers = numConsumers;
+        this.executor = executor;
+        this.name = name;
     }
 
     public void doTask() throws Exception {
-        DistributedLock lock = new DistributedLock(database, "Metric Resummarizer: " + symbolId + " / " + startTimestamp + " - " + endTimestamp);
+        DistributedLock lock = new DistributedLock(database, executor + ":" + name);
         boolean locked = false;
         try {
             if (lock.tryLock()) {
                 locked = true;
                 for (int i = 0; i < numConsumers; i++) {
-                    ResummarizeConsumer consumer = new ResummarizeConsumer(database, symbolId, interval, startTimestamp, endTimestamp, queue);
+                    ResummarizeConsumer consumer = new ResummarizeConsumer(database, symbolId, interval, startTimestamp, endTimestamp, queue, executor);
                     consumers.add(consumer);
                     consumer.submit();
                 }
                 MetricAccess.Static.DistinctIdsIterator iter = MetricAccess.Static.getDistinctIds(database, null, symbolId, startTimestamp, endTimestamp);
+                int i = 0;
                 while (shouldContinue() && iter.hasNext()) {
+                    this.setProgressIndex(++i);
                     List<UUID> tuple = iter.next();
                     queue.add(tuple);
                 }
+                this.setProgressTotal(i);
                 queue.closeAutomatically();
+                boolean done;
+                do {
+                    Thread.sleep(1000);
+                    done = true;
+                    for (Task task : consumers) {
+                        if (task.isRunning()) {
+                            done = false;
+                        }
+                    }
+                } while (shouldContinue() && !done);
             }
         } finally {
             if (locked) {
@@ -1740,8 +1758,8 @@ class ResummarizeConsumer extends AsyncConsumer<List<UUID>> {
     private final Long startTimestamp;
     private final Long endTimestamp;
 
-    public ResummarizeConsumer(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, AsyncQueue<List<UUID>> input) {
-        super("Metric Resummarizer", input);
+    public ResummarizeConsumer(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, AsyncQueue<List<UUID>> input, String executor) {
+        super(executor, input);
         this.database = database;
         this.symbolId = symbolId;
         this.interval = interval;
@@ -1750,11 +1768,10 @@ class ResummarizeConsumer extends AsyncConsumer<List<UUID>> {
     }
 
     @Override
-    protected void consume(List<UUID> pair) throws Exception {
-        UUID id = pair.get(0);
-        UUID dimensionId = pair.get(1);
-        UUID typeId = pair.get(2);
-        // MetricAccess.LOGGER.info("consumed: " + id + " / " + dimensionId);
+    protected void consume(List<UUID> tuple) throws Exception {
+        UUID id = tuple.get(0);
+        UUID dimensionId = tuple.get(1);
+        UUID typeId = tuple.get(2);
         MetricAccess.Static.doResummarize(database, id, typeId, symbolId, dimensionId, interval, startTimestamp, endTimestamp);
     }
 
