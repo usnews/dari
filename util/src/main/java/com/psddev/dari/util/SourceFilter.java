@@ -460,7 +460,7 @@ public class SourceFilter extends AbstractFilter {
         String servletPath = request.getServletPath();
         String reloaderPath = getReloaderPath();
 
-        if (!reloaderPath.startsWith(servletPath)) {
+        if (!servletPath.startsWith(reloaderPath)) {
             try {
                 URL pingUrl = new URL(StringUtils.addQueryParameters(
                         JspUtils.getHostUrl(request) + reloaderPath,
