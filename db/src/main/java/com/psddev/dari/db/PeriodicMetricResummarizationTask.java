@@ -15,10 +15,40 @@ import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.Task;
 import com.psddev.dari.util.TypeReference;
 
+/** Automatic resummarization of Metric values, driven by the {@code 
+ * "dari/metricResummarize"} Settings map. To use, add lines like these to your 
+ * context.xml:
+ *
+ * <pre>
+ * {@code
+ * <!-- To match all of the analytics fields -->
+ * <Environment name="dari/metricResummarize/analyticsDaily/fields" type="java.lang.String" value="analytics.*" />
+ * <!-- Resummarize all data older than 180 days-->
+ * <Environment name="dari/metricResummarize/analyticsDaily/beforeDays" type="java.lang.Integer" value="180" />
+ * <!-- Collapse it from Hourly (the default) to Daily -->
+ * <Environment name="dari/metricResummarize/analyticsDaily/intervalClass" type="java.lang.String" value="com.psddev.dari.db.MetricInterval$Daily" />
+ * }
+ * </pre>
+ *
+ * <pre>
+ * {@code
+ * <!-- To match one or more specific fields: -->
+ * <Environment name="dari/metricResummarize/example/fields" type="java.lang.String" value="com.example.ExampleClass/exampleMetricField com.example.ExampleClass2/myOtherMetricField com.example.ExampleClass3/count*" />
+ * <!-- Resummarize all data older than 7 days-->
+ * <Environment name="dari/metricResummarize/example/beforeDays" type="java.lang.Integer" value="7" />
+ * <!-- Collapse it from Hourly (the default) to Daily -->
+ * <Environment name="dari/metricResummarize/example/intervalClass" type="java.lang.String" value="com.psddev.dari.db.MetricInterval$Hourly" />
+ * <!-- Specify a database (references the dari/database Settings map) -->
+ * <Environment name="dari/metricResummarize/example/database" type="java.lang.String" value="mydb" />
+ * }
+ * </pre>
+ *
+ */
+
 public class PeriodicMetricResummarizationTask extends RepeatingTask {
 
     private static Logger LOGGER = LoggerFactory.getLogger(PeriodicMetricResummarizationTask.class);
-    private static String CONFIG_PREFIX = "dari/metricResummary";
+    private static String CONFIG_PREFIX = "dari/metricResummarize";
     private static String CONFIG_FIELDS = "fields";
     private static String CONFIG_BEFORE_DAYS = "beforeDays";
     private static String CONFIG_INTERVAL_CLASS = "intervalClass";
