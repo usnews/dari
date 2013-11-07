@@ -560,7 +560,7 @@ public class SourceFilter extends AbstractFilter {
 
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-        Set<JavaFileObject> newSourceFiles = new HashSet<JavaFileObject>();
+        Map<JavaFileObject, Long> newSourceFiles = new HashMap<JavaFileObject, Long>();
         Map<String, Date> newChangedClassTimes = new HashMap<String, Date>();
         List<ClassDefinition> toBeRedefined = new ArrayList<ClassDefinition>();
 
@@ -584,14 +584,13 @@ public class SourceFilter extends AbstractFilter {
                     long newModified = sourceFile.getLastModified();
 
                     if (oldModified == null || oldModified != newModified) {
-                        javaSourceFileModifieds.put(sourceFile, newModified);
-                        newSourceFiles.add(sourceFile);
+                        newSourceFiles.put(sourceFile, newModified);
                     }
                 }
             }
 
             if (!newSourceFiles.isEmpty()) {
-                LOGGER.info("Recompiling {}", newSourceFiles);
+                LOGGER.info("Recompiling {}", newSourceFiles.keySet());
 
                 // Compiler can't use the current class loader so try to
                 // guess all of its class paths.
@@ -627,10 +626,16 @@ public class SourceFilter extends AbstractFilter {
 
                 DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
 
-                if (!compiler.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles).call()) {
+                if (!compiler.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles.keySet()).call()) {
+                    for (Diagnostic<?> d : diagnostics.getDiagnostics()) {
+                        LOGGER.warn("Failed to compile: {}", d.getSource());
+                    }
+
                     return diagnostics;
 
                 } else {
+                    javaSourceFileModifieds.putAll(newSourceFiles);
+
                     Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
 
                     // Process any class files that's changed.
