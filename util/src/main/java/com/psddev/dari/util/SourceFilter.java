@@ -791,7 +791,7 @@ public class SourceFilter extends AbstractFilter {
 
         } else if (outputFile.exists() &&
                 !outputFile.isDirectory()) {
-            LOGGER.info("[{}] disappeared!", sourceFile);
+            LOGGER.debug("[{}] disappeared!", sourceFile);
         }
     }
 
