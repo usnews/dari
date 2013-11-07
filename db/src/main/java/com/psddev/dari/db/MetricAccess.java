@@ -12,8 +12,10 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -23,12 +25,14 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.AsyncConsumer;
+import com.psddev.dari.util.AsyncQueue;
+import com.psddev.dari.util.Task;
 import com.psddev.dari.util.UuidUtils;
 
 class MetricAccess {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MetricAccess.class);
+    protected static final Logger LOGGER = LoggerFactory.getLogger(MetricAccess.class);
 
     public static final String METRIC_TABLE = "Metric";
     public static final String METRIC_ID_FIELD = "id";
@@ -282,6 +286,16 @@ class MetricAccess {
         clearCachedData(Static.getCachingDatabase(), id);
     }
 
+    public void resummarize(UUID id, UUID dimensionId, MetricInterval interval, Long startTimestamp, Long endTimestamp) throws SQLException {
+        Static.doResummarize(getDatabase(), id, getTypeId(), getSymbolId(), dimensionId, interval, startTimestamp, endTimestamp);
+        clearCachedData(Static.getCachingDatabase(), id);
+    }
+
+    public void submitResummarizeAllTask(MetricInterval interval, Long startTimestamp, Long endTimestamp, int numParallel) {
+        ResummarizeTask task = new ResummarizeTask(getDatabase(), getSymbolId(), interval, startTimestamp, endTimestamp, numParallel);
+        task.submit();
+    }
+
     public static UUID getDimensionIdByValue(SqlDatabase db, String dimensionValue) {
         if (dimensionValue == null || "".equals(dimensionValue)) {
             return UuidUtils.ZERO_UUID;
@@ -462,10 +476,12 @@ class MetricAccess {
             sqlBuilder.append(" = ");
             vendor.appendValue(sqlBuilder, symbolId);
 
-            sqlBuilder.append(" AND ");
-            vendor.appendIdentifier(sqlBuilder, METRIC_TYPE_FIELD);
-            sqlBuilder.append(" = ");
-            vendor.appendValue(sqlBuilder, typeId);
+            if (typeId != null) {
+                sqlBuilder.append(" AND ");
+                vendor.appendIdentifier(sqlBuilder, METRIC_TYPE_FIELD);
+                sqlBuilder.append(" = ");
+                vendor.appendValue(sqlBuilder, typeId);
+            }
 
             if (dimensionId != null) {
                 sqlBuilder.append(" AND ");
@@ -662,7 +678,6 @@ class MetricAccess {
 
             return updateBuilder.toString();
         }
-
 
         private static String getFixDataRowSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, int symbolId, UUID dimensionId, long eventDate, double cumulativeAmount, double amount) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
@@ -1031,6 +1046,118 @@ class MetricAccess {
             }
         }
 
+        static void doResummarize(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, MetricInterval interval, Long minEventDate, Long maxEventDate) throws SQLException {
+            String selectSql = getAllDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, true);
+
+            Connection connection = db.openConnection();
+            try {
+                Statement statement = connection.createStatement();
+                try {
+                    ResultSet result = db.executeQueryBeforeTimeout(statement, selectSql, QUERY_TIMEOUT);
+                    try {
+                        Long lastIntervalTimestamp = null;
+                        Long lastTimestamp = null;
+                        Long firstTimestamp = null;
+                        Double currentIntervalAmount = 0d;
+                        Double currentIntervalCumulativeAmount = 0d;
+                        while (result.next()) {
+                            byte[] data = result.getBytes(1);
+
+                            double amt = amountFromBytes(data, AMOUNT_POSITION);
+                            double cumAmt = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
+                            long timestamp = timestampFromBytes(data);
+                            Long intervalTimestamp = interval.process(new DateTime(timestamp));
+
+                            if (!intervalTimestamp.equals(lastIntervalTimestamp)) {
+                                if (lastIntervalTimestamp != null) {
+                                    doResummarizeDataRows(db, id, typeId, symbolId, dimensionId, lastIntervalTimestamp, firstTimestamp, lastTimestamp, currentIntervalAmount, currentIntervalCumulativeAmount);
+                                }
+                                firstTimestamp = timestamp;
+                                lastIntervalTimestamp = intervalTimestamp;
+                                currentIntervalAmount = 0d;
+                            }
+                            lastTimestamp = timestamp;
+                            currentIntervalAmount += amt;
+                            currentIntervalCumulativeAmount = cumAmt;
+                        }
+                        if (lastIntervalTimestamp != null) {
+                            doResummarizeDataRows(db, id, typeId, symbolId, dimensionId, lastIntervalTimestamp, firstTimestamp, lastTimestamp, currentIntervalAmount, currentIntervalCumulativeAmount);
+                        }
+                    } finally {
+                        result.close();
+                    }
+                } finally {
+                    statement.close();
+                }
+            } finally {
+                db.closeConnection(connection);
+            }
+        }
+
+        private static void doResummarizeDataRows(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, long eventDate, long firstTimestamp, long lastTimestamp, double amount, double cumulativeAmount) throws SQLException {
+            if (firstTimestamp == lastTimestamp && lastTimestamp == eventDate) {
+                // nothing to do. . .
+                return;
+            }
+
+            Connection connection = db.openConnection();
+
+            try {
+                // First delete old rows, then insert the new row
+                List<Object> deleteParameters = new ArrayList<Object>();
+                String deleteSql = getDeleteDataRowsBetweenSql(db, deleteParameters, id, typeId, symbolId, dimensionId, firstTimestamp, lastTimestamp);
+
+                List<Object> insertParameters = new ArrayList<Object>();
+                String insertSql = getMetricInsertSql(db, insertParameters, id, typeId, symbolId, dimensionId, amount, cumulativeAmount, eventDate);
+
+                SqlDatabase.Static.executeUpdateWithList(connection, deleteSql, deleteParameters);
+                SqlDatabase.Static.executeUpdateWithList(connection, insertSql, insertParameters);
+
+            } finally {
+                db.closeConnection(connection);
+            }
+
+        }
+
+        private static String getDeleteDataRowsBetweenSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate) {
+            SqlVendor vendor = db.getVendor();
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("DELETE FROM ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
+
+            sqlBuilder.append(" WHERE ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_SYMBOL_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendBindValue(sqlBuilder, symbolId, parameters);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_ID_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendBindValue(sqlBuilder, id, parameters);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_TYPE_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendBindValue(sqlBuilder, typeId, parameters);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DIMENSION_FIELD);
+            sqlBuilder.append(" = ");
+            vendor.appendBindValue(sqlBuilder, dimensionId, parameters);
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
+            sqlBuilder.append(" >= ");
+            vendor.appendMetricEncodeTimestampSql(sqlBuilder, parameters, minEventDate, '0');
+
+            sqlBuilder.append(" AND ");
+            vendor.appendIdentifier(sqlBuilder, METRIC_DATA_FIELD);
+            sqlBuilder.append(" <= ");
+            vendor.appendMetricEncodeTimestampSql(sqlBuilder, parameters, maxEventDate, 'F');
+
+            return sqlBuilder.toString();
+        }
+
         static void doReconstructCumulativeAmounts(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate) throws SQLException {
 
             // for each row, ordered by date, keep a running total of amount and update it into cumulativeAmount
@@ -1218,6 +1345,147 @@ class MetricAccess {
             return datas;
         }
 
+        public static class DistinctIdsIterator implements Iterator<List<UUID>> {
+
+            private final SqlDatabase database;
+            private final UUID typeId;
+            private final int symbolId;
+            private final Long minEventDate;
+            private final Long maxEventDate;
+            private final int fetchSize;
+            private long offset = 0L;
+            private List<List<UUID>> items;
+            private boolean done = false;
+
+            private int index = 0;
+
+            public DistinctIdsIterator(SqlDatabase database, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, int fetchSize) {
+                this.database = database;
+                this.typeId = typeId;
+                this.symbolId = symbolId;
+                this.minEventDate = minEventDate;
+                this.maxEventDate = maxEventDate;
+                this.fetchSize = fetchSize;
+            }
+
+            @Override
+            public List<UUID> next() {
+                if (hasNext()) {
+                    List<UUID> result = items.get(index);
+                    ++ index;
+                    return result;
+
+                } else {
+                    throw new NoSuchElementException();
+                }
+            }
+
+            @Override
+            public boolean hasNext() {
+                if (items != null && items.isEmpty()) {
+                    return false;
+                }
+                if (items == null || index >= items.size()) {
+                    if (done) {
+                        return false;
+                    }
+                    try {
+                        fetchNext();
+                    } catch (SQLException e) {
+                        throw new DatabaseException(this.database, e);
+                    }
+                    offset += new Long(fetchSize);
+                    index = 0;
+                    if (items.size() < 1) {
+                        return false;
+                    }
+                    if (items.size() < fetchSize) {
+                        done = true;
+                    }
+                }
+                return true;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+            private void fetchNext() throws SQLException {
+                String sql = getSql();
+                items = new ArrayList<List<UUID>>();
+                Connection connection = database.openConnection();
+                try {
+                    Statement statement = connection.createStatement();
+                    try {
+                        ResultSet result = database.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
+                        try {
+                            SqlVendor vendor = database.getVendor();
+                            while (result.next()) {
+                                List<UUID> row = new ArrayList<UUID>();
+                                row.add(vendor.getUuid(result, 1));
+                                row.add(vendor.getUuid(result, 2));
+                                row.add(vendor.getUuid(result, 3));
+                                items.add(row);
+                            }
+                        } finally {
+                            result.close();
+                        }
+                    } finally {
+                        statement.close();
+                    }
+                } finally {
+                    database.closeConnection(connection);
+                }
+            }
+
+            private String getSql() {
+                SqlVendor vendor = database.getVendor();
+                StringBuilder sql = new StringBuilder();
+                sql.append("SELECT DISTINCT ");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_ID_FIELD);
+                sql.append(",");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_DIMENSION_FIELD);
+                sql.append(",");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_TYPE_FIELD);
+                sql.append(" FROM ");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_TABLE);
+                sql.append(" WHERE ");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_SYMBOL_FIELD);
+                sql.append(" = ");
+                vendor.appendValue(sql, symbolId);
+                if (typeId != null) {
+                    sql.append(" AND ");
+                    vendor.appendIdentifier(sql, MetricAccess.METRIC_TYPE_FIELD);
+                    sql.append(" = ");
+                    vendor.appendValue(sql, typeId);
+                }
+                if (maxEventDate != null) {
+                    sql.append(" AND ");
+                    vendor.appendIdentifier(sql, METRIC_DATA_FIELD);
+                    sql.append(" < ");
+                    vendor.appendMetricEncodeTimestampSql(sql, null, maxEventDate, '0');
+                }
+                if (minEventDate != null) {
+                    sql.append(" AND ");
+                    vendor.appendIdentifier(sql, METRIC_DATA_FIELD);
+                    sql.append(" >= ");
+                    vendor.appendMetricEncodeTimestampSql(sql, null, minEventDate, '0');
+                }
+                sql.append(" ORDER BY ");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_TYPE_FIELD);
+                sql.append(",");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_ID_FIELD);
+                sql.append(",");
+                vendor.appendIdentifier(sql, MetricAccess.METRIC_DIMENSION_FIELD);
+                return vendor.rewriteQueryWithLimitClause(sql.toString(), fetchSize, offset);
+            }
+        }
+
+        public static DistinctIdsIterator getDistinctIds(SqlDatabase database, UUID typeId, int symbolId, Long startTimestamp, Long endTimestamp) {
+            return new DistinctIdsIterator(database, typeId, symbolId, startTimestamp, endTimestamp, 200);
+        }
+
         private static UUID getDimensionIdByValue(SqlDatabase db, String dimensionValue) throws SQLException {
             String sql = getDimensionIdByValueSql(db, dimensionValue);
             Connection connection = db.openReadConnection();
@@ -1315,14 +1583,12 @@ class MetricAccess {
 
         }
 
-        public static MetricAccess getMetricAccess(State state, ObjectField field) {
-            if (state == null || field == null) return null;
-            Database db = state.getDatabase();
-            if (db == null) return null;
+        public static MetricAccess getMetricAccess(Database db, ObjectType type, ObjectField field) {
+            if (db == null || type == null || field == null) return null;
             StringBuilder keyBuilder = new StringBuilder(db.getName());
             keyBuilder.append(':');
             // For some reason metrics are being created with the wrong typeId; make sure a new typeId busts the cache
-            keyBuilder.append(state.getTypeId()); 
+            keyBuilder.append(type.getId());
             keyBuilder.append(':');
             keyBuilder.append(field.getUniqueName());
             keyBuilder.append(':');
@@ -1344,7 +1610,7 @@ class MetricAccess {
                     }
                 }
                 if (sqlDb != null) {
-                    metricAccess = new MetricAccess(sqlDb, state.getTypeId(), field.getUniqueName(), field.as(MetricAccess.FieldData.class).getEventDateProcessor());
+                    metricAccess = new MetricAccess(sqlDb, type.getId(), field.getUniqueName(), field.as(MetricAccess.FieldData.class).getEventDateProcessor());
                     metricAccesses.put(maKey, metricAccess);
                 }
             }
@@ -1413,4 +1679,79 @@ class MetricAccess {
         }
 
     }
+}
+
+class ResummarizeTask extends Task {
+    private static final int QUEUE_SIZE = 200;
+    private final SqlDatabase database;
+    private final int symbolId;
+    private final MetricInterval interval;
+    private final Long startTimestamp;
+    private final Long endTimestamp;
+    private final int numConsumers;
+    private final AsyncQueue<List<UUID>> queue = new AsyncQueue<List<UUID>>(new ArrayBlockingQueue<List<UUID>>(QUEUE_SIZE));
+    private final List<ResummarizeConsumer> consumers = new ArrayList<ResummarizeConsumer>();
+
+    public ResummarizeTask(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, int numConsumers) {
+        super("Metric Resummarizer", symbolId + " / " + startTimestamp + " - " + endTimestamp); // TODO: make this pretty
+        this.database = database;
+        this.symbolId = symbolId;
+        this.interval = interval;
+        this.startTimestamp = startTimestamp;
+        this.endTimestamp = endTimestamp;
+        this.numConsumers = numConsumers;
+    }
+
+    public void doTask() throws Exception {
+        DistributedLock lock = new DistributedLock(database, "Metric Resummarizer: " + symbolId + " / " + startTimestamp + " - " + endTimestamp);
+        boolean locked = false;
+        try {
+            if (lock.tryLock()) {
+                locked = true;
+                for (int i = 0; i < numConsumers; i++) {
+                    ResummarizeConsumer consumer = new ResummarizeConsumer(database, symbolId, interval, startTimestamp, endTimestamp, queue);
+                    consumers.add(consumer);
+                    consumer.submit();
+                }
+                MetricAccess.Static.DistinctIdsIterator iter = MetricAccess.Static.getDistinctIds(database, null, symbolId, startTimestamp, endTimestamp);
+                while (shouldContinue() && iter.hasNext()) {
+                    List<UUID> tuple = iter.next();
+                    queue.add(tuple);
+                }
+                queue.closeAutomatically();
+            }
+        } finally {
+            if (locked) {
+                lock.unlock();
+            }
+        }
+    }
+
+}
+
+class ResummarizeConsumer extends AsyncConsumer<List<UUID>> {
+    private final SqlDatabase database;
+    private final int symbolId;
+    private final MetricInterval interval;
+    private final Long startTimestamp;
+    private final Long endTimestamp;
+
+    public ResummarizeConsumer(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, AsyncQueue<List<UUID>> input) {
+        super("Metric Resummarizer", input);
+        this.database = database;
+        this.symbolId = symbolId;
+        this.interval = interval;
+        this.startTimestamp = startTimestamp;
+        this.endTimestamp = endTimestamp;
+    }
+
+    @Override
+    protected void consume(List<UUID> pair) throws Exception {
+        UUID id = pair.get(0);
+        UUID dimensionId = pair.get(1);
+        UUID typeId = pair.get(2);
+        // MetricAccess.LOGGER.info("consumed: " + id + " / " + dimensionId);
+        MetricAccess.Static.doResummarize(database, id, typeId, symbolId, dimensionId, interval, startTimestamp, endTimestamp);
+    }
+
 }

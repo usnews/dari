@@ -57,7 +57,9 @@ public class Metric extends Record {
      */
     private MetricAccess getMetricAccess() {
         if (metricAccess == null) {
-            metricAccess = MetricAccess.Static.getMetricAccess(owner, field);
+            if (getOwner() != null) {
+                metricAccess = MetricAccess.Static.getMetricAccess(getOwner().getDatabase(), getOwner().getType(), field);
+            }
         }
         if (metricAccess == null) {
             throw new RuntimeException ("Metric field " +field.getUniqueName()+" cannot determine SQL database for database " + owner.getDatabase().getName() + " (" + owner.getDatabase().getClass().getName() + "), this Metric object is unusable!");
@@ -310,6 +312,24 @@ public class Metric extends Record {
     }
 
     /**
+     * Resummarize the metric value to a new interval.
+     *
+     * @param interval Can't be {@code null}.
+     * @param dimensionValue If {@code null}, default dimension.
+     * @param start If {@code null}, beginning of time.
+     * @param end If {@code null}, end of time.
+     */
+    public void resummarize(MetricInterval interval, String dimensionValue, DateTime start, DateTime end) {
+        try {
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            getMetricAccess().resummarize(getOwner().getId(), getMetricAccess().getDimensionId(dimensionValue), interval, startTimestamp, endTimestamp);
+        } catch (SQLException e) {
+            throw new DatabaseException(getMetricAccess().getDatabase(), "Error in MetricAccess.resummarize() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
      * Returns the metric value associated with the main ({@code null})
      * dimension between the given {@code start} and {@code end}.
      *
@@ -344,6 +364,30 @@ public class Metric extends Record {
 
         private static final String EXTRA_METRICS_FETCHED_PREFIX = "dari.metric.preFetched.";
 
+        /**
+         * Resummarize all metric values in the given field (all dimensions)
+         * within a date range to a new interval. This submits a Task to be
+         * executed asynchronously.
+         *
+         * @param database Can't be {@code null}.
+         * @param type Can't be {@code null}.
+         * @param field Can't be {@code null}.
+         * @param interval Can't be {@code null}.
+         * @param start If {@code null}, beginning of time.
+         * @param end If {@code null}, end of time.
+         * @param parallel Number of tasks to run in parallel. If {@code null}, 1.
+         *
+         */
+        public static void submitResummarizeAllBetweenTask(Database database, ObjectType type, ObjectField field, MetricInterval interval, DateTime start, DateTime end, Integer parallel) {
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            MetricAccess mdb = MetricAccess.Static.getMetricAccess(database, type, field);
+            if (parallel == null || parallel < 1) {
+                parallel = 1;
+            }
+            mdb.submitResummarizeAllTask(interval, startTimestamp, endTimestamp, parallel);
+        }
+
         private static void preFetchMetrics(State state, UUID dimensionId, Long startTimestamp, Long endTimestamp) {
             if (state == null || state.getType() == null) {
                 return;
@@ -357,7 +401,7 @@ public class Metric extends Record {
             fields.addAll(state.getDatabase().getEnvironment().getMetricFields());
             Set<MetricAccess> metricAccesses = new HashSet<MetricAccess>();
             for (ObjectField field : fields) {
-                MetricAccess mdb = MetricAccess.Static.getMetricAccess(state, field);
+                MetricAccess mdb = MetricAccess.Static.getMetricAccess(state.getDatabase(), state.getType(), field);
                 if (mdb != null) {
                     metricAccesses.add(mdb);
                 }
