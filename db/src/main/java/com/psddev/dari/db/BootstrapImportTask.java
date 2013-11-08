@@ -200,6 +200,7 @@ class BootstrapImportTask extends Task {
                         line = translateTypeIds(line);
                         stateMap = ObjectUtils.to(MAP_STRING_OBJECT_TYPE, ObjectUtils.fromJson(line));
                     }
+                    record.getState().setResolveToReferenceOnly(true);
                     record.getState().setValues(stateMap);
                     saveQueue.add(record);
                     setProgressIndex(++numRows);
