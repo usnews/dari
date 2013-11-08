@@ -135,7 +135,7 @@ public abstract class AbstractFilter implements Filter {
             ErrorUtils.rethrow(error);
         }
 
-        LOGGER.info("Initialized [{}]", getClass().getName());
+        LOGGER.debug("Initialized [{}]", getClass().getName());
     }
 
     /**
@@ -168,7 +168,7 @@ public abstract class AbstractFilter implements Filter {
         servletContext = null;
         initialized.clear();
 
-        LOGGER.info("Destroyed [{}]", getClass().getName());
+        LOGGER.debug("Destroyed [{}]", getClass().getName());
     }
 
     /**
@@ -347,7 +347,7 @@ public abstract class AbstractFilter implements Filter {
             synchronized (filters) {
                 filter = filters.get(filterClass);
                 if (filter == null) {
-                    LOGGER.info("Creating [{}] for [{}]", filterClass, getClass().getName());
+                    LOGGER.debug("Creating [{}] for [{}]", filterClass, getClass().getName());
                     filter = TypeDefinition.getInstance(filterClass).newInstance();
                     filter.init(new DependencyFilterConfig(filter));
                     initialized.add(filter);

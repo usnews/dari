@@ -320,7 +320,7 @@ public class HtmlGrid {
                             continue;
                         }
 
-                        LOGGER.info("Reading stylesheet [{}] modified [{}]", child, cssModified);
+                        LOGGER.debug("Reading stylesheet [{}] modified [{}]", child, cssModified);
 
                         Css css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
                         Map<String, HtmlGrid> grids = new LinkedHashMap<String, HtmlGrid>();
