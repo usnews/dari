@@ -4,10 +4,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -238,6 +240,37 @@ public abstract class AbstractFilter implements Filter {
             }
         }
 
+        dependencies = new ArrayList<Filter>(dependencies);
+
+        for (Iterator<Filter> i = dependencies.iterator(); i.hasNext(); ) {
+            Filter dependency = i.next();
+            Class<? extends Filter> dependencyClass = dependency.getClass();
+
+            if (dependency instanceof AbstractFilter &&
+                    ObjectUtils.isBlank(((AbstractFilter) dependency).dependencies()) &&
+                    !hasDispatchOverride(dependencyClass)) {
+
+                if (JspUtils.isIncluded(request)) {
+                    if (!hasIncludeOverride(dependencyClass)) {
+                        i.remove();
+                    }
+
+                } else if (JspUtils.isError((HttpServletRequest) request)) {
+                    if (!hasErrorOverride(dependencyClass)) {
+                        i.remove();
+                    }
+
+                } else if (JspUtils.isForwarded(request)) {
+                    if (!hasForwardOverride(dependencyClass)) {
+                        i.remove();
+                    }
+
+                } else if (!hasRequestOverride(dependencyClass)) {
+                    continue;
+                }
+            }
+        }
+
         new DependencyFilterChain(dependencies, chain).
                 doFilter(request, response);
     }
@@ -275,6 +308,62 @@ public abstract class AbstractFilter implements Filter {
         return (F) filter;
     }
 
+    private static boolean hasOverride(ConcurrentMap<Class<?>, Boolean> overrides, Class<?> filterClass, String methodName) {
+        Boolean override = overrides.putIfAbsent(filterClass, Boolean.TRUE);
+
+        if (override != null) {
+            return override;
+        }
+
+        if (!AbstractFilter.class.isAssignableFrom(filterClass)) {
+            override = Boolean.TRUE;
+
+        } else {
+            override = Boolean.FALSE;
+            for (Class<?> c = filterClass; !AbstractFilter.class.equals(c); c = c.getSuperclass()) {
+                try {
+                    c.getDeclaredMethod(methodName, HttpServletRequest.class, HttpServletResponse.class, FilterChain.class);
+                    override = Boolean.TRUE;
+                    break;
+                } catch (NoSuchMethodException error) {
+                }
+            }
+        }
+
+        overrides.put(filterClass, override);
+        return override;
+    }
+
+    private static final ConcurrentMap<Class<?>, Boolean> DISPATCH_OVERRIDES = new ConcurrentHashMap<Class<?>, Boolean>();
+
+    private static boolean hasDispatchOverride(Class<? extends Filter> filterClass) {
+        return hasOverride(DISPATCH_OVERRIDES, filterClass, "doDispatch");
+    }
+
+    private static final ConcurrentMap<Class<?>, Boolean> ERROR_OVERRIDES = new ConcurrentHashMap<Class<?>, Boolean>();
+
+    private static boolean hasErrorOverride(Class<? extends Filter> filterClass) {
+        return hasOverride(ERROR_OVERRIDES, filterClass, "doError");
+    }
+
+    private static final ConcurrentMap<Class<?>, Boolean> FORWARD_OVERRIDES = new ConcurrentHashMap<Class<?>, Boolean>();
+
+    private static boolean hasForwardOverride(Class<? extends Filter> filterClass) {
+        return hasOverride(FORWARD_OVERRIDES, filterClass, "doForward");
+    }
+
+    private static final ConcurrentMap<Class<?>, Boolean> INCLUDE_OVERRIDES = new ConcurrentHashMap<Class<?>, Boolean>();
+
+    private static boolean hasIncludeOverride(Class<? extends Filter> filterClass) {
+        return hasOverride(INCLUDE_OVERRIDES, filterClass, "doInclude");
+    }
+
+    private static final ConcurrentMap<Class<?>, Boolean> REQUEST_OVERRIDES = new ConcurrentHashMap<Class<?>, Boolean>();
+
+    private static boolean hasRequestOverride(Class<? extends Filter> filterClass) {
+        return hasOverride(REQUEST_OVERRIDES, filterClass, "doRequest");
+    }
+
     /**
      * Triggers when this filter needs to process a page. This method
      * will delegate to one of: {@link #doError}, {@link #doInclude},
@@ -291,17 +380,29 @@ public abstract class AbstractFilter implements Filter {
             throws Exception {
 
         if (JspUtils.isIncluded(request)) {
-            doInclude(request, response, chain);
+            if (hasIncludeOverride(getClass())) {
+                doInclude(request, response, chain);
+                return;
+            }
 
         } else if (JspUtils.isError(request)) {
-            doError(request, response, chain);
+            if (hasErrorOverride(getClass())) {
+                doError(request, response, chain);
+                return;
+            }
 
         } else if (JspUtils.isForwarded(request)) {
-            doForward(request, response, chain);
+            if (hasForwardOverride(getClass())) {
+                doForward(request, response, chain);
+                return;
+            }
 
-        } else {
+        } else if (hasRequestOverride(getClass())) {
             doRequest(request, response, chain);
+            return;
         }
+
+        chain.doFilter(request, response);
     }
 
     /**
