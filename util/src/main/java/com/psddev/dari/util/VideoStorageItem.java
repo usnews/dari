@@ -14,14 +14,19 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class  VideoStorageItem extends AbstractStorageItem {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoStorageItem.class);
-    public enum TranscodingStatus { PENDING,SUCCEEDED,FAILED}
+    public enum TranscodingStatus { PENDING,SUCCEEDED,FAILED};
+    public enum DurationType { SHORT,MEDIUM,LONG,NOT_AVAILABLE};
     public abstract TranscodingStatus getTranscodingStatus();
+    public abstract DurationType getDurationType();
     public abstract String getTranscodingError();
-    public abstract  String getThumbnailUrl();
+    public abstract List<Integer>  getTranscodingFlavorIds();
+    public abstract String getThumbnailUrl();
     public abstract Long getLength();
     public abstract void delete() throws IOException;
     public abstract boolean pull();
     public abstract void push();
+    /*This returns the id of this item in external storage such as Kaltura/Brightcove */ 
+    public abstract String getExternalId();
     
     private List<UUID> videoStorageItemListenerIds;
     private transient List<VideoStorageItemListener> videoStorageItemListeners;

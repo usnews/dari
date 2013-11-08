@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -14,6 +16,17 @@ import com.kaltura.client.KalturaClient;
 import com.kaltura.client.KalturaConfiguration;
 import com.kaltura.client.enums.KalturaEntryStatus;
 import com.kaltura.client.enums.KalturaEntryType;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.kaltura.client.KalturaApiException;
+import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaConfiguration;
+import com.kaltura.client.enums.KalturaEntryStatus;
+import com.kaltura.client.enums.KalturaEntryType;
+import com.kaltura.client.enums.KalturaDurationType;
 import com.kaltura.client.enums.KalturaMediaType;
 import com.kaltura.client.types.KalturaMediaEntry;
 import com.kaltura.client.types.KalturaUploadToken;
@@ -54,6 +67,8 @@ public class KalturaStorageItem extends VideoStorageItem {
     public static final String KALTURA_PLAYER_ID_SETTING="playerId";
      /** Setting key for Kaltura player key. Please look at the embed code to identify these values */
     public static final String KALTURA_PLAYER_KEY_SETTING = "playerKey";
+     /** Kaltura settings prefix  */
+    public static final String KALTURA_SETTINGS_PREFIX = "dari/storage/kaltura";
 
    
     private transient String secret;
@@ -177,6 +192,10 @@ public class KalturaStorageItem extends VideoStorageItem {
     public void setKalturaId(String kalturaId) {
         this.kalturaId = kalturaId;
     }
+
+    public String getExternalId() {
+        return getKalturaId();
+    }
     public String getName() {
         return name;
     }
@@ -203,19 +222,9 @@ public class KalturaStorageItem extends VideoStorageItem {
     public void setMediaEntry(KalturaMediaEntry mediaEntry) {
         this.mediaEntry = mediaEntry;
     }
-    
-        private KalturaConfiguration getKalturaConfig() {
-            KalturaConfiguration kalturaConfig = new KalturaConfiguration();
-            kalturaConfig.setPartnerId(getPartnerId());
-            kalturaConfig.setSecret(getSecret());
-            kalturaConfig.setAdminSecret(getAdminSecret());
-            kalturaConfig.setEndpoint(getEndPoint());
-            return kalturaConfig;
-        }
-    
     private String  uploadVideo(InputStream fileData,String fileName,long fileSize)  {
         try {
-            KalturaConfiguration kalturaConfig = getKalturaConfig();
+            KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
             KalturaClient client= new KalturaClient(kalturaConfig);
             KalturaSessionUtils.startAdminSession(client, kalturaConfig);
             // Create entry
@@ -307,7 +316,7 @@ public class KalturaStorageItem extends VideoStorageItem {
     public void delete() throws IOException {
         LOGGER.info("Control in delete method");
         try {
-            KalturaConfiguration kalturaConfig = getKalturaConfig();
+            KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
             KalturaClient client = new KalturaClient(kalturaConfig);
             KalturaSessionUtils.startAdminSession(client, kalturaConfig);
             // Step2: Delete Media Entry from kaltura
@@ -365,12 +374,12 @@ public class KalturaStorageItem extends VideoStorageItem {
      */
     public boolean pull() {
         // Step1: Start kaltura sesion
-        KalturaConfiguration kalturaConfig = getKalturaConfig();
+        KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
         KalturaClient client = new KalturaClient(kalturaConfig);
         try {
             KalturaSessionUtils.startAdminSession(client, kalturaConfig);
             // Step2: Get the Media Entry from kaltura
-            KalturaMediaEntry mediaEntry = client.getMediaService().get(kalturaId); 
+            mediaEntry = client.getMediaService().get(kalturaId); 
             if (mediaEntry != null) {
                 length = new Long(mediaEntry.duration);
                 //If there is a change in transcodingStatus, update listeners if added
@@ -394,7 +403,7 @@ public class KalturaStorageItem extends VideoStorageItem {
      */
     public void push() {
         // Step1: Start kaltura sesion
-        KalturaConfiguration kalturaConfig = getKalturaConfig();
+        KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
         KalturaClient client = new KalturaClient(kalturaConfig);
         try {
             KalturaSessionUtils.startAdminSession(client, kalturaConfig);
@@ -407,6 +416,27 @@ public class KalturaStorageItem extends VideoStorageItem {
         }
     }
     
+    public DurationType getDurationType() {
+        Long videoLength=getLength();
+        if (videoLength == null ) return DurationType.NOT_AVAILABLE;
+        //Upto 4 minutes..short
+        if (videoLength.longValue() < 240) 
+             return DurationType.SHORT;
+        //4 to 10 minutes...medium. Greater than 10 is LONG
+        if (videoLength.longValue() > 240 && videoLength.longValue() < 600 )
+             return DurationType.MEDIUM;
+        return DurationType.LONG;
+    }
+    
+    public List<Integer> getTranscodingFlavorIds() {
+        String flavorParamsIds=mediaEntry.flavorParamsIds;
+        List<String> flavorParamIdStringList= Arrays.asList(mediaEntry.flavorParamsIds.split(","));
+        List<Integer> flavorIdList= new ArrayList(flavorParamIdStringList.size());
+        for (String flavorId: flavorParamIdStringList) {
+            flavorIdList.add(new Integer(flavorId));
+        }
+        return flavorIdList;
+    }
     public TranscodingStatus getTranscodingStatus() {
         if (status.equals(KalturaEntryStatus.READY))
            return TranscodingStatus.SUCCEEDED;
