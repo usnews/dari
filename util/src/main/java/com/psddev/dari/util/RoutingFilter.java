@@ -157,7 +157,7 @@ public class RoutingFilter extends AbstractFilter {
 
             if (initialized.compareAndSet(false, true)) {
                 servlet.init(this);
-                LOGGER.info("Initialized [{}] servlet", getServletName());
+                LOGGER.debug("Initialized [{}] servlet", getServletName());
             }
             servlet.service(request, response);
         }
@@ -165,7 +165,7 @@ public class RoutingFilter extends AbstractFilter {
         public void destroy() {
             if (initialized.compareAndSet(true, false)) {
                 servlet.destroy();
-                LOGGER.info("Destroyed [{}] servlet", getServletName());
+                LOGGER.debug("Destroyed [{}] servlet", getServletName());
             }
         }
 
