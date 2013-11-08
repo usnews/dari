@@ -33,6 +33,7 @@ public class KalturaSessionUtils {
          kalturaConfig.setSecret(ObjectUtils.to(String.class,settings.get(KalturaStorageItem.KALTURA_SECRET_SETTING)));
          kalturaConfig.setAdminSecret(ObjectUtils.to(String.class,settings.get(KalturaStorageItem.KALTURA_ADMIN_SECRET_SETTING)));
          kalturaConfig.setEndpoint(ObjectUtils.to(String.class,settings.get(KalturaStorageItem.KALTURA_END_POINT_SETTING)));
+         kalturaConfig.setTimeout(ObjectUtils.to(Integer.class,settings.get(KalturaStorageItem.KALTURA_SESSION_TIMEOUT_SETTING)));
          return kalturaConfig;
     }
 }
