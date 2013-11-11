@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
@@ -57,7 +58,10 @@ public class ReferentialText extends AbstractList<Object> {
             return;
         }
 
-        Element body = Jsoup.parseBodyFragment(html).body();
+        Document document = Jsoup.parseBodyFragment(html);
+        Element body = document.body();
+
+        document.outputSettings().prettyPrint(false);
 
         for (Element element : body.select("*")) {
             String tagName = element.tagName();
