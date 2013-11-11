@@ -229,7 +229,7 @@ public class BulkDebugServlet extends HttpServlet {
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Source").writeEnd();
                         writeStart("div", "class", "controls");
-                            writeStart("select", "class", "span2", "id", wp.getId(), "name", "source");
+                            writeStart("select", "class", "span3", "id", wp.getId(), "name", "source");
                                 writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (Database database : databases) {
                                     if (!(database instanceof Iterable)) {
@@ -256,7 +256,7 @@ public class BulkDebugServlet extends HttpServlet {
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Destination").writeEnd();
                         writeStart("div", "class", "controls");
-                            writeStart("select", "class", "span2", "id", wp.getId(), "name", "destination");
+                            writeStart("select", "class", "span3", "id", wp.getId(), "name", "destination");
                                 writeStart("option", "value", "").writeHtml("").writeEnd();
                                 for (Database database : databases) {
                                     if (!(database instanceof Iterable)) {
