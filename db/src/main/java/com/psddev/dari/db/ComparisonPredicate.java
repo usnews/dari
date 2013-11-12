@@ -61,6 +61,9 @@ public final class ComparisonPredicate extends Predicate {
             } else if (value instanceof Enum) {
                 mutableValues.add(((Enum<?>) value).name());
 
+            } else if (value instanceof Class) {
+                mutableValues.add(ObjectType.getInstance((Class<?>) value).getId());
+
             } else if (value == null && isNullAliasForMissing) {
                 mutableValues.add(Query.MISSING_VALUE);
 
