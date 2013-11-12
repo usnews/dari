@@ -178,8 +178,21 @@ class BootstrapImportTask extends Task {
                 line = translateTypeIds(line);
                 Map<String, Object> stateMap = ObjectUtils.to(MAP_STRING_OBJECT_TYPE, ObjectUtils.fromJson(line));
                 try {
+                    UUID id = ObjectUtils.to(UUID.class, stateMap.get("_id"));
+                    if (id == null) {
+                        LOGGER.error("Invalid line in input file: " + line);
+                        continue;
+                    }
+                    if (id.equals(new UUID(-1L, -1L))) {
+                        LOGGER.debug("Not importing ffffffff-ffff-ffff-ffff-ffffffffffff");
+                        continue;
+                    }
                     ObjectType type = database.getEnvironment().getTypeByName(ObjectUtils.to(String.class, stateMap.get("_type")));
-                    Object obj = type.createObject(ObjectUtils.to(UUID.class, stateMap.get("_id")));
+                    if (type == null) {
+                        LOGGER.error("Unknown type in line: " + line);
+                        continue;
+                    }
+                    Object obj = type.createObject(id);
                     Record record;
                     if (obj instanceof Record) {
                         record = (Record) obj;

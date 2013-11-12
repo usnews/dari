@@ -261,7 +261,7 @@ public class BootstrapPackage extends Record {
             writer.write("\n\n"); // blank line between headers and data
             writer.flush();
 
-            if (exportTypes.contains(objType)) {
+            if (exportTypes.isEmpty() || exportTypes.contains(objType)) {
                 for (ObjectType r : Query.from(ObjectType.class).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
                     writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
                     writer.write("\n");
