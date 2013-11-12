@@ -356,8 +356,8 @@ public class CodeDebugServlet extends HttpServlet {
                                 write(String.valueOf(line));
                                 write(" - 1;");
                                 write("codeMirror.setCursor(line);");
-                                write("codeMirror.setLineClass(line, 'selected', 'selected');");
-                                write("$(window).scrollTop(codeMirror.cursorCoords().y - $(window).height() / 2);");
+                                write("codeMirror.addLineClass(line, 'selected', 'selected');");
+                                write("$(window).scrollTop(codeMirror.cursorCoords().top - $(window).height() / 2);");
                             }
 
                             write("var $resultContainer = $('.resultContainer');");
