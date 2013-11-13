@@ -40,7 +40,7 @@ class BootstrapImportTask extends Task {
     private AsyncQueue<Record> deleteQueue;
     private final Map<UUID,ObjectType> unknownTypes = new HashMap<UUID,ObjectType>();
     private boolean needsTranslation;
-    private Pattern typeIdTranslationPattern;
+    private final Pattern uuidPattern = Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", Pattern.CASE_INSENSITIVE);
     private final Map<UUID,UUID> remoteToLocalTypeIdMap = new HashMap<UUID,UUID>();
     private final Map<String,String> remoteToLocalTypeIdStringMap = new HashMap<String,String>();
     private final TypeReference<Map<String,Object>> MAP_STRING_OBJECT_TYPE = new TypeReference<Map<String,Object>>() {};
@@ -64,11 +64,11 @@ class BootstrapImportTask extends Task {
         List<Task> tasks = new ArrayList<Task>();
         try {
             for (int i = 0; i < numWriters; i++) {
-                AsyncDatabaseWriter<Record> saver = new AsyncDatabaseWriter<Record>(EXECUTOR_PREFIX, saveQueue, database, WriteOperation.SAVE_UNSAFELY, commitSize, false);
+                AsyncDatabaseWriter<Record> saver = new AsyncDatabaseWriter<Record>(EXECUTOR_PREFIX, saveQueue, database, WriteOperation.SAVE_UNSAFELY, commitSize, true);
                 savers.add(saver);
                 saver.submit();
                 if (deleteFirst) {
-                    AsyncDatabaseWriter<Record> deleter = new AsyncDatabaseWriter<Record>("Bootstrap Delete " + filename, deleteQueue, database, WriteOperation.DELETE, commitSize, false);
+                    AsyncDatabaseWriter<Record> deleter = new AsyncDatabaseWriter<Record>("Bootstrap Delete " + filename, deleteQueue, database, WriteOperation.DELETE, commitSize, true);
                     deleters.add(deleter);
                     deleter.submit();
                 }
@@ -177,19 +177,25 @@ class BootstrapImportTask extends Task {
                 if (! line.startsWith("{") || ! line.endsWith("}")) throw new RuntimeException("Invalid line in input file: " + line);
                 line = translateTypeIds(line);
                 Map<String, Object> stateMap = ObjectUtils.to(MAP_STRING_OBJECT_TYPE, ObjectUtils.fromJson(line));
+                UUID globalId = new UUID(-1L, -1L);
+                UUID zeroTypeId = new UUID(0L, 0L);
                 try {
                     UUID id = ObjectUtils.to(UUID.class, stateMap.get("_id"));
                     if (id == null) {
                         LOGGER.error("Invalid line in input file: " + line);
                         continue;
                     }
-                    if (id.equals(new UUID(-1L, -1L))) {
-                        LOGGER.debug("Not importing ffffffff-ffff-ffff-ffff-ffffffffffff");
+                    if (id.equals(globalId)) {
+                        LOGGER.debug("Not importing " + globalId);
                         continue;
                     }
                     ObjectType type = database.getEnvironment().getTypeByName(ObjectUtils.to(String.class, stateMap.get("_type")));
                     if (type == null) {
-                        LOGGER.error("Unknown type in line: " + line);
+                        if (zeroTypeId.equals(ObjectUtils.to(UUID.class, stateMap.get("_type")))) {
+                            LOGGER.debug("Not importing type " + zeroTypeId);
+                        } else {
+                            LOGGER.error("Unknown type in line: " + line);
+                        }
                         continue;
                     }
                     Object obj = type.createObject(id);
@@ -229,6 +235,7 @@ class BootstrapImportTask extends Task {
         } finally {
             // block until all tasks are done
             saveQueue.closeAutomatically();
+            fileInputStream.close();
             if (deleteQueue != null) {
                 deleteQueue.closeAutomatically();
             }
@@ -262,30 +269,22 @@ class BootstrapImportTask extends Task {
         for (Map.Entry<UUID,UUID> entry : remoteToLocalTypeIdMap.entrySet()) {
             remoteToLocalTypeIdStringMap.put(entry.getKey().toString(), entry.getValue().toString());
         }
-        if (!needsTranslation) return;
-        StringBuilder regexBuilder = new StringBuilder();
-        regexBuilder.append("(");
-        for (String remoteTypeId : remoteToLocalTypeIdStringMap.keySet()) {
-            regexBuilder.append(remoteTypeId);
-            regexBuilder.append("|");
-        }
-        regexBuilder.setLength(regexBuilder.length()-1);
-        regexBuilder.append(")");
-        typeIdTranslationPattern = Pattern.compile(regexBuilder.toString());
     }
 
     private String translateTypeIds(String line) {
         if (!needsTranslation) return line;
         StringBuilder newLine = new StringBuilder();
-        Matcher remoteTypeIdMatcher = typeIdTranslationPattern.matcher(line);
+        Matcher typeIdMatcher = uuidPattern.matcher(line);
         int cursor = 0;
-        while (remoteTypeIdMatcher.find()) {
-            int start = remoteTypeIdMatcher.start();
-            int end = remoteTypeIdMatcher.end();
+        boolean found = false;
+        while (typeIdMatcher.find()) {
+            int start = typeIdMatcher.start();
+            int end = typeIdMatcher.end();
             newLine.append(line.substring(cursor, start));
             String remoteTypeId = line.substring(start, end);
             String localTypeId;
             if ((localTypeId = remoteToLocalTypeIdStringMap.get(remoteTypeId)) != null) {
+                found = true;
                 newLine.append(localTypeId);
             } else {
                 newLine.append(remoteTypeId);
@@ -296,9 +295,12 @@ class BootstrapImportTask extends Task {
                 saveQueue.add(unknownType);
             }
         }
-        newLine.append(line.substring(cursor));
-
-        return newLine.toString();
+        if (found) {
+            newLine.append(line.substring(cursor));
+            return newLine.toString();
+        } else {
+            return line;
+        }
     }
 
 }
