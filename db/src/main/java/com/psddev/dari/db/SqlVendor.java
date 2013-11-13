@@ -150,6 +150,27 @@ public class SqlVendor {
         return tableNames;
     }
 
+    public Set<String> getColumns(Connection connection, String table) throws SQLException {
+        Set<String> columnNames = new HashSet<String>();
+        String catalog = connection.getCatalog();
+        DatabaseMetaData meta = connection.getMetaData();
+        ResultSet result = null;
+
+        try {
+            result = meta.getColumns(catalog, null, table, null);
+            while (result.next()) {
+                String columnName = result.getString("COLUMN_NAME");
+                if (columnName != null) {
+                    columnNames.add(columnName);
+                }
+            }
+        } finally {
+            result.close();
+        }
+
+        return columnNames;
+    }
+
     public boolean hasInRowIndex(Connection connection, String recordTable) throws SQLException {
         boolean newHasInRowIndex = false;
         String catalog = connection.getCatalog();
@@ -434,6 +455,7 @@ public class SqlVendor {
 
         Map<String, ColumnType> columns = new LinkedHashMap<String, ColumnType>();
         columns.put(SqlDatabase.ID_COLUMN, ColumnType.UUID);
+        columns.put(SqlDatabase.TYPE_ID_COLUMN, ColumnType.UUID);
         columns.put(SqlDatabase.SYMBOL_ID_COLUMN, ColumnType.INTEGER);
         for (int i = 0, length = types.length; i < length; ++ i) {
             columns.put(SqlDatabase.VALUE_COLUMN + (i == 0 ? "" : i + 1), INDEX_TYPES.get(types[i]));
@@ -698,7 +720,7 @@ public class SqlVendor {
 
         @Override
         protected String getSetUpResourcePath() {
-            return "h2/schema-11.sql";
+            return "h2/schema-12.sql";
         }
 
         @Override
@@ -798,7 +820,7 @@ public class SqlVendor {
 
         @Override
         protected String getSetUpResourcePath() {
-            return "mysql/schema-11.sql";
+            return "mysql/schema-12.sql";
         }
 
         @Override
@@ -1252,7 +1274,7 @@ public class SqlVendor {
 
         @Override
         protected String getSetUpResourcePath() {
-            return "postgres/schema-11.sql";
+            return "postgres/schema-12.sql";
         }
 
         @Override

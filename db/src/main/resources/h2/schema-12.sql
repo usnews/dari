@@ -7,41 +7,45 @@ CREATE TABLE IF NOT EXISTS Record (
 
 CREATE INDEX IF NOT EXISTS k_Record_id ON Record (id);
 
-CREATE TABLE IF NOT EXISTS RecordLocation2 (
+CREATE TABLE IF NOT EXISTS RecordLocation3 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value DOUBLE NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX IF NOT EXISTS k_RecordLocation2_id ON RecordLocation2 (id);
+CREATE INDEX IF NOT EXISTS k_RecordLocation3_id ON RecordLocation3 (id);
 
-CREATE TABLE IF NOT EXISTS RecordNumber2 (
+CREATE TABLE IF NOT EXISTS RecordNumber3 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value DOUBLE NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX IF NOT EXISTS k_RecordNumber2_id ON RecordNumber2 (id);
+CREATE INDEX IF NOT EXISTS k_RecordNumber3_id ON RecordNumber3 (id);
 
-CREATE TABLE IF NOT EXISTS RecordRegion (
+CREATE TABLE IF NOT EXISTS RecordRegion2 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value DOUBLE NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX IF NOT EXISTS k_RecordRegion_id ON RecordRegion (id);
+CREATE INDEX IF NOT EXISTS k_RecordRegion2_id ON RecordRegion2 (id);
 
-CREATE TABLE IF NOT EXISTS RecordString3 (
+CREATE TABLE IF NOT EXISTS RecordString4 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value VARBINARY(500) NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX IF NOT EXISTS k_RecordString3_id ON RecordString3 (id);
+CREATE INDEX IF NOT EXISTS k_RecordString4_id ON RecordString4 (id);
 
 CREATE TABLE IF NOT EXISTS RecordUpdate (
     id UUID NOT NULL,
@@ -54,14 +58,15 @@ CREATE INDEX IF NOT EXISTS k_RecordUpdate_typeId_updateDate ON RecordUpdate (typ
 
 CREATE INDEX IF NOT EXISTS k_RecordUpdate_updateDate ON RecordUpdate (updateDate);
 
-CREATE TABLE IF NOT EXISTS RecordUuid2 (
+CREATE TABLE IF NOT EXISTS RecordUuid3 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value UUID NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX IF NOT EXISTS k_RecordUuid2_id ON RecordUuid2 (id);
+CREATE INDEX IF NOT EXISTS k_RecordUuid3_id ON RecordUuid3 (id);
 
 CREATE TABLE IF NOT EXISTS Symbol (
     symbolId INT NOT NULL AUTO_INCREMENT,

@@ -24,7 +24,7 @@ import com.psddev.dari.util.StringUtils;
 public enum SqlIndex {
 
     CUSTOM(
-        new AbstractTable(2, "id", "symbolId", "value") {
+        new AbstractTable(2, "id", "typeId", "symbolId", "value") {
 
             @Override
             public String getName(SqlDatabase database, ObjectIndex index) {
@@ -58,21 +58,34 @@ public enum SqlIndex {
 
                 return false;
             }
+
+            @Override
+            public String getTypeIdField(SqlDatabase database, ObjectIndex index) {
+                if (database.hasColumn(getName(database, index), "typeId")) {
+                    return "typeId";
+                } else {
+                    return null;
+                }
+            }
+
         }
     ),
 
     LOCATION(
         new NameSingleValueTable(1, "RecordLocation"),
-        new SymbolIdSingleValueTable(2, "RecordLocation2")
+        new SymbolIdSingleValueTable(2, "RecordLocation2"),
+        new TypeIdSymbolIdSingleValueTable(3, "RecordLocation3")
     ),
 
     REGION(
-        new SymbolIdSingleValueTable(1, "RecordRegion")
+        new SymbolIdSingleValueTable(1, "RecordRegion"),
+        new TypeIdSymbolIdSingleValueTable(2, "RecordRegion2")
     ),
 
     NUMBER(
         new NameSingleValueTable(1, "RecordNumber"),
-        new SymbolIdSingleValueTable(2, "RecordNumber2")
+        new SymbolIdSingleValueTable(2, "RecordNumber2"),
+        new TypeIdSymbolIdSingleValueTable(3, "RecordNumber3")
     ),
 
     STRING(
@@ -100,12 +113,24 @@ public enum SqlIndex {
                 }
                 return stringToBytes(valueString, 500);
             }
+        },
+
+        new TypeIdSymbolIdSingleValueTable(4, "RecordString4") {
+            @Override
+            protected Object convertValue(SqlDatabase database, ObjectIndex index, int fieldIndex, Object value) {
+                String valueString = value.toString().trim();
+                if (!index.isCaseSensitive()) {
+                    valueString = valueString.toLowerCase(Locale.ENGLISH);
+                }
+                return stringToBytes(valueString, 500);
+            }
         }
     ),
 
     UUID(
         new NameSingleValueTable(1, "RecordUuid"),
-        new SymbolIdSingleValueTable(2, "RecordUuid2")
+        new SymbolIdSingleValueTable(2, "RecordUuid2"),
+        new TypeIdSymbolIdSingleValueTable(3, "RecordUuid3")
     );
 
     private final Table[] tables;
@@ -165,6 +190,8 @@ public enum SqlIndex {
 
         public String getValueField(SqlDatabase database, ObjectIndex index, int fieldIndex);
 
+        public String getTypeIdField(SqlDatabase database, ObjectIndex index);
+
         public Object convertKey(SqlDatabase database, ObjectIndex index, String key);
 
         public String prepareInsertStatement(
@@ -176,6 +203,7 @@ public enum SqlIndex {
                 SqlDatabase database,
                 ObjectIndex index,
                 UUID id,
+                UUID typeId,
                 IndexValue indexValue,
                 Set<String> bindKeys,
                 List<List<Object>> parameters) throws SQLException;
@@ -185,12 +213,14 @@ public enum SqlIndex {
 
         private final int version;
         private final String idField;
+        private final String typeIdField;
         private final String keyField;
         private final String valueField;
 
-        public AbstractTable(int version, String idField, String keyField, String valueField) {
+        public AbstractTable(int version, String idField, String typeIdField, String keyField, String valueField) {
             this.version = version;
             this.idField = idField;
+            this.typeIdField = typeIdField;
             this.keyField = keyField;
             this.valueField = valueField;
         }
@@ -208,6 +238,11 @@ public enum SqlIndex {
         @Override
         public String getIdField(SqlDatabase database, ObjectIndex index) {
             return idField;
+        }
+
+        @Override
+        public String getTypeIdField(SqlDatabase database, ObjectIndex index) {
+            return typeIdField;
         }
 
         @Override
@@ -301,6 +336,10 @@ public enum SqlIndex {
             insertBuilder.append(" (");
             vendor.appendIdentifier(insertBuilder, getIdField(database, index));
             insertBuilder.append(",");
+            if (getTypeIdField(database, index) != null) {
+                vendor.appendIdentifier(insertBuilder, getTypeIdField(database, index));
+                insertBuilder.append(",");
+            }
             vendor.appendIdentifier(insertBuilder, getKeyField(database, index));
 
             for (int i = 0; i < fieldsSize; ++ i) {
@@ -310,6 +349,9 @@ public enum SqlIndex {
 
             insertBuilder.append(") VALUES");
             insertBuilder.append(" (?, ?, ");
+            if (getTypeIdField(database, index) != null) {
+                insertBuilder.append("?, ");
+            }
 
             // Add placeholders for each value in this index.
             for (int i = 0; i < fieldsSize; ++ i) {
@@ -336,6 +378,7 @@ public enum SqlIndex {
                 SqlDatabase database,
                 ObjectIndex index,
                 UUID id,
+                UUID typeId,
                 IndexValue indexValue,
                 Set<String> bindKeys,
                 List<List<Object>> parameters) throws SQLException {
@@ -367,6 +410,9 @@ public enum SqlIndex {
                     List<Object> rowData = new ArrayList<Object>();
 
                     vendor.appendBindValue(insertBuilder, id, rowData);
+                    if (getTypeIdField(database, index) != null) {
+                        vendor.appendBindValue(insertBuilder, typeId, rowData);
+                    }
                     vendor.appendBindValue(insertBuilder, indexKey, rowData);
 
                     for (int i = 0; i < fieldsSize; i++) {
@@ -385,8 +431,8 @@ public enum SqlIndex {
 
         private String name;
 
-        public SingleValueTable(int version, String name, String idField, String keyField, String valueField) {
-            super(version, idField, keyField, valueField);
+        public SingleValueTable(int version, String name, String idField, String typeIdField, String keyField, String valueField) {
+            super(version, idField, typeIdField, keyField, valueField);
             this.name = name;
         }
 
@@ -399,20 +445,32 @@ public enum SqlIndex {
     private static class NameSingleValueTable extends SingleValueTable {
 
         public NameSingleValueTable(int version, String name) {
-            super(version, name, "recordId", "name", "value");
+            super(version, name, "recordId", null, "name", "value");
         }
     }
 
     private static class SymbolIdSingleValueTable extends SingleValueTable {
 
         public SymbolIdSingleValueTable(int version, String name) {
-            super(version, name, "id", "symbolId", "value");
+            super(version, name, "id", null, "symbolId", "value");
+        }
+
+        public SymbolIdSingleValueTable(int version, String name, String typeIdField) {
+            super(version, name, "id", typeIdField, "symbolId", "value");
         }
 
         @Override
         public Object convertKey(SqlDatabase database, ObjectIndex index, String key) {
             return database.getSymbolId(key);
         }
+    }
+
+    private static class TypeIdSymbolIdSingleValueTable extends SymbolIdSingleValueTable {
+
+        public TypeIdSymbolIdSingleValueTable(int version, String name) {
+            super(version, name, "typeId");
+        }
+
     }
 
     public static final class IndexValue {
@@ -611,6 +669,7 @@ public enum SqlIndex {
 
             for (State state : states) {
                 UUID id = state.getId();
+                UUID typeId = state.getTypeId();
 
                 for (IndexValue indexValue : getIndexValues(state)) {
                     ObjectIndex index = indexValue.getIndex();
@@ -659,7 +718,7 @@ public enum SqlIndex {
                             insertBindKeys.put(name, bindKeys);
                         }
 
-                        table.bindInsertValues(database, index, id, indexValue, bindKeys, parameters);
+                        table.bindInsertValues(database, index, id, typeId, indexValue, bindKeys, parameters);
                     }
                 }
             }

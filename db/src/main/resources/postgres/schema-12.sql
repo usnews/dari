@@ -11,45 +11,48 @@ CREATE OR REPLACE VIEW Record_d AS SELECT id, typeId, CONVERT_FROM(data, 'UTF-8'
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 
-CREATE TABLE IF NOT EXISTS RecordLocation2 (
+CREATE TABLE IF NOT EXISTS RecordLocation3 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value GEOMETRY(POINT,4326) NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX k_recordlocation_id ON RecordLocation2 (id);
+CREATE INDEX k_recordlocation_id ON RecordLocation3 (id);
 
-CREATE INDEX k_recordlocation_value_gix ON RecordLocation2 USING GIST ( value );
+CREATE INDEX k_recordlocation_value_gix ON RecordLocation3 USING GIST ( value );
 
-CREATE TABLE IF NOT EXISTS RecordNumber2 (
+CREATE TABLE IF NOT EXISTS RecordNumber3 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value DECIMAL NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX k_recordnumber2_id ON RecordNumber2 (id);
+CREATE INDEX k_recordnumber3_id ON RecordNumber3 (id);
 
-CREATE TABLE IF NOT EXISTS RecordRegion (
+CREATE TABLE IF NOT EXISTS RecordRegion2 (
     id UUID NOT NULL,
     symbolId INT NOT NULL,
     value GEOMETRY(MULTIPOLYGON,4326) NOT NULL,
-    PRIMARY KEY (id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX k_recordregion_value_gix ON RecordRegion USING GIST (value);
+CREATE INDEX k_recordregion2_value_gix ON RecordRegion USING GIST (value);
 
-CREATE TABLE IF NOT EXISTS RecordString3 (
+CREATE TABLE IF NOT EXISTS RecordString4 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value bytea NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX k_recordstring3_id ON RecordString3 (id);
+CREATE INDEX k_recordstring4_id ON RecordString4 (id);
 
-CREATE OR REPLACE VIEW RecordString3_d AS SELECT id, symbolId, CONVERT_FROM(value, 'UTF-8') AS value FROM RecordString3;
+CREATE OR REPLACE VIEW RecordString4_d AS SELECT id, typeId, symbolId, CONVERT_FROM(value, 'UTF-8') AS value FROM RecordString4;
 
 CREATE TABLE IF NOT EXISTS RecordUpdate (
     id UUID NOT NULL,
@@ -58,18 +61,19 @@ CREATE TABLE IF NOT EXISTS RecordUpdate (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX k_recordstring3_typeId_updateDate ON RecordUpdate (typeId, updateDate);
+CREATE INDEX k_recordupdate_typeId_updateDate ON RecordUpdate (typeId, updateDate);
 
-CREATE INDEX k_recordstring3_updateDate ON RecordUpdate (updateDate);
+CREATE INDEX k_recordupdate_updateDate ON RecordUpdate (updateDate);
 
-CREATE TABLE IF NOT EXISTS RecordUuid2 (
+CREATE TABLE IF NOT EXISTS RecordUuid3 (
     id UUID NOT NULL,
+    typeId UUID NOT NULL,
     symbolId INT NOT NULL,
     value UUID NOT NULL,
-    PRIMARY KEY (symbolId, value, id)
+    PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX k_recorduuid2_id ON RecordUuid2 (id);
+CREATE INDEX k_recorduuid3_id ON RecordUuid3 (id);
 
 CREATE SEQUENCE symbol_seq;
 

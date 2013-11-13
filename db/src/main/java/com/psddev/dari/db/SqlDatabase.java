@@ -239,12 +239,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     }
                 }
 
-                tableNames.refresh();
+                tableColumnNames.refresh();
                 symbols.invalidate();
 
                 if (writable) {
                     vendor.setUp(this);
-                    tableNames.refresh();
+                    tableColumnNames.refresh();
                     symbols.invalidate();
                 }
 
@@ -276,7 +276,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         try {
             getVendor().setUp(this);
-            tableNames.refresh();
+            tableColumnNames.refresh();
             symbols.invalidate();
 
         } catch (IOException error) {
@@ -339,20 +339,33 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         if (name == null) {
             return false;
         } else {
-            Set<String> names = tableNames.get();
+            Set<String> names = tableColumnNames.get().keySet();
             return names != null && names.contains(name.toLowerCase(Locale.ENGLISH));
+        }
+    }
+
+    /**
+     * Returns {@code true} if the given {@code table} in this database 
+     * contains a column with the given {@code name}.
+     */
+    public boolean hasColumn(String table, String name) {
+        if (table == null || name == null) {
+            return false;
+        } else {
+            Set<String> names = tableColumnNames.get().get(table.toLowerCase());
+            return names != null && names.contains(name.toLowerCase());
         }
     }
 
     private transient volatile boolean hasInRowIndex;
     private transient volatile boolean comparesIgnoreCase;
 
-    private final transient PeriodicValue<Set<String>> tableNames = new PeriodicValue<Set<String>>(0.0, 60.0) {
+    private final transient PeriodicValue<Map<String,Set<String>>> tableColumnNames = new PeriodicValue<Map<String,Set<String>>>(0.0, 60.0) {
 
         @Override
-        protected Set<String> update() {
+        protected Map<String,Set<String>> update() {
             if (getDataSource() == null) {
-                return Collections.emptySet();
+                return Collections.emptyMap();
             }
 
             Connection connection;
@@ -369,12 +382,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlVendor vendor = getVendor();
                 String recordTable = null;
                 int maxStringVersion = 0;
-                Set<String> loweredNames = new HashSet<String>();
+                Map<String,Set<String>> loweredNames = new HashMap<String,Set<String>>();
 
                 for (String name : vendor.getTables(connection)) {
+
                     String loweredName = name.toLowerCase(Locale.ENGLISH);
 
-                    loweredNames.add(loweredName);
+                    HashSet<String> loweredColumnNames = new HashSet<String>();
+                    for (String columnName : vendor.getColumns(connection, name)) {
+                        loweredColumnNames.add(columnName.toLowerCase(Locale.ENGLISH));
+                    }
+
+                    loweredNames.put(loweredName, loweredColumnNames);
 
                     if ("record".equals(loweredName)) {
                         recordTable = name;
