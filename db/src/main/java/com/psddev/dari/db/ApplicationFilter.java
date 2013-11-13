@@ -15,8 +15,9 @@ import com.psddev.dari.util.StandardFilter;
  * <p>This filter loads:</p>
  *
  * <ul>
- * <li>{@link ResetFilter}</li>
  * <li>{@link StandardFilter}</li>
+ * <li>{@link WebResourceOverrideFilter}</li>
+ * <li>{@link ResetFilter}</li>
  * <li>{@link ProfilingDatabaseFilter}</li>
  * <li>{@link CachingDatabaseFilter}</li>
  * </ul>
@@ -29,6 +30,7 @@ public class ApplicationFilter extends AbstractFilter {
     protected Iterable<Class<? extends Filter>> dependencies() {
         List<Class<? extends Filter>> dependencies = new ArrayList<Class<? extends Filter>>();
         dependencies.add(StandardFilter.class);
+        dependencies.add(WebResourceOverrideFilter.class);
         dependencies.add(ResetFilter.class);
         dependencies.add(ProfilingDatabaseFilter.class);
         dependencies.add(CachingDatabaseFilter.class);
