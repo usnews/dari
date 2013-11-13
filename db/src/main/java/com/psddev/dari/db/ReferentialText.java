@@ -174,7 +174,10 @@ public class ReferentialText extends AbstractList<Object> {
         }
 
         // Convert 'text<br><br>' to '<p>text</p>'.
-        Element body = Jsoup.parseBodyFragment(html.toString()).body();
+        Document document = Jsoup.parseBodyFragment(html.toString());
+        Element body = document.body();
+
+        document.outputSettings().prettyPrint(false);
 
         for (Element br : body.getElementsByTag("br")) {
             Element previousBr = null;
