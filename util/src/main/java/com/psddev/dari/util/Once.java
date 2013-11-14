@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * <p><blockquote><code>
  * public class Foo {
  *     private static final Once INIT_ONCE = new Once() {
- *         @Override
+ *         {@literal @}Override
  *         protected void run() {
  *             // Do something.
  *         }

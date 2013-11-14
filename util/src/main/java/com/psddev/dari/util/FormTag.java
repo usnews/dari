@@ -98,8 +98,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     /**
      * Sets the name of the page-scoped variable to store the form processing
      * result.
-     *
-     * @return May be {@code null}.
      */
     public void setVarResult(String varResult) {
         this.varResult = varResult;
@@ -121,8 +119,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
      * Return true if this form was processed successfully, or false if not.
      * Null is returned if this method is called outside the context of this
      * form's start and end tags.
-     *
-     * @return
      */
     public Boolean isSuccess() {
         return success;
@@ -132,8 +128,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
      * Returns the result of processing this form, or null if there was an error
      * or this method is called outside the context of this form's start and
      * end tags.
-     *
-     * @return
      */
     public Object getResult() {
         return result;
@@ -143,8 +137,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
      * Returns the error generated attempting to process this form, or null if
      * if the form was processed successfully or this method is called outside
      * the context of this form's start and end tags.
-     *
-     * @return
      */
     public Object getError() {
         return error;

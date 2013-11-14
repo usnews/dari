@@ -56,7 +56,7 @@ public interface Recordable {
      * <p>For example, given the following modification:</p>
      *
      * <blockquote><pre><code data-type="java">
-     *@Modification.BeanProperty("css")
+     *{@literal @}Modification.BeanProperty("css")
      *class CustomCss extends Modification&lt;Object&gt; {
      *    public String getBodyClass() {
      *        return getOriginalObject().getClass().getName().replace('.', '_');

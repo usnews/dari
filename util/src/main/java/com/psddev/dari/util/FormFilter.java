@@ -99,7 +99,6 @@ public class FormFilter extends AbstractFilter {
          *
          * @param processor
          * @param request
-         * @return
          */
         public static boolean isFormSubmitted(FormProcessor processor, HttpServletRequest request) {
             return processor != null && processor == request.getAttribute(SUBMITTED_FORM_PROCESSOR_ATTRIBUTE);
@@ -116,7 +115,6 @@ public class FormFilter extends AbstractFilter {
          * If no form was processed on this request, then null is returned.
          *
          * @param request
-         * @return
          */
         public static Boolean isFormSuccess(HttpServletRequest request) {
             return (Boolean) request.getAttribute(IS_FORM_SUCCESSFUL_ATTRIBUTE);
@@ -127,7 +125,6 @@ public class FormFilter extends AbstractFilter {
          * the form had errors or no form was processed.
          *
          * @param request
-         * @return
          */
         public static Object getFormResult(HttpServletRequest request) {
             return request.getAttribute(FORM_RESULT_ATTRIBUTE);
@@ -138,7 +135,6 @@ public class FormFilter extends AbstractFilter {
          * the form had no errors or no form was processed.
          *
          * @param request
-         * @return
          */
         public static Object getFormError(HttpServletRequest request) {
             return request.getAttribute(FORM_ERROR_ATTRIBUTE);
@@ -150,7 +146,6 @@ public class FormFilter extends AbstractFilter {
          *
          * @param formId
          * @param request
-         * @return
          */
         protected static String getBufferedOutput(String formId, HttpServletRequest request) {
 
