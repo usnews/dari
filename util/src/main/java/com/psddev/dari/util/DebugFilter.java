@@ -11,7 +11,6 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -309,7 +308,7 @@ public class DebugFilter extends AbstractFilter {
                     writeStart("div", "class", "span6");
                         writeStart("h2").writeHtml("Pings").writeEnd();
 
-                        Map<String, Throwable> errors = new LinkedHashMap<String, Throwable>();
+                        Map<String, Throwable> errors = new CompactMap<String, Throwable>();
                         writeStart("table", "class", "table table-condensed");
                             writeStart("thead");
                                 writeStart("tr");

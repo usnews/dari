@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -192,7 +191,7 @@ public final class CodeUtils {
         Collections.sort(prefixes);
         Collections.reverse(prefixes);
 
-        sourceDirectories = new LinkedHashMap<String, File>();
+        sourceDirectories = new CompactMap<String, File>();
         for (String prefix : prefixes) {
             sourceDirectories.put(prefix, unsorted.get(prefix));
         }
@@ -420,7 +419,7 @@ public final class CodeUtils {
 
     private static class MemoryFileManager extends ForwardingJavaFileManager<JavaFileManager> {
 
-        private final Map<String, byte[]> classes = new LinkedHashMap<String, byte[]>();
+        private final Map<String, byte[]> classes = new CompactMap<String, byte[]>();
 
         public MemoryFileManager(JavaFileManager fileManager) {
             super(fileManager);

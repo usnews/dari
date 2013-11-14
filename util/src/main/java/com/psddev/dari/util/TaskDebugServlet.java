@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -81,7 +80,7 @@ public class TaskDebugServlet extends HttpServlet {
                         writeEnd();
 
                     } else {
-                        Map<AsyncQueue<?>, QueueTasks> queues = new LinkedHashMap<AsyncQueue<?>, QueueTasks>();
+                        Map<AsyncQueue<?>, QueueTasks> queues = new CompactMap<AsyncQueue<?>, QueueTasks>();
 
                         writeStart("table", "class", "table table-condensed table-striped");
                             writeStart("thead");

@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -652,7 +651,7 @@ public final class StringUtils {
 
     /** Returns a map of query parameters from the given {@code url}. */
     public static Map<String, List<String>> getQueryParameterMap(String url) {
-        Map<String, List<String>> map = new LinkedHashMap<String, List<String>>();
+        Map<String, List<String>> map = new CompactMap<String, List<String>>();
 
         if (url != null) {
             int questionAt = url.indexOf('?');

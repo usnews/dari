@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,7 +38,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
     private transient Object result;
     private transient Object error;
 
-    private final Map<String, String> attributes = new LinkedHashMap<String, String>();
+    private final Map<String, String> attributes = new CompactMap<String, String>();
 
     /**
      * Sets the form submission method.
