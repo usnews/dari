@@ -1025,8 +1025,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
             if (result.next()) {
                 T obj = createSavedObjectWithResultSet(result, query, extraConnectionRef);
-                secondaryFetchData(obj, query);
-                return obj;
+                return secondaryFetchData(obj, query);
             } else {
                 return null;
             }
@@ -1064,11 +1063,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
-            while (result.next()) {
-                objects.add(createSavedObjectWithResultSet(result, query, extraConnectionRef));
-            }
+            List<UUID> secondaryFetchIds = new ArrayList<UUID>();
 
-            secondaryFetchData(objects, query);
+            while (result.next()) {
+                T obj = createSavedObjectWithResultSet(result, query, extraConnectionRef);
+                objects.add(obj);
+                State objState = State.getInstance(obj);
+                if (objState.getExtras().remove(NEEDS_SECONDARY_FETCH) != null) {
+                    secondaryFetchIds.add(objState.getId());
+                }
+            }
+            secondaryFetchData(objects, query, secondaryFetchIds);
+
             return objects;
 
         } catch (SQLException ex) {
@@ -1109,18 +1115,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         State objState = State.getInstance(obj);
         if (objState != null) {
-            if (((Boolean) objState.getExtra(NEEDS_SECONDARY_FETCH)) == Boolean.TRUE) {
-                objState.getExtras().remove(NEEDS_SECONDARY_FETCH);
+            if (objState.getExtras().remove(NEEDS_SECONDARY_FETCH) != null) {
                 Query<T> secondaryFetchQuery = query.clone();
                 secondaryFetchQuery.setPredicate(null);
                 secondaryFetchQuery.setSorters(null);
                 secondaryFetchQuery.setFields(null);
                 secondaryFetchQuery.getOptions().remove(State.REFERENCE_RESOLVING_QUERY_OPTION);
+                secondaryFetchQuery.getOptions().remove(State.FORCE_SECONDARY_FETCH_QUERY_OPTION);
+                secondaryFetchQuery.getOptions().remove(State.DISABLE_SECONDARY_FETCH_QUERY_OPTION);
                 secondaryFetchQuery.getOptions().put(State.SECONDARY_FETCH_QUERY_OPTION, true);
-                Object resolved = secondaryFetchQuery.where("_id = ?", objState.getId()).first();
-                State resolvedState = State.getInstance(resolved);
-                if (resolvedState != null) {
-                    objState.setValues(resolvedState);
+                T resolved = secondaryFetchQuery.where("_id = ?", objState.getId()).first();
+                if (resolved != null) {
+                    obj = resolved;
                 }
             }
         }
@@ -1128,36 +1134,36 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return obj;
     }
 
-    private <T> List<T> secondaryFetchData(List<T> objects, Query<T> query) {
+    private <T> void secondaryFetchData(List<T> objects, Query<T> query, List<UUID> ids) {
 
-        Map<UUID,State> toFetch = new HashMap<UUID,State>();
-        for (T obj : objects) {
-            State objState = State.getInstance(obj);
-            if (objState == null) {
-                continue;
-            }
-            if (((Boolean) objState.getExtra(NEEDS_SECONDARY_FETCH)) == Boolean.TRUE) {
-                objState.getExtras().remove(NEEDS_SECONDARY_FETCH);
-                toFetch.put(objState.getId(), objState);
-            }
-        }
-        if (!toFetch.isEmpty()) {
+        if (!ids.isEmpty()) {
+
             Query<T> secondaryFetchQuery = query.clone();
             secondaryFetchQuery.setPredicate(null);
             secondaryFetchQuery.setSorters(null);
             secondaryFetchQuery.setFields(null);
             secondaryFetchQuery.getOptions().remove(State.REFERENCE_RESOLVING_QUERY_OPTION);
+            secondaryFetchQuery.getOptions().remove(State.FORCE_SECONDARY_FETCH_QUERY_OPTION);
+            secondaryFetchQuery.getOptions().remove(State.DISABLE_SECONDARY_FETCH_QUERY_OPTION);
             secondaryFetchQuery.getOptions().put(State.SECONDARY_FETCH_QUERY_OPTION, true);
-            for (Object resolved : secondaryFetchQuery.where("_id = ?", toFetch.keySet()).selectAll()) {
+
+            Map<UUID, T> fullObjects = new HashMap<UUID,T>();
+            for (T resolved : secondaryFetchQuery.where("_id = ?", ids).selectAll()) {
                 State resolvedState = State.getInstance(resolved);
-                State deferredState;
-                if (resolvedState != null && (deferredState = toFetch.get(resolvedState.getId())) != null) {
-                    deferredState.setValues(resolvedState);
+                if (resolvedState != null) {
+                    fullObjects.put(resolvedState.getId(), resolved);
+                }
+            }
+            for (int i = 0; i < objects.size(); i++) {
+                T obj = objects.get(i);
+                State objState = State.getInstance(obj);
+                T resolvedObj;
+                if (objState != null && (resolvedObj = fullObjects.remove(objState.getId())) != null) {
+                    objects.set(i, resolvedObj);
                 }
             }
         }
 
-        return objects;
     }
 
     private class SqlIterator<T> implements java.io.Closeable, Iterator<T> {
@@ -1221,7 +1227,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             try {
                 T object = createSavedObjectWithResultSet(result, query, extraConnectionRef);
-                secondaryFetchData(object, query);
+                object = secondaryFetchData(object, query);
                 moveToNext();
                 return object;
 

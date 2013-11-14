@@ -1480,7 +1480,10 @@ class SqlQuery {
     public String selectStatement() {
         StringBuilder statementBuilder = new StringBuilder();
         if (query.getOptions().get(State.DISABLE_SECONDARY_FETCH_QUERY_OPTION) == null) {
-            needsRecordTable = false;
+            if (query.getOptions().get(State.FORCE_SECONDARY_FETCH_QUERY_OPTION) != null ||
+                    !query.getSorters().isEmpty()) {
+                needsRecordTable = false;
+            }
         }
         initializeClauses();
 
