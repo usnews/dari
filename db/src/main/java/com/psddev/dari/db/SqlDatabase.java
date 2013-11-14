@@ -109,6 +109,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public static final String EXTRA_COLUMN_EXTRA_PREFIX = "sql.extraColumn.";
     public static final String ORIGINAL_DATA_EXTRA = "sql.originalData";
+    public static final String NEEDS_SECONDARY_FETCH = "sql.needsSecondaryFetch";
 
     public static final String SUB_DATA_COLUMN_ALIAS_PREFIX = "subData_";
 
@@ -762,6 +763,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
 
+        ResultSetMetaData meta = resultSet.getMetaData();
+        int lastColumnNum = 3;
         if (!objectState.isReferenceOnly()) {
             byte[] data = null;
 
@@ -814,7 +817,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 }
 
             } else {
-                data = resultSet.getBytes(3);
+                if (meta.getColumnCount() >= 3 && "data".equals(meta.getColumnName(3))) {
+                    data = resultSet.getBytes(3);
+                } else {
+                    lastColumnNum = 2;
+                    objectState.getExtras().put(NEEDS_SECONDARY_FETCH, true);
+                }
             }
 
             if (data != null) {
@@ -829,12 +837,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-
-        ResultSetMetaData meta = resultSet.getMetaData();
         Object subId = null, subTypeId = null;
         byte[] subData;
 
-        for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
+        for (int i = lastColumnNum+1, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
             if (columnName.startsWith(SUB_DATA_COLUMN_ALIAS_PREFIX)) {
                 if (columnName.endsWith("_"+ID_COLUMN)) {
@@ -1017,7 +1023,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
-            return result.next() ? createSavedObjectWithResultSet(result, query, extraConnectionRef) : null;
+            if (result.next()) {
+                T obj = createSavedObjectWithResultSet(result, query, extraConnectionRef);
+                secondaryFetchData(obj, query);
+                return obj;
+            } else {
+                return null;
+            }
 
         } catch (SQLException ex) {
             throw createQueryException(ex, sqlQuery, query);
@@ -1056,6 +1068,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 objects.add(createSavedObjectWithResultSet(result, query, extraConnectionRef));
             }
 
+            secondaryFetchData(objects, query);
             return objects;
 
         } catch (SQLException ex) {
@@ -1090,6 +1103,61 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 return new SqlIterator<T>(sqlQuery, fetchSize, query);
             }
         };
+    }
+
+    private <T> T secondaryFetchData(T obj, Query<T> query) {
+
+        State objState = State.getInstance(obj);
+        if (objState != null) {
+            if (((Boolean) objState.getExtra(NEEDS_SECONDARY_FETCH)) == Boolean.TRUE) {
+                objState.getExtras().remove(NEEDS_SECONDARY_FETCH);
+                Query<T> secondaryFetchQuery = query.clone();
+                secondaryFetchQuery.setPredicate(null);
+                secondaryFetchQuery.setSorters(null);
+                secondaryFetchQuery.setFields(null);
+                secondaryFetchQuery.getOptions().remove(State.REFERENCE_RESOLVING_QUERY_OPTION);
+                secondaryFetchQuery.getOptions().put(State.SECONDARY_FETCH_QUERY_OPTION, true);
+                Object resolved = secondaryFetchQuery.where("_id = ?", objState.getId()).first();
+                State resolvedState = State.getInstance(resolved);
+                if (resolvedState != null) {
+                    objState.setValues(resolvedState);
+                }
+            }
+        }
+
+        return obj;
+    }
+
+    private <T> List<T> secondaryFetchData(List<T> objects, Query<T> query) {
+
+        Map<UUID,State> toFetch = new HashMap<UUID,State>();
+        for (T obj : objects) {
+            State objState = State.getInstance(obj);
+            if (objState == null) {
+                continue;
+            }
+            if (((Boolean) objState.getExtra(NEEDS_SECONDARY_FETCH)) == Boolean.TRUE) {
+                objState.getExtras().remove(NEEDS_SECONDARY_FETCH);
+                toFetch.put(objState.getId(), objState);
+            }
+        }
+        if (!toFetch.isEmpty()) {
+            Query<T> secondaryFetchQuery = query.clone();
+            secondaryFetchQuery.setPredicate(null);
+            secondaryFetchQuery.setSorters(null);
+            secondaryFetchQuery.setFields(null);
+            secondaryFetchQuery.getOptions().remove(State.REFERENCE_RESOLVING_QUERY_OPTION);
+            secondaryFetchQuery.getOptions().put(State.SECONDARY_FETCH_QUERY_OPTION, true);
+            for (Object resolved : secondaryFetchQuery.where("_id = ?", toFetch.keySet()).selectAll()) {
+                State resolvedState = State.getInstance(resolved);
+                State deferredState;
+                if (resolvedState != null && (deferredState = toFetch.get(resolvedState.getId())) != null) {
+                    deferredState.setValues(resolvedState);
+                }
+            }
+        }
+
+        return objects;
     }
 
     private class SqlIterator<T> implements java.io.Closeable, Iterator<T> {
@@ -1153,6 +1221,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             try {
                 T object = createSavedObjectWithResultSet(result, query, extraConnectionRef);
+                secondaryFetchData(object, query);
                 moveToNext();
                 return object;
 

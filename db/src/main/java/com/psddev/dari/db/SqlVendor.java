@@ -165,7 +165,9 @@ public class SqlVendor {
                 }
             }
         } finally {
-            result.close();
+            if (result != null) {
+                result.close();
+            }
         }
 
         return columnNames;
@@ -188,7 +190,9 @@ public class SqlVendor {
             }
 
         } finally {
-            result.close();
+            if (result != null) {
+                result.close();
+            }
         }
 
         return newHasInRowIndex;

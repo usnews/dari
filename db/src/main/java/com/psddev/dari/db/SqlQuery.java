@@ -285,14 +285,13 @@ class SqlQuery {
         StringBuilder fromBuilder = new StringBuilder();
         HashMap<String, String> joinTableAliases = new HashMap<String, String>();
 
-        if (joins.size() == 0) {
-            needsRecordTable = true;
-        }
+        boolean didJoin = false;
         for (Join join : joins) {
 
             if (join.indexKeys.isEmpty()) {
                 continue;
             }
+            didJoin = true;
 
             for (String indexKey : join.indexKeys) {
                 joinTableAliases.put(join.getTableName().toLowerCase(Locale.ENGLISH) + join.quoteIndexKey(indexKey), join.getAlias());
@@ -358,6 +357,9 @@ class SqlQuery {
                 fromBuilder.append(")");
             }
 
+        }
+        if (!didJoin) {
+            needsRecordTable = true;
         }
 
         StringBuilder extraColumnsBuilder = new StringBuilder();
@@ -1477,6 +1479,9 @@ class SqlQuery {
      */
     public String selectStatement() {
         StringBuilder statementBuilder = new StringBuilder();
+        if (query.getOptions().get(State.DISABLE_SECONDARY_FETCH_QUERY_OPTION) == null) {
+            needsRecordTable = false;
+        }
         initializeClauses();
 
         statementBuilder.append("SELECT");
@@ -1497,8 +1502,10 @@ class SqlQuery {
                     statementBuilder.append(", ru.");
                     vendor.appendIdentifier(statementBuilder, "updateDate");
                 } else {
-                    statementBuilder.append(", r.");
-                    vendor.appendIdentifier(statementBuilder, "data");
+                    if (needsRecordTable) {
+                        statementBuilder.append(", r.");
+                        vendor.appendIdentifier(statementBuilder, "data");
+                    }
                 }
             }
         } else if (!fields.isEmpty()) {
@@ -1541,23 +1548,27 @@ class SqlQuery {
             }
         }
 
-        statementBuilder.append("\nFROM ");
-        vendor.appendIdentifier(statementBuilder, "Record");
-        statementBuilder.append(' ');
-        statementBuilder.append(aliasPrefix);
-        statementBuilder.append('r');
-
-        if (cacheData) {
-            statementBuilder.append("\nLEFT OUTER JOIN ");
-            vendor.appendIdentifier(statementBuilder, "RecordUpdate");
+        if (needsRecordTable) {
+            statementBuilder.append("\nFROM ");
+            vendor.appendIdentifier(statementBuilder, "Record");
             statementBuilder.append(' ');
             statementBuilder.append(aliasPrefix);
-            statementBuilder.append("ru");
-            statementBuilder.append(" ON r.");
-            vendor.appendIdentifier(statementBuilder, "id");
-            statementBuilder.append(" = ru.");
-            vendor.appendIdentifier(statementBuilder, "id");
+            statementBuilder.append('r');
+
+            if (cacheData) {
+                statementBuilder.append("\nLEFT OUTER JOIN ");
+                vendor.appendIdentifier(statementBuilder, "RecordUpdate");
+                statementBuilder.append(' ');
+                statementBuilder.append(aliasPrefix);
+                statementBuilder.append("ru");
+                statementBuilder.append(" ON r.");
+                vendor.appendIdentifier(statementBuilder, "id");
+                statementBuilder.append(" = ru.");
+                vendor.appendIdentifier(statementBuilder, "id");
+            }
         }
+
+        statementBuilder.append(fromClause);
 
         if (hasAnyDeferredMetricPredicates()) {
             statementBuilder.append(" \nJOIN (");
@@ -1569,7 +1580,6 @@ class SqlQuery {
             statementBuilder.append(')');
         }
 
-        statementBuilder.append(fromClause);
         statementBuilder.append(whereClause);
         statementBuilder.append(havingClause);
         statementBuilder.append(orderByClause);
@@ -1584,8 +1594,10 @@ class SqlQuery {
             vendor.appendIdentifier(distinctBuilder, "typeId");
 
             if (fields == null) {
-                distinctBuilder.append(", r.");
-                vendor.appendIdentifier(distinctBuilder, "data");
+                if (needsRecordTable) {
+                    distinctBuilder.append(", r.");
+                    vendor.appendIdentifier(distinctBuilder, "data");
+                }
             } else if (!fields.isEmpty()) {
                 distinctBuilder.append(", ");
                 vendor.appendSelectFields(distinctBuilder, fields);
