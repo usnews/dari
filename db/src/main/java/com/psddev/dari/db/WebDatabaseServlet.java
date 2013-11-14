@@ -3,7 +3,6 @@ package com.psddev.dari.db;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,6 +12,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.DebugFilter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -37,7 +37,7 @@ public class WebDatabaseServlet extends HttpServlet {
         WebPageContext context = new WebPageContext(this, request, response);
         Database database = Database.Static.getInstance(context.param(String.class, WebDatabase.DATABASE_PARAMETER));
 
-        Map<String, Object> map = new LinkedHashMap<String, Object>();
+        Map<String, Object> map = new CompactMap<String, Object>();
         map.put(WebDatabase.STATUS_KEY, WebDatabase.OK_STATUS);
 
         String action = context.param(String.class, WebDatabase.ACTION_PARAMETER);

@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +22,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 /** Enables {@code multipart/form-data} handling. */
 public class MultipartRequest extends HttpServletRequestWrapper {
 
-    private final Map<String, List<FileItem>> parameters = new LinkedHashMap<String, List<FileItem>>();
+    private final Map<String, List<FileItem>> parameters = new CompactMap<String, List<FileItem>>();
 
     /** Creates an instance that wraps the given {@code request}. */
     public MultipartRequest(HttpServletRequest request) throws ServletException {
@@ -106,7 +105,7 @@ public class MultipartRequest extends HttpServletRequestWrapper {
 
     @Override
     public Map<String, String[]> getParameterMap() {
-        Map<String, String[]> map = new LinkedHashMap<String, String[]>();
+        Map<String, String[]> map = new CompactMap<String, String[]>();
         for (String name : getNamesSet()) {
             map.put(name, getParameterValues(name));
         }

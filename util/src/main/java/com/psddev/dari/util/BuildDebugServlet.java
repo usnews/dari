@@ -8,7 +8,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -108,7 +107,7 @@ public class BuildDebugServlet extends HttpServlet {
                     write("});");
                 writeEnd();
 
-                Map<String, Properties> embeddedProperties = new LinkedHashMap<String, Properties>();
+                Map<String, Properties> embeddedProperties = new CompactMap<String, Properties>();
                 @SuppressWarnings("unchecked")
                 Set<String> paths = (Set<String>) getServletContext().getResourcePaths("/");
                 if (paths != null) {
@@ -160,7 +159,7 @@ public class BuildDebugServlet extends HttpServlet {
                 }
 
                 String commitsString = build.getProperty("gitCommits");
-                Map<String, List<GitCommit>> commitsMap = new LinkedHashMap<String, List<GitCommit>>();
+                Map<String, List<GitCommit>> commitsMap = new CompactMap<String, List<GitCommit>>();
                 if (!ObjectUtils.isBlank(commitsString)) {
                     String currRefNames = null;
                     for (String e : StringUtils.split(commitsString, "(?m)\\s*~-~\\s*")) {

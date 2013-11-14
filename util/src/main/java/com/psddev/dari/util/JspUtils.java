@@ -18,7 +18,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -951,7 +950,7 @@ public final class JspUtils {
         @SuppressWarnings("unchecked")
         Map<String, Properties> all = (Map<String, Properties>) context.getAttribute(EMBEDDED_SETTINGS_ATTRIBUTE);
         if (all == null) {
-            all = new LinkedHashMap<String, Properties>();
+            all = new CompactMap<String, Properties>();
             addEmbeddedSettings(context, all, "/" + JspUtils.WEB_INF_DIRECTORY, "/");
             context.setAttribute(EMBEDDED_SETTINGS_ATTRIBUTE, all);
         }

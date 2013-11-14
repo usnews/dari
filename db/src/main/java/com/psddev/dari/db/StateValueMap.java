@@ -2,10 +2,11 @@ package com.psddev.dari.db;
 
 import java.util.AbstractMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.CompactMap;
 
 /**
  * Internal map implementation that automatically resolves object
@@ -33,7 +34,7 @@ class StateValueMap extends AbstractMap<String, Object> {
         this.valueType = valueType;
 
         if (map == null) {
-            this.map = new LinkedHashMap<String, Object>();
+            this.map = new CompactMap<String, Object>();
             hasConvertedAll = true;
 
         } else {

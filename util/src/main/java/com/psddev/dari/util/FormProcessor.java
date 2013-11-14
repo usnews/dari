@@ -19,7 +19,6 @@ public interface FormProcessor {
      *
      * @param request Can't be {@code null}.
      * @param response Can't be {@code null}.
-     * @return
      * @throws IOException
      */
     public Object process(HttpServletRequest request, HttpServletResponse response) throws IOException;

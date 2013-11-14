@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+
 /**
  * Map implementation that's optimized for a small number of entries.
  *
@@ -28,6 +30,66 @@ public class CompactMap<K, V> implements Map<K, V> {
 
     private Object delegate;
     private int size;
+
+    /**
+     * Creates an empty instance.
+     */
+    public CompactMap() {
+    }
+
+    /**
+     * Creates an empty instance with the given {@code initialCapacity}.
+     * If the initial capacity is greater than 8, switches to using
+     * {@link LinkedHashMap} immediately.
+     *
+     * @param initialCapacity Must be greater than or equal to {@code 0}.
+     */
+    public CompactMap(int initialCapacity) {
+        Preconditions.checkArgument(initialCapacity >= 0, "[initialCapacity] must be greater than or equal to 0!");
+
+        if (initialCapacity > ARRAY_SIZE) {
+            delegate = new LinkedHashMap<K, V>(initialCapacity);
+            size = -1;
+        }
+    }
+
+    /**
+     * Creates an empty instance with the given {@code initialCapacity}
+     * and {@code loadFactor}. If the initial capacity is greater than 8,
+     * switches to using {@link LinkedHashMap} immediately.
+     *
+     * @param initialCapacity Must be greater than or equal to {@code 0}.
+     * @param loadFactor Must be greater than {@code 0.0f}. Only used if the
+     * initial capacity is greater than 8.
+     */
+    public CompactMap(int initialCapacity, float loadFactor) {
+        Preconditions.checkArgument(initialCapacity >= 0, "[initialCapacity] must be greater than or equal to 0!");
+        Preconditions.checkArgument(loadFactor > 0.0f, "[loadFactor] must be greater than 0.0f!");
+
+        if (initialCapacity > ARRAY_SIZE) {
+            delegate = new LinkedHashMap<K, V>(initialCapacity, loadFactor);
+            size = -1;
+        }
+    }
+
+    /**
+     * Creates an instance initialized with the entries in the given
+     * {@code map}.
+     *
+     * @param map Can't be {@code null}.
+     */
+    public CompactMap(Map<? extends K, ? extends V> map) {
+        Preconditions.checkNotNull(map, "[map] can't be null!");
+
+        int mapSize = map.size();
+
+        if (mapSize > ARRAY_SIZE) {
+            delegate = new LinkedHashMap<K, V>(mapSize);
+            size = -1;
+        }
+
+        putAll(map);
+    }
 
     // --- Map support ---
 

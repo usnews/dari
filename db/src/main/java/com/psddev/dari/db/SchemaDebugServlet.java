@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +17,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.psddev.dari.util.CodeUtils;
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.DebugFilter;
 import com.psddev.dari.util.ObjectUtils;
 
@@ -97,7 +97,7 @@ public class SchemaDebugServlet extends HttpServlet {
 
                             for (ObjectType t : currentTypes) {
 
-                                Map<String, List<ObjectField>> fieldsByClass = new LinkedHashMap<String, List<ObjectField>>();
+                                Map<String, List<ObjectField>> fieldsByClass = new CompactMap<String, List<ObjectField>>();
                                 for (ObjectField field : t.getFields()) {
                                     String declaringClass = field.getJavaDeclaringClassName();
                                     List<ObjectField> fields = fieldsByClass.get(declaringClass);

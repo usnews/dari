@@ -93,7 +93,8 @@ public class LdapUtils {
      * @param credentials May be {@code null}.
      * @return {@code true} if authenticated.
      * @see #PRINCIPAL_FORMAT_SETTING
-     * @see #CERTIFICATE_AUTHORITY_CERTIFICATE_SETTING
+     * @see #CUSTOM_CA_CERTIFICATE_SETTING
+     * @see #CUSTOM_CA_CERTIFICATE_PATH_SETTING
      */
     public static boolean authenticate(LdapContext context, String principal, String credentials) {
         try {

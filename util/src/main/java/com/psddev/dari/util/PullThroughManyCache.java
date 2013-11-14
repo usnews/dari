@@ -6,7 +6,6 @@ import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -69,7 +68,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
         }
 
         Set<K> toBeFetched = new LinkedHashSet<K>();
-        Map<K, V> fetched = new LinkedHashMap<K, V>();
+        Map<K, V> fetched = new CompactMap<K, V>();
 
         // Don't produce values if the key isn't the right type.
         for (Object key : keys) {
@@ -261,7 +260,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
     /** Returns a set view of all the values produced so far. */
     @Override
     public Set<Map.Entry<K, V>> entrySet() {
-        Map<K, V> map = new LinkedHashMap<K, V>();
+        Map<K, V> map = new CompactMap<K, V>();
         for (Map.Entry<K, ValueReference> e : _map.entrySet()) {
             ValueReference ref = e.getValue();
             if (ref != null && !ref.isEnqueued()) {

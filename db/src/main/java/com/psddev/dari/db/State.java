@@ -12,7 +12,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ConversionException;
 import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
@@ -68,11 +68,11 @@ public class State implements Map<String, Object> {
 
     private static final ThreadLocal<List<Listener>> LISTENERS_LOCAL = new ThreadLocal<List<Listener>>();
 
-    private final Map<Class<?>, Object> linkedObjects = new LinkedHashMap<Class<?>, Object>();
+    private final Map<Class<?>, Object> linkedObjects = new CompactMap<Class<?>, Object>();
     private Database database;
     private UUID id;
     private UUID typeId;
-    private final Map<String, Object> rawValues = new LinkedHashMap<String, Object>();
+    private final Map<String, Object> rawValues = new CompactMap<String, Object>();
     private Map<String, Object> extras;
     private Map<ObjectField, List<String>> errors;
     private volatile int flags;
@@ -399,14 +399,14 @@ public class State implements Map<String, Object> {
      * Returns a map of all values converted to only simple types:
      * {@code null}, {@link java.lang.Boolean}, {@link java.lang.Number},
      * {@link java.lang.String}, {@link java.util.ArrayList}, or
-     * {@link java.util.LinkedHashMap}.
+     * {@link CompactMap}.
      */
     public Map<String, Object> getSimpleValues() {
         return getSimpleValues(false);
     }
 
     public Map<String, Object> getSimpleValues(boolean withTypeNames) {
-        Map<String, Object> values = new LinkedHashMap<String, Object>();
+        Map<String, Object> values = new CompactMap<String, Object>();
 
         for (Map.Entry<String, Object> entry : getValues().entrySet()) {
             String name = entry.getKey();
@@ -438,7 +438,7 @@ public class State implements Map<String, Object> {
      */
     @Deprecated
     public Map<String, Object> getSimpleFieldedValues() {
-        Map<String, Object> values = new LinkedHashMap<String, Object>();
+        Map<String, Object> values = new CompactMap<String, Object>();
         for (Map.Entry<String, Object> e : getValues().entrySet()) {
             String name = e.getKey();
             ObjectField field = getField(name);
@@ -469,7 +469,7 @@ public class State implements Map<String, Object> {
             return list;
 
         } else if (value instanceof Map) {
-            Map<String, Object> map = new LinkedHashMap<String, Object>();
+            Map<String, Object> map = new CompactMap<String, Object>();
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
                 Object key = entry.getKey();
                 if (key != null) {
@@ -495,7 +495,7 @@ public class State implements Map<String, Object> {
                 }
             }
 
-            Map<String, Object> map = new LinkedHashMap<String, Object>();
+            Map<String, Object> map = new CompactMap<String, Object>();
             map.put(StateValueUtils.REFERENCE_KEY, valueState.getId().toString());
             if (withTypeNames && valueState.getType() != null) {
                 map.put(StateValueUtils.TYPE_KEY, valueState.getType().getInternalName());
@@ -703,7 +703,7 @@ public class State implements Map<String, Object> {
                 parent = ((Recordable) child).getState().getValues();
             } else {
                 if (!(child instanceof Map)) {
-                    child = new LinkedHashMap<String, Object>();
+                    child = new CompactMap<String, Object>();
                     parent.put(part, child);
                 }
                 parent = (Map<String, Object>) child;
@@ -974,7 +974,7 @@ public class State implements Map<String, Object> {
     /** Returns a modifiable map of all the extras values from this state. */
     public Map<String, Object> getExtras() {
         if (extras == null) {
-            extras = new LinkedHashMap<String, Object>();
+            extras = new CompactMap<String, Object>();
         }
         return extras;
     }
@@ -990,7 +990,7 @@ public class State implements Map<String, Object> {
     public void addError(ObjectField field, String message) {
 
         if (errors == null) {
-            errors = new LinkedHashMap<ObjectField, List<String>>();
+            errors = new CompactMap<ObjectField, List<String>>();
         }
 
         List<String> messages = errors.get(field);

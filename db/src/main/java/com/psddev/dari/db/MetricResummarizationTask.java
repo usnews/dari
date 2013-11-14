@@ -45,9 +45,9 @@ import com.psddev.dari.util.TypeReference;
  *
  */
 
-public class PeriodicMetricResummarizationTask extends RepeatingTask {
+public class MetricResummarizationTask extends RepeatingTask {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(PeriodicMetricResummarizationTask.class);
+    private static Logger LOGGER = LoggerFactory.getLogger(MetricResummarizationTask.class);
     private static String CONFIG_PREFIX = "dari/metricResummarize";
     private static String CONFIG_FIELDS = "fields";
     private static String CONFIG_BEFORE_DAYS = "beforeDays";

@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -168,7 +167,7 @@ public class HtmlWriter extends Writer {
         delegate.write(tag);
 
         if (attributes != null) {
-            Map<String, Object> map = new LinkedHashMap<String, Object>();
+            Map<String, Object> map = new CompactMap<String, Object>();
 
             addAttributes(map, attributes);
 
@@ -555,7 +554,7 @@ public class HtmlWriter extends Writer {
      * Writes all grid JavaScript found within the given {@code context}.
      */
     public HtmlWriter writeAllGridJavaScript(ServletContext context, HttpServletRequest request) throws IOException {
-        Map<String, Map<String, HtmlGrid>> gridsByMedia = new LinkedHashMap<String, Map<String, HtmlGrid>>();
+        Map<String, Map<String, HtmlGrid>> gridsByMedia = new CompactMap<String, Map<String, HtmlGrid>>();
 
         for (Map.Entry<String, HtmlGrid> gridEntry : HtmlGrid.Static.findAll(context, request).entrySet()) {
             String gridSelector = gridEntry.getKey();
@@ -774,7 +773,7 @@ public class HtmlWriter extends Writer {
             i.set(new ArrayList<String>(i.next()));
         }
 
-        Map<String, Area> areaInstances = new LinkedHashMap<String, Area>();
+        Map<String, Area> areaInstances = new CompactMap<String, Area>();
         int clearAt = -1;
         boolean hasFloatRight = false;
 
@@ -975,7 +974,7 @@ public class HtmlWriter extends Writer {
         public CssUnit singleWidth;
         public CssCombinedUnit height;
         public CssUnit singleHeight;
-        public final Map<String, Adjustment> adjustments = new LinkedHashMap<String, Adjustment>();
+        public final Map<String, Adjustment> adjustments = new CompactMap<String, Adjustment>();
         public boolean floatRight;
 
         public Area(String name) {

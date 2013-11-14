@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -27,6 +26,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.psddev.dari.util.AsyncConsumer;
 import com.psddev.dari.util.AsyncQueue;
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.Task;
 import com.psddev.dari.util.UuidUtils;
 
@@ -729,7 +729,7 @@ class MetricAccess {
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
             vendor.appendIdentifier(insertBuilder, METRIC_TABLE);
             insertBuilder.append(" (");
-            LinkedHashMap<String, Object> cols = new LinkedHashMap<String, Object>();
+            Map<String, Object> cols = new CompactMap<String, Object>();
             cols.put(METRIC_ID_FIELD, id);
             cols.put(METRIC_TYPE_FIELD, typeId);
             cols.put(METRIC_SYMBOL_FIELD, symbolId);
@@ -1267,7 +1267,7 @@ class MetricAccess {
 
         private static Map<DateTime, Double> getMetricTimelineByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) throws SQLException {
             String sql = getTimelineSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, metricInterval, true);
-            Map<DateTime, Double> values = new LinkedHashMap<DateTime, Double>();
+            Map<DateTime, Double> values = new CompactMap<DateTime, Double>();
             Connection connection = db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
