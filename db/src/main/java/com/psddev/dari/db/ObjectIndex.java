@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeReference;
@@ -53,7 +53,7 @@ public class ObjectIndex {
             return;
         }
 
-        definition = new LinkedHashMap<String, Object>(definition);
+        definition = new CompactMap<String, Object>(definition);
 
         List<String> fields = ObjectUtils.to(LIST_STRING_TYPE_REF, definition.remove(FIELDS_KEY));
         if (fields == null) {
@@ -75,7 +75,7 @@ public class ObjectIndex {
 
     /** Converts this index to a definition map. */
     public Map<String, Object> toDefinition() {
-        Map<String, Object> definition = new LinkedHashMap<String, Object>();
+        Map<String, Object> definition = new CompactMap<String, Object>();
         definition.putAll(getOptions());
         definition.put(FIELDS_KEY, getFields());
         definition.put(TYPE_KEY, getType());
@@ -184,7 +184,7 @@ public class ObjectIndex {
 
     public Map<String, Object> getOptions() {
         if (options == null) {
-            options = new LinkedHashMap<String, Object>();
+            options = new CompactMap<String, Object>();
         }
         return options;
     }
@@ -457,7 +457,7 @@ public class ObjectIndex {
                 ObjectStruct parent,
                 List<Map<String, Object>> definitions) {
 
-            Map<String, ObjectIndex> instances = new LinkedHashMap<String, ObjectIndex>();
+            Map<String, ObjectIndex> instances = new CompactMap<String, ObjectIndex>();
             if (definitions != null) {
                 for (Map<String, Object> definition : definitions) {
                     ObjectIndex instance = new ObjectIndex(parent, definition);

@@ -8,7 +8,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -18,6 +17,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Settings;
@@ -565,7 +565,7 @@ public abstract class AbstractDatabase<C> implements Database {
 
     @Override
     public <T> PaginatedResult<Grouping<T>> readPartialGrouped(Query<T> query, long offset, int limit, String... fields) {
-        Map<List<Object>, BasicGrouping<T>> groupingsMap = new LinkedHashMap<List<Object>, BasicGrouping<T>>();
+        Map<List<Object>, BasicGrouping<T>> groupingsMap = new CompactMap<List<Object>, BasicGrouping<T>>();
         for (Object item : readIterable(query, 0)) {
 
             State itemState = State.getInstance(item);
@@ -647,7 +647,7 @@ public abstract class AbstractDatabase<C> implements Database {
     @Deprecated
     @Override
     public Map<Object, Long> readGroupedCount(Query<?> query, String field) {
-        Map<Object, Long> counts = new LinkedHashMap<Object, Long>();
+        Map<Object, Long> counts = new CompactMap<Object, Long>();
         for (Grouping<?> grouping : readAllGrouped(query, field)) {
             counts.put(grouping.getKeys().get(0), grouping.getCount());
         }

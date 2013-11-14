@@ -2,10 +2,10 @@ package com.psddev.dari.db;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 
@@ -14,7 +14,7 @@ public abstract class AbstractGrouping<T> implements Grouping<T>, HtmlObject {
     private final List<Object> keys;
     protected final Query<T> query;
     protected final String[] fields;
-    private final Map<String, Aggregate> aggregates = new LinkedHashMap<String, Aggregate>();
+    private final Map<String, Aggregate> aggregates = new CompactMap<String, Aggregate>();
 
     protected AbstractGrouping(List<Object> keys, Query<T> query, String[] fields) {
         this.keys = keys;
