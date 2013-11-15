@@ -169,7 +169,7 @@ abstract class StateValueUtils {
                 if ((parentState == null ||
                         !parentState.isResolveInvisible()) &&
                         object != null &&
-                        !ObjectUtils.isBlank(State.getInstance(object).get("dari.visibilities"))) {
+                        !ObjectUtils.isBlank(State.getInstance(object).getRawValue("dari.visibilities"))) {
                     entry.setValue(null);
                 }
             }
