@@ -349,7 +349,7 @@ public interface Recordable {
     @Target(ElementType.TYPE)
     public @interface BootstrapPackages {
         String[] value();
-        String[] depends() default { };
+        Class<?>[] depends() default { };
     }
 
     // --- Deprecated ---
@@ -822,8 +822,8 @@ class BootstrapPackagesProcessor implements ObjectType.AnnotationProcessor<Recor
         Set<String> packageNames = new LinkedHashSet<String>();
         for (String packageName : annotation.value()) {
             packageNames.add(packageName);
-            for (String dependency : annotation.depends()) {
-                ObjectType dependentType = type.getEnvironment().getTypeByName(dependency);
+            for (Class<?> dependency : annotation.depends()) {
+                ObjectType dependentType = type.getEnvironment().getTypeByClass(dependency);
                 if (dependentType != null) {
                     dependentType.as(BootstrapPackage.TypeData.class).getPackageNames().add(packageName);
                 }
