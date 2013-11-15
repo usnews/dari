@@ -125,7 +125,10 @@ public class CompactMap<K, V> implements Map<K, V> {
                                         return true;
 
                                     } else if (other instanceof Map.Entry) {
-                                        return ObjectUtils.equals(getKey(), ((Map.Entry<?, ?>) other).getKey());
+                                        Map.Entry<?, ?> otherEntry = (Map.Entry<?, ?>) other;
+
+                                        return ObjectUtils.equals(getKey(), otherEntry.getKey()) &&
+                                                ObjectUtils.equals(getValue(), otherEntry.getValue());
 
                                     } else {
                                         return false;
