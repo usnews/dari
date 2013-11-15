@@ -1508,6 +1508,8 @@ class SqlQuery {
                     if (needsRecordTable) {
                         statementBuilder.append(", r.");
                         vendor.appendIdentifier(statementBuilder, "data");
+                    } else {
+                        query.getOptions().put(SqlDatabase.NEEDS_SECONDARY_FETCH, true);
                     }
                 }
             }

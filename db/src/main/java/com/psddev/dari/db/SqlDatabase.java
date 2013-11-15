@@ -817,11 +817,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 }
 
             } else {
-                if (meta.getColumnCount() >= 3 && "data".equals(meta.getColumnName(3))) {
+                if (!query.getOptions().containsKey(NEEDS_SECONDARY_FETCH)) {
                     data = resultSet.getBytes(3);
                 } else {
                     lastColumnNum = 2;
-                    objectState.getExtras().put(NEEDS_SECONDARY_FETCH, true);
                 }
             }
 
@@ -1063,17 +1062,22 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
-            List<UUID> secondaryFetchIds = new ArrayList<UUID>();
+            List<UUID> secondaryFetchIds = null;
 
+            if (query.getOptions().remove(NEEDS_SECONDARY_FETCH) != null) {
+                secondaryFetchIds = new ArrayList<UUID>();
+            }
             while (result.next()) {
                 T obj = createSavedObjectWithResultSet(result, query, extraConnectionRef);
                 objects.add(obj);
                 State objState = State.getInstance(obj);
-                if (objState.getExtras().remove(NEEDS_SECONDARY_FETCH) != null) {
+                if (secondaryFetchIds != null) {
                     secondaryFetchIds.add(objState.getId());
                 }
             }
-            secondaryFetchData(objects, query, secondaryFetchIds);
+            if (secondaryFetchIds != null) {
+                secondaryFetchData(objects, query, secondaryFetchIds);
+            }
 
             return objects;
 
@@ -1115,7 +1119,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         State objState = State.getInstance(obj);
         if (objState != null) {
-            if (objState.getExtras().remove(NEEDS_SECONDARY_FETCH) != null) {
+            if (query.getOptions().remove(NEEDS_SECONDARY_FETCH) != null) {
                 Query<T> secondaryFetchQuery = query.clone();
                 secondaryFetchQuery.setPredicate(null);
                 secondaryFetchQuery.setSorters(null);
