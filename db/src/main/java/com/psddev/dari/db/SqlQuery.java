@@ -862,7 +862,7 @@ class SqlQuery {
         boolean ascending = Sorter.ASCENDING_OPERATOR.equals(operator);
         boolean descending = Sorter.DESCENDING_OPERATOR.equals(operator);
         boolean closest = Sorter.CLOSEST_OPERATOR.equals(operator);
-        boolean farthest = Sorter.CLOSEST_OPERATOR.equals(operator);
+        boolean farthest = Sorter.FARTHEST_OPERATOR.equals(operator);
 
         if (ascending || descending || closest || farthest) {
             String queryKey = (String) sorter.getOptions().get(0);
