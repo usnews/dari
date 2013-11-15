@@ -384,7 +384,7 @@ class MetricAccess {
             }
 
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
+            sqlBuilder.append(Static.getMetricTableIdentifier(db));
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, METRIC_ID_FIELD);
             sqlBuilder.append(" = ");
@@ -466,7 +466,7 @@ class MetricAccess {
             }
 
             sqlBuilder.append(" FROM ");
-            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
+            sqlBuilder.append(Static.getMetricTableIdentifier(db));
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, METRIC_ID_FIELD);
             sqlBuilder.append(" = ");
@@ -596,7 +596,7 @@ class MetricAccess {
         private static String getUpdateSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, int symbolId, UUID dimensionId, double amount, long eventDate, boolean increment, boolean updateFuture) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
-            vendor.appendIdentifier(updateBuilder, METRIC_TABLE);
+            updateBuilder.append(Static.getMetricTableIdentifier(db));
             updateBuilder.append(" SET ");
 
             vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
@@ -644,7 +644,7 @@ class MetricAccess {
                 // String repairSql = getRepairTypeIdSql(db, repairParameters, id, typeId, symbolId, eventDate);
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
-            vendor.appendIdentifier(updateBuilder, METRIC_TABLE);
+            updateBuilder.append(Static.getMetricTableIdentifier(db));
             updateBuilder.append(" SET ");
 
             vendor.appendIdentifier(updateBuilder, METRIC_TYPE_FIELD);
@@ -683,7 +683,7 @@ class MetricAccess {
         private static String getFixDataRowSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, int symbolId, UUID dimensionId, long eventDate, double cumulativeAmount, double amount) {
             StringBuilder updateBuilder = new StringBuilder("UPDATE ");
             SqlVendor vendor = db.getVendor();
-            vendor.appendIdentifier(updateBuilder, METRIC_TABLE);
+            updateBuilder.append(Static.getMetricTableIdentifier(db));
             updateBuilder.append(" SET ");
 
             vendor.appendIdentifier(updateBuilder, METRIC_DATA_FIELD);
@@ -727,7 +727,7 @@ class MetricAccess {
         private static String getMetricInsertSql(SqlDatabase db, List<Object> parameters, UUID id, UUID typeId, int symbolId, UUID dimensionId, double amount, double cumulativeAmount, long eventDate) {
             SqlVendor vendor = db.getVendor();
             StringBuilder insertBuilder = new StringBuilder("INSERT INTO ");
-            vendor.appendIdentifier(insertBuilder, METRIC_TABLE);
+            insertBuilder.append(Static.getMetricTableIdentifier(db));
             insertBuilder.append(" (");
             Map<String, Object> cols = new CompactMap<String, Object>();
             cols.put(METRIC_ID_FIELD, id);
@@ -753,7 +753,7 @@ class MetricAccess {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
-            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
+            sqlBuilder.append(Static.getMetricTableIdentifier(db));
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, METRIC_SYMBOL_FIELD);
             sqlBuilder.append(" = ");
@@ -1124,7 +1124,7 @@ class MetricAccess {
             SqlVendor vendor = db.getVendor();
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("DELETE FROM ");
-            vendor.appendIdentifier(sqlBuilder, METRIC_TABLE);
+            sqlBuilder.append(Static.getMetricTableIdentifier(db));
 
             sqlBuilder.append(" WHERE ");
             vendor.appendIdentifier(sqlBuilder, METRIC_SYMBOL_FIELD);
@@ -1450,7 +1450,7 @@ class MetricAccess {
                 sql.append(",");
                 vendor.appendIdentifier(sql, MetricAccess.METRIC_TYPE_FIELD);
                 sql.append(" FROM ");
-                vendor.appendIdentifier(sql, MetricAccess.METRIC_TABLE);
+                sql.append(MetricAccess.Static.getMetricTableIdentifier(database));
                 sql.append(" WHERE ");
                 vendor.appendIdentifier(sql, MetricAccess.METRIC_SYMBOL_FIELD);
                 sql.append(" = ");
@@ -1629,6 +1629,27 @@ class MetricAccess {
             return null;
         }
 
+        public static String getMetricTableIdentifier(SqlDatabase database) {
+            String catalog = database.getMetricCatalog();
+
+            if (catalog == null) {
+                StringBuilder str = new StringBuilder();
+                database.getVendor().appendIdentifier(str, METRIC_TABLE);
+
+                return str.toString();
+
+            } else {
+                SqlVendor vendor = database.getVendor();
+                StringBuilder str = new StringBuilder();
+
+                vendor.appendIdentifier(str, catalog);
+                str.append(".");
+                vendor.appendIdentifier(str, METRIC_TABLE);
+
+                return str.toString();
+
+            }
+        }
 
     }
 

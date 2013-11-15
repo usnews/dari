@@ -1210,7 +1210,7 @@ class SqlQuery {
         String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         selectBuilder.insert(7, "MIN(r.data) minData, MAX(r.data) maxData, "); // Right after "SELECT " (7 chars)
-        fromBuilder.insert(0, "FROM "+MetricAccess.METRIC_TABLE+" r ");
+        fromBuilder.insert(0, "FROM "+MetricAccess.Static.getMetricTableIdentifier(database) +" r ");
         whereBuilder.append(" AND r."+MetricAccess.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
@@ -1352,7 +1352,7 @@ class SqlQuery {
         } else {
             sql.append(" \nINNER JOIN ");
         }
-        vendor.appendIdentifier(sql, MetricAccess.METRIC_TABLE);
+        sql.append(MetricAccess.Static.getMetricTableIdentifier(database));
         sql.append(" ");
         vendor.appendIdentifier(sql, "m2");
         sql.append(" ON (\n");
@@ -1858,13 +1858,10 @@ class SqlQuery {
 
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                //addIndexKey(queryKey);
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
-                StringBuilder tableBuilder = new StringBuilder();
-                tableName = sqlIndexTable.getName(database, index);
-                vendor.appendIdentifier(tableBuilder, tableName);
-                table = tableBuilder.toString();
+                tableName = MetricAccess.Static.getMetricTableIdentifier(database); // Don't wrap this with appendIdentifier
+                table = tableName; // XXX This line is safe to remove when feature/schema12 is merged in.
                 alias = "r";
 
                 idField = null;
