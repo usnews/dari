@@ -79,6 +79,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String READ_JDBC_POOL_SIZE_SETTING = "readJdbcPoolSize";
 
     public static final String CATALOG_SUB_SETTING = "catalog";
+    public static final String METRIC_CATALOG_SUB_SETTING = "metricCatalog";
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
@@ -131,6 +132,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile DataSource dataSource;
     private volatile DataSource readDataSource;
     private volatile String catalog;
+    private volatile String metricCatalog;
     private volatile transient String defaultCatalog;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
@@ -285,6 +287,36 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         } catch (SQLException error) {
             throw new SqlDatabaseException(this, "Can't check for required tables!", error);
+        }
+    }
+
+    /** Returns the catalog that contains the Metric table.
+     *
+     * @return May be {@code null}.
+     *
+     **/
+    public String getMetricCatalog() {
+        return metricCatalog;
+    }
+
+    public void setMetricCatalog(String metricCatalog) {
+        if (ObjectUtils.isBlank(metricCatalog)) {
+            this.metricCatalog = null;
+
+        } else {
+            StringBuilder str = new StringBuilder();
+
+            vendor.appendIdentifier(str, metricCatalog);
+            str.append(".");
+            vendor.appendIdentifier(str, MetricAccess.METRIC_TABLE);
+
+            if (getVendor().checkTableExists(str.toString())) {
+                this.metricCatalog = metricCatalog;
+
+            } else {
+                LOGGER.error("SqlDatabase#setMetricCatalog error: " + str.toString() + " does not exist or is not accessible. Falling back to default catalog.");
+                this.metricCatalog = null;
+            }
         }
     }
 
@@ -1449,6 +1481,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 JDBC_POOL_SIZE_SETTING));
 
         setCatalog(ObjectUtils.to(String.class, settings.get(CATALOG_SUB_SETTING)));
+
+        setMetricCatalog(ObjectUtils.to(String.class, settings.get(METRIC_CATALOG_SUB_SETTING)));
 
         String vendorClassName = ObjectUtils.to(String.class, settings.get(VENDOR_CLASS_SETTING));
         Class<?> vendorClass = null;

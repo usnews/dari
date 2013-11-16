@@ -173,6 +173,39 @@ public class SqlVendor {
         return columnNames;
     }
 
+    public boolean checkTableExists(String tableIdentifier) {
+        Connection connection = database.openConnection();
+        boolean tableExists = false;
+
+        try {
+            Statement statement = connection.createStatement();
+
+            try {
+                ResultSet result = statement.executeQuery("SELECT 'x' FROM " + tableIdentifier + " WHERE 0 = 1");
+
+                try {
+                    tableExists = true;
+
+                } finally {
+                    result.close();
+                }
+
+            } finally {
+                statement.close();
+            }
+
+        } catch (SQLException error) {
+            if ("42S02".equals(error.getSQLState())) {
+                tableExists = false;
+            }
+
+        } finally {
+            database.closeConnection(connection);
+        }
+
+        return tableExists;
+    }
+
     public boolean hasInRowIndex(Connection connection, String recordTable) throws SQLException {
         boolean newHasInRowIndex = false;
         String catalog = connection.getCatalog();
