@@ -1714,12 +1714,15 @@ class SqlQuery {
 
     private Join createJoin(String queryKey) {
         String alias;
-        int position = joins.size();
-        if (! needsRecordTable && position == 0) {
-            alias = "r";
-        } else {
-            alias = "i" + position;
+        int position = 0;
+        // Need to keep track of actual tables being joined becaue the first
+        // one might be re-aliased as 'r'
+        for (Join join : joins) {
+            if (!join.indexKeys.isEmpty()) {
+                ++position;
+            }
         }
+        alias = "i" + position;
         Join join = new Join(alias, queryKey);
         join.position = position;
         joins.add(join);
@@ -1803,7 +1806,7 @@ class SqlQuery {
         public Predicate parent;
         public JoinType type = JoinType.INNER;
         public int position;
-        private String alias;
+        private final String alias;
 
         public final boolean needsIndexTable;
         public final boolean needsIsNotNull;
@@ -1923,7 +1926,6 @@ class SqlQuery {
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
                 tableName = MetricAccess.Static.getMetricTableIdentifier(database); // Don't wrap this with appendIdentifier
-                alias = "r";
 
                 idField = null;
                 typeIdField = null;
@@ -1966,26 +1968,16 @@ class SqlQuery {
             }
         }
 
-        private void checkAlias() {
-            if (alias.equals("i0") && !needsRecordTable) {
-                alias = "r";
-            } else if (alias.equals("r") && needsRecordTable) {
-                alias = "i0";
-            }
-        }
-
         public String getTable() {
             if (tableName == null) {
                 return null;
             }
 
-            checkAlias();
-
             StringBuilder tableBuilder = new StringBuilder();
             vendor.appendIdentifier(tableBuilder, tableName);
             tableBuilder.append(" ");
             tableBuilder.append(aliasPrefix);
-            tableBuilder.append(alias);
+            tableBuilder.append(getAlias());
 
             return tableBuilder.toString();
         }
@@ -1994,32 +1986,33 @@ class SqlQuery {
             if (idField == null) {
                 return null;
             }
-            checkAlias();
-            return aliasedField(alias, idField);
+            return aliasedField(getAlias(), idField);
         }
 
         public String getTypeIdField() {
             if (typeIdField == null) {
                 return null;
             }
-            checkAlias();
-            return aliasedField(alias, typeIdField);
+            return aliasedField(getAlias(), typeIdField);
         }
 
         public String getKeyField() {
             if (keyField == null) {
                 return null;
             }
-            checkAlias();
-            return aliasedField(alias, keyField);
+            return aliasedField(getAlias(), keyField);
         }
 
         public String getAlias() {
-            return this.alias;
+            if (position == 0 && !needsRecordTable) {
+                return "r";
+            } else {
+                return alias;
+            }
         }
 
         public String toString() {
-            return this.tableName + " (" + this.alias + ") ." + this.valueField;
+            return this.tableName + " (" + getAlias() + ") ." + this.valueField;
         }
 
         public String getTableName() {
@@ -2110,13 +2103,12 @@ class SqlQuery {
 
         public String getValueField(String queryKey, ComparisonPredicate comparison) {
             String field;
-            checkAlias();
 
             if (valueField != null) {
                 field = valueField;
 
             } else if (sqlIndex != SqlIndex.CUSTOM) {
-                field = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
+                field = aliasedField(getAlias(), sqlIndexTable.getValueField(database, index, 0));
 
             } else {
                 String valueFieldName = mappedKeys.get(queryKey).getField().getInternalName();
@@ -2127,7 +2119,7 @@ class SqlQuery {
                         break;
                     }
                 }
-                field = aliasedField(alias, sqlIndexTable.getValueField(database, index, fieldIndex));
+                field = aliasedField(getAlias(), sqlIndexTable.getValueField(database, index, fieldIndex));
             }
 
             if (comparison != null && comparison.isIgnoreCase()) {
