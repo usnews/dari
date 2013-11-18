@@ -299,9 +299,12 @@ class SqlQuery {
 
             // e.g. JOIN RecordIndex AS i#
             fromBuilder.append('\n');
-            if (join.position == 0 && ! needsRecordTable) {
+            if (join.position == 0 && !needsRecordTable && !JoinType.LEFT_OUTER.equals(join.type)) {
                 fromBuilder.append("FROM ");
             } else {
+                if (join.position == 0 && !needsRecordTable) {
+                    needsRecordTable = true;
+                }
                 fromBuilder.append((forceLeftJoins ? JoinType.LEFT_OUTER : join.type).token);
                 fromBuilder.append(' ');
             }
@@ -2004,7 +2007,7 @@ class SqlQuery {
         }
 
         public String getAlias() {
-            if (position == 0 && !needsRecordTable) {
+            if (position == 0 && !needsRecordTable && !JoinType.LEFT_OUTER.equals(type)) {
                 return "r";
             } else {
                 return alias;
