@@ -370,6 +370,7 @@ public class CompactMap<K, V> implements Map<K, V> {
     private abstract class IndexedIterator<E> implements Iterator<E> {
 
         private int index = 0;
+        private boolean removeAvailable;
 
         @Override
         public boolean hasNext() {
@@ -383,6 +384,7 @@ public class CompactMap<K, V> implements Map<K, V> {
             if (hasNext()) {
                 E nextValue = doNext(index);
                 ++ index;
+                removeAvailable = true;
 
                 return nextValue;
 
@@ -393,7 +395,12 @@ public class CompactMap<K, V> implements Map<K, V> {
 
         @Override
         public void remove() {
-            removeByIndex(index);
+            if (!removeAvailable) {
+                throw new IllegalStateException();
+            }
+
+            removeByIndex(index - 1);
+            removeAvailable = false;
         }
     }
 }
