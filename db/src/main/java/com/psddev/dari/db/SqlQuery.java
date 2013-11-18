@@ -292,6 +292,9 @@ class SqlQuery {
                 continue;
             }
             didJoin = true;
+            if (join.position == 0 && !needsRecordTable && JoinType.LEFT_OUTER.equals(join.type)) {
+                needsRecordTable = true;
+            }
 
             for (String indexKey : join.indexKeys) {
                 joinTableAliases.put(join.getTableName().toLowerCase(Locale.ENGLISH) + join.quoteIndexKey(indexKey), join.getAlias());
@@ -302,9 +305,6 @@ class SqlQuery {
             if (join.position == 0 && !needsRecordTable && !JoinType.LEFT_OUTER.equals(join.type)) {
                 fromBuilder.append("FROM ");
             } else {
-                if (join.position == 0 && !needsRecordTable) {
-                    needsRecordTable = true;
-                }
                 fromBuilder.append((forceLeftJoins ? JoinType.LEFT_OUTER : join.type).token);
                 fromBuilder.append(' ');
             }
@@ -647,9 +647,10 @@ class SqlQuery {
                 }
             }
 
-            String joinValueField = join.getValueField(queryKey, comparisonPredicate);
-            if (reverseAliasSql.containsKey(joinValueField)) {
-                joinValueField = reverseAliasSql.get(joinValueField);
+            String joinValueFieldName = join.getValueFieldName(queryKey, comparisonPredicate);
+            String joinValueField = null;
+            if (reverseAliasSql.containsKey(joinValueFieldName)) {
+                joinValueField = reverseAliasSql.get(joinValueFieldName);
             }
             String operator = comparisonPredicate.getOperator();
             StringBuilder comparisonBuilder = new StringBuilder();
@@ -667,7 +668,7 @@ class SqlQuery {
                     }
 
                     if (findSimilarComparison(mappedKey.getField(), query.getPredicate())) {
-                        whereBuilder.append(joinValueField);
+                        whereBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                         if (isNotEqualsAll) {
                             whereBuilder.append(" NOT");
                         }
@@ -677,7 +678,7 @@ class SqlQuery {
 
                     } else {
                         SqlQuery subSqlQuery = getOrCreateSubSqlQuery(valueQuery, join.type == JoinType.LEFT_OUTER);
-                        subQueries.put(valueQuery, joinValueField + (isNotEqualsAll ? " != " : " = "));
+                        subQueries.put(valueQuery, join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField) + (isNotEqualsAll ? " != " : " = "));
                         whereBuilder.append(subSqlQuery.whereClause.substring(7));
                     }
 
@@ -693,15 +694,17 @@ class SqlQuery {
                         ++ subClauseCount;
                         hasMissing = true;
 
-                        comparisonBuilder.append(joinValueField);
-
                         if (isNotEqualsAll) {
                             if (isFieldCollection) {
                                 needsDistinct = true;
                             }
+
+                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             comparisonBuilder.append(" IS NOT NULL");
                         } else {
                             join.type = JoinType.LEFT_OUTER;
+
+                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             comparisonBuilder.append(" IS NULL");
                         }
 
@@ -715,7 +718,7 @@ class SqlQuery {
                             }
 
                             try {
-                                vendor.appendWhereRegion(comparisonBuilder, (Region) value, joinValueField);
+                                vendor.appendWhereRegion(comparisonBuilder, (Region) value, join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             } catch (UnsupportedIndexException uie) {
                                 throw new UnsupportedIndexException(vendor, queryKey);
                             }
@@ -730,9 +733,9 @@ class SqlQuery {
                             hasMissing = true;
 
                             comparisonBuilder.append('(');
-                            comparisonBuilder.append(joinValueField);
+                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             comparisonBuilder.append(" IS NULL OR ");
-                            comparisonBuilder.append(joinValueField);
+                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             if (join.likeValuePrefix != null) {
                                 comparisonBuilder.append(" NOT LIKE ");
                                 join.appendValue(comparisonBuilder, comparisonPredicate, join.likeValuePrefix + database.getSymbolId(value.toString()) + ";%");
@@ -743,7 +746,7 @@ class SqlQuery {
                             comparisonBuilder.append(')');
 
                         } else {
-                            comparisonBuilder.append(joinValueField);
+                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             if (join.likeValuePrefix != null) {
                                 comparisonBuilder.append(" LIKE ");
                                 join.appendValue(comparisonBuilder, comparisonPredicate, join.likeValuePrefix + database.getSymbolId(value.toString()) + ";%");
@@ -790,7 +793,7 @@ class SqlQuery {
                             }
 
                             try {
-                                vendor.appendWhereLocation(comparisonBuilder, (Location) value, joinValueField);
+                                vendor.appendWhereLocation(comparisonBuilder, (Location) value, join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             } catch (UnsupportedIndexException uie) {
                                 throw new UnsupportedIndexException(vendor, queryKey);
                             }
@@ -799,11 +802,11 @@ class SqlQuery {
                             hasMissing = true;
 
                             join.type = JoinType.LEFT_OUTER;
-                            comparisonBuilder.append(joinValueField);
+                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             comparisonBuilder.append(" IS NULL");
 
                         } else {
-                            comparisonBuilder.append(joinValueField);
+                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             comparisonBuilder.append(' ');
                             comparisonBuilder.append(sqlOperator);
                             comparisonBuilder.append(' ');
@@ -840,7 +843,7 @@ class SqlQuery {
                     }
 
                     if (join.needsIsNotNull) {
-                        whereBuilder.append(joinValueField);
+                        whereBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                         whereBuilder.append(" IS NOT NULL AND ");
                     }
 
@@ -1563,17 +1566,6 @@ class SqlQuery {
             statementBuilder.append(aliasPrefix);
             statementBuilder.append('r');
 
-            if (cacheData) {
-                statementBuilder.append("\nLEFT OUTER JOIN ");
-                vendor.appendIdentifier(statementBuilder, "RecordUpdate");
-                statementBuilder.append(' ');
-                statementBuilder.append(aliasPrefix);
-                statementBuilder.append("ru");
-                statementBuilder.append(" ON r.");
-                vendor.appendIdentifier(statementBuilder, "id");
-                statementBuilder.append(" = ru.");
-                vendor.appendIdentifier(statementBuilder, "id");
-            }
         }
 
         statementBuilder.append(fromClause);
@@ -1586,6 +1578,18 @@ class SqlQuery {
             statementBuilder.append(" AND ");
             appendSimpleOnClause(statementBuilder, vendor, "r", "typeId", "=", "m", "typeId");
             statementBuilder.append(')');
+        }
+
+        if (cacheData) {
+            statementBuilder.append("\nLEFT OUTER JOIN ");
+            vendor.appendIdentifier(statementBuilder, "RecordUpdate");
+            statementBuilder.append(' ');
+            statementBuilder.append(aliasPrefix);
+            statementBuilder.append("ru");
+            statementBuilder.append(" ON r.");
+            vendor.appendIdentifier(statementBuilder, "id");
+            statementBuilder.append(" = ru.");
+            vendor.appendIdentifier(statementBuilder, "id");
         }
 
         statementBuilder.append(whereClause);
@@ -2104,14 +2108,14 @@ class SqlQuery {
             vendor.appendValue(builder, value);
         }
 
-        public String getValueField(String queryKey, ComparisonPredicate comparison) {
+        public String getValueFieldName(String queryKey, ComparisonPredicate comparison) {
             String field;
 
             if (valueField != null) {
                 field = valueField;
 
             } else if (sqlIndex != SqlIndex.CUSTOM) {
-                field = aliasedField(getAlias(), sqlIndexTable.getValueField(database, index, 0));
+                field = sqlIndexTable.getValueField(database, index, 0);
 
             } else {
                 String valueFieldName = mappedKeys.get(queryKey).getField().getInternalName();
@@ -2122,14 +2126,35 @@ class SqlQuery {
                         break;
                     }
                 }
-                field = aliasedField(getAlias(), sqlIndexTable.getValueField(database, index, fieldIndex));
-            }
-
-            if (comparison != null && comparison.isIgnoreCase()) {
-                field = "LOWER(" + vendor.convertRawToStringSql(field) + ")";
+                field = sqlIndexTable.getValueField(database, index, fieldIndex);
             }
 
             return field;
         }
+
+        public String transformValueField(String valueIdentifier, ComparisonPredicate comparison) {
+            if (comparison != null && comparison.isIgnoreCase()) {
+                valueIdentifier = "LOWER(" + vendor.convertRawToStringSql(valueIdentifier) + ")";
+            }
+
+            return valueIdentifier;
+        }
+
+        public String getValueField(String queryKey, ComparisonPredicate comparison) {
+            return getAliasedValueField(getValueFieldName(queryKey, comparison), comparison, null);
+        }
+
+        public String getAliasedValueField(String fieldName, ComparisonPredicate comparison, String fieldOverride) {
+            if (fieldOverride != null) {
+                return fieldOverride;
+
+            } else if (valueField != null) {
+                return transformValueField(valueField, comparison);
+
+            } else {
+                return transformValueField(aliasedField(getAlias(), fieldName), comparison);
+            }
+        }
+
     }
 }
