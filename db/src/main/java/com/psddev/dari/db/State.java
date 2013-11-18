@@ -1054,10 +1054,21 @@ public class State implements Map<String, Object> {
      */
     public String getLabel() {
         Object object = getOriginalObjectOrNull();
+        String label = null;
 
-        return object instanceof Record ?
-                ((Record) object).getLabel() :
-                getDefaultLabel();
+        if (object instanceof Record) {
+            try {
+                label = ((Record) object).getLabel();
+
+            } catch (RuntimeException error) {
+                // Ignore errors from a bad implementation of #getLabel
+                // and fall back to the default label algorithm.
+            }
+        }
+
+        return ObjectUtils.isBlank(label) ?
+                getDefaultLabel() :
+                label;
     }
 
     // To check for circular references in resolving labels.
