@@ -2,16 +2,14 @@ package com.psddev.dari.db;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.UuidUtils;
 
-public class WebResourceOverride extends Record {
+@UpdateTracking.Names(WebResourceOverride.UPDATE_TRACKING_NAME)
+public class WebResourceOverride extends Record implements UpdateTracking {
 
-    protected static final UUID LAST_UPDATE_ID = UuidUtils.fromBytes(
-            StringUtils.md5(WebResourceOverride.class.getName() + ".lastUpdate"));
+    public static final String UPDATE_TRACKING_NAME = "dari.webResourceOverride";
 
     @Indexed
     @Required
@@ -63,19 +61,6 @@ public class WebResourceOverride extends Record {
         if (!ObjectUtils.isBlank(path)) {
             setPath(StringUtils.ensureStart(path, "/"));
         }
-    }
-
-    @Override
-    protected void afterSave() {
-        afterDelete();
-    }
-
-    @Override
-    protected void afterDelete() {
-        State state = new State();
-
-        state.setId(LAST_UPDATE_ID);
-        state.save();
     }
 
     @Embedded

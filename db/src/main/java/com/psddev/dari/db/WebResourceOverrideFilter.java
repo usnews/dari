@@ -49,34 +49,34 @@ public class WebResourceOverrideFilter extends AbstractFilter {
 
                 @Override
                 protected Map<String, Copier> update() {
-                    Date cacheUpdate = getUpdateDate();
-                    Database database = Database.Static.getDefaultOriginal();
-                    Date databaseUpdate = Query.
-                            fromAll().
-                            where("_id = ?", WebResourceOverride.LAST_UPDATE_ID).
-                            using(database).
-                            lastUpdate();
+                    try {
+                        Database.Static.overrideDefault(Database.Static.getDefaultOriginal());
 
-                    if (databaseUpdate == null ||
-                            (cacheUpdate != null &&
-                            !databaseUpdate.after(cacheUpdate))) {
-                        restorers.invalidateAll();
-                        return null;
+                        Date cacheUpdate = getUpdateDate();
+
+                        if (cacheUpdate == null ||
+                                UpdateTracking.Static.isUpdated(WebResourceOverride.UPDATE_TRACKING_NAME, cacheUpdate.getTime())) {
+                            Map<String, Copier> copiers = new CompactMap<String, Copier>();
+
+                            for (WebResourceOverride override : Query.
+                                    from(WebResourceOverride.class).
+                                    selectAll()) {
+                                String path = override.getPath();
+
+                                restorers.invalidate(path);
+                                copiers.put(path, new Copier(override));
+                            }
+
+                            return copiers;
+
+                        } else {
+                            restorers.invalidateAll();
+                            return null;
+                        }
+
+                    } finally {
+                        Database.Static.restoreDefault();
                     }
-
-                    Map<String, Copier> copiers = new CompactMap<String, Copier>();
-
-                    for (WebResourceOverride override : Query.
-                            from(WebResourceOverride.class).
-                            using(database).
-                            selectAll()) {
-                        String path = override.getPath();
-
-                        restorers.invalidate(path);
-                        copiers.put(path, new Copier(override));
-                    }
-
-                    return copiers;
                 }
             };
         }
