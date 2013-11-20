@@ -1034,7 +1034,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             LOGGER.debug(
                     "Read from the SQL database using [{}] in [{}]ms",
-                    sqlQuery, duration);
+                    sqlQuery, duration*1000d);
         }
     }
 
@@ -2698,7 +2698,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL batch update: [{}], Parameters: {}, Affected: {}, Time: [{}]ms",
-                                new Object[] { sqlQuery, parameters, affected != null ? Arrays.toString(affected) : "[]", time });
+                                new Object[] { sqlQuery, parameters, affected != null ? Arrays.toString(affected) : "[]", time*1000d });
                     }
                 }
 
@@ -2801,7 +2801,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL update: [{}], Affected: [{}], Time: [{}]ms",
-                                new Object[] { fillPlaceholders(sqlQuery, parameters), affected, time });
+                                new Object[] { fillPlaceholders(sqlQuery, parameters), affected, time*1000d });
                     }
                 }
 
