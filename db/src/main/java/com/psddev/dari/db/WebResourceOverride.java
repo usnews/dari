@@ -6,8 +6,8 @@ import java.util.List;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
 
-@UpdateTracking.Names(WebResourceOverride.UPDATE_TRACKING_NAME)
-public class WebResourceOverride extends Record implements UpdateTracking {
+@UpdateTrackable.Names(WebResourceOverride.UPDATE_TRACKING_NAME)
+public class WebResourceOverride extends Record implements UpdateTrackable {
 
     public static final String UPDATE_TRACKING_NAME = "dari.webResourceOverride";
 

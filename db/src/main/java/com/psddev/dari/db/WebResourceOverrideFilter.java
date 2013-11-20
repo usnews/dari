@@ -55,7 +55,7 @@ public class WebResourceOverrideFilter extends AbstractFilter {
                         Date cacheUpdate = getUpdateDate();
 
                         if (cacheUpdate == null ||
-                                UpdateTracking.Static.isUpdated(WebResourceOverride.UPDATE_TRACKING_NAME, cacheUpdate.getTime())) {
+                                UpdateTrackable.Static.isUpdated(WebResourceOverride.UPDATE_TRACKING_NAME, cacheUpdate.getTime())) {
                             Map<String, Copier> copiers = new CompactMap<String, Copier>();
 
                             for (WebResourceOverride override : Query.

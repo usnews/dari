@@ -16,7 +16,7 @@ import com.psddev.dari.util.UuidUtils;
 /**
  * Interface for tracking updates to all instances of a type.
  */
-public interface UpdateTracking extends Recordable {
+public interface UpdateTrackable extends Recordable {
 
     /**
      * Specifies the tracker names for target type.
@@ -32,7 +32,7 @@ public interface UpdateTracking extends Recordable {
     }
 
     /**
-     * {@link UpdateTracking} utility methods.
+     * {@link UpdateTrackable} utility methods.
      */
     public static class Static {
 
@@ -53,7 +53,7 @@ public interface UpdateTracking extends Recordable {
         }
 
         private static UUID createTrackerId(String name) {
-            return UuidUtils.createVersion3Uuid("dari.updateTracking.tracker." + name);
+            return UuidUtils.createVersion3Uuid("dari.updateTrackable.tracker." + name);
         }
 
         private static class Tracker extends Record {
@@ -70,20 +70,26 @@ public interface UpdateTracking extends Recordable {
         }
 
         @SuppressWarnings("unused")
-        private static class Trigger extends Modification<UpdateTracking> {
+        private static class Trigger extends Modification<UpdateTrackable> {
 
             @Override
             protected void afterSave() {
-                ObjectType type = getState().getType();
+                final ObjectType type = getState().getType();
 
                 if (type != null) {
-                    for (String name : type.as(TypeData.class).getNames()) {
-                        Tracker tracker = new Tracker();
+                    (new Thread() {
 
-                        tracker.getState().setId(createTrackerId(name));
-                        tracker.setLastUpdate(System.currentTimeMillis());
-                        tracker.save();
-                    }
+                        @Override
+                        public void run() {
+                            for (String name : type.as(TypeData.class).getNames()) {
+                                Tracker tracker = new Tracker();
+
+                                tracker.getState().setId(createTrackerId(name));
+                                tracker.setLastUpdate(System.currentTimeMillis());
+                                tracker.save();
+                            }
+                        }
+                    }).start();
                 }
             }
 
@@ -93,7 +99,7 @@ public interface UpdateTracking extends Recordable {
             }
         }
 
-        @FieldInternalNamePrefix("dari.updateTracking.")
+        @FieldInternalNamePrefix("dari.updateTrackable.")
         private static class TypeData extends Modification<ObjectType> {
 
             private Set<String> names;
