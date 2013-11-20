@@ -167,7 +167,6 @@ public class WebResourceOverrideFilter extends AbstractFilter {
 
             if (realPath != null) {
                 File curFile = new File(realPath);
-                File oldFile = new File(realPath + OLD_FILE_SUFFIX);
                 File newFile = new File(realPath + NEW_FILE_SUFFIX);
                 Writer writer = new OutputStreamWriter(new FileOutputStream(newFile), StringUtils.UTF_8);
 
@@ -183,7 +182,10 @@ public class WebResourceOverrideFilter extends AbstractFilter {
                 }
 
                 if (curFile.exists()) {
-                    if (!oldFile.exists()) {
+                    File oldFile = new File(realPath + OLD_FILE_SUFFIX);
+
+                    if (!oldFile.exists() &&
+                            !new File(realPath + DEL_FILE_SUFFIX).exists()) {
                         IoUtils.rename(curFile, oldFile);
                     }
 
