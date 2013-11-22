@@ -3,6 +3,8 @@ package com.psddev.dari.util;
 import java.security.SecureRandom;
 import java.util.UUID;
 
+import com.google.common.base.Preconditions;
+
 /** {@link UUID} utility methods. */
 public final class UuidUtils {
 
@@ -51,6 +53,22 @@ public final class UuidUtils {
         SecureRandom random = new SecureRandom();
         NODE_HIGH = 0xd000L | (random.nextLong() & 0xfff);
         NODE_LOW = 0xa000000000000000L | (random.nextLong() & 0x0fffffff00000000L);
+    }
+
+    /**
+     * Creates a version 3 (MD5 hash) UUID based on the given {@code name}.
+     *
+     * @param name Can't be {@code null}.
+     * @return Never {@code null}.
+     */
+    public static UUID createVersion3Uuid(String name) {
+        Preconditions.checkNotNull(name);
+
+        byte[] md5 = StringUtils.md5(name);
+        md5[6] = (byte) ((md5[6] & 0x0F) | 0x30);
+        md5[8] = (byte) ((md5[8] & 0x0F) | 0x80);
+
+        return fromBytes(md5);
     }
 
     /**

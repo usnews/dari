@@ -49,34 +49,34 @@ public class WebResourceOverrideFilter extends AbstractFilter {
 
                 @Override
                 protected Map<String, Copier> update() {
-                    Date cacheUpdate = getUpdateDate();
-                    Database database = Database.Static.getDefaultOriginal();
-                    Date databaseUpdate = Query.
-                            fromAll().
-                            where("_id = ?", WebResourceOverride.LAST_UPDATE_ID).
-                            using(database).
-                            lastUpdate();
+                    try {
+                        Database.Static.overrideDefault(Database.Static.getDefaultOriginal());
 
-                    if (databaseUpdate == null ||
-                            (cacheUpdate != null &&
-                            !databaseUpdate.after(cacheUpdate))) {
-                        restorers.invalidateAll();
-                        return null;
+                        Date cacheUpdate = getUpdateDate();
+
+                        if (cacheUpdate == null ||
+                                UpdateTrackable.Static.isUpdated(WebResourceOverride.UPDATE_TRACKING_NAME, cacheUpdate.getTime())) {
+                            Map<String, Copier> copiers = new CompactMap<String, Copier>();
+
+                            for (WebResourceOverride override : Query.
+                                    from(WebResourceOverride.class).
+                                    selectAll()) {
+                                String path = override.getPath();
+
+                                restorers.invalidate(path);
+                                copiers.put(path, new Copier(override));
+                            }
+
+                            return copiers;
+
+                        } else {
+                            restorers.invalidateAll();
+                            return null;
+                        }
+
+                    } finally {
+                        Database.Static.restoreDefault();
                     }
-
-                    Map<String, Copier> copiers = new CompactMap<String, Copier>();
-
-                    for (WebResourceOverride override : Query.
-                            from(WebResourceOverride.class).
-                            using(database).
-                            selectAll()) {
-                        String path = override.getPath();
-
-                        restorers.invalidate(path);
-                        copiers.put(path, new Copier(override));
-                    }
-
-                    return copiers;
                 }
             };
         }
@@ -167,7 +167,6 @@ public class WebResourceOverrideFilter extends AbstractFilter {
 
             if (realPath != null) {
                 File curFile = new File(realPath);
-                File oldFile = new File(realPath + OLD_FILE_SUFFIX);
                 File newFile = new File(realPath + NEW_FILE_SUFFIX);
                 Writer writer = new OutputStreamWriter(new FileOutputStream(newFile), StringUtils.UTF_8);
 
@@ -183,7 +182,10 @@ public class WebResourceOverrideFilter extends AbstractFilter {
                 }
 
                 if (curFile.exists()) {
-                    if (!oldFile.exists()) {
+                    File oldFile = new File(realPath + OLD_FILE_SUFFIX);
+
+                    if (!oldFile.exists() &&
+                            !new File(realPath + DEL_FILE_SUFFIX).exists()) {
                         IoUtils.rename(curFile, oldFile);
                     }
 

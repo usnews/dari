@@ -359,10 +359,30 @@ public final class JspUtils {
         return headerResponse != null ? headerResponse : response;
     }
 
-    /** Returns the host from the given {@code request}. */
+    /**
+     * Returns the host ({@code X-Forwarded-Host} or {@code Host} header which
+     * may include the port number) from the given {@code request}.
+     *
+     * @param request Can't be {@code null}.
+     * @return Never {@code null}.
+     */
     public static String getHost(HttpServletRequest request) {
         String host = getFirstProxyHeader(request.getHeader("X-Forwarded-Host"));
+
         return host != null ? host : request.getHeader("Host");
+    }
+
+    /**
+     * Returns the host name (no port number) from the given {@code request}.
+     *
+     * @param request Can't be {@code null}.
+     * @return Never {@code null}.
+     */
+    public static String getHostname(HttpServletRequest request) {
+        String host = getHost(request);
+        int colonAt = host.lastIndexOf(':');
+
+        return colonAt > -1 ? host.substring(0, colonAt) : host;
     }
 
     /** Returns the host URL from the given {@code request}. */
