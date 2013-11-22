@@ -669,7 +669,7 @@ public enum SqlIndex {
 
             for (State state : states) {
                 UUID id = state.getId();
-                UUID typeId = state.getTypeId();
+                UUID typeId = state.getVisibilityAwareTypeId();
 
                 for (IndexValue indexValue : getIndexValues(state)) {
                     ObjectIndex index = indexValue.getIndex();
