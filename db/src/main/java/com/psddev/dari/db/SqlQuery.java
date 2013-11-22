@@ -302,7 +302,7 @@ class SqlQuery {
 
             // e.g. JOIN RecordIndex AS i#
             fromBuilder.append('\n');
-            if (join.position == 0 && !needsRecordTable && !JoinType.LEFT_OUTER.equals(join.type)) {
+            if (join.position == 0 && !needsRecordTable) {
                 fromBuilder.append("FROM ");
             } else {
                 fromBuilder.append((forceLeftJoins ? JoinType.LEFT_OUTER : join.type).token);
@@ -1485,12 +1485,6 @@ class SqlQuery {
      */
     public String selectStatement() {
         StringBuilder statementBuilder = new StringBuilder();
-        if (query.getOptions().get(State.DISABLE_SECONDARY_FETCH_QUERY_OPTION) == null) {
-            if (query.getOptions().get(State.FORCE_SECONDARY_FETCH_QUERY_OPTION) != null ||
-                    !query.getSorters().isEmpty()) {
-                needsRecordTable = false;
-            }
-        }
         initializeClauses();
 
         statementBuilder.append("SELECT");
@@ -1511,12 +1505,8 @@ class SqlQuery {
                     statementBuilder.append(", ru.");
                     vendor.appendIdentifier(statementBuilder, "updateDate");
                 } else {
-                    if (needsRecordTable) {
-                        statementBuilder.append(", r.");
-                        vendor.appendIdentifier(statementBuilder, "data");
-                    } else {
-                        query.getOptions().put(SqlDatabase.NEEDS_SECONDARY_FETCH, true);
-                    }
+                    statementBuilder.append(", r.");
+                    vendor.appendIdentifier(statementBuilder, "data");
                 }
             }
         } else if (!fields.isEmpty()) {
@@ -1606,10 +1596,8 @@ class SqlQuery {
             vendor.appendIdentifier(distinctBuilder, "typeId");
 
             if (fields == null) {
-                if (needsRecordTable) {
-                    distinctBuilder.append(", r.");
-                    vendor.appendIdentifier(distinctBuilder, "data");
-                }
+                distinctBuilder.append(", r.");
+                vendor.appendIdentifier(distinctBuilder, "data");
             } else if (!fields.isEmpty()) {
                 distinctBuilder.append(", ");
                 vendor.appendSelectFields(distinctBuilder, fields);

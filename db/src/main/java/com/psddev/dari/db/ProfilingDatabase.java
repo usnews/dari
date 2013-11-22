@@ -69,11 +69,8 @@ public class ProfilingDatabase extends ForwardingDatabase {
         }
 
         Object resolving = query.getOptions().get(State.REFERENCE_RESOLVING_QUERY_OPTION);
-        Object secondaryFetch = query.getOptions().get(State.SECONDARY_FETCH_QUERY_OPTION);
         if (resolving != null) {
             Profiler.Static.startThreadEvent("Resolving Fields", resolving, query.getOptions().get(State.REFERENCE_FIELD_QUERY_OPTION), caller);
-        } else if (secondaryFetch != null) {
-            Profiler.Static.startThreadEvent("Secondary Data Fetch", caller, query);
         } else {
             Profiler.Static.startThreadEvent(event, caller, query);
         }

@@ -44,12 +44,6 @@ public class State implements Map<String, Object> {
      */
     public static final String REFERENCE_RESOLVING_QUERY_OPTION = "dari.referenceResolving";
 
-    public static final String SECONDARY_FETCH_QUERY_OPTION = "dari.secondaryFetch";
-
-    public static final String DISABLE_SECONDARY_FETCH_QUERY_OPTION = "dari.disableSecondaryFetch";
-
-    public static final String FORCE_SECONDARY_FETCH_QUERY_OPTION = "dari.forceSecondaryFetch";
-
     public static final String REFERENCE_FIELD_QUERY_OPTION = "dari.referenceField";
 
     public static final String UNRESOLVED_TYPE_IDS_QUERY_OPTION = "dari.unresolvedTypeIds";
