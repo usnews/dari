@@ -105,6 +105,10 @@ public class SqlVendor {
         Connection connection = database.openConnection();
 
         try {
+            if (!getTables(connection).isEmpty()) {
+                return;
+            }
+
             for (String ddl : IoUtils.toString(resourceInput, StringUtils.UTF_8).trim().split("(?:\r\n?|\n){2,}")) {
                 Statement statement = connection.createStatement();
 
