@@ -223,9 +223,7 @@ public class SqlVendor {
             }
 
         } finally {
-            if (result != null) {
-                result.close();
-            }
+            result.close();
         }
 
         return newHasInRowIndex;

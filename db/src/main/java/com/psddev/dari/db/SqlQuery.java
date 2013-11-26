@@ -55,7 +55,6 @@ class SqlQuery {
     private boolean needsDistinct;
     private Join mysqlIndexHint;
     private boolean forceLeftJoins;
-    private boolean needsRecordTable;
 
     private final List<Predicate> recordMetricDatePredicates = new ArrayList<Predicate>();
     private final List<Predicate> recordMetricParentDatePredicates = new ArrayList<Predicate>();
@@ -84,7 +83,6 @@ class SqlQuery {
         database = initialDatabase;
         query = initialQuery;
         aliasPrefix = initialAliasPrefix;
-        needsRecordTable = true;
 
         vendor = database.getVendor();
         recordIdField = aliasedField("r", SqlDatabase.ID_COLUMN);
@@ -138,6 +136,10 @@ class SqlQuery {
     }
 
     private String aliasedField(String alias, String field) {
+        if (field == null) {
+            return null;
+        }
+
         StringBuilder fieldBuilder = new StringBuilder();
         fieldBuilder.append(aliasPrefix);
         fieldBuilder.append(alias);
@@ -285,15 +287,10 @@ class SqlQuery {
         StringBuilder fromBuilder = new StringBuilder();
         HashMap<String, String> joinTableAliases = new HashMap<String, String>();
 
-        boolean didJoin = false;
         for (Join join : joins) {
 
             if (join.indexKeys.isEmpty()) {
                 continue;
-            }
-            didJoin = true;
-            if (join.position == 0 && !needsRecordTable && JoinType.LEFT_OUTER.equals(join.type)) {
-                needsRecordTable = true;
             }
 
             for (String indexKey : join.indexKeys) {
@@ -302,13 +299,9 @@ class SqlQuery {
 
             // e.g. JOIN RecordIndex AS i#
             fromBuilder.append('\n');
-            if (join.position == 0 && !needsRecordTable) {
-                fromBuilder.append("FROM ");
-            } else {
-                fromBuilder.append((forceLeftJoins ? JoinType.LEFT_OUTER : join.type).token);
-                fromBuilder.append(' ');
-            }
-            fromBuilder.append(join.getTable());
+            fromBuilder.append((forceLeftJoins ? JoinType.LEFT_OUTER : join.type).token);
+            fromBuilder.append(' ');
+            fromBuilder.append(join.table);
 
             if (join.type == JoinType.INNER && join.equals(mysqlIndexHint)) {
                 fromBuilder.append(" /*! USE INDEX (k_name_value) */");
@@ -319,50 +312,36 @@ class SqlQuery {
             }
 
             // e.g. ON i#.recordId = r.id
-            if (join.position == 0 && ! needsRecordTable) {
-                // almost all of this is done in the WHERE clause already
-                whereBuilder.append(" AND ");
-                whereBuilder.append(join.getKeyField());
-                whereBuilder.append(" IN (");
-                for (String indexKey : join.indexKeys) {
-                    whereBuilder.append(join.quoteIndexKey(indexKey));
-                    whereBuilder.append(", ");
-                }
-                whereBuilder.setLength(whereBuilder.length() - 2);
-                whereBuilder.append(")");
-            } else {
-                fromBuilder.append(" ON ");
-                if (join.getTypeIdField() != null) {
-                    fromBuilder.append(join.getTypeIdField());
-                    fromBuilder.append(" = ");
-                    fromBuilder.append(aliasPrefix);
-                    fromBuilder.append("r");
-                    fromBuilder.append(".");
-                    vendor.appendIdentifier(fromBuilder, "typeId");
-                    fromBuilder.append(" AND ");
-                }
-                // AND i#.recordId = r.id
-                fromBuilder.append(join.getIdField());
+            fromBuilder.append(" ON ");
+            fromBuilder.append(join.idField);
+            fromBuilder.append(" = ");
+            fromBuilder.append(aliasPrefix);
+            fromBuilder.append("r.");
+            vendor.appendIdentifier(fromBuilder, "id");
+
+            // AND i#.typeId = r.typeId
+            if (join.typeIdField != null) {
+                fromBuilder.append(" AND ");
+                fromBuilder.append(join.typeIdField);
                 fromBuilder.append(" = ");
                 fromBuilder.append(aliasPrefix);
-                fromBuilder.append("r");
-                fromBuilder.append(".");
-                vendor.appendIdentifier(fromBuilder, "id");
-                // AND i#.symbolId in (...)
-                fromBuilder.append(" AND ");
-                fromBuilder.append(join.getKeyField());
-                fromBuilder.append(" IN (");
-                for (String indexKey : join.indexKeys) {
-                    fromBuilder.append(join.quoteIndexKey(indexKey));
-                    fromBuilder.append(", ");
-                }
-                fromBuilder.setLength(fromBuilder.length() - 2);
-                fromBuilder.append(")");
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "typeId");
             }
 
-        }
-        if (!didJoin) {
-            needsRecordTable = true;
+            // AND i#.symbolId in (...)
+            fromBuilder.append(" AND ");
+            fromBuilder.append(join.keyField);
+            fromBuilder.append(" IN (");
+
+            for (String indexKey : join.indexKeys) {
+                fromBuilder.append(join.quoteIndexKey(indexKey));
+                fromBuilder.append(", ");
+            }
+
+            fromBuilder.setLength(fromBuilder.length() - 2);
+            fromBuilder.append(')');
+
         }
 
         StringBuilder extraColumnsBuilder = new StringBuilder();
@@ -479,6 +458,7 @@ class SqlQuery {
         }
 
         this.whereClause = whereBuilder.toString();
+
 
         StringBuilder havingBuilder = new StringBuilder();
         if (hasDeferredHavingPredicates()) {
@@ -647,10 +627,9 @@ class SqlQuery {
                 }
             }
 
-            String joinValueFieldName = join.getValueFieldName(queryKey, comparisonPredicate);
-            String joinValueField = null;
-            if (reverseAliasSql.containsKey(joinValueFieldName)) {
-                joinValueField = reverseAliasSql.get(joinValueFieldName);
+            String joinValueField = join.getValueField(queryKey, comparisonPredicate);
+            if (reverseAliasSql.containsKey(joinValueField)) {
+                joinValueField = reverseAliasSql.get(joinValueField);
             }
             String operator = comparisonPredicate.getOperator();
             StringBuilder comparisonBuilder = new StringBuilder();
@@ -668,7 +647,7 @@ class SqlQuery {
                     }
 
                     if (findSimilarComparison(mappedKey.getField(), query.getPredicate())) {
-                        whereBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                        whereBuilder.append(joinValueField);
                         if (isNotEqualsAll) {
                             whereBuilder.append(" NOT");
                         }
@@ -678,7 +657,7 @@ class SqlQuery {
 
                     } else {
                         SqlQuery subSqlQuery = getOrCreateSubSqlQuery(valueQuery, join.type == JoinType.LEFT_OUTER);
-                        subQueries.put(valueQuery, join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField) + (isNotEqualsAll ? " != " : " = "));
+                        subQueries.put(valueQuery, joinValueField + (isNotEqualsAll ? " != " : " = "));
                         whereBuilder.append(subSqlQuery.whereClause.substring(7));
                     }
 
@@ -694,17 +673,15 @@ class SqlQuery {
                         ++ subClauseCount;
                         hasMissing = true;
 
+                        comparisonBuilder.append(joinValueField);
+
                         if (isNotEqualsAll) {
                             if (isFieldCollection) {
                                 needsDistinct = true;
                             }
-
-                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             comparisonBuilder.append(" IS NOT NULL");
                         } else {
                             join.type = JoinType.LEFT_OUTER;
-
-                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
                             comparisonBuilder.append(" IS NULL");
                         }
 
@@ -718,7 +695,7 @@ class SqlQuery {
                             }
 
                             try {
-                                vendor.appendWhereRegion(comparisonBuilder, (Region) value, join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                                vendor.appendWhereRegion(comparisonBuilder, (Region) value, joinValueField);
                             } catch (UnsupportedIndexException uie) {
                                 throw new UnsupportedIndexException(vendor, queryKey);
                             }
@@ -733,9 +710,9 @@ class SqlQuery {
                             hasMissing = true;
 
                             comparisonBuilder.append('(');
-                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                            comparisonBuilder.append(joinValueField);
                             comparisonBuilder.append(" IS NULL OR ");
-                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                            comparisonBuilder.append(joinValueField);
                             if (join.likeValuePrefix != null) {
                                 comparisonBuilder.append(" NOT LIKE ");
                                 join.appendValue(comparisonBuilder, comparisonPredicate, join.likeValuePrefix + database.getSymbolId(value.toString()) + ";%");
@@ -746,7 +723,7 @@ class SqlQuery {
                             comparisonBuilder.append(')');
 
                         } else {
-                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                            comparisonBuilder.append(joinValueField);
                             if (join.likeValuePrefix != null) {
                                 comparisonBuilder.append(" LIKE ");
                                 join.appendValue(comparisonBuilder, comparisonPredicate, join.likeValuePrefix + database.getSymbolId(value.toString()) + ";%");
@@ -793,7 +770,7 @@ class SqlQuery {
                             }
 
                             try {
-                                vendor.appendWhereLocation(comparisonBuilder, (Location) value, join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                                vendor.appendWhereLocation(comparisonBuilder, (Location) value, joinValueField);
                             } catch (UnsupportedIndexException uie) {
                                 throw new UnsupportedIndexException(vendor, queryKey);
                             }
@@ -802,11 +779,11 @@ class SqlQuery {
                             hasMissing = true;
 
                             join.type = JoinType.LEFT_OUTER;
-                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                            comparisonBuilder.append(joinValueField);
                             comparisonBuilder.append(" IS NULL");
 
                         } else {
-                            comparisonBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                            comparisonBuilder.append(joinValueField);
                             comparisonBuilder.append(' ');
                             comparisonBuilder.append(sqlOperator);
                             comparisonBuilder.append(' ');
@@ -835,7 +812,7 @@ class SqlQuery {
                     if (join.needsIndexTable) {
                         String indexKey = mappedKeys.get(queryKey).getIndexKey(selectedIndexes.get(queryKey));
                         if (indexKey != null) {
-                            whereBuilder.append(join.getKeyField());
+                            whereBuilder.append(join.keyField);
                             whereBuilder.append(" = ");
                             whereBuilder.append(join.quoteIndexKey(indexKey));
                             whereBuilder.append(" AND ");
@@ -843,7 +820,7 @@ class SqlQuery {
                     }
 
                     if (join.needsIsNotNull) {
-                        whereBuilder.append(join.getAliasedValueField(joinValueFieldName, comparisonPredicate, joinValueField));
+                        whereBuilder.append(joinValueField);
                         whereBuilder.append(" IS NOT NULL AND ");
                     }
 
@@ -975,7 +952,6 @@ class SqlQuery {
      */
     public String countStatement() {
         StringBuilder statementBuilder = new StringBuilder();
-        needsRecordTable = false;
         initializeClauses();
 
         statementBuilder.append("SELECT COUNT(");
@@ -984,14 +960,12 @@ class SqlQuery {
         }
         statementBuilder.append(recordIdField);
         statementBuilder.append(')');
-        if (needsRecordTable) {
-            statementBuilder.append("\nFROM ");
-            vendor.appendIdentifier(statementBuilder, "Record");
-            statementBuilder.append(' ');
-            statementBuilder.append(aliasPrefix);
-            statementBuilder.append('r');
-        }
 
+        statementBuilder.append(" \nFROM ");
+        vendor.appendIdentifier(statementBuilder, "Record");
+        statementBuilder.append(' ');
+        statementBuilder.append(aliasPrefix);
+        statementBuilder.append('r');
         statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
         if (! recordMetricHavingPredicates.isEmpty()) {
             statementBuilder.append(" \nJOIN (");
@@ -1052,7 +1026,6 @@ class SqlQuery {
     public String groupStatement(String[] groupFields) {
         Map<String, Join> groupJoins = new LinkedHashMap<String, Join>();
         Map<String, SqlQuery> groupSubSqlQueries = new HashMap<String, SqlQuery>();
-        needsRecordTable = false;
         if (groupFields != null) {
             for (String groupField : groupFields) {
                 Query.MappedKey mappedKey = query.mapEmbeddedKey(database.getEnvironment(), groupField);
@@ -1140,14 +1113,11 @@ class SqlQuery {
             statementBuilder.append(field);
         }
 
-        if (needsRecordTable) {
-            statementBuilder.append("\nFROM ");
-            vendor.appendIdentifier(statementBuilder, "Record");
-            statementBuilder.append(" ");
-            statementBuilder.append(aliasPrefix);
-            statementBuilder.append("r");
-        }
-
+        statementBuilder.append("\nFROM ");
+        vendor.appendIdentifier(statementBuilder, "Record");
+        statementBuilder.append(' ');
+        statementBuilder.append(aliasPrefix);
+        statementBuilder.append('r');
         statementBuilder.append(fromClause.replace(" /*! USE INDEX (k_name_value) */", ""));
         statementBuilder.append(whereClause);
 
@@ -1549,26 +1519,11 @@ class SqlQuery {
             }
         }
 
-        if (needsRecordTable) {
-            statementBuilder.append("\nFROM ");
-            vendor.appendIdentifier(statementBuilder, "Record");
-            statementBuilder.append(' ');
-            statementBuilder.append(aliasPrefix);
-            statementBuilder.append('r');
-
-        }
-
-        statementBuilder.append(fromClause);
-
-        if (hasAnyDeferredMetricPredicates()) {
-            statementBuilder.append(" \nJOIN (");
-            appendSubqueryMetricSql(statementBuilder, recordMetricField);
-            statementBuilder.append(") m \nON (");
-            appendSimpleOnClause(statementBuilder, vendor, "r", "id", "=", "m", "id");
-            statementBuilder.append(" AND ");
-            appendSimpleOnClause(statementBuilder, vendor, "r", "typeId", "=", "m", "typeId");
-            statementBuilder.append(')');
-        }
+        statementBuilder.append("\nFROM ");
+        vendor.appendIdentifier(statementBuilder, "Record");
+        statementBuilder.append(' ');
+        statementBuilder.append(aliasPrefix);
+        statementBuilder.append('r');
 
         if (cacheData) {
             statementBuilder.append("\nLEFT OUTER JOIN ");
@@ -1582,6 +1537,17 @@ class SqlQuery {
             vendor.appendIdentifier(statementBuilder, "id");
         }
 
+        if (hasAnyDeferredMetricPredicates()) {
+            statementBuilder.append(" \nJOIN (");
+            appendSubqueryMetricSql(statementBuilder, recordMetricField);
+            statementBuilder.append(") m \nON (");
+            appendSimpleOnClause(statementBuilder, vendor, "r", "id", "=", "m", "id");
+            statementBuilder.append(" AND ");
+            appendSimpleOnClause(statementBuilder, vendor, "r", "typeId", "=", "m", "typeId");
+            statementBuilder.append(')');
+        }
+
+        statementBuilder.append(fromClause);
         statementBuilder.append(whereClause);
         statementBuilder.append(havingClause);
         statementBuilder.append(orderByClause);
@@ -1708,18 +1674,8 @@ class SqlQuery {
     }
 
     private Join createJoin(String queryKey) {
-        String alias;
-        int position = 0;
-        // Need to keep track of actual tables being joined becaue the first
-        // one might be re-aliased as 'r'
-        for (Join join : joins) {
-            if (!join.indexKeys.isEmpty()) {
-                ++position;
-            }
-        }
-        alias = "i" + position;
+        String alias = "i" + joins.size();
         Join join = new Join(alias, queryKey);
-        join.position = position;
         joins.add(join);
         if (queryKey.equals(query.getOptions().get(SqlDatabase.MYSQL_INDEX_HINT_QUERY_OPTION))) {
             mysqlIndexHint = join;
@@ -1796,27 +1752,28 @@ class SqlQuery {
         vendor.appendIdentifier(sql, columnName);
     }
 
+
     private class Join {
 
         public Predicate parent;
         public JoinType type = JoinType.INNER;
-        public int position;
-        private final String alias;
 
         public final boolean needsIndexTable;
         public final boolean needsIsNotNull;
         public final String likeValuePrefix;
         public final String queryKey;
         public final String indexType;
+        public final String table;
+        public final String idField;
+        public final String typeIdField;
+        public final String keyField;
         public final List<String> indexKeys = new ArrayList<String>();
 
+        private final String alias;
         private final String tableName;
         private final ObjectIndex index;
         private final SqlIndex sqlIndex;
         private final SqlIndex.Table sqlIndexTable;
-        private final String idField;
-        private final String keyField;
-        private final String typeIdField;
         private final String valueField;
         private final String hashAttribute;
         private final boolean isHaving;
@@ -1844,6 +1801,7 @@ class SqlQuery {
                 likeValuePrefix = null;
                 valueField = recordIdField;
                 sqlIndexTable = null;
+                table = null;
                 tableName = null;
                 idField = null;
                 typeIdField = null;
@@ -1856,6 +1814,7 @@ class SqlQuery {
                 likeValuePrefix = null;
                 valueField = recordTypeIdField;
                 sqlIndexTable = null;
+                table = null;
                 tableName = null;
                 idField = null;
                 typeIdField = null;
@@ -1873,6 +1832,7 @@ class SqlQuery {
                 vendor.appendIdentifier(fieldBuilder, MetricAccess.METRIC_DIMENSION_FIELD);
                 valueField = fieldBuilder.toString();
                 sqlIndexTable = null;
+                table = null;
                 tableName = null;
                 idField = null;
                 typeIdField = null;
@@ -1891,6 +1851,7 @@ class SqlQuery {
                 fieldBuilder.append(')');
                 valueField = fieldBuilder.toString(); // "count(r.id)";
                 sqlIndexTable = null;
+                table = null;
                 tableName = null;
                 idField = null;
                 typeIdField = null;
@@ -1907,6 +1868,7 @@ class SqlQuery {
                 valueField = recordInRowIndexField;
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
+                table = null;
                 tableName = null;
                 idField = null;
                 typeIdField = null;
@@ -1921,6 +1883,8 @@ class SqlQuery {
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
                 tableName = MetricAccess.Static.getMetricTableIdentifier(database); // Don't wrap this with appendIdentifier
+                table = tableName;
+                alias = "r";
 
                 idField = null;
                 typeIdField = null;
@@ -1950,64 +1914,29 @@ class SqlQuery {
                 addIndexKey(queryKey);
                 valueField = null;
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
+
+                StringBuilder tableBuilder = new StringBuilder();
                 tableName = sqlIndexTable.getName(database, index);
-                idField = sqlIndexTable.getIdField(database, index);
-                typeIdField = sqlIndexTable.getTypeIdField(database, index);
-                keyField = sqlIndexTable.getKeyField(database, index);
-                if (position == 0 && !needsRecordTable && (!needsIndexTable || typeIdField == null)) {
-                    /* if we're not capable of running this query without Record, reset it here. */
-                    needsRecordTable = true;
-                }
+                vendor.appendIdentifier(tableBuilder, tableName);
+                tableBuilder.append(' ');
+                tableBuilder.append(aliasPrefix);
+                tableBuilder.append(alias);
+                table = tableBuilder.toString();
+
+                idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
+                typeIdField = aliasedField(alias, sqlIndexTable.getTypeIdField(database, index));
+                keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
                 needsIsNotNull = true;
                 isHaving = false;
             }
         }
 
-        public String getTable() {
-            if (tableName == null) {
-                return null;
-            }
-
-            StringBuilder tableBuilder = new StringBuilder();
-            vendor.appendIdentifier(tableBuilder, tableName);
-            tableBuilder.append(" ");
-            tableBuilder.append(aliasPrefix);
-            tableBuilder.append(getAlias());
-
-            return tableBuilder.toString();
-        }
-
-        public String getIdField() {
-            if (idField == null) {
-                return null;
-            }
-            return aliasedField(getAlias(), idField);
-        }
-
-        public String getTypeIdField() {
-            if (typeIdField == null) {
-                return null;
-            }
-            return aliasedField(getAlias(), typeIdField);
-        }
-
-        public String getKeyField() {
-            if (keyField == null) {
-                return null;
-            }
-            return aliasedField(getAlias(), keyField);
-        }
-
         public String getAlias() {
-            if (position == 0 && !needsRecordTable && !JoinType.LEFT_OUTER.equals(type)) {
-                return "r";
-            } else {
-                return alias;
-            }
+            return this.alias;
         }
 
         public String toString() {
-            return this.tableName + " (" + getAlias() + ") ." + this.valueField;
+            return this.tableName + " (" + this.alias + ") ." + this.valueField;
         }
 
         public String getTableName() {
@@ -2096,14 +2025,14 @@ class SqlQuery {
             vendor.appendValue(builder, value);
         }
 
-        public String getValueFieldName(String queryKey, ComparisonPredicate comparison) {
+        public String getValueField(String queryKey, ComparisonPredicate comparison) {
             String field;
 
             if (valueField != null) {
                 field = valueField;
 
             } else if (sqlIndex != SqlIndex.CUSTOM) {
-                field = sqlIndexTable.getValueField(database, index, 0);
+                field = aliasedField(alias, sqlIndexTable.getValueField(database, index, 0));
 
             } else {
                 String valueFieldName = mappedKeys.get(queryKey).getField().getInternalName();
@@ -2114,35 +2043,14 @@ class SqlQuery {
                         break;
                     }
                 }
-                field = sqlIndexTable.getValueField(database, index, fieldIndex);
+                field = aliasedField(alias, sqlIndexTable.getValueField(database, index, fieldIndex));
+            }
+
+            if (comparison != null && comparison.isIgnoreCase()) {
+                field = "LOWER(" + vendor.convertRawToStringSql(field) + ")";
             }
 
             return field;
         }
-
-        public String transformValueField(String valueIdentifier, ComparisonPredicate comparison) {
-            if (comparison != null && comparison.isIgnoreCase()) {
-                valueIdentifier = "LOWER(" + vendor.convertRawToStringSql(valueIdentifier) + ")";
-            }
-
-            return valueIdentifier;
-        }
-
-        public String getValueField(String queryKey, ComparisonPredicate comparison) {
-            return getAliasedValueField(getValueFieldName(queryKey, comparison), comparison, null);
-        }
-
-        public String getAliasedValueField(String fieldName, ComparisonPredicate comparison, String fieldOverride) {
-            if (fieldOverride != null) {
-                return fieldOverride;
-
-            } else if (valueField != null) {
-                return transformValueField(valueField, comparison);
-
-            } else {
-                return transformValueField(aliasedField(getAlias(), fieldName), comparison);
-            }
-        }
-
     }
 }

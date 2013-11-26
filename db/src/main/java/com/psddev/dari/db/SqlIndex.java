@@ -67,7 +67,6 @@ public enum SqlIndex {
                     return null;
                 }
             }
-
         }
     ),
 
@@ -470,7 +469,6 @@ public enum SqlIndex {
         public TypeIdSymbolIdSingleValueTable(int version, String name) {
             super(version, name, "typeId");
         }
-
     }
 
     public static final class IndexValue {

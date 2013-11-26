@@ -377,25 +377,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /**
-     * Returns {@code true} if the given {@code table} in this database 
-     * contains a column with the given {@code name}.
+     * Returns {@code true} if the given {@code table} in this database
+     * contains the given {@code column}.
+     *
+     * @param table If {@code null}, always returns {@code false}.
+     * @param name If {@code null}, always returns {@code false}.
      */
-    public boolean hasColumn(String table, String name) {
-        if (table == null || name == null) {
+    public boolean hasColumn(String table, String column) {
+        if (table == null || column == null) {
             return false;
+
         } else {
-            Set<String> names = tableColumnNames.get().get(table.toLowerCase());
-            return names != null && names.contains(name.toLowerCase());
+            Set<String> columnNames = tableColumnNames.get().get(table.toLowerCase(Locale.ENGLISH));
+
+            return columnNames != null && columnNames.contains(column.toLowerCase(Locale.ENGLISH));
         }
     }
 
     private transient volatile boolean hasInRowIndex;
     private transient volatile boolean comparesIgnoreCase;
 
-    private final transient PeriodicValue<Map<String,Set<String>>> tableColumnNames = new PeriodicValue<Map<String,Set<String>>>(0.0, 60.0) {
+    private final transient PeriodicValue<Map<String, Set<String>>> tableColumnNames = new PeriodicValue<Map<String, Set<String>>>(0.0, 60.0) {
 
         @Override
-        protected Map<String,Set<String>> update() {
+        protected Map<String, Set<String>> update() {
             if (getDataSource() == null) {
                 return Collections.emptyMap();
             }
@@ -414,13 +419,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlVendor vendor = getVendor();
                 String recordTable = null;
                 int maxStringVersion = 0;
-                Map<String,Set<String>> loweredNames = new HashMap<String,Set<String>>();
+                Map<String, Set<String>> loweredNames = new HashMap<String, Set<String>>();
 
                 for (String name : vendor.getTables(connection)) {
-
                     String loweredName = name.toLowerCase(Locale.ENGLISH);
+                    Set<String> loweredColumnNames = new HashSet<String>();
 
-                    HashSet<String> loweredColumnNames = new HashSet<String>();
                     for (String columnName : vendor.getColumns(connection, name)) {
                         loweredColumnNames.add(columnName.toLowerCase(Locale.ENGLISH));
                     }
@@ -794,7 +798,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
 
-        ResultSetMetaData meta = resultSet.getMetaData();
         if (!objectState.isReferenceOnly()) {
             byte[] data = null;
 
@@ -862,6 +865,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
+
+        ResultSetMetaData meta = resultSet.getMetaData();
         Object subId = null, subTypeId = null;
         byte[] subData;
 
@@ -1028,7 +1033,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             LOGGER.debug(
                     "Read from the SQL database using [{}] in [{}]ms",
-                    sqlQuery, duration*1000d);
+                    sqlQuery, duration * 1000.0);
         }
     }
 
@@ -1048,11 +1053,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, getQueryReadTimeout(query));
-            if (result.next()) {
-                return createSavedObjectWithResultSet(result, query, extraConnectionRef);
-            } else {
-                return null;
-            }
+            return result.next() ? createSavedObjectWithResultSet(result, query, extraConnectionRef) : null;
 
         } catch (SQLException ex) {
             throw createQueryException(ex, sqlQuery, query);
@@ -1087,7 +1088,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             connection = openQueryConnection(query);
             statement = connection.createStatement();
             result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
-
             while (result.next()) {
                 objects.add(createSavedObjectWithResultSet(result, query, extraConnectionRef));
             }
@@ -2621,7 +2621,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL batch update: [{}], Parameters: {}, Affected: {}, Time: [{}]ms",
-                                new Object[] { sqlQuery, parameters, affected != null ? Arrays.toString(affected) : "[]", time*1000d });
+                                new Object[] { sqlQuery, parameters, affected != null ? Arrays.toString(affected) : "[]", time * 1000.0 });
                     }
                 }
 
@@ -2724,7 +2724,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL update: [{}], Affected: [{}], Time: [{}]ms",
-                                new Object[] { fillPlaceholders(sqlQuery, parameters), affected, time*1000d });
+                                new Object[] { fillPlaceholders(sqlQuery, parameters), affected, time * 1000.0 });
                     }
                 }
 
