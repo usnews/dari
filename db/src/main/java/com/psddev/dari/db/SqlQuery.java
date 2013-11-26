@@ -1509,6 +1509,11 @@ class SqlQuery {
         statementBuilder.append(aliasPrefix);
         statementBuilder.append('r');
 
+        if (fromClause.length() > 0 &&
+                !fromClause.contains("LEFT OUTER JOIN")) {
+            statementBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
+        }
+
         if (cacheData) {
             statementBuilder.append("\nLEFT OUTER JOIN ");
             vendor.appendIdentifier(statementBuilder, "RecordUpdate");
