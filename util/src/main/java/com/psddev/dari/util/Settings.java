@@ -98,7 +98,10 @@ public final class Settings {
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
                     } catch (Throwable error) {
-                        LOGGER.info("Can't read from JNDI! [{}]", error.getMessage());
+                        LOGGER.info(
+                                "Can't read from JNDI! [{}: {}]",
+                                error.getClass().getName(),
+                                error.getMessage());
                     }
 
                     return Collections.unmodifiableMap(settings);

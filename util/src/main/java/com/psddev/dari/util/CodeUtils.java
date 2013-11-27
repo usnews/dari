@@ -596,7 +596,10 @@ public final class CodeUtils {
             }
 
             if (error != null) {
-                LOGGER.info("Can't get instrumentation instance from agent! [{}]", error.getMessage());
+                LOGGER.info(
+                        "Can't get instrumentation instance from agent! [{}: {}]",
+                        error.getClass().getName(),
+                        error.getMessage());
             }
         }
 
