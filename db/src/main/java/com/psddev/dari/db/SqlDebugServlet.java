@@ -63,7 +63,7 @@ public class SqlDebugServlet extends HttpServlet {
                             "name", "sql",
                             "placeholder", "SQL Statement",
                             "rows", 4,
-                            "style", "margin: 4px 0; width: 100%;");
+                            "style", "font-family:monospace; min-height: 300px; margin: 4px 0; width: 100%;");
                         writeHtml(sql);
                     writeEnd();
 
