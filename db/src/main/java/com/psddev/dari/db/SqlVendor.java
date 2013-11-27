@@ -105,7 +105,7 @@ public class SqlVendor {
         Connection connection = database.openConnection();
 
         try {
-            if (!getTables(connection).isEmpty()) {
+            if (getTables(connection).contains(SqlDatabase.RECORD_TABLE)) {
                 return;
             }
 
