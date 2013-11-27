@@ -136,6 +136,10 @@ class SqlQuery {
     }
 
     private String aliasedField(String alias, String field) {
+        if (field == null) {
+            return null;
+        }
+
         StringBuilder fieldBuilder = new StringBuilder();
         fieldBuilder.append(aliasPrefix);
         fieldBuilder.append(alias);
@@ -307,13 +311,25 @@ class SqlQuery {
                 fromBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
             }
 
-            // e.g. ON i#.recordId = r.id AND i#.name = ...
+            // e.g. ON i#.recordId = r.id
             fromBuilder.append(" ON ");
             fromBuilder.append(join.idField);
             fromBuilder.append(" = ");
             fromBuilder.append(aliasPrefix);
             fromBuilder.append("r.");
             vendor.appendIdentifier(fromBuilder, "id");
+
+            // AND i#.typeId = r.typeId
+            if (join.typeIdField != null) {
+                fromBuilder.append(" AND ");
+                fromBuilder.append(join.typeIdField);
+                fromBuilder.append(" = ");
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "typeId");
+            }
+
+            // AND i#.symbolId in (...)
             fromBuilder.append(" AND ");
             fromBuilder.append(join.keyField);
             fromBuilder.append(" IN (");
@@ -1754,6 +1770,7 @@ class SqlQuery {
         public final String indexType;
         public final String table;
         public final String idField;
+        public final String typeIdField;
         public final String keyField;
         public final List<String> indexKeys = new ArrayList<String>();
 
@@ -1792,6 +1809,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1804,6 +1822,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1821,6 +1840,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1839,6 +1859,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = false;
                 isHaving = true;
@@ -1855,6 +1876,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1866,10 +1888,11 @@ class SqlQuery {
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
                 tableName = MetricAccess.Static.getMetricTableIdentifier(database); // Don't wrap this with appendIdentifier
-                table = tableName; // XXX This line is safe to remove when feature/schema12 is merged in.
+                table = tableName;
                 alias = "r";
 
                 idField = null;
+                typeIdField = null;
                 keyField = null;
 
                 needsIsNotNull = false;
@@ -1906,6 +1929,7 @@ class SqlQuery {
                 table = tableBuilder.toString();
 
                 idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
+                typeIdField = aliasedField(alias, sqlIndexTable.getTypeIdField(database, index));
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
                 needsIsNotNull = true;
                 isHaving = false;

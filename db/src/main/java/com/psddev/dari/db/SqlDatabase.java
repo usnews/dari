@@ -241,12 +241,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     }
                 }
 
-                tableNames.refresh();
+                tableColumnNames.refresh();
                 symbols.invalidate();
 
                 if (writable) {
                     vendor.setUp(this);
-                    tableNames.refresh();
+                    tableColumnNames.refresh();
                     symbols.invalidate();
                 }
 
@@ -278,7 +278,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         try {
             getVendor().setUp(this);
-            tableNames.refresh();
+            tableColumnNames.refresh();
             symbols.invalidate();
 
         } catch (IOException error) {
@@ -371,20 +371,38 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         if (name == null) {
             return false;
         } else {
-            Set<String> names = tableNames.get();
+            Set<String> names = tableColumnNames.get().keySet();
             return names != null && names.contains(name.toLowerCase(Locale.ENGLISH));
+        }
+    }
+
+    /**
+     * Returns {@code true} if the given {@code table} in this database
+     * contains the given {@code column}.
+     *
+     * @param table If {@code null}, always returns {@code false}.
+     * @param name If {@code null}, always returns {@code false}.
+     */
+    public boolean hasColumn(String table, String column) {
+        if (table == null || column == null) {
+            return false;
+
+        } else {
+            Set<String> columnNames = tableColumnNames.get().get(table.toLowerCase(Locale.ENGLISH));
+
+            return columnNames != null && columnNames.contains(column.toLowerCase(Locale.ENGLISH));
         }
     }
 
     private transient volatile boolean hasInRowIndex;
     private transient volatile boolean comparesIgnoreCase;
 
-    private final transient PeriodicValue<Set<String>> tableNames = new PeriodicValue<Set<String>>(0.0, 60.0) {
+    private final transient PeriodicValue<Map<String, Set<String>>> tableColumnNames = new PeriodicValue<Map<String, Set<String>>>(0.0, 60.0) {
 
         @Override
-        protected Set<String> update() {
+        protected Map<String, Set<String>> update() {
             if (getDataSource() == null) {
-                return Collections.emptySet();
+                return Collections.emptyMap();
             }
 
             Connection connection;
@@ -401,12 +419,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 SqlVendor vendor = getVendor();
                 String recordTable = null;
                 int maxStringVersion = 0;
-                Set<String> loweredNames = new HashSet<String>();
+                Map<String, Set<String>> loweredNames = new HashMap<String, Set<String>>();
 
                 for (String name : vendor.getTables(connection)) {
                     String loweredName = name.toLowerCase(Locale.ENGLISH);
+                    Set<String> loweredColumnNames = new HashSet<String>();
 
-                    loweredNames.add(loweredName);
+                    for (String columnName : vendor.getColumns(connection, name)) {
+                        loweredColumnNames.add(columnName.toLowerCase(Locale.ENGLISH));
+                    }
+
+                    loweredNames.put(loweredName, loweredColumnNames);
 
                     if ("record".equals(loweredName)) {
                         recordTable = name;
@@ -1010,7 +1033,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
             LOGGER.debug(
                     "Read from the SQL database using [{}] in [{}]ms",
-                    sqlQuery, duration);
+                    sqlQuery, duration * 1000.0);
         }
     }
 
@@ -2598,7 +2621,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL batch update: [{}], Parameters: {}, Affected: {}, Time: [{}]ms",
-                                new Object[] { sqlQuery, parameters, affected != null ? Arrays.toString(affected) : "[]", time });
+                                new Object[] { sqlQuery, parameters, affected != null ? Arrays.toString(affected) : "[]", time * 1000.0 });
                     }
                 }
 
@@ -2701,7 +2724,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(
                                 "SQL update: [{}], Affected: [{}], Time: [{}]ms",
-                                new Object[] { fillPlaceholders(sqlQuery, parameters), affected, time });
+                                new Object[] { fillPlaceholders(sqlQuery, parameters), affected, time * 1000.0 });
                     }
                 }
 
