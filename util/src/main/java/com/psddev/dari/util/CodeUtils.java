@@ -582,7 +582,10 @@ public final class CodeUtils {
 
                 instrumentationField.setAccessible(true);
                 instrumentation = (Instrumentation) instrumentationField.get(null);
-                instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
+
+                if (instrumentation != null) {
+                    instrumentation.addTransformer(JSP_CLASS_RECORDER, true);
+                }
 
             } catch (IllegalAccessException e) {
                 error = e;
@@ -593,7 +596,7 @@ public final class CodeUtils {
             }
 
             if (error != null) {
-                LOGGER.info("Can't get instrumentation instance from agent!", error);
+                LOGGER.info("Can't get instrumentation instance from agent! [{}]", error.getMessage());
             }
         }
 
