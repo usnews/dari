@@ -964,6 +964,9 @@ public class BrightcoveStorageItem extends VideoStorageItem {
     public List<Integer> getTranscodingFlavorIds() {
          throw new UnsupportedOperationException();
     }
+    public void setThumbnailUrl(String thumbnailUrl) {
+         throw new UnsupportedOperationException();
+    }
     public void push() {
          pushToBrightcove();
     }
