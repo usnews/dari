@@ -7,7 +7,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -147,7 +146,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     @Override
     public Map<String, Object> getMetadata() {
         if (metadata == null) {
-            metadata = new LinkedHashMap<String, Object>();
+            metadata = new CompactMap<String, Object>();
         }
         return metadata;
     }

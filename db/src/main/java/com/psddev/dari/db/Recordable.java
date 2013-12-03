@@ -12,6 +12,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.psddev.dari.util.Settings;
+
 public interface Recordable {
 
     /**
@@ -54,7 +56,7 @@ public interface Recordable {
      * <p>For example, given the following modification:</p>
      *
      * <blockquote><pre><code data-type="java">
-     *@Modification.BeanProperty("css")
+     *{@literal @}Modification.BeanProperty("css")
      *class CustomCss extends Modification&lt;Object&gt; {
      *    public String getBodyClass() {
      *        return getOriginalObject().getClass().getName().replace('.', '_');
@@ -234,6 +236,7 @@ public interface Recordable {
     @Target(ElementType.FIELD)
     public @interface MetricValue {
         Class<? extends MetricInterval> interval() default MetricInterval.Hourly.class;
+        String intervalSetting() default "";
     }
 
     /**
@@ -339,6 +342,14 @@ public interface Recordable {
     @Target(ElementType.FIELD)
     public @interface Where {
         String value();
+    }
+
+    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapPackages {
+        String[] value();
+        Class<?>[] depends() default { };
     }
 
     // --- Deprecated ---
@@ -695,6 +706,12 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         fieldData.setIndexTableReadOnly(true);
 
         metricFieldData.setEventDateProcessorClass(annotation.interval());
+        if (! "".equals(annotation.intervalSetting())) {
+            String settingValue = Settings.getOrDefault(String.class, annotation.intervalSetting(), null);
+            if (settingValue != null) {
+                metricFieldData.setEventDateProcessorClassName(settingValue);
+            }
+        }
 
         metricFieldData.setMetricValue(true);
     }
@@ -796,5 +813,22 @@ class WhereProcessor implements ObjectField.AnnotationProcessor<Recordable.Where
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.Where annotation) {
         field.setPredicate(annotation.value());
+    }
+}
+
+class BootstrapPackagesProcessor implements ObjectType.AnnotationProcessor<Recordable.BootstrapPackages> {
+    @Override
+    public void process(ObjectType type, Recordable.BootstrapPackages annotation) {
+        Set<String> packageNames = new LinkedHashSet<String>();
+        for (String packageName : annotation.value()) {
+            packageNames.add(packageName);
+            for (Class<?> dependency : annotation.depends()) {
+                ObjectType dependentType = type.getEnvironment().getTypeByClass(dependency);
+                if (dependentType != null) {
+                    dependentType.as(BootstrapPackage.TypeData.class).getPackageNames().add(packageName);
+                }
+            }
+        }
+        type.as(BootstrapPackage.TypeData.class).setPackageNames(packageNames);
     }
 }

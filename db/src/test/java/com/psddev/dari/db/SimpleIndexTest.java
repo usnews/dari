@@ -326,21 +326,21 @@ public class SimpleIndexTest {
             return tr;
         }
 
-        @FieldIndexed String testString;
-        @FieldIndexed Boolean testBooleanObject;
-        @FieldIndexed boolean testBooleanPrimitive;
-        @FieldIndexed Integer testIntObject;
-        @FieldIndexed int testIntPrimitive;
-        @FieldIndexed Long testLongObject;
-        @FieldIndexed long testLongPrimitive;
-        @FieldIndexed Float testFloatObject;
-        @FieldIndexed float testFloatPrimitive;
-        @FieldIndexed Double testDoubleObject;
-        @FieldIndexed double testDoublePrimitive;
-        @FieldIndexed Date testDate;
-        @FieldIndexed Location testLocation;
-        @FieldIndexed URI testUri;
-        @FieldIndexed URL testUrl;
-        @FieldIndexed UUID testUuid;
+        @Indexed String testString;
+        @Indexed Boolean testBooleanObject;
+        @Indexed boolean testBooleanPrimitive;
+        @Indexed Integer testIntObject;
+        @Indexed int testIntPrimitive;
+        @Indexed Long testLongObject;
+        @Indexed long testLongPrimitive;
+        @Indexed Float testFloatObject;
+        @Indexed float testFloatPrimitive;
+        @Indexed Double testDoubleObject;
+        @Indexed double testDoublePrimitive;
+        @Indexed Date testDate;
+        @Indexed Location testLocation;
+        @Indexed URI testUri;
+        @Indexed URL testUrl;
+        @Indexed UUID testUuid;
     }
 }

@@ -4,7 +4,6 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,6 +15,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.Mongo;
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 
@@ -245,7 +245,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
         } else if (object instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> map = (Map<String, Object>) object;
-            Map<String, Object> newMap = new LinkedHashMap<String, Object>();
+            Map<String, Object> newMap = new CompactMap<String, Object>();
             for (Map.Entry<String, Object> e : map.entrySet()) {
                 String key = e.getKey().replace(",", ".");
                 Object value = e.getValue();
@@ -319,7 +319,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
         } else if (object instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> map = (Map<String, Object>) object;
-            Map<String, Object> newMap = new LinkedHashMap<String, Object>();
+            Map<String, Object> newMap = new CompactMap<String, Object>();
             for (Map.Entry<String, Object> e : map.entrySet()) {
                 String key = e.getKey().replace(".", ",");
                 Object value = e.getValue();

@@ -3,7 +3,6 @@ package com.psddev.dari.util;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +14,7 @@ public class Css {
     private final int cssLength;
     private int cssIndex;
 
-    private final Map<String, List<CssDeclaration>> rulesMap = new LinkedHashMap<String, List<CssDeclaration>>();
+    private final Map<String, List<CssDeclaration>> rulesMap = new CompactMap<String, List<CssDeclaration>>();
     private final List<CssRule> rules;
 
     public Css(String css) throws IOException {

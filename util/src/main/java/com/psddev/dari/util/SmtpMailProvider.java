@@ -177,7 +177,7 @@ public class SmtpMailProvider extends AbstractMailProvider {
             mimeMessage.setContent(multiPartContent);
 
             Transport.send(mimeMessage);
-            logger.info("Sent email to [{}] with subject [{}].",
+            logger.debug("Sent email to [{}] with subject [{}].",
                     message.getTo(), message.getSubject());
 
         } catch (MessagingException me) {

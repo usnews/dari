@@ -11,8 +11,6 @@ public interface MailProvider extends SettingsBackedObject {
 
     /**
      * Sends mail given a {@code MailMessage}.
-     *
-     * @param emailMessage
      */
     public void send(MailMessage message);
 
@@ -55,8 +53,6 @@ public interface MailProvider extends SettingsBackedObject {
 
         /**
          * Returns the default configured mail provider.
-         *
-         * @return
          */
         public static MailProvider getDefault() {
             return getInstance(null);

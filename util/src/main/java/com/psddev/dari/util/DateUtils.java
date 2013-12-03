@@ -23,7 +23,8 @@ public final class DateUtils {
             "(GMT)yyyy-MM-dd'T'HH:mm:ss.S'Z'",
             "EEE MMM dd HH:mm:ss z yyyy",
             "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd" };
+            "yyyy-MM-dd",
+            "yyyy-MM-dd'T'HH:mm" };
 
     /** To make SimpleDateFormat thread-safe. */
     private static final Map<String, DateTimeFormatter>

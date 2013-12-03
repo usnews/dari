@@ -284,28 +284,6 @@ public class DimsImageEditor extends AbstractImageEditor {
                 }
             }
 
-            Command lastResizeCommand = dimsUrl.getLastResizeCommand();
-            if (lastResizeCommand instanceof AbstractResizeCommand) {
-                AbstractResizeCommand lastResize = (AbstractResizeCommand) lastResizeCommand;
-
-                StorageItem override = StorageItem.Static.createIn(image.getStorage());
-                new ObjectMap(override).putAll(new ObjectMap(image));
-
-                boolean overridden = ImageResizeStorageItemListener.overridePathWithNearestSize(override,
-                        lastResize.getWidth(),
-                        lastResize.getHeight());
-
-                if (overridden) {
-                    try {
-                        dimsUrl.setImageUrl(new URL(override.getPublicUrl()));
-                    } catch (MalformedURLException error) {
-                        // If #getPublicUrl doesn't return a proper URL,
-                        // that's OK, because this will just fall through
-                        // to the non-optimized code path below.
-                    }
-                }
-            }
-
             newImage = dimsUrl.toStorageItem();
         }
 

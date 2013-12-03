@@ -39,6 +39,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
+import javax.tools.FileObject;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
@@ -368,9 +369,7 @@ public class SourceFilter extends AbstractFilter {
 
             write("<div style=\"" +
                     "background: rgba(204, 0, 0, 0.8);" +
-                    "-moz-border-radius: 5px;" +
-                    "-webkit-border-radius: 5px;" +
-                    "border-radius: 5px;" +
+                    "border-bottom-left-radius: 5px;" +
                     "color: white;" +
                     "font-family: 'Helvetica Neue', 'Arial', sans-serif;" +
                     "font-size: 13px;" +
@@ -379,10 +378,11 @@ public class SourceFilter extends AbstractFilter {
                     "max-height: 50%;" +
                     "max-width: 350px;" +
                     "overflow: auto;" +
-                    "padding: 5px;" +
+                    "padding: 10px;" +
                     "position: fixed;" +
-                    "right: 5px;" +
-                    "top: 5px;" +
+                    "right: 0;" +
+                    "top: 0;" +
+                    "word-break: break-all;" +
                     "word-wrap: break-word;" +
                     "z-index: 1000000;" +
                     "\">");
@@ -413,16 +413,33 @@ public class SourceFilter extends AbstractFilter {
                     }
 
                 } else {
-                    writeHtml("Syntax errors!");
-                    writeStart("ol");
-                        for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
-                            if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
-                                writeStart("li", "data-line", diagnostic.getLineNumber(), "data-column", diagnostic.getColumnNumber());
-                                    writeHtml(diagnostic.getMessage(null));
-                                writeEnd();
-                            }
-                        }
+                    writeStart("div", "style", cssString(
+                            "font-size", "17px",
+                            "line-height", "24px"));
+                        writeHtml("Java syntax errors!");
                     writeEnd();
+
+                    for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
+                        if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
+                            Object source = diagnostic.getSource();
+
+                            writeStart("div", "style", cssString(
+                                    "margin-top", "10px"));
+                                writeHtml("File: ");
+                                writeHtml(source instanceof FileObject ? ((FileObject) source).getName() : source);
+                                writeTag("br");
+
+                                writeHtml("Line: ");
+                                writeHtml(diagnostic.getLineNumber());
+                                writeHtml(", Column: ");
+                                writeHtml(diagnostic.getColumnNumber());
+                                writeTag("br");
+
+                                writeHtml("Error: ");
+                                writeHtml(diagnostic.getMessage(null));
+                            writeEnd();
+                        }
+                    }
                 }
 
             write("</div>");
@@ -457,7 +474,7 @@ public class SourceFilter extends AbstractFilter {
         String servletPath = request.getServletPath();
         String reloaderPath = getReloaderPath();
 
-        if (!reloaderPath.startsWith(servletPath)) {
+        if (!servletPath.startsWith(reloaderPath)) {
             try {
                 URL pingUrl = new URL(StringUtils.addQueryParameters(
                         JspUtils.getHostUrl(request) + reloaderPath,
@@ -560,7 +577,7 @@ public class SourceFilter extends AbstractFilter {
 
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-        Set<JavaFileObject> newSourceFiles = new HashSet<JavaFileObject>();
+        Map<JavaFileObject, Long> newSourceFiles = new HashMap<JavaFileObject, Long>();
         Map<String, Date> newChangedClassTimes = new HashMap<String, Date>();
         List<ClassDefinition> toBeRedefined = new ArrayList<ClassDefinition>();
 
@@ -584,14 +601,13 @@ public class SourceFilter extends AbstractFilter {
                     long newModified = sourceFile.getLastModified();
 
                     if (oldModified == null || oldModified != newModified) {
-                        javaSourceFileModifieds.put(sourceFile, newModified);
-                        newSourceFiles.add(sourceFile);
+                        newSourceFiles.put(sourceFile, newModified);
                     }
                 }
             }
 
             if (!newSourceFiles.isEmpty()) {
-                LOGGER.info("Recompiling {}", newSourceFiles);
+                LOGGER.info("Recompiling {}", newSourceFiles.keySet());
 
                 // Compiler can't use the current class loader so try to
                 // guess all of its class paths.
@@ -627,10 +643,16 @@ public class SourceFilter extends AbstractFilter {
 
                 DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
 
-                if (!compiler.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles).call()) {
+                if (!compiler.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles.keySet()).call()) {
+                    for (Diagnostic<?> d : diagnostics.getDiagnostics()) {
+                        LOGGER.warn("Failed to compile: {}", d.getSource());
+                    }
+
                     return diagnostics;
 
                 } else {
+                    javaSourceFileModifieds.putAll(newSourceFiles);
+
                     Set<Class<? extends ClassEnhancer>> enhancerClasses = ClassFinder.Static.findClasses(ClassEnhancer.class);
 
                     // Process any class files that's changed.
@@ -786,7 +808,7 @@ public class SourceFilter extends AbstractFilter {
 
         } else if (outputFile.exists() &&
                 !outputFile.isDirectory()) {
-            LOGGER.info("[{}] disappeared!", sourceFile);
+            LOGGER.debug("[{}] disappeared!", sourceFile);
         }
     }
 

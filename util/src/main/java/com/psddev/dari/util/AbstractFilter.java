@@ -3,8 +3,8 @@ package com.psddev.dari.util;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,7 +77,8 @@ public abstract class AbstractFilter implements Filter {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFilter.class);
 
     private static final String ATTRIBUTE_PREFIX = AbstractFilter.class.getName() + ".";
-    private static final String EXECUTED_MAP_ATTRIBUTE = ATTRIBUTE_PREFIX + "executedMap";
+    private static final String DEPENDENCIES_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "dependencies.";
+    private static final String DEPENDENCY_EXCLUDES_ATTRIBUTE = ATTRIBUTE_PREFIX + "dependencyExcludes";
     private static final String FILTERS_ATTRIBUTE = ATTRIBUTE_PREFIX + "filters";
 
     private FilterConfig filterConfig;
@@ -135,7 +136,7 @@ public abstract class AbstractFilter implements Filter {
             ErrorUtils.rethrow(error);
         }
 
-        LOGGER.info("Initialized [{}]", getClass().getName());
+        LOGGER.debug("Initialized [{}]", getClass().getName());
     }
 
     /**
@@ -168,7 +169,7 @@ public abstract class AbstractFilter implements Filter {
         servletContext = null;
         initialized.clear();
 
-        LOGGER.info("Destroyed [{}]", getClass().getName());
+        LOGGER.debug("Destroyed [{}]", getClass().getName());
     }
 
     /**
@@ -202,128 +203,76 @@ public abstract class AbstractFilter implements Filter {
 
         // Make sure that this filter doesn't run more than once per request.
         @SuppressWarnings("unchecked")
-        Map<ServletRequest, Set<Class<?>>> executedMap = (Map<ServletRequest, Set<Class<?>>>) request.getAttribute(EXECUTED_MAP_ATTRIBUTE);
+        Set<Class<?>> dependencyExcludes = (Set<Class<?>>) request.getAttribute(DEPENDENCY_EXCLUDES_ATTRIBUTE);
 
-        if (executedMap == null) {
-            executedMap = new HashMap<ServletRequest, Set<Class<?>>>();
-            request.setAttribute(EXECUTED_MAP_ATTRIBUTE, executedMap);
+        if (dependencyExcludes == null) {
+            dependencyExcludes = new HashSet<Class<?>>();
+            request.setAttribute(DEPENDENCY_EXCLUDES_ATTRIBUTE, dependencyExcludes);
         }
 
-        Set<Class<?>> executed = executedMap.get(request);
-
-        if (executed == null) {
-            executed = new HashSet<Class<?>>();
-            executedMap.put(request, executed);
-        }
-
-        if (executed.contains(getClass())) {
-            chain.doFilter(request, response);
-            return;
-        }
-
-        executed.add(getClass());
+        dependencyExcludes.add(getClass());
 
         // Find all dependencies.
-        List<Filter> dependencies = new ArrayList<Filter>();
-        Iterable<Class<? extends Filter>> dependenciesIterable = dependencies();
-        List<Class<? extends Filter>> dependencyClasses = new ArrayList<Class<? extends Filter>>();
+        String dependenciesAttribute = DEPENDENCIES_ATTRIBUTE_PREFIX + getClass().getName();
+        @SuppressWarnings("unchecked")
+        List<Filter> dependencies = (List<Filter>) request.getAttribute(dependenciesAttribute);
 
-        if (dependenciesIterable != null) {
-            for (Class<? extends Filter> d : dependenciesIterable) {
-                dependencyClasses.add(d);
+        if (dependencies == null) {
+            dependencies = new ArrayList<Filter>();
+            request.setAttribute(dependenciesAttribute, dependencies);
+            Iterable<Class<? extends Filter>> dependenciesIterable = dependencies();
+            List<Class<? extends Filter>> dependencyClasses = new ArrayList<Class<? extends Filter>>();
+
+            if (dependenciesIterable != null) {
+                for (Class<? extends Filter> d : dependenciesIterable) {
+                    dependencyClasses.add(d);
+                }
+            }
+
+            for (Class<? extends Auto> autoClass : ClassFinder.Static.findClasses(Auto.class)) {
+                getFilter(autoClass).updateDependencies(getClass(), dependencyClasses);
+            }
+
+            for (Class<? extends Filter> dependencyClass : dependencyClasses) {
+                if (!dependencyExcludes.contains(dependencyClass)) {
+                    dependencies.add(getFilter(dependencyClass));
+                }
             }
         }
 
-        for (Class<? extends Auto> autoClass : ClassFinder.Static.findClasses(Auto.class)) {
-            getFilter(autoClass).updateDependencies(getClass(), dependencyClasses);
-        }
+        dependencies = new ArrayList<Filter>(dependencies);
 
-        if (!dependencyClasses.isEmpty()) {
-            for (Class<? extends Filter> dependencyClass : dependencyClasses) {
-                if (executed.contains(dependencyClass)) {
+        for (Iterator<Filter> i = dependencies.iterator(); i.hasNext(); ) {
+            Filter dependency = i.next();
+            Class<? extends Filter> dependencyClass = dependency.getClass();
+
+            if (dependency instanceof AbstractFilter &&
+                    ObjectUtils.isBlank(((AbstractFilter) dependency).dependencies()) &&
+                    !hasDispatchOverride(dependencyClass)) {
+
+                if (JspUtils.isIncluded(request)) {
+                    if (!hasIncludeOverride(dependencyClass)) {
+                        i.remove();
+                    }
+
+                } else if (JspUtils.isError((HttpServletRequest) request)) {
+                    if (!hasErrorOverride(dependencyClass)) {
+                        i.remove();
+                    }
+
+                } else if (JspUtils.isForwarded(request)) {
+                    if (!hasForwardOverride(dependencyClass)) {
+                        i.remove();
+                    }
+
+                } else if (!hasRequestOverride(dependencyClass)) {
                     continue;
                 }
-
-                Filter dependency = getFilter(dependencyClass);
-
-                if (dependency instanceof AbstractFilter &&
-                        ObjectUtils.isBlank(((AbstractFilter) dependency).dependencies()) &&
-                        !hasDispatchOverride(dependencyClass)) {
-
-                    if (JspUtils.isIncluded(request)) {
-                        if (!hasIncludeOverride(dependencyClass)) {
-                            continue;
-                        }
-
-                    } else if (JspUtils.isError(request)) {
-                        if (!hasErrorOverride(dependencyClass)) {
-                            continue;
-                        }
-
-                    } else if (JspUtils.isForwarded(request)) {
-                        if (!hasForwardOverride(dependencyClass)) {
-                            continue;
-                        }
-
-                    } else if (!hasRequestOverride(dependencyClass)) {
-                        continue;
-                    }
-                }
-
-                dependencies.add(dependency);
             }
         }
 
-        if (!dependencies.isEmpty()) {
-            new DependencyFilterChain(dependencies, chain).doFilter(request, response);
-            return;
-        }
-
-        // No dependencies so try to skip the chain.
-        if (request instanceof HttpServletRequest &&
-                response instanceof HttpServletResponse) {
-
-            Class<? extends Filter> thisClass = getClass();
-            HttpServletRequest httpRequest = (HttpServletRequest) request;
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-            try {
-                if (hasDispatchOverride(thisClass)) {
-                    doDispatch(httpRequest, httpResponse, chain);
-                    return;
-                }
-
-                if (JspUtils.isIncluded(httpRequest)) {
-                    if (hasIncludeOverride(thisClass)) {
-                        doInclude(httpRequest, httpResponse, chain);
-                        return;
-                    }
-
-                } else if (JspUtils.isError(httpRequest)) {
-                    if (hasErrorOverride(thisClass)) {
-                        doError(httpRequest, httpResponse, chain);
-                        return;
-                    }
-
-                } else if (JspUtils.isForwarded(httpRequest)) {
-                    if (hasForwardOverride(thisClass)) {
-                        doForward(httpRequest, httpResponse, chain);
-                        return;
-                    }
-
-                } else if (hasRequestOverride(thisClass)) {
-                    doRequest(httpRequest, httpResponse, chain);
-                    return;
-                }
-
-            } catch (Exception error) {
-                ErrorUtils.rethrowIf(error, IOException.class);
-                ErrorUtils.rethrowIf(error, ServletException.class);
-                ErrorUtils.rethrow(error);
-            }
-        }
-
-        chain.doFilter(request, response);
+        new DependencyFilterChain(dependencies, chain).
+                doFilter(request, response);
     }
 
     @SuppressWarnings("unchecked")
@@ -347,7 +296,7 @@ public abstract class AbstractFilter implements Filter {
             synchronized (filters) {
                 filter = filters.get(filterClass);
                 if (filter == null) {
-                    LOGGER.info("Creating [{}] for [{}]", filterClass, getClass().getName());
+                    LOGGER.debug("Creating [{}] for [{}]", filterClass, getClass().getName());
                     filter = TypeDefinition.getInstance(filterClass).newInstance();
                     filter.init(new DependencyFilterConfig(filter));
                     initialized.add(filter);
@@ -377,7 +326,6 @@ public abstract class AbstractFilter implements Filter {
                     override = Boolean.TRUE;
                     break;
                 } catch (NoSuchMethodException error) {
-                    // Try to find the method in the super class.
                 }
             }
         }

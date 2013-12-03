@@ -9,7 +9,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -184,7 +183,7 @@ public class TypeDefinition<T> {
         protected Map<String, List<Field>> produce() {
 
             Class<T> objectClass = getObjectClass();
-            Map<String, List<Field>> fieldsMap = new LinkedHashMap<String, List<Field>>();
+            Map<String, List<Field>> fieldsMap = new CompactMap<String, List<Field>>();
 
             Class<? super T> superClass = objectClass.getSuperclass();
             if (superClass != null) {
@@ -354,7 +353,7 @@ public class TypeDefinition<T> {
         @Override
         protected Map<String, Method> produce() {
 
-            Map<String, Method> getters = new LinkedHashMap<String, Method>();
+            Map<String, Method> getters = new CompactMap<String, Method>();
             for (Method method : getAllMethods()) {
                 if (method.getDeclaringClass() != Object.class) {
 
@@ -397,7 +396,7 @@ public class TypeDefinition<T> {
         @Override
         protected Map<String, Method> produce() {
 
-            Map<String, Method> setters = new LinkedHashMap<String, Method>();
+            Map<String, Method> setters = new CompactMap<String, Method>();
             for (Method method : getAllMethods()) {
                 if (method.getDeclaringClass() != Object.class) {
 

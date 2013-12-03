@@ -6,7 +6,6 @@ import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,7 +34,7 @@ public class ObjectMap extends AbstractMap<String, Object> {
 
     private Object object;
     private TypeDefinition<?> definition;
-    private final Map<String, Object> extras = new LinkedHashMap<String, Object>();
+    private final Map<String, Object> extras = new CompactMap<String, Object>();
     private Converter converter;
 
     /** Creates a blank instance. */

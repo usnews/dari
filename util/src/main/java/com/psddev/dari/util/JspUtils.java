@@ -18,7 +18,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -68,7 +67,10 @@ public final class JspUtils {
      * &nbsp;   return; // Should not send anything else to the response.
      * }
      * </pre></blockquote>
+     *
+     * @deprecated Use {@link #getBasicCredentials} and {@link #setBasicAuthenticationHeader} instead.
      */
+    @Deprecated
     public static boolean authenticateBasic(
             HttpServletRequest request,
             HttpServletResponse response,
@@ -76,53 +78,93 @@ public final class JspUtils {
             String username,
             String password) {
 
-        if (ObjectUtils.isBlank(username)
-                && ObjectUtils.isBlank(password)
-                && !Settings.isProduction()) {
+        if (ObjectUtils.isBlank(username) &&
+                ObjectUtils.isBlank(password) &&
+                !Settings.isProduction()) {
             return true;
         }
 
-        String authHeader = request.getHeader("Authorization");
-        if (!ObjectUtils.isBlank(authHeader)) {
+        String[] credentials = getBasicCredentials(request);
 
-            int spaceAt = authHeader.indexOf(' ');
-            if (spaceAt > -1 && "Basic".equals(authHeader.substring(0, spaceAt))) {
+        if (credentials != null &&
+                credentials[0].equals(username) &&
+                credentials[1].equals(password)) {
+            return true;
 
+        } else {
+            setBasicAuthenticationHeader(response, realm);
+            return false;
+        }
+    }
+
+    /**
+     * Returns the basic access authentication credentials from the
+     * {@code Authorization} header.
+     *
+     * @param request Can't be {@code null}.
+     * @return {@code null} if not found, or a 2-element string array.
+     */
+    public static String[] getBasicCredentials(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+
+        if (!ObjectUtils.isBlank(header)) {
+            int spaceAt = header.indexOf(' ');
+
+            if (spaceAt > -1 && "Basic".equals(header.substring(0, spaceAt))) {
                 String encoding = request.getCharacterEncoding();
+
                 if (ObjectUtils.isBlank(encoding)) {
                     encoding = "UTF-8";
                 }
 
                 String decoded = null;
+
                 try {
-                    byte[] decodedBytes = DatatypeConverter.parseBase64Binary(authHeader.substring(spaceAt + 1));
+                    byte[] decodedBytes = DatatypeConverter.parseBase64Binary(header.substring(spaceAt + 1));
                     decoded = new String(decodedBytes, encoding);
+
                 } catch (IllegalArgumentException error) {
                     // Not a valid Base64 string, so just ignore the header
                     // value.
+
                 } catch (UnsupportedEncodingException error) {
                     throw new IllegalStateException(error);
                 }
 
                 if (!ObjectUtils.isBlank(decoded)) {
                     int colonAt = decoded.indexOf(':');
-                    if (colonAt > -1
-                            && decoded.substring(0, colonAt).equals(username)
-                            && decoded.substring(colonAt + 1).equals(password)) {
-                        return true;
+
+                    if (colonAt > -1) {
+                        return new String[] {
+                                decoded.substring(0, colonAt),
+                                decoded.substring(colonAt + 1) };
                     }
                 }
             }
         }
 
-        StringBuilder hb = new StringBuilder();
-        hb.append("Basic realm=\"");
-        hb.append(StringUtils.replaceAll(realm, "\"", "\\\""));
-        hb.append('"');
+        return null;
+    }
 
+    /**
+     * Sets the {@code WWW-Authenticate} header requiring basic access
+     * authentication in the given {@code realm}.
+     *
+     * @param response Can't be {@code null}.
+     * @param realm May be @{code null}.
+     */
+    public static void setBasicAuthenticationHeader(HttpServletResponse response, String realm) {
+        StringBuilder header = new StringBuilder();
+
+        header.append("Basic realm=\"");
+
+        if (realm != null) {
+            header.append(realm.replace("\"", "\\\""));
+        }
+
+        header.append('"');
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setHeader("WWW-Authenticate", hb.toString());
-        return false;
+        response.setHeader("WWW-Authenticate", header.toString());
     }
 
     /**
@@ -317,15 +359,40 @@ public final class JspUtils {
         return headerResponse != null ? headerResponse : response;
     }
 
-    /** Returns the host from the given {@code request}. */
+    /**
+     * Returns the host ({@code X-Forwarded-Host} or {@code Host} header which
+     * may include the port number) from the given {@code request}.
+     *
+     * @param request Can't be {@code null}.
+     * @return Never {@code null}.
+     */
     public static String getHost(HttpServletRequest request) {
         String host = getFirstProxyHeader(request.getHeader("X-Forwarded-Host"));
+
         return host != null ? host : request.getHeader("Host");
+    }
+
+    /**
+     * Returns the host name (no port number) from the given {@code request}.
+     *
+     * @param request Can't be {@code null}.
+     * @return Never {@code null}.
+     */
+    public static String getHostname(HttpServletRequest request) {
+        String host = getHost(request);
+        int colonAt = host.lastIndexOf(':');
+
+        return colonAt > -1 ? host.substring(0, colonAt) : host;
     }
 
     /** Returns the host URL from the given {@code request}. */
     public static String getHostUrl(HttpServletRequest request) {
         return request.getScheme() + "://" + getHost(request);
+    }
+
+    /** Returns the protocol relative host URL from the given {@code request}. */
+    public static String getProtocolRelativeHostUrl(HttpServletRequest request) {
+        return "//" + getHost(request);
     }
 
     /**
@@ -903,7 +970,7 @@ public final class JspUtils {
         @SuppressWarnings("unchecked")
         Map<String, Properties> all = (Map<String, Properties>) context.getAttribute(EMBEDDED_SETTINGS_ATTRIBUTE);
         if (all == null) {
-            all = new LinkedHashMap<String, Properties>();
+            all = new CompactMap<String, Properties>();
             addEmbeddedSettings(context, all, "/" + JspUtils.WEB_INF_DIRECTORY, "/");
             context.setAttribute(EMBEDDED_SETTINGS_ATTRIBUTE, all);
         }
@@ -987,6 +1054,16 @@ public final class JspUtils {
             Object... parameters) {
 
         return getHostUrl(request) + getAbsolutePath(context, request, url, parameters);
+    }
+
+    /** Returns the absolute protocol relative version of the given {@code url}. */
+    public static String getEmbeddedAbsoluteProtocolRelativeUrl(
+            ServletContext context,
+            HttpServletRequest request,
+            String url,
+            Object... parameters) {
+
+        return getProtocolRelativeHostUrl(request) + getAbsolutePath(context, request, url, parameters);
     }
 
     /**

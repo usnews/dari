@@ -18,13 +18,13 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StorageItem;
@@ -201,7 +201,7 @@ public class ObjectField extends Record {
         javaFieldName = field.javaFieldName;
         javaDeclaringClassName = field.javaDeclaringClassName;
         javaEnumClassName = field.javaEnumClassName;
-        options = field.options != null ? new LinkedHashMap<String, Object>(field.options) : null;
+        options = field.options != null ? new CompactMap<String, Object>(field.options) : null;
     }
 
     /**
@@ -219,7 +219,7 @@ public class ObjectField extends Record {
         }
 
         DatabaseEnvironment environment = parent.getEnvironment();
-        definition = new LinkedHashMap<String, Object>(definition);
+        definition = new CompactMap<String, Object>(definition);
         definition.putAll(getState().getRawValues());
         getState().getRawValues().putAll(definition);
 
@@ -275,7 +275,7 @@ public class ObjectField extends Record {
 
     /** Converts this field to a definition map. */
     public Map<String, Object> toDefinition() {
-        Map<String, Object> definition = new LinkedHashMap<String, Object>(200);
+        Map<String, Object> definition = new CompactMap<String, Object>(200);
 
         List<String> typeIds = new ArrayList<String>();
         for (ObjectType type : getTypes()) {
@@ -659,7 +659,7 @@ public class ObjectField extends Record {
     /** Returns the map of custom option values. */
     public Map<String, Object> getOptions() {
         if (options == null) {
-            options = new LinkedHashMap<String, Object>();
+            options = new CompactMap<String, Object>();
         }
         return options;
     }
@@ -1073,7 +1073,7 @@ public class ObjectField extends Record {
 
         /** Converts this value to a definition map. */
         public Map<String, String> toDefinition() {
-            Map<String, String> definition = new LinkedHashMap<String, String>();
+            Map<String, String> definition = new CompactMap<String, String>();
             definition.put(LABEL_KEY, getLabel());
             definition.put(VALUE_KEY, getValue());
             return definition;
@@ -1161,7 +1161,7 @@ public class ObjectField extends Record {
                 ObjectStruct parent,
                 List<Map<String, Object>> definitions) {
 
-            Map<String, ObjectField> instances = new LinkedHashMap<String, ObjectField>();
+            Map<String, ObjectField> instances = new CompactMap<String, ObjectField>();
             if (definitions != null) {
                 for (Map<String, Object> definition : definitions) {
                     ObjectField instance = new ObjectField(parent, definition);

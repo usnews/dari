@@ -89,18 +89,18 @@ public class EmbeddedIndexOnFieldWithSubclassTest {
     }
 
     static class Term extends Record {
-        @FieldIndexed @FieldEmbedded Set<TermMapping> mappings;
+        @Indexed @Embedded Set<TermMapping> mappings;
     }
 
     @Abstract
     @Embedded
     static class TermMapping extends Record {
-        @FieldIndexed String name;
+        @Indexed String name;
     }
 
     @Embedded
     static class UrlTermMapping extends TermMapping {
         // We want to query on this field!
-        @FieldIndexed String url;
+        @Indexed String url;
     }
 }

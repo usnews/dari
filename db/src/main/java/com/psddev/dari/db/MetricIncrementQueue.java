@@ -1,6 +1,8 @@
 package com.psddev.dari.db;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,30 +14,40 @@ import com.psddev.dari.util.Task;
 
 final class MetricIncrementQueue {
 
-    // private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
+    //private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
 
-    private static final ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements = new ConcurrentHashMap<String, QueuedMetricIncrement>();;
+    private static final ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>> queuedIncrements = new ConcurrentHashMap<Double,ConcurrentHashMap<String, QueuedMetricIncrement>>();
 
     public static void queueIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount, double withinSeconds) {
 
-        putInMap(id, dimensionId, eventDate, metricAccess, amount);
+        double waitSeconds = new BigDecimal(withinSeconds * .75d).setScale(2).doubleValue();
+        double executeSeconds = new BigDecimal(withinSeconds * .25d).setScale(2).doubleValue();
+
+        putInMap(id, dimensionId, eventDate, metricAccess, amount, waitSeconds);
 
         // If the task is already running or has been scheduled, this won't do anything.
-        MetricIncrementQueueTask.getInstance(queuedIncrements).schedule(withinSeconds);
+        MetricIncrementQueueTask task = MetricIncrementQueueTask.getInstance(executeSeconds, waitSeconds, queuedIncrements.get(waitSeconds));
+        task.schedule(waitSeconds);
 
     }
 
-    private static void putInMap(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount) {
+    private static void putInMap(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount, double waitSeconds) {
+
+        ConcurrentHashMap<String,QueuedMetricIncrement> queue = queuedIncrements.get(waitSeconds);
+        if (queue == null) {
+            queuedIncrements.putIfAbsent(waitSeconds, new ConcurrentHashMap<String, QueuedMetricIncrement>());
+            queue = queuedIncrements.get(waitSeconds);
+        }
 
         String key = getKey(id, dimensionId, eventDate, metricAccess);
         QueuedMetricIncrement placeholder = new QueuedMetricIncrement(id, dimensionId, eventDate, metricAccess, 0d);
         while (true) {
-            QueuedMetricIncrement current = queuedIncrements.putIfAbsent(key, placeholder);
+            QueuedMetricIncrement current = queue.putIfAbsent(key, placeholder);
             if (current == null) {
                 current = placeholder;
             }
             QueuedMetricIncrement next = new QueuedMetricIncrement(id, dimensionId, eventDate, metricAccess, current.amount + amount);
-            if (queuedIncrements.replace(key, current, next)) {
+            if (queue.replace(key, current, next)) {
                 return;
             } else {
                 continue;
@@ -99,34 +111,65 @@ class QueuedMetricIncrement {
 
 class MetricIncrementQueueTask extends Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
-    private static MetricIncrementQueueTask instance;
+    //private static MetricIncrementQueueTask instance;
+    private static final transient ConcurrentHashMap<Double, MetricIncrementQueueTask> instances = new ConcurrentHashMap<Double, MetricIncrementQueueTask>();
 
-    private final transient ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
+    private transient final ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
 
-    private MetricIncrementQueueTask(ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
+    private transient final double executeSeconds;
+    private transient final double waitSeconds;
+
+    private MetricIncrementQueueTask(double executeSeconds, double waitSeconds, ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
         this.queuedIncrements = queuedIncrements;
+        this.executeSeconds = executeSeconds;
+        this.waitSeconds = waitSeconds;
     }
 
-    public static MetricIncrementQueueTask getInstance(ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
+    public static MetricIncrementQueueTask getInstance(double executeSeconds, double waitSeconds, ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
+
+        MetricIncrementQueueTask instance = instances.get(executeSeconds);
         if (instance == null) {
-            instance = new MetricIncrementQueueTask(queuedIncrements);
+            instances.putIfAbsent(executeSeconds, new MetricIncrementQueueTask(executeSeconds, waitSeconds, queuedIncrements));
+            instance = instances.get(executeSeconds);
         }
+
         return instance;
     }
 
     public void doTask() {
 
+        long sleepMilliseconds = 0L;
+        Iterator<String> iter = null;
         while (true) {
-            if (queuedIncrements.isEmpty()) {
-                break;
+            if (queuedIncrements.isEmpty()) break;
+            if (iter == null || ! iter.hasNext()) {
+                if (iter != null) {
+                    long waitMilliseconds = (long) (1000 * waitSeconds);
+                    try {
+                        Thread.sleep(waitMilliseconds);
+                    } catch (InterruptedException ex) {
+                        getThread().interrupt();
+                    }
+                }
+                sleepMilliseconds = (long) (1000 * (executeSeconds / (double) queuedIncrements.size())) - 10L;
+                if (sleepMilliseconds <= 0) sleepMilliseconds = 10L;
+                //LOGGER.info("running MetricIncrementQueueTask within " + executeSeconds + " seconds, approx. size: " + queuedIncrements.size() + " sleeping for " + sleepMilliseconds + " milliseconds between executions");
+                iter = queuedIncrements.keySet().iterator();
             }
-            String key = queuedIncrements.keySet().iterator().next();
+            String key = iter.next();
             QueuedMetricIncrement queuedIncrement = queuedIncrements.remove(key);
+            //LOGGER.info("Incrementing : " + queuedIncrement.metricAccess.getSymbolId() + " / " + queuedIncrement.id + " : " + queuedIncrement.dimensionId + " += " + queuedIncrement.amount );
             try {
                 queuedIncrement.metricAccess.incrementMetricByDimensionId(queuedIncrement.id, queuedIncrement.eventDate, queuedIncrement.dimensionId, queuedIncrement.amount);
             } catch (SQLException ex) {
                 LOGGER.error("SQLException during incrementMetricByDimensionId: " + ex.getLocalizedMessage());
+                // TODO: log this somewhere so it can be recovered if the database fails catastrophically
                 throw new DatabaseException(queuedIncrement.metricAccess.getDatabase(), "SQLException during MetricAccess.incrementMetricByDimensionId", ex);
+            }
+            try {
+                Thread.sleep(sleepMilliseconds);
+            } catch (InterruptedException ex) {
+                getThread().interrupt();
             }
         }
 

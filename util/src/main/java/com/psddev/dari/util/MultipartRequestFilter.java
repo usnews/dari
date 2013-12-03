@@ -9,7 +9,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
-/** Automatically enables {@link MultipartRequest}. */
+/**
+ * Filter that automatically enables {@link MultipartRequest}.
+ */
 public class MultipartRequestFilter extends AbstractFilter {
 
     private static final String ATTRIBUTE_PREFIX = MultipartRequestFilter.class.getName() + ".";
@@ -33,9 +35,18 @@ public class MultipartRequestFilter extends AbstractFilter {
         chain.doFilter(request, response);
     }
 
-    /** {@link MultipartRequestFilter} utility methods. */
+    /**
+     * {@link MultipartRequestFilter} utility methods.
+     */
     public static final class Static {
 
+        /**
+         * Returns the {@link MultipartRequest} instance associated with the
+         * given {@code request}.
+         *
+         * @param request Can't be {@code null}.
+         * @return {@code null} if the request isn't multipart.
+         */
         public static MultipartRequest getInstance(HttpServletRequest request) {
             return (MultipartRequest) request.getAttribute(INSTANCE_ATTRIBUTE);
         }

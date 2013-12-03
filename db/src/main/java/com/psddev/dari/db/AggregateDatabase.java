@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +18,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.AggregateException;
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.SettingsException;
@@ -37,7 +37,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
     private volatile Database defaultDelegate;
     private volatile Database defaultReadDelegate;
-    private final Map<Database, Set<String>> delegateGroupsMap = new LinkedHashMap<Database, Set<String>>();
+    private final Map<Database, Set<String>> delegateGroupsMap = new CompactMap<Database, Set<String>>();
     private volatile Map<String, Database> delegates;
     private volatile Map<String, Database> readDelegates;
 
@@ -103,7 +103,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     /** Sets the map of all delegate databases. */
     public void setDelegates(Map<String, Database> delegates) {
         this.delegates = Collections.unmodifiableMap(
-                new LinkedHashMap<String, Database>(delegates));
+                new CompactMap<String, Database>(delegates));
     }
 
     /** Returns the unmodifiable map of all delegate databases used for reading. */
@@ -116,7 +116,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     /** Sets the map of all delegate databases used for reading. */
     public void setReadDelegates(Map<String, Database> readDelegates) {
         this.readDelegates = Collections.unmodifiableMap(
-                new LinkedHashMap<String, Database>(readDelegates));
+                new CompactMap<String, Database>(readDelegates));
     }
 
     // --- Database support ---
@@ -171,7 +171,7 @@ public class AggregateDatabase implements Database, Iterable<Database> {
             String namePrefix,
             Map<?, ?> settings) {
 
-        Map<String, Database> delegates = new LinkedHashMap<String, Database>();
+        Map<String, Database> delegates = new CompactMap<String, Database>();
         DatabaseEnvironment environment = getEnvironment();
 
         for (Map.Entry<?, ?> e : settings.entrySet()) {
