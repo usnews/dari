@@ -6,12 +6,15 @@ import com.kaltura.client.KalturaClient;
 import com.kaltura.client.KalturaConfiguration;
 import com.kaltura.client.enums.KalturaSessionType;
 import com.kaltura.client.services.KalturaSessionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Class which provides static utility methods
  * to manage session with Kaltura
  */
 public class KalturaSessionUtils {
+    private static final Logger logger = LoggerFactory.getLogger(KalturaSessionUtils.class);
     public static void startAdminSession(KalturaClient client, KalturaConfiguration kalturaConfig) throws KalturaApiException{
         startSession(client, kalturaConfig, kalturaConfig.getAdminSecret(), KalturaSessionType.ADMIN);
     }
@@ -25,6 +28,17 @@ public class KalturaSessionUtils {
     
     public static void closeSession(KalturaClient client) throws KalturaApiException {
         client.getSessionService().end();
+    }
+    public static String getKalturaSessionId() {
+        try {
+            KalturaConfiguration kalturaConfig=getKalturaConfig();
+            KalturaClient client= new KalturaClient(kalturaConfig);
+            startSession(client, kalturaConfig, kalturaConfig.getAdminSecret(), KalturaSessionType.ADMIN);
+            return client.getSessionId();
+        } catch (Exception e) {
+            logger.error("Failed to get kaltura session Id:" , e );
+            return "";
+        }
     }
     public static  KalturaConfiguration getKalturaConfig() {
          KalturaConfiguration kalturaConfig = new KalturaConfiguration();
