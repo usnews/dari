@@ -79,6 +79,7 @@ public class KalturaStorageItem extends VideoStorageItem {
     private transient Integer sessionTimeout;
     private transient Integer playerId;
     private transient String  playerKey;
+    private String  thumbnailUrl;
 
     public String getPlayerKey() {
         return playerKey;
@@ -348,10 +349,15 @@ public class KalturaStorageItem extends VideoStorageItem {
      * @return
      */
     public  String getThumbnailUrl() {
+        if (thumbnailUrl != null ) return thumbnailUrl;
         return new StringBuffer(getBaseUrl()).append(getPartnerId().toString())
                 .append("/thumbnail/entry_id/")
                 .append(getKalturaId()).toString();
     }
+    public void setThumbnailUrl(String thumbnailUrl) {
+        this.thumbnailUrl=thumbnailUrl;
+    }
+
     
     
     /**
