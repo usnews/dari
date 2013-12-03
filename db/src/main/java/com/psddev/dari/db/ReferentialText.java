@@ -83,6 +83,7 @@ public class ReferentialText extends AbstractList<Object> {
         if (finalDraft) {
             body.getElementsByTag("del").remove();
             body.getElementsByTag("ins").unwrap();
+            body.select("code[data-annotations]").remove();
         }
 
         // Convert '<p>text</p>' to 'text<br><br>'.
