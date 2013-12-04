@@ -360,6 +360,12 @@ public interface Recordable {
         String uniqueKey();
     }
 
+    @ObjectField.AnnotationProcessorClass(BootstrapFollowReferencesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface BootstrapFollowReferences {
+    }
+
     // --- Deprecated ---
 
     /** @deprecated Use {@link Denormalized} instead. */
@@ -850,5 +856,12 @@ class BootstrapTypeMappableProcessor implements ObjectType.AnnotationProcessor<R
         }
         type.as(BootstrapPackage.TypeData.class).setTypeMappableGroups(typeMappableGroups);
         type.as(BootstrapPackage.TypeData.class).setTypeMappableUniqueKey(annotation.uniqueKey());
+    }
+}
+
+class BootstrapFollowReferencesProcessor implements ObjectField.AnnotationProcessor<Recordable.BootstrapFollowReferences> {
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.BootstrapFollowReferences annotation) {
+        type.as(BootstrapPackage.TypeData.class).getFollowReferencesFields().add(field.getInternalName());
     }
 }
