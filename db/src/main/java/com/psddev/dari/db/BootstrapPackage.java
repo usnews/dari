@@ -83,6 +83,10 @@ public class BootstrapPackage extends Record {
 
         private Set<String> packages;
 
+        private Set<String> typeMappableGroups;
+
+        private String typeMappableUniqueKey;
+
         public Set<String> getPackageNames() {
             if (packages == null) packages = new HashSet<String>();
             return packages;
@@ -90,6 +94,25 @@ public class BootstrapPackage extends Record {
 
         public void setPackageNames(Set<String> packages) {
             this.packages = packages;
+        }
+
+        public Set<String> getTypeMappableGroups() {
+            if (typeMappableGroups == null) {
+                typeMappableGroups = new HashSet<String>();
+            }
+            return typeMappableGroups;
+        }
+
+        public void setTypeMappableGroups(Set<String> typeMappableGroups) {
+            this.typeMappableGroups = typeMappableGroups;
+        }
+
+        public String getTypeMappableUniqueKey() {
+            return typeMappableUniqueKey;
+        }
+
+        public void setTypeMappableUniqueKey(String typeMappableUniqueKey) {
+            this.typeMappableUniqueKey = typeMappableUniqueKey;
         }
 
     }
@@ -101,6 +124,7 @@ public class BootstrapPackage extends Record {
         public static final String PROJECT_HEADER = "Project";
         public static final String DATE_HEADER = "Date";
         public static final String TYPES_HEADER = "Types";
+        public static final String TYPE_MAP_HEADER = "Mapping Types";
         public static final String ROW_COUNT_HEADER = "Row Count";
         public static final String ALL_TYPES_HEADER_VALUE = "ALL";
 
@@ -213,68 +237,151 @@ public class BootstrapPackage extends Record {
         }
 
         public static void writeContents(Database database, BootstrapPackage pkg, Set<ObjectType> additionalTypes, Writer writer, String projectName) throws IOException {
+            boolean first = true;
+            boolean needsObjectTypeMap = false;
+            Set<ObjectType> typeMaps = new HashSet<ObjectType>();
+            ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
+            Set<ObjectType> exportTypes = new HashSet<ObjectType>();
+            Query<?> query = Query.fromAll().using(database);
+            Set<ObjectType> allTypeMappableTypes = new HashSet<ObjectType>();
+
+            for (ObjectType type : database.getEnvironment().getTypes()) {
+                if (!type.as(TypeData.class).getTypeMappableGroups().isEmpty() &&
+                        type.as(TypeData.class).getTypeMappableUniqueKey() != null) {
+                    allTypeMappableTypes.add(type);
+                }
+            }
+
+            query.where("_type != ?", objType);
+
+            // Package:
             writer.write(PACKAGE_NAME_HEADER + ": ");
             writer.write(pkg.getName());
-            writer.write("\n");
+            writer.write('\n');
+            // Project:
             writer.write(PROJECT_HEADER + ": ");
             writer.write(projectName);
-            writer.write("\n");
+            writer.write('\n');
+            // Date:
             writer.write(DATE_HEADER + ": ");
             writer.write(new DateTime().toString("yyyy-MM-dd HH:mm:ss z"));
-            writer.write("\n");
-            boolean first;
-            ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
-            Query<?> query = Query.fromAll().using(database);
-            query.where("_type != ?", objType);
+            writer.write('\n');
+
+            // Types:
             writer.write(TYPES_HEADER + ": ");
-            Set<ObjectType> exportTypes = new HashSet<ObjectType>();
             if (pkg.isInit()) {
                 writer.write(ALL_TYPES_HEADER_VALUE);
+                writer.write('\n');
             } else {
-                first = true;
                 exportTypes.addAll(getAllTypes(database, pkg));
                 exportTypes.addAll(getAllTypes(database, additionalTypes));
-                query.where("_type = ?", exportTypes);
-                if (exportTypes.contains(objType)) {
-                    writer.write(objType.getInternalName());
-                    first = false;
+                for (ObjectType typeMappableType : allTypeMappableTypes) {
+                    GETTYPEMAPPABLETYPE: for (ObjectType type : exportTypes) {
+                        for (String group : typeMappableType.as(TypeData.class).getTypeMappableGroups()) {
+                            if (type.getGroups().contains(group)) {
+                                typeMaps.add(typeMappableType);
+                                break GETTYPEMAPPABLETYPE;
+                            }
+                        }
+                    }
                 }
+                GETOBJECTTYPE: for (ObjectType type : exportTypes) {
+                    for (ObjectField field : type.getFields()) {
+                        if (field.getTypes().contains(objType)) {
+                            needsObjectTypeMap = true;
+                            break GETOBJECTTYPE;
+                        }
+                    }
+                }
+
+                query.where("_type = ?", exportTypes);
+
                 if (exportTypes.contains(objType)) {
-                    if (!first) writer.write(","); else first = false;
+                    if (!first) writer.write(','); else first = false;
                     writer.write(objType.getInternalName());
                 }
                 for (ObjectType type : exportTypes) {
                     if (type.equals(objType)) continue;
-                    if (!first) writer.write(","); else first = false;
+                    if (!first) writer.write(','); else first = false;
                     writer.write(type.getInternalName());
                 }
+                writer.write('\n');
+
             }
+
+            if (!typeMaps.isEmpty()) {
+                query.where("_type != ?", typeMaps);
+            }
+
+            // Mapping Types:
+            if (pkg.isInit() || needsObjectTypeMap || !typeMaps.isEmpty()) {
+                first = true;
+                writer.write(TYPE_MAP_HEADER + ": ");
+                if (pkg.isInit() || needsObjectTypeMap) {
+                    writer.write(objType.getInternalName());
+                    writer.write("/internalName");
+                    first = false;
+                }
+                for (ObjectType typeMapType : typeMaps) {
+                    if (!first) {
+                        writer.write(',');
+                    } else {
+                        first = false;
+                    }
+                    writer.write(typeMapType.getInternalName());
+                    writer.write('/');
+                    writer.write(typeMapType.as(TypeData.class).getTypeMappableUniqueKey());
+                }
+                writer.write('\n');
+            }
+
+            // Row Count:
             Long count;
             if (pkg.isInit()) {
                 count = Query.fromAll().using(database).noCache().count();
             } else {
-                count = Query.fromAll().using(database).noCache().where("_type = ?", exportTypes).count();
+                Query<?> countQuery = Query.fromAll().using(database).noCache().where("_type = ?", exportTypes);
+                if (needsObjectTypeMap) {
+                    countQuery.or("_type = ?", objType);
+                }
+                if (!typeMaps.isEmpty()) {
+                    countQuery.or("_type = ?", typeMaps);
+                }
+                count = countQuery.count();
             }
-            writer.write("\n");
             writer.write(ROW_COUNT_HEADER + ": ");
             writer.write(ObjectUtils.to(String.class, count));
-            writer.write("\n\n"); // blank line between headers and data
+            writer.write('\n');
+
+            // blank line between headers and data
+            writer.write('\n');
             writer.flush();
 
-            if (exportTypes.isEmpty() || exportTypes.contains(objType)) {
-                for (ObjectType r : Query.from(ObjectType.class).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
-                    writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
-                    writer.write("\n");
+            // ObjectType records first
+            if (exportTypes.isEmpty() || exportTypes.contains(objType) || needsObjectTypeMap) {
+                for (Object r : Query.fromType(objType).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
+                    writer.write(ObjectUtils.toJson(((Recordable) r).getState().getSimpleValues(true)));
+                    writer.write('\n');
                 }
             }
 
+            // Then other mapping types
+            for (ObjectType typeMapType : typeMaps) {
+                for (Object r : Query.fromType(typeMapType).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
+                    writer.write(ObjectUtils.toJson(((Recordable) r).getState().getSimpleValues(true)));
+                    writer.write('\n');
+                }
+            }
+
+            // Then everything else
             for (Object o : query.noCache().resolveToReferenceOnly().iterable(100)) {
                 if (o instanceof Record) {
                     Record r = (Record) o;
                     writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
-                    writer.write("\n");
+                    writer.write('\n');
                 }
             }
+
             writer.flush();
         }
 

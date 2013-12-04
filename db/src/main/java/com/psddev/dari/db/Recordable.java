@@ -352,6 +352,14 @@ public interface Recordable {
         Class<?>[] depends() default { };
     }
 
+    @ObjectType.AnnotationProcessorClass(BootstrapTypeMappableProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapTypeMappable {
+        Class<?>[] groups();
+        String uniqueKey();
+    }
+
     // --- Deprecated ---
 
     /** @deprecated Use {@link Denormalized} instead. */
@@ -830,5 +838,17 @@ class BootstrapPackagesProcessor implements ObjectType.AnnotationProcessor<Recor
             }
         }
         type.as(BootstrapPackage.TypeData.class).setPackageNames(packageNames);
+    }
+}
+
+class BootstrapTypeMappableProcessor implements ObjectType.AnnotationProcessor<Recordable.BootstrapTypeMappable> {
+    @Override
+    public void process(ObjectType type, Recordable.BootstrapTypeMappable annotation) {
+        Set<String> typeMappableGroups = new LinkedHashSet<String>();
+        for (Class<?> group : annotation.groups()) {
+            typeMappableGroups.add(group.getName());
+        }
+        type.as(BootstrapPackage.TypeData.class).setTypeMappableGroups(typeMappableGroups);
+        type.as(BootstrapPackage.TypeData.class).setTypeMappableUniqueKey(annotation.uniqueKey());
     }
 }
