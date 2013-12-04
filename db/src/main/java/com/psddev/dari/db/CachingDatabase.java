@@ -122,11 +122,18 @@ public class CachingDatabase extends ForwardingDatabase {
         Object object = objectCache.get(id);
 
         if (object == null && query.isReferenceOnly()) {
-            return referenceCache != null ? referenceCache.get(id) : null;
-
-        } else {
-            return object;
+            object = referenceCache != null ? referenceCache.get(id) : null;
         }
+
+        if (object != null) {
+            Class<?> objectClass = query.getObjectClass();
+
+            if (objectClass != null && !objectClass.isInstance(object)) {
+                object = null;
+            }
+        }
+
+        return object;
     }
 
     private void cacheObject(Object object) {
