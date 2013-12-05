@@ -76,9 +76,10 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
         }
 
         String contentType = item.getContentType();
-        InputStream data = item.getData();
+        InputStream data = null;
         try {
             if (contentType != null && contentType.startsWith("image/")) {
+                data = item.getData();
                 BufferedImage original = ImageIO.read(data);
 
                 if (original == null) {

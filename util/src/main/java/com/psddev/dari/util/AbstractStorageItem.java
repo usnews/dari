@@ -41,7 +41,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     public static final String HTTP_HEADERS = "http.headers";
     public static final String HTTP_HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String METADATA_PARAM_ORIGINAL_FILE_NAME = "originalFilename";
-    
+
     private transient String baseUrl;
     private transient String secureBaseUrl;
     private String storage;
