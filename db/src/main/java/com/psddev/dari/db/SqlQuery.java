@@ -1410,6 +1410,25 @@ class SqlQuery {
         sql.append(", ");
         appendSimpleAliasedColumn(sql, vendor, "m2", MetricAccess.METRIC_DIMENSION_FIELD);
 
+        StringBuilder havingBuilder = new StringBuilder();
+        StringBuilder havingChildBuilder = new StringBuilder();
+
+        for (int i = 0; i < recordMetricHavingPredicates.size(); i++) {
+            addWherePredicate(havingChildBuilder, recordMetricHavingPredicates.get(i), recordMetricParentHavingPredicates.get(i), false, false);
+            havingChildBuilder.append(" AND ");
+        }
+        if (havingChildBuilder.length() > 0) {
+            havingChildBuilder.setLength(havingChildBuilder.length()-5); // " AND "
+            havingBuilder.append(" HAVING ");
+            havingBuilder.append(havingChildBuilder);
+        }
+
+        String extraHaving = ObjectUtils.to(String.class, query.getOptions().get(SqlDatabase.EXTRA_HAVING_QUERY_OPTION));
+        havingBuilder.append(ObjectUtils.isBlank(extraHaving) ? "" : ("\n"+(ObjectUtils.isBlank(this.havingClause) ? "HAVING" : "AND")+" " + extraHaving));
+        havingClause = havingBuilder.toString();
+
+        sql.append(havingClause);
+
         sql.append(orderByClause);
         if (! recordMetricSorters.isEmpty()) {
             StringBuilder orderByBuilder = new StringBuilder();
