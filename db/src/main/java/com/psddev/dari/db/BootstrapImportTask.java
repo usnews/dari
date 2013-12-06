@@ -185,6 +185,7 @@ class BootstrapImportTask extends Task {
             LOGGER.info("Importing data from " + filename + " . . . ");
             int numRows = 0;
             boolean afterMappingTypes = false;
+            ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
             while (null != (line = reader.readLine())) {
                 if (!shouldContinue()) break;
                 line = line.trim();
@@ -223,8 +224,11 @@ class BootstrapImportTask extends Task {
                         continue;
                     }
 
-                    if (!afterMappingTypes && typeMapTypeFields.containsKey(ObjectUtils.to(String.class, stateMap.get("_type")))) {
+                    if (!afterMappingTypes && (typeMapTypeFields.containsKey(ObjectUtils.to(String.class, stateMap.get("_type"))) || objType.equals(type))) {
                         String typeMapField = typeMapTypeFields.get(ObjectUtils.to(String.class, stateMap.get("_type")));
+                        if (typeMapField == null && objType.equals(type)) {
+                            typeMapField = "internalName";
+                        }
                         Object localObj = Query.fromType(type).where(typeMapField + " = ?", ObjectUtils.to(String.class, stateMap.get(typeMapField))).first();
                         if (localObj != null) {
                             remoteToLocalIdMap.put(ObjectUtils.to(UUID.class, stateMap.get("_id")), ((Recordable) localObj).getState().getId());
