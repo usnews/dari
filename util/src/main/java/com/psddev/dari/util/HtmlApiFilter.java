@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URL;
@@ -9,10 +8,8 @@ import java.util.Map;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
 
 /**
  * Filter that automatically captures the HTML output from the response
@@ -116,7 +113,7 @@ public class HtmlApiFilter extends AbstractFilter {
             return;
         }
 
-        CapturingResponse capturing = new CapturingResponse(response);
+        CapturingHttpServletResponse capturing = new CapturingHttpServletResponse(response);
         Object output;
 
         try {
@@ -193,32 +190,5 @@ public class HtmlApiFilter extends AbstractFilter {
         }
 
         writer.write(ObjectUtils.toJson(json));
-    }
-
-    private final static class CapturingResponse extends HttpServletResponseWrapper {
-
-        private final StringWriter output;
-        private final PrintWriter printWriter;
-
-        public CapturingResponse(HttpServletResponse response) {
-            super(response);
-
-            this.output = new StringWriter();
-            this.printWriter = new PrintWriter(output);
-        }
-
-        @Override
-        public ServletOutputStream getOutputStream() {
-            throw new IllegalStateException();
-        }
-
-        @Override
-        public PrintWriter getWriter() {
-            return printWriter;
-        }
-
-        public String getOutput() {
-            return output.toString();
-        }
     }
 }
