@@ -1142,98 +1142,105 @@ public abstract class AbstractDatabase<C> implements Database {
         Map<String, State> keys = null;
         DatabaseEnvironment environment = getEnvironment();
 
-        for (State state : states) { RETRY_STATE: do {
-            if (beforeLocks) {
-                if (!state.validate()) {
-                    if (errors == null) {
-                        errors = new ArrayList<State>();
-                    }
-                    errors.add(state);
-                }
+        for (State state : states) {
+            boolean retry;
 
-            } else {
-                state.clearAllErrors();
-            }
+            RETRY: do {
+                retry = false;
 
-            ObjectType type = state.getType();
-            for (ObjectStruct struct : type != null ?
-                    new ObjectStruct[] { type, environment } :
-                    new ObjectStruct[] { environment }) {
-
-                for (ObjectIndex index : struct.getIndexes()) {
-                    if (!index.isUnique()) {
-                        continue;
-                    }
-
-                    Object[][] valuePermutations = index.getValuePermutations(state);
-                    if (valuePermutations == null) {
-                        continue;
-                    }
-
-                    String indexPrefix = index.getPrefix();
-                    String indexName = index.getUniqueName();
-                    List<String> fields = index.getFields();
-
-                    for (int i = 0, ps = valuePermutations.length; i < ps; ++ i) {
-                        Query<Object> duplicateQuery = Query.
-                                from(Object.class).
-                                where("id != ?", state.getId()).
-                                using(state.getDatabase()).
-                                referenceOnly().
-                                noCache().
-                                master();
-
-                        StringBuilder keyBuilder = new StringBuilder();
-                        keyBuilder.append(indexName);
-
-                        Object[] values = valuePermutations[i];
-                        for (int j = 0, vs = values.length; j < vs; ++ j) {
-                            Object value = values[j];
-                            keyBuilder.append('\0');
-                            keyBuilder.append(value);
-                            duplicateQuery.and(indexPrefix + fields.get(j) + " = ?", values[j]);
-                        }
-
-                        Object duplicate = duplicateQuery.first();
-
-                        if (duplicate == null) {
-                            if (!beforeLocks) {
-                                continue;
-
-                            } else {
-                                if (keys == null) {
-                                    keys = new HashMap<String, State>();
-                                }
-
-                                String key = keyBuilder.toString();
-                                duplicate = keys.get(key);
-                                if (duplicate == null) {
-                                    keys.put(key, state);
-                                    continue;
-
-                                } else if (state.equals(State.getInstance(duplicate))) {
-                                    continue;
-                                }
-                            }
-                        }
-
-                        if (triggerOnDuplicate(state, index)) {
-                            continue RETRY_STATE;
-                        }
-
+                if (beforeLocks) {
+                    if (!state.validate()) {
                         if (errors == null) {
                             errors = new ArrayList<State>();
                         }
                         errors.add(state);
-                        state.addError(
-                                state.getField(index.getField()),
-                                "Must be unique but duplicate at " +
-                                (State.getInstance(duplicate).getId()) +
-                                "!");
+                    }
+
+                } else {
+                    state.clearAllErrors();
+                }
+
+                ObjectType type = state.getType();
+                for (ObjectStruct struct : type != null ?
+                        new ObjectStruct[] { type, environment } :
+                        new ObjectStruct[] { environment }) {
+
+                    for (ObjectIndex index : struct.getIndexes()) {
+                        if (!index.isUnique()) {
+                            continue;
+                        }
+
+                        Object[][] valuePermutations = index.getValuePermutations(state);
+                        if (valuePermutations == null) {
+                            continue;
+                        }
+
+                        String indexPrefix = index.getPrefix();
+                        String indexName = index.getUniqueName();
+                        List<String> fields = index.getFields();
+
+                        for (int i = 0, ps = valuePermutations.length; i < ps; ++ i) {
+                            Query<Object> duplicateQuery = Query.
+                                    from(Object.class).
+                                    where("id != ?", state.getId()).
+                                    using(state.getDatabase()).
+                                    referenceOnly().
+                                    noCache().
+                                    master();
+
+                            StringBuilder keyBuilder = new StringBuilder();
+                            keyBuilder.append(indexName);
+
+                            Object[] values = valuePermutations[i];
+                            for (int j = 0, vs = values.length; j < vs; ++ j) {
+                                Object value = values[j];
+                                keyBuilder.append('\0');
+                                keyBuilder.append(value);
+                                duplicateQuery.and(indexPrefix + fields.get(j) + " = ?", values[j]);
+                            }
+
+                            Object duplicate = duplicateQuery.first();
+
+                            if (duplicate == null) {
+                                if (!beforeLocks) {
+                                    continue;
+
+                                } else {
+                                    if (keys == null) {
+                                        keys = new HashMap<String, State>();
+                                    }
+
+                                    String key = keyBuilder.toString();
+                                    duplicate = keys.get(key);
+                                    if (duplicate == null) {
+                                        keys.put(key, state);
+                                        continue;
+
+                                    } else if (state.equals(State.getInstance(duplicate))) {
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            if (triggerOnDuplicate(state, index)) {
+                                retry = true;
+                                continue RETRY;
+                            }
+
+                            if (errors == null) {
+                                errors = new ArrayList<State>();
+                            }
+                            errors.add(state);
+                            state.addError(
+                                    state.getField(index.getField()),
+                                    "Must be unique but duplicate at " +
+                                    (State.getInstance(duplicate).getId()) +
+                                    "!");
+                        }
                     }
                 }
-            }
-        } while (false); }
+            } while (retry);
+        }
 
         if (errors != null && !errors.isEmpty()) {
             throw new ValidationException(errors);
