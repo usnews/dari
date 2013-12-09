@@ -226,12 +226,18 @@ class BootstrapImportTask extends Task {
 
                     if (!afterMappingTypes && (typeMapTypeFields.containsKey(ObjectUtils.to(String.class, stateMap.get("_type"))) || objType.equals(type))) {
                         String typeMapField = typeMapTypeFields.get(ObjectUtils.to(String.class, stateMap.get("_type")));
-                        if (typeMapField == null && objType.equals(type)) {
-                            typeMapField = "internalName";
+                        Object localObj;
+                        if (objType.equals(type)) {
+                            localObj = database.getEnvironment().getTypeByName(ObjectUtils.to(String.class, stateMap.get("internalName")));
+                        } else {
+                            localObj = Query.fromType(type).where(typeMapField + " = ?", ObjectUtils.to(String.class, stateMap.get(typeMapField))).first();
                         }
-                        Object localObj = Query.fromType(type).where(typeMapField + " = ?", ObjectUtils.to(String.class, stateMap.get(typeMapField))).first();
-                        if (localObj != null) {
-                            remoteToLocalIdMap.put(ObjectUtils.to(UUID.class, stateMap.get("_id")), ((Recordable) localObj).getState().getId());
+                        if (localObj instanceof Recordable) {
+                            UUID localId = ((Recordable) localObj).getState().getId();
+                            remoteToLocalIdMap.put(ObjectUtils.to(UUID.class, stateMap.get("_id")), localId);
+                            if (objType.equals(type)) {
+                                stateMap.put("_id", localId);
+                            }
                         }
                         if (localObj == null || isAllTypes || typeNames.contains(type.getInternalName())) {
                             record.getState().setResolveToReferenceOnly(true);
