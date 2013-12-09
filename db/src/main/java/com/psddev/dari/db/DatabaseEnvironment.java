@@ -757,7 +757,17 @@ public class DatabaseEnvironment implements ObjectStruct {
         }
 
         Object object = TypeDefinition.getInstance(objectClass).newInstance();
-        State state = State.getInstance(object);
+        State state;
+
+        try {
+            state = State.getInstance(object);
+
+        } catch (IllegalStateException error) {
+            object = TypeDefinition.getInstance(Record.class).newInstance();
+            state = State.getInstance(object);
+            hasClass = false;
+        }
+
         state.setDatabase(getDatabase());
         state.setId(id);
         state.setTypeId(typeId);
