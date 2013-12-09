@@ -152,11 +152,26 @@ public class DebugFilter extends AbstractFilter {
             super.doDispatch(request, response, chain);
 
         } else {
-            try {
-                super.doDispatch(request, response, chain);
+            CapturingHttpServletResponse capturing = new CapturingHttpServletResponse(response);
 
-            } catch (Throwable error) {
-                Static.writeError(request, response, error);
+            try {
+                super.doDispatch(request, capturing, chain);
+                response.getWriter().write(capturing.getOutput());
+
+            } catch (Exception error) {
+
+                // If the request is a form post and there's been no output
+                // so far, it's probably form processing code. Custom error
+                // message here will most likely not reach the user, so don't
+                // substitute.
+                if (JspUtils.isFormPost(request) &&
+                        ObjectUtils.isBlank(capturing.getOutput())) {
+                    throw error;
+
+                // Discard the output so far and write the error instead.
+                } else {
+                    Static.writeError(request, response, error);
+                }
             }
         }
     }
