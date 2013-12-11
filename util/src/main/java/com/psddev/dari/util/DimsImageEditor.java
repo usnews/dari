@@ -584,9 +584,9 @@ public class DimsImageEditor extends AbstractImageEditor {
             StringBuilder commandsBuilder = new StringBuilder();
             for(Command command : getCommands()) {
                 commandsBuilder
-                .append(command.getName())
+                .append(StringUtils.encodeUri(command.getName()))
                 .append('/')
-                .append(command.getValue())
+                .append(StringUtils.encodeUri(command.getValue()))
                 .append('/');
             }
 
@@ -599,7 +599,7 @@ public class DimsImageEditor extends AbstractImageEditor {
             String sharedSecret = DimsImageEditor.this.getSharedSecret();
             // construct url for dims developer key support
             if(sharedSecret != null && baseUrl.contains("/dims4/")) {
-                String signature = expireTs + sharedSecret + commandsBuilder.toString() + imageUrl;
+                String signature = expireTs + sharedSecret + StringUtils.decodeUri(commandsBuilder.toString()) + imageUrl;
 
                 String md5Hex = StringUtils.hex(StringUtils.md5(signature));
                 // Get first 7 characters... I think it actually only needs 6
