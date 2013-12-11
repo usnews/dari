@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -18,7 +17,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class ProfilerFilter extends AbstractFilter {
 
-    // --- AbstractFilter support ---
+    private static final String ATTRIBUTE_PREFIX = ProfilerFilter.class.getName() + ".";
+    private static final String PROFILER_ATTRIBUTE = ATTRIBUTE_PREFIX + "profiler";
 
     @Override
     protected void doDispatch(
@@ -35,6 +35,18 @@ public class ProfilerFilter extends AbstractFilter {
         }
     }
 
+    private MarkingProfiler getOrCreateMarkingProfiler(HttpServletRequest request) {
+        MarkingProfiler profiler = (MarkingProfiler) request.getAttribute(PROFILER_ATTRIBUTE);
+
+        if (profiler == null) {
+            profiler = new MarkingProfiler();
+
+            request.setAttribute(PROFILER_ATTRIBUTE, profiler);
+        }
+
+        return profiler;
+    }
+
     @Override
     protected void doInclude(
             HttpServletRequest request,
@@ -42,28 +54,41 @@ public class ProfilerFilter extends AbstractFilter {
             FilterChain chain)
             throws IOException, ServletException {
 
-        // Keep track of JSP includes.
+        MarkingProfiler profiler = getOrCreateMarkingProfiler(request);
+        LazyWriterResponse oldResponse = profiler.getResponse();
+        LazyWriterResponse newResponse = new LazyWriterResponse(request, response);
         String path = JspUtils.getCurrentServletPath(request);
-        PrintWriter writer = response.getWriter();
-
-        writer.flush();
+        LazyWriter writer = newResponse.getLazyWriter();
 
         try {
+            profiler.setResponse(newResponse);
             Profiler.Static.startThreadEvent("JSP Include", new JspInclude(path));
 
-            writer.write("<span class=\"_profile-jspStart\" data-jsp=\"");
-            writer.write(StringUtils.escapeHtml(path));
-            writer.write("\" style=\"display: none;\"></span>");
+            writer.writeLazily("<span class=\"_profile-jspStart\" data-jsp=\"");
+            writer.writeLazily(StringUtils.escapeHtml(path));
+            writer.writeLazily("\" style=\"display: none;\"></span>");
 
-            chain.doFilter(request, response);
+            chain.doFilter(request, newResponse);
 
         } finally {
             Profiler.Static.stopThreadEvent();
+            profiler.setResponse(oldResponse);
 
-            writer.write("<span class=\"_profile-jspStop\" data-jsp=\"");
-            writer.write(StringUtils.escapeHtml(path));
-            writer.write("\" style=\"display: none;\"></span>");
+            writer.writeLazily("<span class=\"_profile-jspStop\" data-jsp=\"");
+            writer.writeLazily(StringUtils.escapeHtml(path));
+            writer.writeLazily("\" style=\"display: none;\"></span>");
+            writer.writePending();
         }
+    }
+
+    @Override
+    protected void doError(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain chain)
+            throws IOException, ServletException {
+
+        doRequest(request, response, chain);
     }
 
     @Override
@@ -78,40 +103,39 @@ public class ProfilerFilter extends AbstractFilter {
 
     @Override
     protected void doRequest(
-            final HttpServletRequest request,
+            HttpServletRequest request,
             HttpServletResponse response,
             FilterChain chain)
             throws IOException, ServletException {
 
-        Map<Profiler.Event, Integer> eventIndexes = new HashMap<Profiler.Event, Integer>();
-        Profiler profiler = new MarkingProfiler(response, eventIndexes);
-        long start = System.nanoTime();
-
         try {
-            Profiler.Static.setThreadProfiler(profiler);
-            profiler.startEvent("Request", request.getServletPath());
+            JspBufferFilter.Static.overrideBuffer(0);
 
-            chain.doFilter(request, response);
+            MarkingProfiler profiler = getOrCreateMarkingProfiler(request);
+            LazyWriterResponse oldResponse = profiler.getResponse();
+            LazyWriterResponse newResponse = new LazyWriterResponse(request, response);
+
+            try {
+                profiler.setResponse(newResponse);
+                Profiler.Static.setThreadProfiler(profiler);
+                profiler.startEvent("Request", request.getServletPath());
+
+                chain.doFilter(request, newResponse);
+
+            } finally {
+                profiler.stopEvent();
+                Profiler.Static.setThreadProfiler(null);
+                profiler.setResponse(oldResponse);
+                newResponse.getLazyWriter().writePending();
+                writeResult(Static.getResultWriter(request, newResponse), profiler);
+            }
 
         } finally {
-            profiler.stopEvent();
-            Profiler.Static.setThreadProfiler(null);
-
-            PrintWriter writer = response.getWriter();
-
-            writer.flush();
-            writeResult(Static.getResultWriter(request, response), eventIndexes, profiler, start);
-            writer.flush();
+            JspBufferFilter.Static.restoreBuffer();
         }
     }
 
-    private void writeResult(
-            HtmlWriter writer,
-            Map<Profiler.Event, Integer> eventIndexes,
-            Profiler profiler,
-            long start)
-            throws IOException {
-
+    private void writeResult(HtmlWriter writer, MarkingProfiler profiler) throws IOException {
         Map<String, String> nameColors = new HashMap<String, String>();
         Map<String, String> nameClasses = new HashMap<String, String>();
         double goldenRatio = 0.618033988749895;
@@ -205,7 +229,7 @@ public class ProfilerFilter extends AbstractFilter {
 
                         writer.writeStart("tbody");
                             for (Profiler.Event rootEvent : profiler.getRootEvents()) {
-                                writeEvent(writer, eventIndexes, start, nameColors, nameClasses, 0, rootEvent);
+                                writeEvent(writer, profiler, nameColors, nameClasses, 0, rootEvent);
                             }
                         writer.writeEnd();
 
@@ -229,8 +253,7 @@ public class ProfilerFilter extends AbstractFilter {
 
     private void writeEvent(
             HtmlWriter writer,
-            Map<Profiler.Event, Integer> eventIndexes,
-            long start,
+            MarkingProfiler profiler,
             Map<String, String> nameColors,
             Map<String, String> nameClasses,
             int depth,
@@ -241,8 +264,8 @@ public class ProfilerFilter extends AbstractFilter {
 
         writer.writeStart("tr", "class", nameClasses.get(name));
 
-            writer.writeStart("td").writeHtml(eventIndexes.get(event)).writeEnd();
-            writer.writeStart("td").writeObject((event.getStart() - start) / 1e6).writeEnd();
+            writer.writeStart("td").writeHtml(profiler.getEventIndexes().get(event)).writeEnd();
+            writer.writeStart("td").writeObject((event.getStart() - profiler.getStart()) / 1e6).writeEnd();
             writer.writeStart("td").writeObject(event.getTotalDuration() / 1e6).writeEnd();
             writer.writeStart("td").writeObject(event.getOwnDuration() / 1e6).writeEnd();
 
@@ -262,7 +285,7 @@ public class ProfilerFilter extends AbstractFilter {
             writer.writeEnd();
 
             for (Profiler.Event child : event.getChildren()) {
-                writeEvent(writer, eventIndexes, start, nameColors, nameClasses, depth + 1, child);
+                writeEvent(writer, profiler, nameColors, nameClasses, depth + 1, child);
             }
 
         writer.writeEnd();
@@ -311,13 +334,25 @@ public class ProfilerFilter extends AbstractFilter {
     // Profiler that marks the start of an event in the HTML.
     private static class MarkingProfiler extends Profiler {
 
-        private final HttpServletResponse response;
-        private final Map<Event, Integer> eventIndexes;
+        private final long start = System.nanoTime();
+        private final Map<Event, Integer> eventIndexes = new HashMap<Event, Integer>();
+        private LazyWriterResponse response;
         private int eventIndex;
 
-        public MarkingProfiler(HttpServletResponse response, Map<Profiler.Event, Integer> eventIndexes) {
+        public long getStart() {
+            return start;
+        }
+
+        public Map<Profiler.Event, Integer> getEventIndexes() {
+            return eventIndexes;
+        }
+
+        public LazyWriterResponse getResponse() {
+            return response;
+        }
+
+        public void setResponse(LazyWriterResponse response) {
             this.response = response;
-            this.eventIndexes = eventIndexes;
         }
 
         @Override
@@ -328,11 +363,11 @@ public class ProfilerFilter extends AbstractFilter {
             eventIndexes.put(event, eventIndex);
 
             try {
-                PrintWriter writer = response.getWriter();
+                LazyWriter writer = getResponse().getLazyWriter();
 
-                writer.write("<span class=\"_profile-eventStart\" data-index=\"");
-                writer.write(String.valueOf(eventIndex));
-                writer.write("\"></span>");
+                writer.writeLazily("<span class=\"_profile-eventStart\" data-index=\"");
+                writer.writeLazily(String.valueOf(eventIndex));
+                writer.writeLazily("\"></span>");
 
             } catch (IOException error) {
                 // Writing the marker to the output isn't strictly necessary
