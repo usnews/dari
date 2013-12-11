@@ -40,12 +40,6 @@ public class LazyWriter extends Writer {
         this.delegate = delegate;
     }
 
-    /** @deprecated Use {@link #LazyWriter(HttpServletRequest, Writer)} instead. */
-    @Deprecated
-    public LazyWriter(Writer delegate) {
-        this(null, delegate);
-    }
-
     private boolean isInBody() {
         return inBody ||
                 (request != null &&
