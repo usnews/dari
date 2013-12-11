@@ -1,5 +1,6 @@
 package com.psddev.dari.util;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -13,23 +14,30 @@ import javax.servlet.http.HttpServletResponseWrapper;
  */
 public class CapturingHttpServletResponse extends HttpServletResponseWrapper {
 
-    private final StringWriter capture;
-    private final PrintWriter writer;
+    private StringWriter capture;
+    private PrintWriter writer;
 
     public CapturingHttpServletResponse(HttpServletResponse response) {
         super(response);
-
-        this.capture = new StringWriter();
-        this.writer = new PrintWriter(capture);
     }
 
     @Override
-    public ServletOutputStream getOutputStream() {
-        throw new IllegalStateException();
+    public ServletOutputStream getOutputStream() throws IOException {
+        if (writer != null) {
+            throw new IllegalStateException();
+
+        } else {
+            return getResponse().getOutputStream();
+        }
     }
 
     @Override
     public PrintWriter getWriter() {
+        if (writer == null) {
+            capture = new StringWriter();
+            writer = new PrintWriter(capture);
+        }
+
         return writer;
     }
 
@@ -39,6 +47,6 @@ public class CapturingHttpServletResponse extends HttpServletResponseWrapper {
      * @return Never {@code null}.
      */
     public String getOutput() {
-        return capture.toString();
+        return capture != null ? capture.toString() : "";
     }
 }
