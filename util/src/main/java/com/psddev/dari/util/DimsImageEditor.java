@@ -351,9 +351,9 @@ public class DimsImageEditor extends AbstractImageEditor {
                 String value = null;
                 for (int i=0; i<parts.length; i++) {
                     if (i%2==0) {
-                        name = parts[i];
+                        name = StringUtils.decodeUri(parts[i]);
                     } else {
-                        value = parts[i];
+                        value = StringUtils.decodeUri(parts[i]);
                         Command command = parseCommand(name, value);
                         if (command != null) {
                             addCommand(command);
