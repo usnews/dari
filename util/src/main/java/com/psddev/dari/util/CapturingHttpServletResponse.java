@@ -14,6 +14,7 @@ import javax.servlet.http.HttpServletResponseWrapper;
  */
 public class CapturingHttpServletResponse extends HttpServletResponseWrapper {
 
+    private ServletOutputStream outputStream;
     private StringWriter capture;
     private PrintWriter writer;
 
@@ -27,18 +28,27 @@ public class CapturingHttpServletResponse extends HttpServletResponseWrapper {
             throw new IllegalStateException();
 
         } else {
-            return getResponse().getOutputStream();
+            if (outputStream == null) {
+                outputStream = getResponse().getOutputStream();
+            }
+
+            return outputStream;
         }
     }
 
     @Override
     public PrintWriter getWriter() {
-        if (writer == null) {
-            capture = new StringWriter();
-            writer = new PrintWriter(capture);
-        }
+        if (outputStream != null) {
+            throw new IllegalStateException();
 
-        return writer;
+        } else {
+            if (writer == null) {
+                capture = new StringWriter();
+                writer = new PrintWriter(capture);
+            }
+
+            return writer;
+        }
     }
 
     /**
