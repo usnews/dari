@@ -162,6 +162,7 @@ public class ReferentialText extends AbstractList<Object> {
         // Convert 'text<br><br>' to '<p>text</p>'.
         Document document = Jsoup.parseBodyFragment(html.toString());
         Element body = document.body();
+        Element lastParagraph = null;
 
         document.outputSettings().prettyPrint(false);
 
@@ -205,16 +206,41 @@ public class ReferentialText extends AbstractList<Object> {
                 }
             }
 
+            lastParagraph = new Element(P_TAG, "");
+
+            for (Node child : paragraphChildren) {
+                child.remove();
+                lastParagraph.prependChild(child.clone());
+            }
+
+            br.before(lastParagraph);
+            br.remove();
+            previousBr.remove();
+        }
+
+        if (lastParagraph != null) {
+            List<Node> paragraphChildren = new ArrayList<Node>();
+
+            for (Node next = lastParagraph;
+                    (next = next.nextSibling()) != null;
+                    ) {
+                if (next instanceof Element &&
+                        ((Element) next).isBlock()) {
+                    break;
+
+                } else {
+                    paragraphChildren.add(next);
+                }
+            }
+
             Element paragraph = new Element(P_TAG, "");
 
             for (Node child : paragraphChildren) {
                 child.remove();
-                paragraph.prependChild(child.clone());
+                paragraph.appendChild(child.clone());
             }
 
-            br.before(paragraph);
-            br.remove();
-            previousBr.remove();
+            lastParagraph.after(paragraph);
         }
 
         // Remove editorial markups.
