@@ -12,13 +12,13 @@ import javax.servlet.http.HttpServletResponseWrapper;
  * {@link HttpServletResponse} implementation that buffers and captures
  * the response output.
  */
-public class CapturingHttpServletResponse extends HttpServletResponseWrapper {
+public class CapturingResponse extends HttpServletResponseWrapper {
 
     private ServletOutputStream outputStream;
     private StringWriter capture;
     private PrintWriter writer;
 
-    public CapturingHttpServletResponse(HttpServletResponse response) {
+    public CapturingResponse(HttpServletResponse response) {
         super(response);
     }
 

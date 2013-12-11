@@ -152,7 +152,7 @@ public class DebugFilter extends AbstractFilter {
             super.doDispatch(request, response, chain);
 
         } else {
-            CapturingHttpServletResponse capturing = new CapturingHttpServletResponse(response);
+            CapturingResponse capturing = new CapturingResponse(response);
 
             try {
                 super.doDispatch(request, capturing, chain);

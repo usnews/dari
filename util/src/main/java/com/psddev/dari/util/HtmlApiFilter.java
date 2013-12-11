@@ -113,7 +113,7 @@ public class HtmlApiFilter extends AbstractFilter {
             return;
         }
 
-        CapturingHttpServletResponse capturing = new CapturingHttpServletResponse(response);
+        CapturingResponse capturing = new CapturingResponse(response);
         Object output;
 
         try {
