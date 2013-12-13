@@ -291,9 +291,16 @@ public class DatabaseEnvironment implements ObjectStruct {
                     }
 
                     Set<Class<? extends Recordable>> objectClasses = ClassFinder.Static.findClasses(Recordable.class);
+
                     for (Iterator<Class<? extends Recordable>> i = objectClasses.iterator(); i.hasNext(); ) {
                         Class<? extends Recordable> objectClass = i.next();
-                        if (objectClass.isAnonymousClass()) {
+
+                        try {
+                            if (objectClass.isAnonymousClass()) {
+                                i.remove();
+                            }
+
+                        } catch (IncompatibleClassChangeError error) {
                             i.remove();
                         }
                     }
