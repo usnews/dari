@@ -796,6 +796,10 @@ public abstract class AbstractDatabase<C> implements Database {
 
             // Global modifications.
             for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
+                if (modType.isAbstract()) {
+                    continue;
+                }
+
                 Class<?> modClass = modType.getObjectClass();
 
                 if (modClass != null &&
@@ -807,7 +811,8 @@ public abstract class AbstractDatabase<C> implements Database {
 
             ObjectType type = state.getType();
 
-            if (type == null) {
+            if (type == null ||
+                    type.isAbstract()) {
                 return;
             }
 
