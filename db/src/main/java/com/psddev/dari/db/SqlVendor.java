@@ -105,6 +105,10 @@ public class SqlVendor {
         Connection connection = database.openConnection();
 
         try {
+            if (getTables(connection).contains(SqlDatabase.RECORD_TABLE)) {
+                return;
+            }
+
             for (String ddl : IoUtils.toString(resourceInput, StringUtils.UTF_8).trim().split("(?:\r\n?|\n){2,}")) {
                 Statement statement = connection.createStatement();
 
@@ -148,6 +152,62 @@ public class SqlVendor {
         }
 
         return tableNames;
+    }
+
+    public Set<String> getColumns(Connection connection, String table) throws SQLException {
+        Set<String> columnNames = new HashSet<String>();
+        String catalog = connection.getCatalog();
+        DatabaseMetaData meta = connection.getMetaData();
+        ResultSet result = null;
+
+        try {
+            result = meta.getColumns(catalog, null, table, null);
+            while (result.next()) {
+                String columnName = result.getString("COLUMN_NAME");
+                if (columnName != null) {
+                    columnNames.add(columnName);
+                }
+            }
+        } finally {
+            if (result != null) {
+                result.close();
+            }
+        }
+
+        return columnNames;
+    }
+
+    public boolean checkTableExists(String tableIdentifier) {
+        Connection connection = database.openConnection();
+        boolean tableExists = false;
+
+        try {
+            Statement statement = connection.createStatement();
+
+            try {
+                ResultSet result = statement.executeQuery("SELECT 'x' FROM " + tableIdentifier + " WHERE 0 = 1");
+
+                try {
+                    tableExists = true;
+
+                } finally {
+                    result.close();
+                }
+
+            } finally {
+                statement.close();
+            }
+
+        } catch (SQLException error) {
+            if ("42S02".equals(error.getSQLState())) {
+                tableExists = false;
+            }
+
+        } finally {
+            database.closeConnection(connection);
+        }
+
+        return tableExists;
     }
 
     public boolean hasInRowIndex(Connection connection, String recordTable) throws SQLException {
@@ -434,6 +494,7 @@ public class SqlVendor {
 
         Map<String, ColumnType> columns = new LinkedHashMap<String, ColumnType>();
         columns.put(SqlDatabase.ID_COLUMN, ColumnType.UUID);
+        columns.put(SqlDatabase.TYPE_ID_COLUMN, ColumnType.UUID);
         columns.put(SqlDatabase.SYMBOL_ID_COLUMN, ColumnType.INTEGER);
         for (int i = 0, length = types.length; i < length; ++ i) {
             columns.put(SqlDatabase.VALUE_COLUMN + (i == 0 ? "" : i + 1), INDEX_TYPES.get(types[i]));
@@ -698,7 +759,7 @@ public class SqlVendor {
 
         @Override
         protected String getSetUpResourcePath() {
-            return "h2/schema-11.sql";
+            return "h2/schema-12.sql";
         }
 
         @Override
@@ -798,7 +859,7 @@ public class SqlVendor {
 
         @Override
         protected String getSetUpResourcePath() {
-            return "mysql/schema-11.sql";
+            return "mysql/schema-12.sql";
         }
 
         @Override
@@ -1252,7 +1313,7 @@ public class SqlVendor {
 
         @Override
         protected String getSetUpResourcePath() {
-            return "postgres/schema-11.sql";
+            return "postgres/schema-12.sql";
         }
 
         @Override

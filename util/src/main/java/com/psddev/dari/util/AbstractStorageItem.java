@@ -7,7 +7,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -42,7 +41,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     public static final String HTTP_HEADERS = "http.headers";
     public static final String HTTP_HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String METADATA_PARAM_ORIGINAL_FILE_NAME = "originalFilename";
-    
+
     private transient String baseUrl;
     private transient String secureBaseUrl;
     private String storage;
@@ -147,7 +146,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     @Override
     public Map<String, Object> getMetadata() {
         if (metadata == null) {
-            metadata = new LinkedHashMap<String, Object>();
+            metadata = new CompactMap<String, Object>();
         }
         return metadata;
     }

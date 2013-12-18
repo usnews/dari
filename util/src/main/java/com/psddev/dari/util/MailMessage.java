@@ -93,8 +93,6 @@ public class MailMessage {
 
     /**
      * Sends mail via MailProvider default, from settings.
-     *
-     * @return
      */
     public void send() {
         MailProvider.Static.getDefault().send(this);

@@ -68,7 +68,7 @@ public class SolrDebugServlet extends HttpServlet {
                             "name", "query",
                             "placeholder", "Query",
                             "rows", 4,
-                            "style", "margin: 4px 0; width: 100%;");
+                            "style", "font-family:monospace; margin: 4px 0; width: 100%;");
                         writeHtml(query);
                     writeEnd();
 
@@ -78,7 +78,7 @@ public class SolrDebugServlet extends HttpServlet {
                             "name", "sort",
                             "placeholder", "Sort",
                             "rows", 2,
-                            "style", "margin: 4px 0; width: 100%;");
+                            "style", "font-family:monospace; margin: 4px 0; width: 100%;");
                         writeHtml(sort);
                     writeEnd();
 

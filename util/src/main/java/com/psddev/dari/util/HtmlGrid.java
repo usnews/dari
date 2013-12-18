@@ -6,7 +6,6 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -320,10 +319,10 @@ public class HtmlGrid {
                             continue;
                         }
 
-                        LOGGER.info("Reading stylesheet [{}] modified [{}]", child, cssModified);
+                        LOGGER.debug("Reading stylesheet [{}] modified [{}]", child, cssModified);
 
                         Css css = new Css(IoUtils.toString(cssInput, StringUtils.UTF_8));
-                        Map<String, HtmlGrid> grids = new LinkedHashMap<String, HtmlGrid>();
+                        Map<String, HtmlGrid> grids = new CompactMap<String, HtmlGrid>();
 
                         for (CssRule rule : css.getRules()) {
                             String display = rule.getValue("display");
@@ -449,7 +448,7 @@ public class HtmlGrid {
         }
 
         private static Map<String, HtmlGrid> findGrids(ServletContext context, HttpServletRequest request, List<String> gridPaths) {
-            Map<String, HtmlGrid> all = new LinkedHashMap<String, HtmlGrid>();
+            Map<String, HtmlGrid> all = new CompactMap<String, HtmlGrid>();
 
             for (int i = gridPaths.size() - 1; i >= 0; -- i) {
                 String gridPath = gridPaths.get(i);

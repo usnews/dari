@@ -282,7 +282,7 @@ public class BrightcoveStorageItem extends VideoStorageItem {
     public void setReferenceId(String referenceId) {
         this.referenceId = referenceId;
     }
-    
+
     /** Returns the Account ID, used in Brightcove */
     public String getAccountId() {
         return accountId;
@@ -952,28 +952,36 @@ public class BrightcoveStorageItem extends VideoStorageItem {
         FLV,
         MP4
     }
+
     public TranscodingStatus getTranscodingStatus() {
          throw new UnsupportedOperationException();
     }
+
     public String getTranscodingError() {
          throw new UnsupportedOperationException();
     }
+
     public DurationType getDurationType() {
          throw new UnsupportedOperationException();
     }
+
     public List<Integer> getTranscodingFlavorIds() {
          throw new UnsupportedOperationException();
     }
     public void setThumbnailUrl(String thumbnailUrl) {
          throw new UnsupportedOperationException();
     }
+
     public void push() {
          pushToBrightcove();
     }
+
     public boolean pull() {
          return pullFromBrightcove();
     }
+
     public String getExternalId() {
          return getBrightcoveId();
     }
+
 }

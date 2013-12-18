@@ -136,6 +136,10 @@ class SqlQuery {
     }
 
     private String aliasedField(String alias, String field) {
+        if (field == null) {
+            return null;
+        }
+
         StringBuilder fieldBuilder = new StringBuilder();
         fieldBuilder.append(aliasPrefix);
         fieldBuilder.append(alias);
@@ -307,13 +311,25 @@ class SqlQuery {
                 fromBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
             }
 
-            // e.g. ON i#.recordId = r.id AND i#.name = ...
+            // e.g. ON i#.recordId = r.id
             fromBuilder.append(" ON ");
             fromBuilder.append(join.idField);
             fromBuilder.append(" = ");
             fromBuilder.append(aliasPrefix);
             fromBuilder.append("r.");
             vendor.appendIdentifier(fromBuilder, "id");
+
+            // AND i#.typeId = r.typeId
+            if (join.typeIdField != null) {
+                fromBuilder.append(" AND ");
+                fromBuilder.append(join.typeIdField);
+                fromBuilder.append(" = ");
+                fromBuilder.append(aliasPrefix);
+                fromBuilder.append("r.");
+                vendor.appendIdentifier(fromBuilder, "typeId");
+            }
+
+            // AND i#.symbolId in (...)
             fromBuilder.append(" AND ");
             fromBuilder.append(join.keyField);
             fromBuilder.append(" IN (");
@@ -657,7 +673,6 @@ class SqlQuery {
                         ++ subClauseCount;
                         hasMissing = true;
 
-                        join.type = JoinType.LEFT_OUTER;
                         comparisonBuilder.append(joinValueField);
 
                         if (isNotEqualsAll) {
@@ -666,6 +681,7 @@ class SqlQuery {
                             }
                             comparisonBuilder.append(" IS NOT NULL");
                         } else {
+                            join.type = JoinType.LEFT_OUTER;
                             comparisonBuilder.append(" IS NULL");
                         }
 
@@ -829,7 +845,7 @@ class SqlQuery {
         boolean ascending = Sorter.ASCENDING_OPERATOR.equals(operator);
         boolean descending = Sorter.DESCENDING_OPERATOR.equals(operator);
         boolean closest = Sorter.CLOSEST_OPERATOR.equals(operator);
-        boolean farthest = Sorter.CLOSEST_OPERATOR.equals(operator);
+        boolean farthest = Sorter.FARTHEST_OPERATOR.equals(operator);
 
         if (ascending || descending || closest || farthest) {
             String queryKey = (String) sorter.getOptions().get(0);
@@ -1210,7 +1226,7 @@ class SqlQuery {
         String actionSymbol = metricField.getUniqueName(); // JavaDeclaringClassName() + "/" + metricField.getInternalName();
 
         selectBuilder.insert(7, "MIN(r.data) minData, MAX(r.data) maxData, "); // Right after "SELECT " (7 chars)
-        fromBuilder.insert(0, "FROM "+MetricAccess.METRIC_TABLE+" r ");
+        fromBuilder.insert(0, "FROM "+MetricAccess.Static.getMetricTableIdentifier(database) +" r ");
         whereBuilder.append(" AND r."+MetricAccess.METRIC_SYMBOL_FIELD+" = ");
         vendor.appendValue(whereBuilder, database.getSymbolId(actionSymbol));
 
@@ -1352,7 +1368,7 @@ class SqlQuery {
         } else {
             sql.append(" \nINNER JOIN ");
         }
-        vendor.appendIdentifier(sql, MetricAccess.METRIC_TABLE);
+        sql.append(MetricAccess.Static.getMetricTableIdentifier(database));
         sql.append(" ");
         vendor.appendIdentifier(sql, "m2");
         sql.append(" ON (\n");
@@ -1508,6 +1524,11 @@ class SqlQuery {
         statementBuilder.append(' ');
         statementBuilder.append(aliasPrefix);
         statementBuilder.append('r');
+
+        if (fromClause.length() > 0 &&
+                !fromClause.contains("LEFT OUTER JOIN")) {
+            statementBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
+        }
 
         if (cacheData) {
             statementBuilder.append("\nLEFT OUTER JOIN ");
@@ -1749,6 +1770,7 @@ class SqlQuery {
         public final String indexType;
         public final String table;
         public final String idField;
+        public final String typeIdField;
         public final String keyField;
         public final List<String> indexKeys = new ArrayList<String>();
 
@@ -1787,6 +1809,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1799,6 +1822,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1816,6 +1840,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1834,6 +1859,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = false;
                 isHaving = true;
@@ -1850,6 +1876,7 @@ class SqlQuery {
                 table = null;
                 tableName = null;
                 idField = null;
+                typeIdField = null;
                 keyField = null;
                 needsIsNotNull = true;
                 isHaving = false;
@@ -1858,16 +1885,14 @@ class SqlQuery {
 
                 needsIndexTable = false;
                 likeValuePrefix = null;
-                //addIndexKey(queryKey);
                 sqlIndexTable = this.sqlIndex.getReadTable(database, index);
 
-                StringBuilder tableBuilder = new StringBuilder();
-                tableName = sqlIndexTable.getName(database, index);
-                vendor.appendIdentifier(tableBuilder, tableName);
-                table = tableBuilder.toString();
+                tableName = MetricAccess.Static.getMetricTableIdentifier(database); // Don't wrap this with appendIdentifier
+                table = tableName;
                 alias = "r";
 
                 idField = null;
+                typeIdField = null;
                 keyField = null;
 
                 needsIsNotNull = false;
@@ -1904,6 +1929,7 @@ class SqlQuery {
                 table = tableBuilder.toString();
 
                 idField = aliasedField(alias, sqlIndexTable.getIdField(database, index));
+                typeIdField = aliasedField(alias, sqlIndexTable.getTypeIdField(database, index));
                 keyField = aliasedField(alias, sqlIndexTable.getKeyField(database, index));
                 needsIsNotNull = true;
                 isHaving = false;

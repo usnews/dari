@@ -15,9 +15,10 @@ import org.slf4j.LoggerFactory;
  */
 public class KalturaSessionUtils {
     private static final Logger logger = LoggerFactory.getLogger(KalturaSessionUtils.class);
-    public static void startAdminSession(KalturaClient client, KalturaConfiguration kalturaConfig) throws KalturaApiException{
+    public static void startAdminSession(KalturaClient client, KalturaConfiguration kalturaConfig) throws KalturaApiException {
         startSession(client, kalturaConfig, kalturaConfig.getAdminSecret(), KalturaSessionType.ADMIN);
     }
+
     public static void startSession(KalturaClient client, KalturaConfiguration kalturaConfig, String secret,
             KalturaSessionType type) throws KalturaApiException {
         KalturaSessionService sessionService = client.getSessionService();
@@ -25,7 +26,7 @@ public class KalturaSessionUtils {
                 kalturaConfig.getPartnerId(), kalturaConfig.getTimeout(), "");
         client.setSessionId(sessionId);
     }
-    
+
     public static void closeSession(KalturaClient client) throws KalturaApiException {
         client.getSessionService().end();
     }
@@ -40,8 +41,10 @@ public class KalturaSessionUtils {
             return "";
         }
     }
-    public static  KalturaConfiguration getKalturaConfig() {
+
+    public static KalturaConfiguration getKalturaConfig() {
          KalturaConfiguration kalturaConfig = new KalturaConfiguration();
+         @SuppressWarnings("unchecked")
          Map<String,Object> settings=(Map<String,Object>) Settings.get(KalturaStorageItem.KALTURA_SETTINGS_PREFIX);
          kalturaConfig.setPartnerId(ObjectUtils.to(Integer.class,settings.get(KalturaStorageItem.KALTURA_PARTNER_ID_SETTING)));
          kalturaConfig.setSecret(ObjectUtils.to(String.class,settings.get(KalturaStorageItem.KALTURA_SECRET_SETTING)));

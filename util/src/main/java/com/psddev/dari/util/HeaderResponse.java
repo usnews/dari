@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.servlet.ServletResponse;
@@ -11,7 +10,7 @@ import javax.servlet.http.HttpServletResponseWrapper;
 
 public class HeaderResponse extends HttpServletResponseWrapper {
 
-    private final Map<String, Collection<String>> headers = new LinkedHashMap<String, Collection<String>>();
+    private final Map<String, Collection<String>> headers = new CompactMap<String, Collection<String>>();
 
     public HeaderResponse(HttpServletResponse response) {
         super(response);

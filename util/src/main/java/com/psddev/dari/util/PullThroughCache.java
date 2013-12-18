@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -148,7 +147,7 @@ public abstract class PullThroughCache<K, V> implements Map<K, V> {
 
     @Override
     public Set<Map.Entry<K,V>> entrySet() {
-        Map<K, V> map = new LinkedHashMap<K, V>();
+        Map<K, V> map = new CompactMap<K, V>();
         for (Map.Entry<K, PullThroughReference<K, V>> entry : cache.entrySet()) {
             PullThroughReference<K, V> value = entry.getValue();
             if (value != null && value.isAvailable()) {

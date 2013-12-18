@@ -8,7 +8,7 @@ package com.psddev.dari.util;
  * <p><blockquote><code>
  * public class Foo {
  *     private static final Lazy&lt;Foo&gt; INSTANCE = new Lazy&lt;Foo&gt;() {
- *         @Override
+ *         {@literal @}Override
  *         protected Foo create() {
  *             return new Foo();
  *         }

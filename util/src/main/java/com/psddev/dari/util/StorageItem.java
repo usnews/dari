@@ -29,10 +29,10 @@ import javax.servlet.ServletContext;
  */
 public interface StorageItem extends SettingsBackedObject {
 
-    /** Setting key for default storage name for images */
+    /** Setting key for default storage name. */
     public static final String DEFAULT_STORAGE_SETTING = "dari/defaultStorage";
 
-    /** Setting key for default storage name for videos */
+    /** Setting key for default storage name for videos. */
     public static final String DEFAULT_VIDEO_STORAGE_SETTING = "dari/defaultVideoStorage";
 
     /** Setting key for all storage configuration. */

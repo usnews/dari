@@ -46,14 +46,22 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
                 continue;
             }
 
-            metadata = resizedItem.getMetadata();
+            // Make sure the "resizes" StorageItems are of the same type of
+            // storage.
+            if (!resizedItem.getStorage().equals(item.getStorage())) {
+                continue;
+            }
 
-            if (metadata != null && !metadata.isEmpty()) {
-                int w = ObjectUtils.to(Integer.class, metadata.get("width"));
-                int h = ObjectUtils.to(Integer.class, metadata.get("height"));
+            Map<String, Object> resizedMetadata = resizedItem.getMetadata();
+
+            if (resizedMetadata != null && !resizedMetadata.isEmpty()) {
+                int w = ObjectUtils.to(Integer.class, resizedMetadata.get("width"));
+                int h = ObjectUtils.to(Integer.class, resizedMetadata.get("height"));
 
                 if ((width != null && width < w) && (height != null && height < h)) {
                     item.setPath((String) resizedItem.getPath());
+                    metadata.put("width", w);
+                    metadata.put("height", h);
                     return true;
                 }
             }
@@ -68,9 +76,10 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
         }
 
         String contentType = item.getContentType();
-        InputStream data = item.getData();
+        InputStream data = null;
         try {
             if (contentType != null && contentType.startsWith("image/")) {
+                data = item.getData();
                 BufferedImage original = ImageIO.read(data);
 
                 if (original == null) {

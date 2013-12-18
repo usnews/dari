@@ -8,7 +8,6 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +31,7 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
 
         implementationClasses.put(ConcurrentMap.class, ConcurrentHashMap.class);
         implementationClasses.put(ConcurrentNavigableMap.class, ConcurrentSkipListMap.class);
-        implementationClasses.put(Map.class, LinkedHashMap.class);
+        implementationClasses.put(Map.class, CompactMap.class);
         implementationClasses.put(NavigableMap.class, TreeMap.class);
         implementationClasses.put(SortedMap.class, TreeMap.class);
 
@@ -344,7 +343,7 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
         public void putValues(Converter converter, Object object, Type keyType, Type valueType, Map<Object, Object> map) throws Exception {
 
             TypeDefinition<?> definition = TypeDefinition.getInstance(object.getClass());
-            Map<String, Field> fields = new LinkedHashMap<String, Field>();
+            Map<String, Field> fields = new CompactMap<String, Field>();
             Set<String> fieldNames = new LinkedHashSet<String>();
             Map<String, Method> getters = definition.getAllGetters();
             Set<String> getterNames = new LinkedHashSet<String>(getters.keySet());

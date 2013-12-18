@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -99,17 +100,21 @@ public class DatabaseEnvironment implements ObjectStruct {
         public void add(ObjectType type) {
             String className = type.getObjectClassName();
             if (!ObjectUtils.isBlank(className)) {
-                byClassName.put(className, type);
+                byClassName.put(className.toLowerCase(Locale.ENGLISH), type);
             }
 
             byId.put(type.getId(), type);
 
             String internalName = type.getInternalName();
             if (!ObjectUtils.isBlank(internalName)) {
-                byName.put(internalName, type);
+                byName.put(internalName.toLowerCase(Locale.ENGLISH), type);
             }
 
             for (String group : type.getGroups()) {
+                if (group != null) {
+                    group = group.toLowerCase(Locale.ENGLISH);
+                }
+
                 Set<ObjectType> groupTypes = byGroup.get(group);
                 if (groupTypes == null) {
                     groupTypes = new HashSet<ObjectType>();
@@ -417,6 +422,7 @@ public class DatabaseEnvironment implements ObjectStruct {
             for (ObjectType type : singletonType.findConcreteTypes()) {
                 if (!Query.
                         fromType(type).
+                        where("_type = ?", type).
                         master().
                         noCache().
                         hasMoreThan(0)) {
@@ -650,6 +656,10 @@ public class DatabaseEnvironment implements ObjectStruct {
     public ObjectType getTypeByName(String name) {
         bootstrapOnce.ensure();
 
+        if (name != null) {
+            name = name.toLowerCase(Locale.ENGLISH);
+        }
+
         TypesCache temporaryTypes = temporaryTypesLocal.get();
         if (temporaryTypes != null) {
             ObjectType type = temporaryTypes.byName.get(name);
@@ -667,6 +677,10 @@ public class DatabaseEnvironment implements ObjectStruct {
      */
     public Set<ObjectType> getTypesByGroup(String group) {
         bootstrapOnce.ensure();
+
+        if (group != null) {
+            group = group.toLowerCase(Locale.ENGLISH);
+        }
 
         TypesCache temporaryTypes = temporaryTypesLocal.get();
         Set<ObjectType> tTypes;
@@ -699,7 +713,7 @@ public class DatabaseEnvironment implements ObjectStruct {
     public ObjectType getTypeByClass(Class<?> objectClass) {
         bootstrapOnce.ensure();
 
-        String className = objectClass.getName();
+        String className = objectClass.getName().toLowerCase(Locale.ENGLISH);
         TypesCache temporaryTypes = temporaryTypesLocal.get();
 
         if (temporaryTypes != null) {

@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /***
  * Class to test Kaltura Storage Item.
- * Update settings using your configuration information and remove the @Ignore annotation to execute this test 
+ * Update settings using your configuration information and remove the @Ignore annotation to execute this test
  * Also add log4j dependency. Updated your POM to add log4j dependency if you are using maven.
  * @author rmadupuru
  */
@@ -56,11 +56,9 @@ public class KalturaStorageItemTest {
             settings.put(KALTURA_PLAYER_KEY_SETTING, "1363445590");
 
             Settings.setOverride(KalturaStorageItem.KALTURA_SETTINGS_PREFIX,settings);
-
-    
             kalturaStorageItem= new KalturaStorageItem();
             kalturaStorageItem.initialize("kaltura", settings);
-              
+
             InputStream input = new URL("http://media3.kicksuite.com/videos/1823608.mp4").openStream();
             Map<String, Object> metadata= new HashMap<String,Object>();
             metadata.put(METADATA_PARAM_ORIGINAL_FILE_NAME,"1823608.mp4");
@@ -78,5 +76,5 @@ public class KalturaStorageItemTest {
             log.error("testVideoUpload failed on KalturaStorageItem.." + e.getMessage(),e);
         }
     }
-    
+
 }

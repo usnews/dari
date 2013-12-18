@@ -11,7 +11,6 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.naming.ldap.LdapContext;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.Servlet;
@@ -166,25 +166,43 @@ public class DebugFilter extends AbstractFilter {
     }
 
     private static boolean authenticate(HttpServletRequest request, HttpServletResponse response) {
-        String realm = ObjectUtils.coalesce(
+        LdapContext context = LdapUtils.createContext();
+        String[] credentials = JspUtils.getBasicCredentials(request);
+
+        if (context != null &&
+                credentials != null &&
+                LdapUtils.authenticate(context, credentials[0], credentials[1])) {
+            return true;
+        }
+
+        String username = ObjectUtils.firstNonNull(
+                Settings.get(String.class, "dari/debugUsername"),
+                Settings.get(String.class, "servlet/debugUsername"));
+
+        String password = ObjectUtils.firstNonNull(
+                Settings.get(String.class, "dari/debugPassword"),
+                Settings.get(String.class, "servlet/debugPassword"));
+
+        if (context == null &&
+                (ObjectUtils.isBlank(username) ||
+                ObjectUtils.isBlank(password))) {
+            if (!Settings.isProduction()) {
+                return true;
+            }
+
+        } else if (credentials != null &&
+                credentials[0].equals(username) &&
+                credentials[1].equals(password)) {
+            return true;
+        }
+
+        String realm = ObjectUtils.firstNonNull(
                 Settings.get(String.class, "dari/debugRealm"),
                 Settings.get(String.class, "servlet/debugRealm"),
                 "Debugging Tool");
 
-        String username = ObjectUtils.coalesce(
-                Settings.get(String.class, "dari/debugUsername"),
-                Settings.get(String.class, "servlet/debugUsername"));
-
-        String password = ObjectUtils.coalesce(
-                Settings.get(String.class, "dari/debugPassword"),
-                Settings.get(String.class, "servlet/debugPassword"));
-
-        return JspUtils.authenticateBasic(
-                request,
-                response,
-                realm,
-                username,
-                password);
+        JspUtils.setBasicAuthenticationHeader(response, realm);
+        return false;
     }
 
     @Override
@@ -290,7 +308,7 @@ public class DebugFilter extends AbstractFilter {
                     writeStart("div", "class", "span6");
                         writeStart("h2").writeHtml("Pings").writeEnd();
 
-                        Map<String, Throwable> errors = new LinkedHashMap<String, Throwable>();
+                        Map<String, Throwable> errors = new CompactMap<String, Throwable>();
                         writeStart("table", "class", "table table-condensed");
                             writeStart("thead");
                                 writeStart("tr");
@@ -524,6 +542,7 @@ public class DebugFilter extends AbstractFilter {
         public void includeStandardStylesheetsAndScripts() throws IOException {
             includeStylesheet("/_resource/bootstrap/css/bootstrap.min.css");
             includeStylesheet("/_resource/codemirror/lib/codemirror.css");
+            includeStylesheet("/_resource/codemirror/addon/dialog/dialog.css");
 
             writeStart("style", "type", "text/css");
                 write("@font-face { font-family: 'AauxNextMedium'; src: url('/_resource/aauxnext-md-webfont.eot'); src: local('☺'), url('/_resource/aauxnext-md-webfont.woff') format('woff'), url('/_resource/aauxnext-md-webfont.ttf') format('truetype'), url('/_resource/aauxnext-md-webfont.svg#webfontfLsPAukW') }");
@@ -537,7 +556,8 @@ public class DebugFilter extends AbstractFilter {
                 write(".popup .content { background-color: white; -moz-border-radius: 5px; -webkit-border-radius: 5px; border-radius: 5px; -moz-box-shadow: 0 0 10px #777; -webkit-box-shadow: 0 0 10px #777; box-shadow: 0 0 10px #777; position: relative; top: 10px; }");
                 write(".popup .content .marker { border-color: transparent transparent white transparent; border-style: solid; border-width: 10px; left: 5px; position: absolute; top: -20px; }");
                 write(".CodeMirror-scroll { height: auto; overflow-x: auto; overflow-y: hidden; width: 100%; }");
-                write(".CodeMirror pre { font-family: Menlo, Monaco, 'Courier New', monospace; font-size: 12px; }");
+                write(".CodeMirror { height: auto; }");
+                write(".CodeMirror pre { font-family: Menlo, Monaco, 'Courier New', monospace; font-size: 12px; line-height: 1.5em;}");
                 write(".CodeMirror .selected { background-color: #FCF8E3; }");
                 write(".CodeMirror .errorLine { background-color: #F2DEDE; }");
                 write(".CodeMirror .errorColumn { background-color: #B94A48; color: white; }");
@@ -552,6 +572,10 @@ public class DebugFilter extends AbstractFilter {
             includeScript("/_resource/jquery/jquery.popup.js");
             includeScript("/_resource/codemirror/lib/codemirror.js");
             includeScript("/_resource/codemirror/mode/clike.js");
+            includeScript("/_resource/codemirror/keymap/vim.js");
+            includeScript("/_resource/codemirror/addon/dialog/dialog.js");
+            includeScript("/_resource/codemirror/addon/search/searchcursor.js");
+            includeScript("/_resource/codemirror/addon/search/search.js");
 
             writeStart("script", "type", "text/javascript");
                 write("$(function() {");

@@ -1,7 +1,6 @@
 package com.psddev.dari.util;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -25,7 +24,7 @@ public class FrameTag extends BodyTagSupport implements DynamicAttributes {
     private String name;
     private boolean lazy;
     private InsertionMode mode;
-    private final Map<String, Object> attributes = new LinkedHashMap<String, Object>();
+    private final Map<String, Object> attributes = new CompactMap<String, Object>();
     private transient String oldName;
 
     public void setName(String name) {

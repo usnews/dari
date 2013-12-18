@@ -4,7 +4,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -55,7 +54,12 @@ abstract class StateValueUtils {
 
             if (id != null) {
                 UUID typeId = ObjectUtils.to(UUID.class, objectMap.get(TYPE_KEY));
-                ObjectType type = database.getEnvironment().getTypeById(typeId);
+                ObjectType type;
+                if (typeId != null) {
+                    type = database.getEnvironment().getTypeById(typeId);
+                } else {
+                    type = database.getEnvironment().getTypeByName(ObjectUtils.to(String.class, objectMap.get(TYPE_KEY)));
+                }
                 if (type == null || type.isAbstract()) {
                     return database.readFirst(Query.from(Object.class).where("_id = ?", id));
                 }
@@ -169,7 +173,7 @@ abstract class StateValueUtils {
                 if ((parentState == null ||
                         !parentState.isResolveInvisible()) &&
                         object != null &&
-                        !ObjectUtils.isBlank(State.getInstance(object).get("dari.visibilities"))) {
+                        !ObjectUtils.isBlank(State.getInstance(object).getRawValue("dari.visibilities"))) {
                     entry.setValue(null);
                 }
             }
@@ -461,6 +465,7 @@ abstract class StateValueUtils {
 
                             valueState.setDatabase(database);
                             valueState.setResolveToReferenceOnly(objectState.isResolveToReferenceOnly());
+                            valueState.setResolveInvisible(objectState.isResolveInvisible());
                             valueState.putAll(valueMap);
 
                             return value;

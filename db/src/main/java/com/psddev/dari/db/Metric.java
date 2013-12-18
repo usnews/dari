@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.Task;
 
 @Metric.Embedded
 public class Metric extends Record {
@@ -57,7 +58,9 @@ public class Metric extends Record {
      */
     private MetricAccess getMetricAccess() {
         if (metricAccess == null) {
-            metricAccess = MetricAccess.Static.getMetricAccess(owner, field);
+            if (getOwner() != null) {
+                metricAccess = MetricAccess.Static.getMetricAccess(getOwner().getDatabase(), getOwner().getType(), field);
+            }
         }
         if (metricAccess == null) {
             throw new RuntimeException ("Metric field " +field.getUniqueName()+" cannot determine SQL database for database " + owner.getDatabase().getName() + " (" + owner.getDatabase().getClass().getName() + "), this Metric object is unusable!");
@@ -207,6 +210,34 @@ public class Metric extends Record {
     }
 
     /**
+     * Returns true if the Metric has no data for the given dimension
+     * between the given {@code start} and {@code end}. Note that {@link #incrementDimensionAt}
+     * does <b>not</b> insert a row where there is none, but {@link #setDimensionAt} does.
+     *
+     * @param dimension May be {@code null}.
+     * @param start If {@code null}, beginning of time.
+     * @param end If {@code null}, end of time.
+     */
+    public boolean isEmptyByDimensionBetween(String dimension, DateTime start, DateTime end) {
+        try {
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            Static.preFetchMetrics(getOwner(), getMetricAccess().getDimensionId(dimension), startTimestamp, endTimestamp);
+            Double metricValue = getMetricAccess().getMetric(getOwner().getId(), dimension, startTimestamp, endTimestamp);
+            return metricValue == null;
+        } catch (SQLException e) {
+            throw new DatabaseException(getMetricAccess().getDatabase(), "Error in MetricAccess.getMetric() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Returns true if the Metric has no data for the default dimension over all time.
+     */
+    public boolean isEmpty() {
+        return isEmptyByDimensionBetween(null, null, null);
+    }
+
+    /**
      * Groups the metric values between the given {@code start} and {@code end}
      * by each dimension.
      *
@@ -282,6 +313,24 @@ public class Metric extends Record {
     }
 
     /**
+     * Resummarize the metric value to a new interval.
+     *
+     * @param interval Can't be {@code null}.
+     * @param dimensionValue If {@code null}, default dimension.
+     * @param start If {@code null}, beginning of time.
+     * @param end If {@code null}, end of time.
+     */
+    public void resummarize(MetricInterval interval, String dimensionValue, DateTime start, DateTime end) {
+        try {
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            getMetricAccess().resummarize(getOwner().getId(), getMetricAccess().getDimensionId(dimensionValue), interval, startTimestamp, endTimestamp);
+        } catch (SQLException e) {
+            throw new DatabaseException(getMetricAccess().getDatabase(), "Error in MetricAccess.resummarize() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
      * Returns the metric value associated with the main ({@code null})
      * dimension between the given {@code start} and {@code end}.
      *
@@ -316,6 +365,30 @@ public class Metric extends Record {
 
         private static final String EXTRA_METRICS_FETCHED_PREFIX = "dari.metric.preFetched.";
 
+        /**
+         * Resummarize all metric values in the given field (all dimensions)
+         * within a date range to a new interval. This submits a Task to be
+         * executed asynchronously.
+         *
+         * @param database Can't be {@code null}.
+         * @param type Can't be {@code null}.
+         * @param field Can't be {@code null}.
+         * @param interval Can't be {@code null}.
+         * @param start If {@code null}, beginning of time.
+         * @param end If {@code null}, end of time.
+         * @param parallel Number of tasks to run in parallel. If {@code null}, 1.
+         *
+         */
+        public static Task submitResummarizeAllBetweenTask(Database database, ObjectType type, ObjectField field, MetricInterval interval, DateTime start, DateTime end, Integer parallel, String executor, String name) {
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            MetricAccess mdb = MetricAccess.Static.getMetricAccess(database, type, field);
+            if (parallel == null || parallel < 1) {
+                parallel = 1;
+            }
+            return mdb.submitResummarizeAllTask(interval, startTimestamp, endTimestamp, parallel, executor, name);
+        }
+
         private static void preFetchMetrics(State state, UUID dimensionId, Long startTimestamp, Long endTimestamp) {
             if (state == null || state.getType() == null) {
                 return;
@@ -329,7 +402,7 @@ public class Metric extends Record {
             fields.addAll(state.getDatabase().getEnvironment().getMetricFields());
             Set<MetricAccess> metricAccesses = new HashSet<MetricAccess>();
             for (ObjectField field : fields) {
-                MetricAccess mdb = MetricAccess.Static.getMetricAccess(state, field);
+                MetricAccess mdb = MetricAccess.Static.getMetricAccess(state.getDatabase(), state.getType(), field);
                 if (mdb != null) {
                     metricAccesses.add(mdb);
                 }
@@ -346,6 +419,15 @@ public class Metric extends Record {
             }
         }
 
+    }
+
+    /**
+     * @deprecated This constructor creates an invalid object and should never be used; it only exists for the benefit of TypeDefinition#newInstance()
+     */
+    @Deprecated
+    public Metric() {
+        this.field = null;
+        this.owner = null;
     }
 
 }
