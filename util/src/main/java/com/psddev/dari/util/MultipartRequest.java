@@ -1,5 +1,4 @@
-package com.psddev.dari.util;
-
+package com.psddev.dari.util; 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,6 +12,7 @@ import java.util.Set;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpServletRequestWrapper;
 
 import org.apache.commons.fileupload.FileItem;
@@ -24,15 +24,22 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 public class MultipartRequest extends HttpServletRequestWrapper {
 
     private final Map<String, List<FileItem>> parameters = new LinkedHashMap<String, List<FileItem>>();
-
+    private static final String ATTRIBUTE_PREFIX = MultipartRequest.class.getName() + ".";
+    private static final String LISTENER_ATTRIBUTE = ATTRIBUTE_PREFIX +"listener";
+    private UploadProgressListener progressListener;
     /** Creates an instance that wraps the given {@code request}. */
     public MultipartRequest(HttpServletRequest request) throws ServletException {
         super(request);
-
         try {
             ServletFileUpload upload = new ServletFileUpload(new DiskFileItemFactory());
             upload.setHeaderEncoding("UTF-8");
-
+            progressListener=new UploadProgressListener();
+            progressListener.setParamNames(Collections.list(request.getParameterNames()));
+            upload.setProgressListener(progressListener);
+            HttpSession session=request.getSession(false);
+            if (session != null ) {
+                 session.setAttribute(LISTENER_ATTRIBUTE,progressListener);
+            }
             @SuppressWarnings("unchecked")
             List<FileItem> items = (List<FileItem>) upload.parseRequest(request);
             for (FileItem item : items) {
@@ -50,6 +57,9 @@ public class MultipartRequest extends HttpServletRequestWrapper {
         }
     }
 
+    public UploadProgressListener getProgressListener() {
+        return progressListener;
+    }
     /** Returns the first file item associated with the given {@code name}. */
     public FileItem getFileItem(String name) {
         List<FileItem> values = parameters.get(name);
@@ -146,4 +156,15 @@ public class MultipartRequest extends HttpServletRequestWrapper {
 
         return valuesList.toArray(new String[valuesList.size()]);
     }
+    /** {@link MultipartRequest} utility methods. */
+    public static final class Static {
+          public static UploadProgressListener getListenerFromSession(HttpServletRequest request) {
+                 HttpSession session=request.getSession(false);
+                 if( session != null) {
+                    return (UploadProgressListener) session.getAttribute(LISTENER_ATTRIBUTE);
+                 }
+                 return null;
+          }
+    }
+
 }

@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.lang.Thread;
+import java.lang.Runnable;
+import java.lang.System;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -223,58 +226,99 @@ public class KalturaStorageItem extends VideoStorageItem {
     public void setMediaEntry(KalturaMediaEntry mediaEntry) {
         this.mediaEntry = mediaEntry;
     }
-    private String  uploadVideo(InputStream fileData,String fileName,long fileSize)  {
+    public KalturaConfiguration getKalturaConfig() {
+        KalturaConfiguration kalturaConfig = new KalturaConfiguration();
+        kalturaConfig.setPartnerId(getPartnerId());
+        kalturaConfig.setSecret(getSecret());
+        kalturaConfig.setAdminSecret(getAdminSecret());
+        kalturaConfig.setEndpoint(getEndPoint());
+        //alturaConfig.setTimeout(getTimeout());
+        return kalturaConfig;
+    }
+
+
+    private String  createVideoSkeletonEntry(String fileName)  {
         try {
-            KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
-            KalturaClient client= new KalturaClient(kalturaConfig);
-            KalturaSessionUtils.startAdminSession(client, kalturaConfig);
-            // Create entry
-            KalturaMediaEntry entry = new KalturaMediaEntry();
-            //Can be enhanced latter to populate the name  from the video object
-            setName(fileName);
-            entry.name =  getName();
-            entry.type = KalturaEntryType.MEDIA_CLIP;
-            entry.mediaType = KalturaMediaType.VIDEO;
-            entry.conversionProfileId=getConversionProfileId();
-            entry = client.getMediaService().add(entry);
-            //assertNotNull(entry);
-            
-            //testIds.add(entry.id);
-            
-            // Create token
-            KalturaUploadToken uploadToken = new KalturaUploadToken();
-            uploadToken.fileName =fileName;
-            //uploadToken.fileName = KalturaTestConfig.UPLOAD_VIDEO;
-            uploadToken.fileSize = fileSize;
-            KalturaUploadToken token = client.getUploadTokenService().add(uploadToken);
-            //assertNotNull(token);
-            
-            // Define content
-            KalturaUploadedFileTokenResource resource = new KalturaUploadedFileTokenResource();
-            resource.token = token.id;
-            entry = client.getMediaService().addContent(entry.id, resource);
-            //assertNotNull(entry);
-        
-            // upload
-            uploadToken = client.getUploadTokenService().upload(token.id, fileData, fileName, fileSize, false);
-            
-            //Once done..close the session 
-            KalturaSessionUtils.closeSession(client);
-            //assertNotNull(uploadToken);
-            LOGGER.info("Value of entry id is:" +entry.id );
-            
-            //After the upload is successful..set kaltura id and path to this URL.
-            //We can add more attributes from Kaltura if needed
-            kalturaId= entry.id;
-            setPath(entry.dataUrl);
-            return kalturaId;
+              KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
+              KalturaClient client= new KalturaClient(kalturaConfig);
+              KalturaSessionUtils.startAdminSession(client, kalturaConfig);
+              // Create entry
+              KalturaMediaEntry entry = new KalturaMediaEntry();
+              //Can be enhanced latter to populate the name  from the video object
+              setName(fileName);
+              entry.name =  getName();
+              entry.type = KalturaEntryType.MEDIA_CLIP;
+              entry.mediaType = KalturaMediaType.VIDEO;
+              entry.conversionProfileId=getConversionProfileId();
+              entry = client.getMediaService().add(entry);
+              //assertNotNull(entry);
+              //Once done..close the session 
+              KalturaSessionUtils.closeSession(client);
+              //assertNotNull(uploadToken);
+              LOGGER.info("Value of entry id is:" +entry.id );
+              
+              //After the upload is successful..set kaltura id and path to this URL.
+              //We can add more attributes from Kaltura if needed
+              kalturaId= entry.id;
+              setPath(entry.dataUrl);
+              return kalturaId;
                 
             } catch (Exception e) {
                 LOGGER.error("Video  Upload Failed to Kaltura :" + e.getMessage(),e);
                 return "";
             }
     }
+    public void  uploadVideo(InputStream fileData,String entryId,String fileName,long fileSize)  {
+        try {
+              long t1=System.currentTimeMillis();
+              //KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
+              KalturaConfiguration kalturaConfig = getKalturaConfig();
+              KalturaClient client= new KalturaClient(kalturaConfig);
+              KalturaSessionUtils.startAdminSession(client, kalturaConfig);
+              
+              // Create token
+              KalturaUploadToken uploadToken = new KalturaUploadToken();
+              uploadToken.fileName =fileName;
+              //uploadToken.fileName = KalturaTestConfig.UPLOAD_VIDEO;
+              uploadToken.fileSize = fileSize;
+              KalturaUploadToken token = client.getUploadTokenService().add(uploadToken);
+              //assertNotNull(token);
+              
+              // Define content
+              KalturaUploadedFileTokenResource resource = new KalturaUploadedFileTokenResource();
+              resource.token = token.id;
+              client.getMediaService().addContent(entryId, resource);
+              //assertNotNull(entry);
+          
+              // upload
+              uploadToken = client.getUploadTokenService().upload(token.id, fileData, fileName, fileSize, false);
+              
+              //Once done..close the session 
+              KalturaSessionUtils.closeSession(client);
+              //assertNotNull(uploadToken);
+              long t2=System.currentTimeMillis();
+              LOGGER.info("Time taken to upload  to Kaltura :" + (t2-t1));
+            } catch (Exception e) {
+                LOGGER.error("Video  Upload Failed to Kaltura :" + e.getMessage(),e);
+            }
+    }
+
     
+    @Override
+    public void save() throws IOException {
+        InputStream data = getData();
+        saveData(data);
+        if (listeners != null) {
+            for (StorageItemListener listener : listeners) {
+                try {
+                    listener.afterSave(this);
+                } catch (Exception error) {
+                    LOGGER.warn(String.format("Can't execute [%s] on [%s]!", listener, this), error);
+                }
+                                                                                                                                         }
+        }
+    }
+    /***
     @Override
     /***
      * Uses originalFilename and content length from metadata
@@ -292,11 +336,15 @@ public class KalturaStorageItem extends VideoStorageItem {
             }
             List<String> contentLengthList=(List<String>)headersMap.get(HTTP_HEADER_CONTENT_LENGTH);
             if(contentLengthList == null) {
-                throw new IllegalArgumentException( HTTP_HEADER_CONTENT_LENGTH + " not set in " + HTTP_HEADERS + " metadata.");
+                throw new IllegalArgumentException( HTTP_HEADER_CONTENT_LENGTH + "not set in" + HTTP_HEADERS + " metadata.");
             }
             long fileSizeBytes=Long.parseLong(contentLengthList.get(0));
-            kalturaId = uploadVideo(data, originalFileName, fileSizeBytes);
-                        status=KalturaEntryStatus.PENDING;
+            kalturaId = createVideoSkeletonEntry(originalFileName);
+            status=KalturaEntryStatus.PENDING;
+            //Start the task to upload video in a diff thread to avoid user wait time
+            KalturaUploadTask kut= new KalturaUploadTask(this,data,kalturaId,originalFileName, fileSizeBytes);
+            TaskExecutor.Static.getDefault().execute(kut);
+
             LOGGER.info("Value of fileName is:" + originalFileName);
             LOGGER.info("Value of fileSize Bytes is:" + fileSizeBytes);
         } catch (Exception e) {

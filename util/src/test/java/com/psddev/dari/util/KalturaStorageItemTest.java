@@ -45,15 +45,18 @@ public class KalturaStorageItemTest {
         try {
             Map<String, Object> settings= new HashMap<String, Object>();
             //Update using using your own settings before running this test
-            settings.put(KALTURA_SECRET_SETTING, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            settings.put(KALTURA_ADMIN_SECRET_SETTING, "xxxxxxxxxxxxxxxxxxxxxxxx");
+            settings.put(KALTURA_SECRET_SETTING, "ab23e0bc394601139ac957da84dffe0a");
+            settings.put(KALTURA_ADMIN_SECRET_SETTING, "1fbae8f359c55fa7f64f28a68ad2e7d0");
             settings.put(KALTURA_END_POINT_SETTING, "http://www.kaltura.com");
-            settings.put(KALTURA_PARTNER_ID_SETTING, "xxxxxx");
+            settings.put(KALTURA_PARTNER_ID_SETTING, "1157562");
             settings.put(KALTURA_CONVERSION_PROFILE_ID_SETTING, "3474302");
             settings.put(KALTURA_SESSION_TIMEOUT_SETTING, "300");
             //Please look at the embed code to identify  these values.
             settings.put(KALTURA_PLAYER_ID_SETTING, 12311262);
             settings.put(KALTURA_PLAYER_KEY_SETTING, "1363445590");
+
+            Settings.setOverride(KalturaStorageItem.KALTURA_SETTINGS_PREFIX,settings);
+
     
             kalturaStorageItem= new KalturaStorageItem();
             kalturaStorageItem.initialize("kaltura", settings);

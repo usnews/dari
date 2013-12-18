@@ -27,7 +27,11 @@ public  class KalturaUploadTask extends Task {
         this.fileSize=fileSize;
     }
     public void doTask() throws IOException {
-        ksi.uploadVideo(fileData, entryId, fileName, fileSize);
+        try{
+           ksi.uploadVideo(fileData, entryId, fileName, fileSize);
+        } finally {
+           fileData.close();
+        }
     }
 
 }
