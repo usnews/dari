@@ -50,7 +50,7 @@ public abstract class AbstractStorageItem implements StorageItem {
     private String contentType;
     private Map<String, Object> metadata;
     private transient InputStream data;
-    private transient List<StorageItemListener> listeners;
+    protected transient List<StorageItemListener> listeners;
 
     /**
      * Returns the base URL that's used to construct the
