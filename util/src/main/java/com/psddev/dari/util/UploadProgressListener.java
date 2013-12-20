@@ -24,26 +24,31 @@ public class UploadProgressListener implements ProgressListener {
         this.paramNames=paramNames;
     }
     public void update(long bytesRead, long contentLength, int itemIndex) {
+        try {
         if (contentLength > -1) {
            contentLengthKnown = true;
         }
         theBytesRead = bytesRead;
         theContentLength = contentLength;
         whichItem = itemIndex;
-        String paramName=paramNames.get(itemIndex);
-        fieldName=getFieldNameUsingParamName(paramName);
-
         long nowNum100Ks = bytesRead / 100000;
         logger.info(bytesRead + " of " + theContentLength + " bytes have been read. Index is:" + itemIndex);
-        if (itemIndex < paramNames.size()) {
-            logger.info("Param Name using index " + paramNames.get(itemIndex));
-        }
+        /*
+        if (itemIndex < paramNames.size()-1) {
+            String paramName=paramNames.get(itemIndex-1);
+            fieldName=getFieldNameUsingParamName(paramName);
+            logger.info("Param Name using index " + paramNames.get(itemIndex-1));
+        }*/ 
         // Only run this code once every 100K
         if (nowNum100Ks > num100Ks) {
              num100Ks = nowNum100Ks;
              if (contentLengthKnown) {
                  percentDone = (int) Math.round(100.00 * bytesRead / contentLength);
               }
+        }
+        logger.info("value of percentage done is:" + percentDone);
+        } catch (Exception e) {
+            logger.error("update method failed" + e);
         }
     }
 
