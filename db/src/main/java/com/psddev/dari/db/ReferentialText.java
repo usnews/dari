@@ -79,13 +79,6 @@ public class ReferentialText extends AbstractList<Object> {
             }
         }
 
-        // Remove editorial markups.
-        if (finalDraft) {
-            body.getElementsByTag("del").remove();
-            body.getElementsByTag("ins").unwrap();
-            body.select("code[data-annotations]").remove();
-        }
-
         // Convert '<p>text</p>' to 'text<br><br>'.
         for (Element p : body.getElementsByTag("p")) {
             if (p.hasText()) {
@@ -174,12 +167,19 @@ public class ReferentialText extends AbstractList<Object> {
             }
         }
 
-        // Convert 'text<br><br>' to '<p>text</p>'.
         Document document = Jsoup.parseBodyFragment(html.toString());
         Element body = document.body();
-        Node lastNode = null;
 
         document.outputSettings().prettyPrint(false);
+
+        // Remove editorial markups.
+        body.getElementsByTag("del").remove();
+        body.getElementsByTag("ins").unwrap();
+        body.getElementsByClass("rte").remove();
+        body.select("code[data-annotations]").remove();
+
+        // Convert 'text<br><br>' to '<p>text</p>'.
+        Node lastNode = null;
 
         for (Element br : body.getElementsByTag("br")) {
             Element previousBr = null;
