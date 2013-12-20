@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class VideoStorageItem extends AbstractStorageItem {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoStorageItem.class);
+    public static final String VIDEO_TRANSCODING_SERVICE_KALTURA = "kaltura";
+
     public static enum TranscodingStatus {
 
         PENDING("Pending"),
@@ -50,6 +52,11 @@ public abstract class VideoStorageItem extends AbstractStorageItem {
         }
 
     };
+
+    public static boolean isDefaultVideoTranscodingProviderKaltura() {
+        if (VIDEO_TRANSCODING_PROVIDER_KALTURA.equals(ObjectUtils.to(String.class,Settings.get(StorageItem.DEFAULT_VIDEO_STORAGE_SETTING)))) return true;
+        return false;
+    }
 
     private List<UUID> videoStorageItemListenerIds;
     private transient List<VideoStorageItemListener> videoStorageItemListeners;
