@@ -53,10 +53,30 @@ public class Sequence extends Record {
          * @param name Can't be blank.
          */
         public static long nextLong(String name, long initialValue) {
-            Sequence s = new Sequence();
-            s.setName(name);
-            s.setValue(initialValue);
-            s.saveUniquely();
+            Sequence s = null;
+
+            while (true) {
+                s = Query.from(Sequence.class).where("name = ?", name).master().noCache().first();
+
+                if (s != null) {
+                    break;
+                }
+
+                s = new Sequence();
+                s.setName(name);
+                s.setValue(initialValue);
+
+                try {
+                    s.saveImmediately();
+                    break;
+
+                } catch (ValidationException error) {
+                    if (s.getState().getErrors(s.getState().getField("name")).isEmpty()) {
+                        throw error;
+                    }
+                }
+            }
+
             return (long) s.next();
         }
     }
