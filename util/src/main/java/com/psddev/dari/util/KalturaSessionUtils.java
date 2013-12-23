@@ -1,13 +1,14 @@
 package com.psddev.dari.util;
 import java.util.Map;
-import java.lang.String;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
 import com.kaltura.client.KalturaConfiguration;
 import com.kaltura.client.enums.KalturaSessionType;
 import com.kaltura.client.services.KalturaSessionService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class which provides static utility methods
@@ -30,6 +31,7 @@ public class KalturaSessionUtils {
     public static void closeSession(KalturaClient client) throws KalturaApiException {
         client.getSessionService().end();
     }
+    
     public static String getKalturaSessionId() {
         try {
             KalturaConfiguration kalturaConfig=getKalturaConfig();

@@ -1,5 +1,4 @@
 package com.psddev.dari.util; 
-import org.apache.commons.fileupload.ProgressListener; 
 /**
 * UploadInfo abstracts information needed to display upload progress to end user 
 */
@@ -19,13 +18,14 @@ public class UploadInfo {
             contentLengthKnown=listener.isContentLengthKnown();
             percentDone=listener.getPercentDone();
             message=listener.getMessage();
-            fieldName=listener.getFieldName();
         }
         public void setMessage(String message) {
             this.message=message;
         }
         public String getMessage() {
-            if (message != null) return message;
+            if (message != null) {
+                return message;
+            }
             if (theContentLength == -1) {
                return "" + theBytesRead + " of Unknown-Total bytes have been read.";
             } else {

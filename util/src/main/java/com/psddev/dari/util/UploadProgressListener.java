@@ -1,18 +1,15 @@
 package com.psddev.dari.util;
-import org.apache.commons.fileupload.ProgressListener;
-import org.apache.commons.fileupload.FileItem;
 import java.util.List;
-import java.lang.StringBuffer;
 
-
+import org.apache.commons.fileupload.ProgressListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 /**
 * Listener which receives notifications about upload progress
 */
 public class UploadProgressListener implements ProgressListener {
-    private static final Logger logger = LoggerFactory.getLogger(UploadProgressListener.class);
-    private long num100Ks = 0;
+    private static final Logger LOGGER = LoggerFactory.getLogger(UploadProgressListener.class);
+    private long num500Ks = 0;
     private long theBytesRead = 0;
     private long theContentLength = -1;
     private int whichItem = 0;
@@ -23,6 +20,7 @@ public class UploadProgressListener implements ProgressListener {
     public void setParamNames(List<String> paramNames) {
         this.paramNames=paramNames;
     }
+    @Override
     public void update(long bytesRead, long contentLength, int itemIndex) {
         try {
         if (contentLength > -1) {
@@ -31,40 +29,22 @@ public class UploadProgressListener implements ProgressListener {
         theBytesRead = bytesRead;
         theContentLength = contentLength;
         whichItem = itemIndex;
-        long nowNum100Ks = bytesRead / 100000;
-        logger.info(bytesRead + " of " + theContentLength + " bytes have been read. Index is:" + itemIndex);
-        /*
-        if (itemIndex < paramNames.size()-1) {
-            String paramName=paramNames.get(itemIndex-1);
-            fieldName=getFieldNameUsingParamName(paramName);
-            logger.info("Param Name using index " + paramNames.get(itemIndex-1));
-        }*/ 
-        // Only run this code once every 100K
-        if (nowNum100Ks > num100Ks) {
-             num100Ks = nowNum100Ks;
+        long nowNum500Ks = bytesRead / 500000;
+        LOGGER.info(bytesRead + " of " + theContentLength + " bytes have been read. Index is:" + itemIndex);
+        // Only run this code once every 500K..we can change it to  1MB
+        if (nowNum500Ks > num500Ks) {
+             num500Ks = nowNum500Ks;
              if (contentLengthKnown) {
                  percentDone = (int) Math.round(100.00 * bytesRead / contentLength);
               }
         }
-        logger.info("value of percentage done is:" + percentDone);
+        LOGGER.info("value of percentage done is:" + percentDone);
         } catch (Exception e) {
-            logger.error("update method failed" + e);
+            LOGGER.error("update method failed" + e);
         }
     }
 
-    private static String getFieldNameUsingParamName(String paramName) {
-        try {
-            //Eliminate the object id prefix
-            String fieldNameWithType=paramName.substring(paramName.indexOf('/') +1 );
-            //Get rid of file suffix
-            return fieldNameWithType.substring(0,fieldNameWithType.lastIndexOf('.'));
-        } catch (Exception e ) {
-            return paramName;
-        }
-    }
-    public String getFieldName() {
-        return fieldName;
-    }
+    
     public String getMessage() {
         if (theContentLength == -1) {
            return new StringBuffer().append(theBytesRead).append(" of Unknown-Total bytes have been read.").toString();
@@ -72,11 +52,11 @@ public class UploadProgressListener implements ProgressListener {
            return new StringBuffer().append(theBytesRead).append( " of ").append( theContentLength).append(" bytes have been read (").append( percentDone).append("% done).").toString();
         }
     }
-    public long getNum100Ks() {
-        return num100Ks;
+    public long getNum500Ks() {
+        return num500Ks;
     }
-    public void setNum100Ks(long num100Ks) {
-        this.num100Ks = num100Ks;
+    public void setNum500Ks(long num500Ks) {
+        this.num500Ks = num500Ks;
     }
     public long getTheBytesRead() {
         return theBytesRead;
