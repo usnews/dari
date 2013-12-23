@@ -1043,4 +1043,19 @@ public class ObjectType extends Record implements ObjectStruct {
 
         public void process(ObjectType type, A annotation);
     }
+    /** {@link ObjectType} utility methods. */
+    public static final class Static {
+        public static boolean hasFieldsOfType(ObjectType objectType, Class fieldType) {
+            try {
+                for (ObjectField field : objectType.getFields()) {
+                    if (fieldType.isAssignableFrom(field.getJavaField(objectType.getObjectClass()).getType()))
+                        return true;
+                }
+                return false;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+    }
+    
 }
