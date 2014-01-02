@@ -1,5 +1,6 @@
 package com.psddev.dari.util;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -14,8 +15,8 @@ import javax.servlet.http.HttpServletResponseWrapper;
  */
 public class CapturingResponse extends HttpServletResponseWrapper {
 
-    private ServletOutputStream outputStream;
-    private StringWriter capture;
+    private ByteArrayServletOutputStream outputStreamCapture;
+    private StringWriter writerCapture;
     private PrintWriter writer;
 
     public CapturingResponse(HttpServletResponse response) {
@@ -24,27 +25,27 @@ public class CapturingResponse extends HttpServletResponseWrapper {
 
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
-        if (writer != null) {
+        if (writerCapture != null) {
             throw new IllegalStateException();
 
         } else {
-            if (outputStream == null) {
-                outputStream = getResponse().getOutputStream();
+            if (outputStreamCapture == null) {
+                outputStreamCapture = new ByteArrayServletOutputStream();
             }
 
-            return outputStream;
+            return outputStreamCapture;
         }
     }
 
     @Override
     public PrintWriter getWriter() {
-        if (outputStream != null) {
+        if (outputStreamCapture != null) {
             throw new IllegalStateException();
 
         } else {
-            if (writer == null) {
-                capture = new StringWriter();
-                writer = new PrintWriter(capture);
+            if (writerCapture == null) {
+                writerCapture = new StringWriter();
+                writer = new PrintWriter(writerCapture);
             }
 
             return writer;
@@ -52,11 +53,35 @@ public class CapturingResponse extends HttpServletResponseWrapper {
     }
 
     /**
-     * Returns the output captured so far.
+     * Returns the output captured so far. If {@link
+     * ServletResponse#getOutputStream} was used to write the output,
+     * always returns an empty string.
      *
      * @return Never {@code null}.
      */
     public String getOutput() {
-        return capture != null ? capture.toString() : "";
+        return writerCapture != null ? writerCapture.toString() : "";
+    }
+
+    /**
+     * Writes the output captured so far to the underlying response.
+     */
+    public void writeOutput() throws IOException {
+        if (outputStreamCapture != null) {
+            getResponse().getOutputStream().write(outputStreamCapture.delegate.toByteArray());
+
+        } else if (writerCapture != null) {
+            getResponse().getWriter().write(writerCapture.toString());
+        }
+    }
+
+    private static class ByteArrayServletOutputStream extends ServletOutputStream {
+
+        private final ByteArrayOutputStream delegate = new ByteArrayOutputStream();
+
+        @Override
+        public void write(int b) {
+            delegate.write(b);
+        }
     }
 }

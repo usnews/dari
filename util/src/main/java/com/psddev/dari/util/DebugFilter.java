@@ -156,7 +156,7 @@ public class DebugFilter extends AbstractFilter {
 
             try {
                 super.doDispatch(request, capturing, chain);
-                response.getWriter().write(capturing.getOutput());
+                capturing.writeOutput();
 
             } catch (Exception error) {
 
