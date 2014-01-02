@@ -1121,8 +1121,8 @@ public abstract class AbstractDatabase<C> implements Database {
             }
         }
 
-        if (hasSaves) {
-            for (State state : saves) {
+        if (hasValidates) {
+            for (State state : validates) {
                 state.setStatus(StateStatus.SAVED);
                 Trigger.AFTER_SAVE.execute(state);
             }
