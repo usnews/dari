@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.beans.BeanInfo;
+import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.beans.SimpleBeanInfo;
 import java.lang.reflect.Method;
@@ -49,6 +50,7 @@ public class DatabaseEnvironment implements ObjectStruct {
                     if (Recordable.class.isAssignableFrom(c)) {
                         TypeDefinition.Static.invalidateAll();
                         refreshTypes();
+                        Introspector.flushCaches();
                         dynamicProperties.reset();
                         break;
                     }
