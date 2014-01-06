@@ -80,6 +80,26 @@ public class FrameFilter extends AbstractFilter {
     }
 
     @Override
+    protected void doError(
+            final HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain chain)
+            throws IOException, ServletException {
+
+        doRequest(request, response, chain);
+    }
+
+    @Override
+    protected void doForward(
+            final HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain chain)
+            throws IOException, ServletException {
+
+        doRequest(request, response, chain);
+    }
+
+    @Override
     protected void doInclude(
             HttpServletRequest request,
             HttpServletResponse response,

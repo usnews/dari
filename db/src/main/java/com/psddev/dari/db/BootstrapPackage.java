@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 
 import org.joda.time.DateTime;
 
@@ -83,6 +85,12 @@ public class BootstrapPackage extends Record {
 
         private Set<String> packages;
 
+        private Set<String> typeMappableGroups;
+
+        private String typeMappableUniqueKey;
+
+        private Set<String> followReferencesFields;
+
         public Set<String> getPackageNames() {
             if (packages == null) packages = new HashSet<String>();
             return packages;
@@ -90,6 +98,36 @@ public class BootstrapPackage extends Record {
 
         public void setPackageNames(Set<String> packages) {
             this.packages = packages;
+        }
+
+        public Set<String> getTypeMappableGroups() {
+            if (typeMappableGroups == null) {
+                typeMappableGroups = new HashSet<String>();
+            }
+            return typeMappableGroups;
+        }
+
+        public void setTypeMappableGroups(Set<String> typeMappableGroups) {
+            this.typeMappableGroups = typeMappableGroups;
+        }
+
+        public String getTypeMappableUniqueKey() {
+            return typeMappableUniqueKey;
+        }
+
+        public void setTypeMappableUniqueKey(String typeMappableUniqueKey) {
+            this.typeMappableUniqueKey = typeMappableUniqueKey;
+        }
+
+        public Set<String> getFollowReferencesFields() {
+            if (followReferencesFields == null) {
+                followReferencesFields = new HashSet<String>();
+            }
+            return followReferencesFields;
+        }
+
+        public void setFollowReferencesFields(Set<String> followReferencesFields) {
+            this.followReferencesFields = followReferencesFields;
         }
 
     }
@@ -101,8 +139,11 @@ public class BootstrapPackage extends Record {
         public static final String PROJECT_HEADER = "Project";
         public static final String DATE_HEADER = "Date";
         public static final String TYPES_HEADER = "Types";
+        public static final String TYPE_MAP_HEADER = "Mapping Types";
         public static final String ROW_COUNT_HEADER = "Row Count";
         public static final String ALL_TYPES_HEADER_VALUE = "ALL";
+
+        private static final int MAX_SEEN_REFERENCE_IDS_SIZE = 100000;
 
         public static BootstrapPackage getPackage(Database database, String name) {
             return getPackagesMap(database).get(name);
@@ -181,6 +222,10 @@ public class BootstrapPackage extends Record {
             for (Map.Entry<ObjectField, ObjectType> entry : checkFields.entrySet()) {
                 ObjectField field = entry.getKey();
                 ObjectType t = entry.getValue();
+                if (field.getParentType() != null &&
+                        field.getParentType().as(TypeData.class).getFollowReferencesFields().contains(field.getInternalName())) {
+                    continue;
+                }
                 if (! allMyTypes.contains(t)) {
                     if (allTypes.contains(t)) {
                         if (! pkg.getTypesInOtherPackages().containsKey(t)) {
@@ -192,10 +237,12 @@ public class BootstrapPackage extends Record {
                             }
                         }
                     }
-                    if (! pkg.getMissingTypes().containsKey(t)) {
-                        pkg.getMissingTypes().put(t, new HashSet<ObjectField>());
+                    if (t.as(TypeData.class).getTypeMappableGroups().isEmpty() || t.as(TypeData.class).getTypeMappableUniqueKey() == null) {
+                        if (! pkg.getMissingTypes().containsKey(t)) {
+                            pkg.getMissingTypes().put(t, new HashSet<ObjectField>());
+                        }
+                        pkg.getMissingTypes().get(t).add(field);
                     }
-                    pkg.getMissingTypes().get(t).add(field);
                 }
             }
         }
@@ -213,68 +260,217 @@ public class BootstrapPackage extends Record {
         }
 
         public static void writeContents(Database database, BootstrapPackage pkg, Set<ObjectType> additionalTypes, Writer writer, String projectName) throws IOException {
+            boolean first = true;
+            boolean needsObjectTypeMap = false;
+            Set<ObjectType> typeMaps = new HashSet<ObjectType>();
+            ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
+            Set<ObjectType> exportTypes = new HashSet<ObjectType>();
+            Query<?> query = Query.fromAll().using(database);
+            Set<ObjectType> allTypeMappableTypes = new HashSet<ObjectType>();
+
+            for (ObjectType type : database.getEnvironment().getTypes()) {
+                if (!type.as(TypeData.class).getTypeMappableGroups().isEmpty() &&
+                        type.as(TypeData.class).getTypeMappableUniqueKey() != null) {
+                    allTypeMappableTypes.add(type);
+                }
+            }
+
+            query.where("_type != ?", objType);
+
+            // Package:
             writer.write(PACKAGE_NAME_HEADER + ": ");
             writer.write(pkg.getName());
-            writer.write("\n");
+            writer.write('\n');
+            // Project:
             writer.write(PROJECT_HEADER + ": ");
             writer.write(projectName);
-            writer.write("\n");
+            writer.write('\n');
+            // Date:
             writer.write(DATE_HEADER + ": ");
             writer.write(new DateTime().toString("yyyy-MM-dd HH:mm:ss z"));
-            writer.write("\n");
-            boolean first;
-            ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
-            Query<?> query = Query.fromAll().using(database);
-            query.where("_type != ?", objType);
+            writer.write('\n');
+
+            // Types:
             writer.write(TYPES_HEADER + ": ");
-            Set<ObjectType> exportTypes = new HashSet<ObjectType>();
             if (pkg.isInit()) {
                 writer.write(ALL_TYPES_HEADER_VALUE);
+                writer.write('\n');
             } else {
-                first = true;
                 exportTypes.addAll(getAllTypes(database, pkg));
                 exportTypes.addAll(getAllTypes(database, additionalTypes));
-                query.where("_type = ?", exportTypes);
-                if (exportTypes.contains(objType)) {
-                    writer.write(objType.getInternalName());
-                    first = false;
+                for (ObjectType typeMappableType : allTypeMappableTypes) {
+                    GETTYPEMAPPABLETYPE: for (ObjectType type : exportTypes) {
+                        for (String group : typeMappableType.as(TypeData.class).getTypeMappableGroups()) {
+                            if (type.getGroups().contains(group)) {
+                                typeMaps.add(typeMappableType);
+                                break GETTYPEMAPPABLETYPE;
+                            }
+                        }
+                    }
                 }
+                GETOBJECTTYPE: for (ObjectType type : exportTypes) {
+                    for (ObjectField field : type.getFields()) {
+                        if (field.getTypes().contains(objType)) {
+                            needsObjectTypeMap = true;
+                            break GETOBJECTTYPE;
+                        }
+                    }
+                }
+
+                query.where("_type = ?", exportTypes);
+
                 if (exportTypes.contains(objType)) {
-                    if (!first) writer.write(","); else first = false;
+                    if (!first) writer.write(','); else first = false;
                     writer.write(objType.getInternalName());
                 }
                 for (ObjectType type : exportTypes) {
                     if (type.equals(objType)) continue;
-                    if (!first) writer.write(","); else first = false;
+                    if (!first) writer.write(','); else first = false;
                     writer.write(type.getInternalName());
                 }
+                writer.write('\n');
+
             }
+
+            // Determine if there are any fields that need references followed
+            Map<UUID, Map<String, ObjectType>> followReferences = new HashMap<UUID, Map<String, ObjectType>>();
+            if (!pkg.isInit()) {
+                for (ObjectType type : exportTypes) {
+                    for (String fieldName : type.as(TypeData.class).getFollowReferencesFields()) {
+                        ObjectField field = type.getField(fieldName);
+                        if (field != null) {
+                            for (ObjectType fieldType : field.getTypes()) {
+                                if (!exportTypes.contains(fieldType)) {
+                                    if (!followReferences.containsKey(type.getId())) {
+                                        followReferences.put(type.getId(), new HashMap<String, ObjectType>());
+                                    }
+                                    followReferences.get(type.getId()).put(fieldName, fieldType);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!typeMaps.isEmpty()) {
+                query.where("_type != ?", typeMaps);
+            }
+
+            // Mapping Types:
+            if (pkg.isInit() || needsObjectTypeMap || !typeMaps.isEmpty()) {
+                first = true;
+                writer.write(TYPE_MAP_HEADER + ": ");
+                if (pkg.isInit() || needsObjectTypeMap) {
+                    writer.write(objType.getInternalName());
+                    writer.write("/internalName");
+                    first = false;
+                }
+                for (ObjectType typeMapType : typeMaps) {
+                    if (!first) {
+                        writer.write(',');
+                    } else {
+                        first = false;
+                    }
+                    writer.write(typeMapType.getInternalName());
+                    writer.write('/');
+                    writer.write(typeMapType.as(TypeData.class).getTypeMappableUniqueKey());
+                }
+                writer.write('\n');
+            }
+
+            // Row Count:
             Long count;
             if (pkg.isInit()) {
                 count = Query.fromAll().using(database).noCache().count();
             } else {
-                count = Query.fromAll().using(database).noCache().where("_type = ?", exportTypes).count();
+                Query<?> countQuery = Query.fromAll().using(database).noCache().where("_type = ?", exportTypes);
+                if (needsObjectTypeMap) {
+                    countQuery.or("_type = ?", objType);
+                }
+                if (!typeMaps.isEmpty()) {
+                    countQuery.or("_type = ?", typeMaps);
+                }
+                count = countQuery.count();
             }
-            writer.write("\n");
             writer.write(ROW_COUNT_HEADER + ": ");
             writer.write(ObjectUtils.to(String.class, count));
-            writer.write("\n\n"); // blank line between headers and data
+            writer.write('\n');
+
+            // blank line between headers and data
+            writer.write('\n');
             writer.flush();
 
-            if (exportTypes.isEmpty() || exportTypes.contains(objType)) {
-                for (ObjectType r : Query.from(ObjectType.class).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
-                    writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
-                    writer.write("\n");
+            // ObjectType records first
+            if (exportTypes.isEmpty() || exportTypes.contains(objType) || needsObjectTypeMap) {
+                for (Object r : Query.fromType(objType).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
+                    writer.write(ObjectUtils.toJson(((Recordable) r).getState().getSimpleValues(true)));
+                    writer.write('\n');
                 }
             }
 
-            for (Object o : query.noCache().resolveToReferenceOnly().iterable(100)) {
-                if (o instanceof Record) {
-                    Record r = (Record) o;
-                    writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
-                    writer.write("\n");
+            // Then other mapping types
+            for (ObjectType typeMapType : typeMaps) {
+                for (Object r : Query.fromType(typeMapType).using(database).noCache().resolveToReferenceOnly().iterable(100)) {
+                    writer.write(ObjectUtils.toJson(((Recordable) r).getState().getSimpleValues(true)));
+                    writer.write('\n');
                 }
             }
+
+            // Then everything else
+            UUID lastTypeId = null;
+            Set<UUID> seenIds = new HashSet<UUID>();
+            for (Object o : query.noCache().resolveToReferenceOnly().iterable(100)) {
+                if (o instanceof Recordable) {
+                    Recordable r = (Recordable) o;
+                    writer.write(ObjectUtils.toJson(r.getState().getSimpleValues(true)));
+                    writer.write('\n');
+                    if (!pkg.isInit()) {
+                        if (lastTypeId == null || !lastTypeId.equals(r.getState().getTypeId())) {
+                            seenIds.clear();
+                        } else if (seenIds.size() > MAX_SEEN_REFERENCE_IDS_SIZE) {
+                            seenIds.clear();
+                        }
+                        lastTypeId = r.getState().getTypeId();
+                        Map<String, ObjectType> followReferencesFieldMap;
+                        if ((followReferencesFieldMap = followReferences.get(r.getState().getTypeId())) != null) {
+                            for (Map.Entry<String, ObjectType> entry : followReferencesFieldMap.entrySet()) {
+                                Object reference = r.getState().getRawValue(entry.getKey());
+                                Set<UUID> referenceIds = new HashSet<UUID>();
+                                if (reference instanceof Collection) {
+                                    for (Object referenceObj : ((Collection<?>) reference)) {
+                                        if (referenceObj instanceof Recordable) {
+                                            UUID referenceUUID = ObjectUtils.to(UUID.class, ((Recordable) referenceObj).getState().getId());
+                                            if (referenceUUID != null) {
+                                                if (!seenIds.contains(referenceUUID)) {
+                                                    referenceIds.add(referenceUUID);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (reference instanceof Recordable) {
+                                    UUID referenceUUID = ObjectUtils.to(UUID.class, ((Recordable) reference).getState().getId());
+                                    if (referenceUUID != null) {
+                                        if (!seenIds.contains(referenceUUID)) {
+                                            referenceIds.add(referenceUUID);
+                                        }
+                                    }
+                                }
+                                if (!referenceIds.isEmpty()) {
+                                    for (Object ref : Query.fromType(entry.getValue()).noCache().using(database).where("_id = ?", referenceIds).selectAll()) {
+                                        if (ref instanceof Recordable) {
+                                            Recordable refr = (Recordable) ref;
+                                            seenIds.add(refr.getState().getId());
+                                            writer.write(ObjectUtils.toJson(refr.getState().getSimpleValues(true)));
+                                            writer.write('\n');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             writer.flush();
         }
 

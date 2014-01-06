@@ -21,11 +21,16 @@ public class FrameTag extends BodyTagSupport implements DynamicAttributes {
         prepend;
     }
 
+    private String tagName;
     private String name;
     private boolean lazy;
     private InsertionMode mode;
     private final Map<String, Object> attributes = new CompactMap<String, Object>();
     private transient String oldName;
+
+    public void setTagName(String tagName) {
+        this.tagName = tagName;
+    }
 
     public void setName(String name) {
         this.name = name;
@@ -69,7 +74,7 @@ public class FrameTag extends BodyTagSupport implements DynamicAttributes {
             }
         }
 
-        writer.writeStart("div",
+        writer.writeStart(ObjectUtils.firstNonNull(tagName, "div"),
                 attributes,
                 "class", fullClassName.toString(),
                 "name", name,

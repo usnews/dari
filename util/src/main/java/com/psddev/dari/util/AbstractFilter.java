@@ -530,6 +530,8 @@ public abstract class AbstractFilter implements Filter {
     }
 
     // Runs all dependencies first.
+    private static final ThreadLocal<Integer> TO_STRING_DEPTH = new ThreadLocal<Integer>();
+
     private class DependencyFilterChain implements FilterChain {
 
         private final List<Filter> dependencies;
@@ -541,8 +543,6 @@ public abstract class AbstractFilter implements Filter {
             this.index = -1;
             this.finalChain = finalChain;
         }
-
-        // --- FilterChain support ---
 
         @Override
         public void doFilter(
@@ -573,6 +573,51 @@ public abstract class AbstractFilter implements Filter {
 
             } else {
                 finalChain.doFilter(request, response);
+            }
+        }
+
+        @Override
+        public String toString() {
+            Integer depth = TO_STRING_DEPTH.get();
+
+            if (depth == null) {
+                depth = 0;
+            }
+
+            try {
+                TO_STRING_DEPTH.set(depth + 1);
+
+                StringBuilder string = new StringBuilder();
+
+                string.append(getClass().getName());
+                string.append('[');
+
+                for (Filter d : dependencies) {
+                    string.append("\n\t");
+                    indent(string, depth);
+                    string.append(d);
+                    string.append(" \u2192 ");
+                }
+
+                string.append("\n\t");
+                indent(string, depth);
+                string.append(finalChain);
+                string.append(" ]");
+                return string.toString();
+
+            } finally {
+                if (depth == 0) {
+                    TO_STRING_DEPTH.remove();
+
+                } else {
+                    TO_STRING_DEPTH.set(depth);
+                }
+            }
+        }
+
+        private void indent(StringBuilder string, Integer depth) {
+            for (int i = 0; i < depth; ++ i) {
+                string.append('\t');
             }
         }
     }

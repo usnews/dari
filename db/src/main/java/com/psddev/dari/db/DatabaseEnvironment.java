@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.beans.BeanInfo;
+import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.beans.SimpleBeanInfo;
 import java.lang.reflect.Method;
@@ -49,6 +50,7 @@ public class DatabaseEnvironment implements ObjectStruct {
                     if (Recordable.class.isAssignableFrom(c)) {
                         TypeDefinition.Static.invalidateAll();
                         refreshTypes();
+                        Introspector.flushCaches();
                         dynamicProperties.reset();
                         break;
                     }
@@ -291,9 +293,16 @@ public class DatabaseEnvironment implements ObjectStruct {
                     }
 
                     Set<Class<? extends Recordable>> objectClasses = ClassFinder.Static.findClasses(Recordable.class);
+
                     for (Iterator<Class<? extends Recordable>> i = objectClasses.iterator(); i.hasNext(); ) {
                         Class<? extends Recordable> objectClass = i.next();
-                        if (objectClass.isAnonymousClass()) {
+
+                        try {
+                            if (objectClass.isAnonymousClass()) {
+                                i.remove();
+                            }
+
+                        } catch (IncompatibleClassChangeError error) {
                             i.remove();
                         }
                     }
@@ -757,7 +766,17 @@ public class DatabaseEnvironment implements ObjectStruct {
         }
 
         Object object = TypeDefinition.getInstance(objectClass).newInstance();
-        State state = State.getInstance(object);
+        State state;
+
+        try {
+            state = State.getInstance(object);
+
+        } catch (IllegalArgumentException error) {
+            object = TypeDefinition.getInstance(Record.class).newInstance();
+            state = State.getInstance(object);
+            hasClass = false;
+        }
+
         state.setDatabase(getDatabase());
         state.setId(id);
         state.setTypeId(typeId);

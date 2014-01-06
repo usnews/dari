@@ -281,6 +281,23 @@ public class BootstrapDebugServlet extends HttpServlet {
                                     writeEnd();
                                 }
                             writeEnd();
+
+                            writeStart("p").writeStart("h4").writeHtml("Follow Reference Types: ").writeEnd();
+                                first = true;
+                                Set<ObjectType> followReferenceTypes = new HashSet<ObjectType>();
+                                for (ObjectType type : types) {
+                                    for (String fieldName : type.as(BootstrapPackage.TypeData.class).getFollowReferencesFields()) {
+                                        followReferenceTypes.addAll(type.getField(fieldName).getTypes());
+                                    }
+                                }
+                                for (ObjectType type : followReferenceTypes) {
+                                    if (!first) writeHtml(", "); else first = false;
+                                    writeStart("abbr", "style", "text-transform: none; font-weight: bold;", "title", type.getInternalName());
+                                    writeHtml(type.getDisplayName());
+                                    writeEnd();
+                                }
+                            writeEnd();
+
                             if (pkg.getName().equals(pkgName) && ! additionalTypes.isEmpty()) {
                                 writeStart("p").writeStart("h4").writeHtml("Included Dependencies: ").writeEnd();
                                     first = true;

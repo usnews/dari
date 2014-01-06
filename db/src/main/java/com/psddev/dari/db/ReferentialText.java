@@ -79,12 +79,6 @@ public class ReferentialText extends AbstractList<Object> {
             }
         }
 
-        // Remove editorial markups.
-        if (finalDraft) {
-            body.getElementsByTag("del").remove();
-            body.getElementsByTag("ins").unwrap();
-        }
-
         // Convert '<p>text</p>' to 'text<br><br>'.
         for (Element p : body.getElementsByTag("p")) {
             if (p.hasText()) {
@@ -158,7 +152,7 @@ public class ReferentialText extends AbstractList<Object> {
 
         // Concatenate the items so that it can be fed into an HTML parser.
         StringBuilder html = new StringBuilder();
-        String boundary = UUID.randomUUID().toString();
+        String boundary = "<div>" + UUID.randomUUID().toString() + "</div>";
         List<Reference> references = new ArrayList<Reference>();
 
         for (Object item : this) {
@@ -173,11 +167,19 @@ public class ReferentialText extends AbstractList<Object> {
             }
         }
 
-        // Convert 'text<br><br>' to '<p>text</p>'.
         Document document = Jsoup.parseBodyFragment(html.toString());
         Element body = document.body();
 
         document.outputSettings().prettyPrint(false);
+
+        // Remove editorial markups.
+        body.getElementsByTag("del").remove();
+        body.getElementsByTag("ins").unwrap();
+        body.getElementsByClass("rte").remove();
+        body.select("code[data-annotations]").remove();
+
+        // Convert 'text<br><br>' to '<p>text</p>'.
+        Node lastNode = null;
 
         for (Element br : body.getElementsByTag("br")) {
             Element previousBr = null;
@@ -220,6 +222,7 @@ public class ReferentialText extends AbstractList<Object> {
             }
 
             Element paragraph = new Element(P_TAG, "");
+            lastNode = paragraph;
 
             for (Node child : paragraphChildren) {
                 child.remove();
@@ -229,6 +232,42 @@ public class ReferentialText extends AbstractList<Object> {
             br.before(paragraph);
             br.remove();
             previousBr.remove();
+        }
+
+        if (lastNode != null) {
+            for (Node next = lastNode;
+                    (next = next.nextSibling()) != null;
+                    lastNode = next) {
+                if (next instanceof TextNode &&
+                        !((TextNode) next).isBlank()) {
+                    break;
+                }
+            }
+        }
+
+        if (lastNode != null) {
+            List<Node> paragraphChildren = new ArrayList<Node>();
+
+            for (Node next = lastNode;
+                    (next = next.nextSibling()) != null;
+                    ) {
+                if (next instanceof Element &&
+                        ((Element) next).isBlock()) {
+                    break;
+
+                } else {
+                    paragraphChildren.add(next);
+                }
+            }
+
+            Element paragraph = new Element(P_TAG, "");
+
+            for (Node child : paragraphChildren) {
+                child.remove();
+                paragraph.appendChild(child.clone());
+            }
+
+            lastNode.after(paragraph);
         }
 
         // Remove editorial markups.
