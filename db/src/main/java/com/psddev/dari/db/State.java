@@ -19,6 +19,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ConversionException;
 import com.psddev.dari.util.Converter;
@@ -37,6 +40,8 @@ public class State implements Map<String, Object> {
     public static final String ID_KEY = "_id";
     public static final String TYPE_KEY = "_type";
     public static final String LABEL_KEY = "_label";
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
 
     /**
      * {@linkplain Query#getOptions Query option} that contains the object
@@ -1224,6 +1229,106 @@ public class State implements Map<String, Object> {
             copyRawValuesToJavaFields(object);
         }
         return object;
+    }
+
+    /**
+     * Fires the given trigger on all objects (the original and the
+     * modifications) associated with this state.
+     *
+     * @param trigger Can't be {@code null}.
+     */
+    @SuppressWarnings("unchecked")
+    public void fireTrigger(Trigger trigger) {
+
+        // Global modifications.
+        for (ObjectType modType : getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
+            if (modType.isAbstract()) {
+                continue;
+            }
+
+            Class<?> modClass = modType.getObjectClass();
+
+            if (modClass != null &&
+                    Modification.class.isAssignableFrom(modClass) &&
+                    Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class)) {
+                fireModificationTrigger(trigger, modClass);
+            }
+        }
+
+        ObjectType type = getType();
+
+        if (type == null ||
+                type.isAbstract()) {
+            return;
+        }
+
+        // Type-specific modifications.
+        TYPE_CHANGE: while (true) {
+            for (String modClassName : type.getModificationClassNames()) {
+                Class<?> modClass = ObjectUtils.getClassByName(modClassName);
+
+                if (modClass != null) {
+                    fireModificationTrigger(trigger, modClass);
+
+                    ObjectType newType = getType();
+
+                    if (!type.equals(newType)) {
+                        type = newType;
+                        continue TYPE_CHANGE;
+                    }
+                }
+            }
+
+            break;
+        }
+
+        // Embedded objects.
+        for (ObjectField field : type.getFields()) {
+            fireValueTrigger(trigger, get(field.getInternalName()), field.isEmbedded());
+        }
+    }
+
+    private void fireModificationTrigger(Trigger trigger, Class<?> modClass) {
+        Object modObject;
+
+        try {
+            modObject = as(modClass);
+
+        } catch (RuntimeException ex) {
+            return;
+        }
+
+        LOGGER.debug(
+                "Firing trigger [{}] from [{}] on [{}]",
+                new Object[] { trigger, modClass.getName(), State.getInstance(modObject) });
+
+        trigger.execute(modObject);
+    }
+
+    private void fireValueTrigger(Trigger trigger, Object value, boolean embedded) {
+        if (value instanceof Map) {
+            value = ((Map<?, ?>) value).values();
+        }
+
+        if (value instanceof Iterable) {
+            for (Object item : (Iterable<?>) value) {
+                fireValueTrigger(trigger, item, embedded);
+            }
+
+        } else if (value instanceof Recordable) {
+            State valueState = ((Recordable) value).getState();
+
+            if (embedded) {
+                valueState.fireTrigger(trigger);
+
+            } else {
+                ObjectType valueType = valueState.getType();
+
+                if (valueType != null && valueType.isEmbedded()) {
+                    valueState.fireTrigger(trigger);
+                }
+            }
+        }
     }
 
     /**

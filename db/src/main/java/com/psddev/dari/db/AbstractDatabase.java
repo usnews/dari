@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -741,172 +740,61 @@ public abstract class AbstractDatabase<C> implements Database {
         return writesQueue != null ? writesQueue.peekLast() : null;
     }
 
-    private enum Trigger {
+    private static class BeforeSaveTrigger extends TriggerOnce {
 
-        BEFORE_SAVE("beforeSave") {
-            @Override
-            protected void doExecute(Record record) {
-                record.beforeSave();
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record) {
+                ((Record) object).beforeSave();
             }
-        },
+        }
+    };
 
-        AFTER_SAVE("afterSave") {
-            @Override
-            protected void doExecute(Record record) {
+    private static class AfterSaveTrigger extends TriggerOnce {
+
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record) {
+                Record record = (Record) object;
+
                 try {
                     record.afterSave();
+
                 } catch (RuntimeException error) {
                     LOGGER.warn(
                             String.format("Couldn't run afterSave on [%s]", record.getId()),
                             error);
                 }
             }
-        },
+        }
+    };
 
-        BEFORE_DELETE("beforeDelete") {
-            @Override
-            protected void doExecute(Record record) {
-                record.beforeDelete();
+    private static class BeforeDeleteTrigger extends TriggerOnce {
+
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record) {
+                ((Record) object).beforeDelete();
             }
-        },
+        }
+    };
 
-        AFTER_DELETE("afterDelete") {
-            @Override
-            protected void doExecute(Record record) {
+    private static class AfterDeleteTrigger extends TriggerOnce {
+
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record) {
+                Record record = (Record) object;
+
                 try {
                     record.afterDelete();
+
                 } catch (RuntimeException error) {
                     LOGGER.warn("Couldn't run afterDelete on [{}]", record.getId());
                 }
             }
-        };
-
-        private final String name;
-        private final String extraName;
-
-        private Trigger(String name) {
-            this.name = name;
-            this.extraName = TRIGGER_EXTRA_PREFIX + name;
         }
-
-        protected abstract void doExecute(Record record);
-
-        @SuppressWarnings("unchecked")
-        public final void execute(State state) {
-
-            // Global modifications.
-            for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
-                if (modType.isAbstract()) {
-                    continue;
-                }
-
-                Class<?> modClass = modType.getObjectClass();
-
-                if (modClass != null &&
-                        Modification.class.isAssignableFrom(modClass) &&
-                        Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class)) {
-                    executeForModification(state, modClass);
-                }
-            }
-
-            ObjectType type = state.getType();
-
-            if (type == null ||
-                    type.isAbstract()) {
-                return;
-            }
-
-            // Type-specific modifications.
-            TYPE_CHANGE: while (true) {
-                for (String modClassName : type.getModificationClassNames()) {
-                    Class<?> modClass = ObjectUtils.getClassByName(modClassName);
-
-                    if (modClass != null) {
-                        executeForModification(state, modClass);
-
-                        ObjectType newType = state.getType();
-
-                        if (!type.equals(newType)) {
-                            type = newType;
-                            continue TYPE_CHANGE;
-                        }
-                    }
-                }
-
-                break;
-            }
-
-            // Embedded objects.
-            for (ObjectField field : type.getFields()) {
-                executeForValue(state.get(field.getInternalName()), field.isEmbedded());
-            }
-        }
-
-        private void executeForModification(State state, Class<?> modClass) {
-            Object modObject;
-
-            try {
-                modObject = state.as(modClass);
-
-                if (!(modObject instanceof Record)) {
-                    return;
-                }
-
-            } catch (RuntimeException ex) {
-                return;
-            }
-
-            Record modRecord = (Record) modObject;
-            State modState = modRecord.getState();
-            Map<String, Object> extras = modState.getExtras();
-            @SuppressWarnings("unchecked")
-            Set<Class<?>> triggers = (Set<Class<?>>) extras.get(extraName);
-
-            if (triggers == null) {
-                triggers = new HashSet<Class<?>>();
-                extras.put(extraName, triggers);
-            }
-
-            if (triggers.contains(modClass)) {
-                LOGGER.debug(
-                        "Already triggered {} from [{}] on [{}]",
-                        new Object[] { name, modClass.getName(), modState.getId() });
-
-            } else {
-                LOGGER.debug(
-                        "Triggering {} from [{}] on [{}]",
-                        new Object[] { name, modClass.getName(), modState.getId() });
-                triggers.add(modClass);
-                doExecute(modRecord);
-            }
-        }
-
-        private void executeForValue(Object value, boolean embedded) {
-            if (value instanceof Map) {
-                value = ((Map<?, ?>) value).values();
-            }
-
-            if (value instanceof Iterable) {
-                for (Object item : (Iterable<?>) value) {
-                    executeForValue(item, embedded);
-                }
-
-            } else if (value instanceof Recordable) {
-                State valueState = ((Recordable) value).getState();
-
-                if (embedded) {
-                    execute(valueState);
-
-                } else {
-                    ObjectType valueType = valueState.getType();
-
-                    if (valueType != null && valueType.isEmbedded()) {
-                        execute(valueState);
-                    }
-                }
-            }
-        }
-    }
+    };
 
     @Override
     public final void save(State state) {
@@ -920,7 +808,7 @@ public abstract class AbstractDatabase<C> implements Database {
                     type.getLabel()));
         }
 
-        Trigger.BEFORE_SAVE.execute(state);
+        state.fireTrigger(new BeforeSaveTrigger());
 
         Writes writes = getCurrentWrites();
 
@@ -982,9 +870,10 @@ public abstract class AbstractDatabase<C> implements Database {
 
     @Override
     public final void delete(State state) {
-        Trigger.BEFORE_DELETE.execute(state);
+        state.fireTrigger(new BeforeDeleteTrigger());
 
         Writes writes = getCurrentWrites();
+
         if (writes != null) {
             writes.addToDeletes(state);
 
@@ -1124,15 +1013,36 @@ public abstract class AbstractDatabase<C> implements Database {
         if (hasValidates) {
             for (State state : validates) {
                 state.setStatus(StateStatus.SAVED);
-                Trigger.AFTER_SAVE.execute(state);
+                state.fireTrigger(new AfterSaveTrigger());
             }
         }
 
         if (hasDeletes) {
             for (State state : deletes) {
                 state.setStatus(StateStatus.DELETED);
-                Trigger.AFTER_DELETE.execute(state);
+                state.fireTrigger(new AfterDeleteTrigger());
             }
+        }
+    }
+
+    private static class OnDuplicateTrigger extends TriggerOnce {
+
+        private final ObjectIndex index;
+        private boolean corrected;
+
+        public OnDuplicateTrigger(ObjectIndex index) {
+            this.index = index;
+        }
+
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record) {
+                corrected = ((Record) object).onDuplicate(index) || corrected;
+            }
+        }
+
+        public boolean isCorrected() {
+            return corrected;
         }
     }
 
@@ -1227,7 +1137,11 @@ public abstract class AbstractDatabase<C> implements Database {
                                 }
                             }
 
-                            if (triggerOnDuplicate(state, index)) {
+                            OnDuplicateTrigger trigger = new OnDuplicateTrigger(index);
+
+                            state.fireTrigger(trigger);
+
+                            if (trigger.isCorrected()) {
                                 retry = true;
                                 continue RETRY;
                             }
@@ -1261,63 +1175,6 @@ public abstract class AbstractDatabase<C> implements Database {
             }
             return locks;
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private boolean triggerOnDuplicate(State state, ObjectIndex index) {
-        ObjectType type = state.getType();
-
-        if (type == null) {
-            return false;
-        }
-
-        // Global modifications.
-        for (ObjectType modType : state.getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
-            Class<?> modClass = modType.getObjectClass();
-
-            if (modClass != null &&
-                    Modification.class.isAssignableFrom(modClass) &&
-                    Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class) &&
-                    triggerOnDuplicateForModification(state, modClass, index)) {
-                return true;
-            }
-        }
-
-        // Type-specific modifications.
-        for (String modClassName : type.getModificationClassNames()) {
-            Class<?> modClass = ObjectUtils.getClassByName(modClassName);
-
-            if (modClass != null &&
-                    triggerOnDuplicateForModification(state, modClass, index)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean triggerOnDuplicateForModification(State state, Class<?> modClass, ObjectIndex index) {
-        Object modObject;
-
-        try {
-            modObject = state.as(modClass);
-
-            if (!(modObject instanceof Record)) {
-                return false;
-            }
-
-        } catch (RuntimeException ex) {
-            return false;
-        }
-
-        Record modRecord = (Record) modObject;
-        State modState = modRecord.getState();
-
-        LOGGER.debug(
-                "Triggering onDuplicate from [{}] on [{}]",
-                new Object[] { name, modClass.getName(), modState.getId() });
-
-        return modRecord.onDuplicate(index);
     }
 
     /**
