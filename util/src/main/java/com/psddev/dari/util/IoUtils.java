@@ -249,10 +249,14 @@ public final class IoUtils {
      * @param url Can't be {@code null}.
      * @return Never {@code null}.
      */
-    public static String toString(URL url) throws IOException {
+    public static String toString(URL url, int millis) throws IOException {
         URLConnection connection = url.openConnection();
-        InputStream input = connection.getInputStream();
+        if (millis > 0) {
+            connection.setConnectTimeout(millis);
+            connection.setReadTimeout(millis);
+        }
 
+        InputStream input = connection.getInputStream();
         try {
             String encoding = connection.getContentEncoding();
             Charset charset;
@@ -273,6 +277,10 @@ public final class IoUtils {
         } finally {
             closeQuietly(input);
         }
+    }
+
+    public static String toString(URL url) throws IOException {
+        return toString(url, -1);
     }
 
     /**
