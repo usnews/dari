@@ -247,6 +247,7 @@ public final class IoUtils {
      * isn't provided, uses {@link StringUtils#UTF_8} instead.
      *
      * @param url Can't be {@code null}.
+     * @param millis Connection and read timeouts in milliseconds. -1 to disable timeouts.
      * @return Never {@code null}.
      */
     public static String toString(URL url, int millis) throws IOException {
@@ -279,6 +280,14 @@ public final class IoUtils {
         }
     }
 
+    /**
+     * Reads all bytes from the given {@code url} and converts them
+     * into a string using the response content encoding. If the encoding
+     * isn't provided, uses {@link StringUtils#UTF_8} instead.
+     *
+     * @param url Can't be {@code null}.
+     * @return Never {@code null}.
+     */
     public static String toString(URL url) throws IOException {
         return toString(url, -1);
     }
