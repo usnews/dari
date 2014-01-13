@@ -2,10 +2,7 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -233,6 +230,70 @@ public class HtmlGrid {
             paths.add(0, path);
         }
 
+        public static void addRemoteStyleSheet(ServletContext context, HttpServletRequest request, String remoteUrl) {
+
+            @SuppressWarnings("unchecked")
+            List<String> requestPaths = (List<String>) request.getAttribute(GRID_PATHS_ATTRIBUTE);
+
+            @SuppressWarnings("unchecked")
+            List<String> contextPaths = (List<String>) context.getAttribute(GRID_PATHS_ATTRIBUTE);
+
+            try {
+
+                URI remoteUri = new URI(remoteUrl);
+                List<String> externalPaths = null;
+
+                if(remoteUri.isAbsolute()) {
+
+                    URL url = remoteUri.toURL();
+                    String urlStr = url.toString();
+
+                    externalPaths = new ArrayList<String>();
+
+                    // ensure that local paths are populated first
+                    if(contextPaths == null) {
+                        contextPaths = findGridPaths(context);
+                    }
+
+                    // populate ServletContext cache if empty
+                    if(context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + urlStr) == null) {
+
+                        findGridPathsRemote(context, url, externalPaths, ".less");
+                        findGridPathsRemote(context, url, externalPaths, ".css");
+
+                    } else if(urlStr.endsWith(".less") || urlStr.endsWith(".css")) {
+
+                        externalPaths.add(urlStr);
+                    }
+
+                    // add to list of ServletContext paths if necessary (non-prod)
+                    if(!contextPaths.contains(urlStr)) {
+                        contextPaths.add(urlStr);
+                    }
+
+                    if(requestPaths == null) {
+                        requestPaths = new ArrayList<String>();
+                        request.setAttribute(GRID_PATHS_ATTRIBUTE, requestPaths);
+                    }
+                }
+
+                if(externalPaths != null) {
+                    for(String externalPath : externalPaths) {
+                        if(!requestPaths.contains(externalPath)) {
+                            requestPaths.add(0, externalPath);
+                        }
+                    }
+                }
+
+            } catch (MalformedURLException e) {
+                // ignore
+            } catch (IOException e) {
+                // ignore
+            } catch (URISyntaxException e) {
+                // ignore
+            }
+        }
+
         /**
          * Adds the given {@code grid} definition and associates it with the
          * given {@code selector} so that it's valid for use in the given
@@ -261,35 +322,6 @@ public class HtmlGrid {
             @SuppressWarnings("unchecked")
             List<String> usedPaths = request != null ? (List<String>) request.getAttribute(GRID_PATHS_ATTRIBUTE) : null;
             List<String> gridPaths = findGridPaths(context);
-
-            List<String> externalPaths = null;
-            if(usedPaths != null) {
-
-                for(String addedPath : usedPaths) {
-                    try {
-                        URI addedUri = new URI(addedPath);
-
-                        if(addedUri.isAbsolute()) {
-
-                            if(externalPaths == null) {
-                                externalPaths = new ArrayList<String>();
-                            }
-                            // always add absolute URLs regardless of production setting
-                            findGridPathsRemote(context, addedUri.toURL(), externalPaths);
-                        }
-                    } catch (URISyntaxException e) {
-                        // ignore
-                    }
-                }
-            }
-
-            if(externalPaths != null) {
-                for(String externalPath : externalPaths) {
-                    if(!gridPaths.contains(externalPath)) {
-                        gridPaths.add(0, externalPath);
-                    }
-                }
-            }
 
             return findGrids(context, request, usedPaths == null || usedPaths.isEmpty() ? gridPaths : usedPaths);
         }
@@ -466,14 +498,19 @@ public class HtmlGrid {
         private static void findGridPathsRemote(
                 ServletContext context,
                 URL url,
-                List<String> gridPaths) throws IOException {
+                List<String> gridPaths,
+                String suffix) throws IOException {
 
             if(url == null) {
                 return;
             }
 
-            URLConnection cssConnection = url.openConnection();
-            parseGridStyles(context, url.toString(), gridPaths, cssConnection);
+            String urlStr = url.toString();
+
+            if(urlStr.endsWith(suffix)) {
+                URLConnection cssConnection = url.openConnection();
+                parseGridStyles(context, urlStr, gridPaths, cssConnection);
+            }
         }
 
         private static void findGridPathsNamed(
