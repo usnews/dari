@@ -5,8 +5,9 @@ import java.util.Map;
 import javax.servlet.ServletRequest;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.TagSupport;
+import javax.servlet.jsp.tagext.TryCatchFinally;
 
-public class LocalTag extends TagSupport {
+public class LocalTag extends TagSupport implements TryCatchFinally {
 
     private static final long serialVersionUID = 1L;
 
@@ -26,8 +27,7 @@ public class LocalTag extends TagSupport {
 
     @Override
     public int doStartTag() throws JspException {
-        oldAttributes.clear();
-
+        doFinally();
         return EVAL_BODY_INCLUDE;
     }
 
@@ -40,5 +40,15 @@ public class LocalTag extends TagSupport {
         }
 
         return EVAL_PAGE;
+    }
+
+    @Override
+    public void doCatch(Throwable error) throws Throwable {
+        throw error;
+    }
+
+    @Override
+    public void doFinally() {
+        oldAttributes.clear();
     }
 }
