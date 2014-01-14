@@ -2,7 +2,11 @@ package com.psddev.dari.util;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.*;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -230,7 +234,14 @@ public class HtmlGrid {
             paths.add(0, path);
         }
 
-        public static void addRemoteStyleSheet(ServletContext context, HttpServletRequest request, String remoteUrl) {
+        /**
+         * @deprecated Temporary. Do not use.
+         */
+        @Deprecated
+        public static void addRemoteStyleSheet(
+                ServletContext context,
+                HttpServletRequest request,
+                String path) {
 
             @SuppressWarnings("unchecked")
             List<String> requestPaths = (List<String>) request.getAttribute(GRID_PATHS_ATTRIBUTE);
@@ -239,58 +250,52 @@ public class HtmlGrid {
             List<String> contextPaths = (List<String>) context.getAttribute(GRID_PATHS_ATTRIBUTE);
 
             try {
-
-                URI remoteUri = new URI(remoteUrl);
+                URI pathUri = new URI(path);
                 List<String> externalPaths = null;
 
-                if(remoteUri.isAbsolute()) {
-
-                    URL url = remoteUri.toURL();
-                    String urlStr = url.toString();
-
+                if (pathUri.isAbsolute()) {
+                    URL pathUrl = pathUri.toURL();
                     externalPaths = new ArrayList<String>();
 
-                    // ensure that local paths are populated first
-                    if(contextPaths == null) {
+                    // Ensure that local paths are populated first.
+                    if (contextPaths == null) {
                         contextPaths = findGridPaths(context);
                     }
 
-                    // populate ServletContext cache if empty
-                    if(context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + urlStr) == null) {
+                    // Populate ServletContext cache if empty.
+                    if (context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + path) == null) {
+                        findGridPathsRemote(context, pathUrl, externalPaths, ".less");
+                        findGridPathsRemote(context, pathUrl, externalPaths, ".css");
 
-                        findGridPathsRemote(context, url, externalPaths, ".less");
-                        findGridPathsRemote(context, url, externalPaths, ".css");
-
-                    } else if(urlStr.endsWith(".less") || urlStr.endsWith(".css")) {
-
-                        externalPaths.add(urlStr);
+                    } else if (path.endsWith(".less") || path.endsWith(".css")) {
+                        externalPaths.add(path);
                     }
 
-                    // add to list of ServletContext paths if necessary (non-prod)
-                    if(!contextPaths.contains(urlStr)) {
-                        contextPaths.add(urlStr);
+                    // Add to list of ServletContext paths if necessary (non-prod).
+                    if (!contextPaths.contains(path)) {
+                        contextPaths.add(path);
                     }
 
-                    if(requestPaths == null) {
+                    if (requestPaths == null) {
                         requestPaths = new ArrayList<String>();
                         request.setAttribute(GRID_PATHS_ATTRIBUTE, requestPaths);
                     }
                 }
 
-                if(externalPaths != null) {
-                    for(String externalPath : externalPaths) {
-                        if(!requestPaths.contains(externalPath)) {
+                if (externalPaths != null) {
+                    for (String externalPath : externalPaths) {
+                        if (!requestPaths.contains(externalPath)) {
                             requestPaths.add(0, externalPath);
                         }
                     }
                 }
 
             } catch (MalformedURLException e) {
-                // ignore
+                // Ignore.
             } catch (IOException e) {
-                // ignore
+                // Ignore.
             } catch (URISyntaxException e) {
-                // ignore
+                // Ignore.
             }
         }
 
@@ -351,14 +356,41 @@ public class HtmlGrid {
             return gridPaths;
         }
 
-        private static void parseGridStyles(ServletContext context,
-                                            String path,
-                                            List<String> gridPaths,
-                                            URLConnection cssConnection) throws IOException {
+        private static void findGridPathsNamed(
+                ServletContext context,
+                String path,
+                List<String> gridPaths,
+                String suffix)
+                throws IOException {
+
+            Set<String> children = CodeUtils.getResourcePaths(context, path);
+
+            if (children == null) {
+                return;
+            }
+
+            for (String child : children) {
+                if (child.endsWith("/")) {
+                    findGridPathsNamed(context, child, gridPaths, suffix);
+
+                } else if (child.endsWith(suffix)) {
+                    URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
+
+                    parseGridCss(context, child, gridPaths, cssConnection);
+                }
+            }
+        }
+
+        private static void parseGridCss(
+                ServletContext context,
+                String path,
+                List<String> gridPaths,
+                URLConnection cssConnection)
+                throws IOException {
 
             String modifiedAttr = CSS_MODIFIED_ATTRIBUTE_PREFIX + path;
-
             InputStream cssInput = cssConnection.getInputStream();
+
             gridPaths.add(path);
 
             try {
@@ -499,43 +531,19 @@ public class HtmlGrid {
                 ServletContext context,
                 URL url,
                 List<String> gridPaths,
-                String suffix) throws IOException {
+                String suffix)
+                throws IOException {
 
-            if(url == null) {
+            if (url == null) {
                 return;
             }
 
             String urlStr = url.toString();
 
-            if(urlStr.endsWith(suffix)) {
+            if (urlStr.endsWith(suffix)) {
                 URLConnection cssConnection = url.openConnection();
-                parseGridStyles(context, urlStr, gridPaths, cssConnection);
-            }
-        }
 
-        private static void findGridPathsNamed(
-                ServletContext context,
-                String path,
-                List<String> gridPaths,
-                String suffix)
-                throws IOException {
-
-            Set<String> children = CodeUtils.getResourcePaths(context, path);
-
-            if (children == null) {
-                return;
-            }
-
-            for (String child : children) {
-                if (child.endsWith("/")) {
-                    findGridPathsNamed(context, child, gridPaths, suffix);
-
-                } else if (child.endsWith(suffix)) {
-
-                    URLConnection cssConnection = CodeUtils.getResource(context, child).openConnection();
-
-                    parseGridStyles(context, child, gridPaths, cssConnection);
-                }
+                parseGridCss(context, urlStr, gridPaths, cssConnection);
             }
         }
 
