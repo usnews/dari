@@ -263,12 +263,13 @@ public class HtmlGrid {
                     }
 
                     // Populate ServletContext cache if empty.
-                    if (context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + path) == null) {
-                        findGridPathsRemote(context, pathUrl, externalPaths, ".less");
-                        findGridPathsRemote(context, pathUrl, externalPaths, ".css");
+                    if (path.endsWith(".less") || path.endsWith(".css")) {
+                        if (context.getAttribute(GRIDS_ATTRIBUTE_PREFIX + path) == null) {
+                            parseGridCss(context, path, externalPaths, pathUrl.openConnection());
 
-                    } else if (path.endsWith(".less") || path.endsWith(".css")) {
-                        externalPaths.add(path);
+                        } else {
+                            externalPaths.add(path);
+                        }
                     }
 
                     // Add to list of ServletContext paths if necessary (non-prod).
@@ -524,26 +525,6 @@ public class HtmlGrid {
 
             } finally {
                 cssInput.close();
-            }
-        }
-
-        private static void findGridPathsRemote(
-                ServletContext context,
-                URL url,
-                List<String> gridPaths,
-                String suffix)
-                throws IOException {
-
-            if (url == null) {
-                return;
-            }
-
-            String urlStr = url.toString();
-
-            if (urlStr.endsWith(suffix)) {
-                URLConnection cssConnection = url.openConnection();
-
-                parseGridCss(context, urlStr, gridPaths, cssConnection);
             }
         }
 
