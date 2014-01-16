@@ -375,8 +375,8 @@ public class DimsImageEditor extends AbstractImageEditor {
                 }
 
                 String imagePath = imageUrl.getPath();
-                if (imagePath.toLowerCase(Locale.ENGLISH).endsWith(".tif") ||
-                    imagePath.toLowerCase(Locale.ENGLISH).endsWith(".tiff")) {
+
+                if ("image/tiff".equals(ObjectUtils.getContentType(imagePath))) {
                     addCommand(new FormatCommand(ImageFormat.png));
                 }
 
