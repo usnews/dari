@@ -55,7 +55,7 @@ public class ReferentialText extends AbstractList<Object> {
      *
      * @param html If {@code null}, does nothing.
      */
-    public void addHtml(String html, boolean finalDraft) {
+    public void addHtml(String html) {
         if (html == null) {
             return;
         }
@@ -149,7 +149,7 @@ public class ReferentialText extends AbstractList<Object> {
      * @param html If {@code null}, creates an empty instance.
      */
     public ReferentialText(String html, boolean finalDraft) {
-        addHtml(html, finalDraft);
+        addHtml(html);
     }
 
     /**
