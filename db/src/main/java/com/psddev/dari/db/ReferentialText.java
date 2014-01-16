@@ -50,11 +50,12 @@ public class ReferentialText extends AbstractList<Object> {
     }
 
     /**
-     * Creates an instance from the given {@code html}.
+     * Parses the given {@code html} and adds all HTML strings and references
+     * found within.
      *
-     * @param html If {@code null}, creates an empty instance.
+     * @param html If {@code null}, does nothing.
      */
-    public ReferentialText(String html, boolean finalDraft) {
+    public void addHtml(String html, boolean finalDraft) {
         if (html == null) {
             return;
         }
@@ -140,6 +141,15 @@ public class ReferentialText extends AbstractList<Object> {
         }
 
         addByBoundary(this, cleaned.toString(), boundary, references);
+    }
+
+    /**
+     * Creates an instance from the given {@code html}.
+     *
+     * @param html If {@code null}, creates an empty instance.
+     */
+    public ReferentialText(String html, boolean finalDraft) {
+        addHtml(html, finalDraft);
     }
 
     /**
