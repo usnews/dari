@@ -89,6 +89,8 @@ public class ObjectType extends Record implements ObjectStruct {
     @InternalName("java.assignableClasses")
     private Set<String> assignableClassNames;
 
+    private Boolean hasAfterCreate;
+
     private transient Boolean isLazyLoaded;
 
     @SuppressWarnings("deprecation")
@@ -726,6 +728,10 @@ public class ObjectType extends Record implements ObjectStruct {
         this.assignableClassNames = assignableClassNames;
     }
 
+    public boolean hasAfterCreate() {
+        return Boolean.TRUE.equals(hasAfterCreate);
+    }
+
     public boolean isLazyLoaded() {
         if (isLazyLoaded == null) {
             isLazyLoaded = getObjectClass() == null ? false :
@@ -906,6 +912,14 @@ public class ObjectType extends Record implements ObjectStruct {
         if (Modification.class.isAssignableFrom(modificationClass) &&
                 Modifier.isAbstract(modificationClass.getModifiers())) {
             return;
+        }
+
+        try {
+            if (modificationClass.getDeclaredMethod("afterCreate") != null) {
+                hasAfterCreate = Boolean.TRUE;
+            }
+        } catch (NoClassDefFoundError error) {
+        } catch (NoSuchMethodException error) {
         }
 
         getModificationClassNames().add(modificationClass.getName());

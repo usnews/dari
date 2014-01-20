@@ -25,6 +25,29 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
      * through reflection when necessary.
      */
     protected Record() {
+        State state = getState();
+        ObjectType type = state.getType();
+
+        if (type != null && type.hasAfterCreate()) {
+            state.fireTrigger(new AfterCreateTrigger());
+        }
+    }
+
+    private static class AfterCreateTrigger extends TriggerOnce {
+
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record) {
+                ((Record) object).afterCreate();
+            }
+        }
+    }
+
+    /**
+     * Triggers right after this record is created. Default implementation
+     * of this method doesn't do anything.
+     */
+    protected void afterCreate() {
     }
 
     /**
