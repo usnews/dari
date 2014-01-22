@@ -928,6 +928,9 @@ public class SqlVendor {
                 } catch (SQLException error) {
                     if ("42000".equals(error.getSQLState())) {
                         hasUdfGetFields = false;
+                    } else {
+                        LOGGER.error("Exception when checking for dari_get_fields()", error);
+                        hasUdfGetFields = false;
                     }
 
                 } finally {
@@ -978,6 +981,9 @@ public class SqlVendor {
                     hasSTMethod = true;
                 } catch (SQLException error) {
                     if ("42000".equals(error.getSQLState())) {
+                        hasSTMethod = false;
+                    } else {
+                        LOGGER.error("Exception when checking for ST_Contains()", error);
                         hasSTMethod = false;
                     }
                 } finally {
@@ -1113,6 +1119,9 @@ public class SqlVendor {
                 } catch (SQLException error) {
                     if ("42000".equals(error.getSQLState())) {
                         hasUdfIncrementMetric = false;
+                    } else {
+                        LOGGER.error("Exception when checking for dari_increment_metric()", error);
+                        hasUdfIncrementMetric = false;
                     }
 
                 } finally {
@@ -1120,7 +1129,7 @@ public class SqlVendor {
                 }
             }
 
-            if (hasUdfIncrementMetric) {
+            if (Boolean.TRUE.equals(hasUdfIncrementMetric)) {
                 // dari_increment_metric() does NOT shift the decimal place for us.
                 long adjustedAmount = (long) (amount * MetricAccess.AMOUNT_DECIMAL_SHIFT);
                 sql.append("dari_increment_metric(");
