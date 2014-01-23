@@ -215,7 +215,7 @@ public class PredicateParser {
                 tokenBuilder.append(c);
                 for (++ i; i < length; ++ i) {
                     c = predicateChars[i];
-                    if (")],".indexOf(c) > -1) {
+                    if ("),".indexOf(c) > -1) {
                         -- i;
                         break;
                     } else if (Character.isWhitespace(c)) {
