@@ -96,6 +96,10 @@ public final class Password {
     public boolean check(String string) {
         String[] dataParts = parseData();
 
+        if (dataParts == null) {
+            return false;
+        }
+
         String algorithm = dataParts[0];
         String salt = dataParts[1];
         String hash = dataParts[2];
@@ -134,6 +138,10 @@ public final class Password {
     /* Decomposes the password data and returns an array of size 3 containing
      * the algorithm, salt, and hash respectively. */
     private String[] parseData() {
+        if (data == null) {
+            return null;
+        }
+
         String algorithm = "SHA-1";
         String salt = "";
         String hash = data;
