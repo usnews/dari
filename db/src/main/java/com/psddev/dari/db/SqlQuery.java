@@ -1883,7 +1883,8 @@ class SqlQuery {
                 needsIsNotNull = false;
                 isHaving = true;
 
-            } else if (Query.ANY_KEY.equals(queryKey)) {
+            } else if (Query.ANY_KEY.equals(queryKey) ||
+                    Query.LABEL_KEY.equals(queryKey)) {
                 throw new UnsupportedIndexException(database, queryKey);
 
             } else if (database.hasInRowIndex() && index.isShortConstant()) {

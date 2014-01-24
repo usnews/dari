@@ -1408,6 +1408,17 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             document.setField(ALL_FIELD, allBuilder.toString());
 
+            SolrField labelField = schema.get().getField(ObjectField.TEXT_TYPE);
+            String label = state.getLabel().trim().toLowerCase(Locale.ENGLISH);
+
+            for (String prefix : labelField.addPrefixes) {
+                document.addField(prefix + Query.LABEL_KEY, label);
+            }
+
+            for (String prefix : labelField.setPrefixes) {
+                document.setField(prefix + Query.LABEL_KEY, label);
+            }
+
             if (tenant != null) {
                 document.setField(TENANT_FIELD, tenant);
             }

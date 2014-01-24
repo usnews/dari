@@ -119,6 +119,7 @@ public class Query<E> extends Record {
     public static final String DIMENSION_KEY = "_dimension";
     public static final String COUNT_KEY = "_count";
     public static final String ANY_KEY = "_any";
+    public static final String LABEL_KEY = "_label";
     public static final String METRIC_DATE_ATTRIBUTE = "date";
     public static final String METRIC_DIMENSION_ATTRIBUTE = "dimension";
 
@@ -887,6 +888,14 @@ public class Query<E> extends Record {
         public static final MappedKey COUNT = new SpecialMappedKey(ObjectField.NUMBER_TYPE);
         public static final MappedKey ANY = new SpecialMappedKey(ObjectField.TEXT_TYPE);
 
+        public static final MappedKey LABEL = new SpecialMappedKey(ObjectField.TEXT_TYPE) {
+
+            @Override
+            public String getIndexKey(ObjectIndex index) {
+                return LABEL_KEY;
+            }
+        };
+
         public String getIndexKey(ObjectIndex index);
 
         public String getInternalType();
@@ -918,6 +927,7 @@ public class Query<E> extends Record {
         m.put(DIMENSION_KEY, MappedKey.DIMENSION);
         m.put(COUNT_KEY, MappedKey.COUNT);
         m.put(ANY_KEY, MappedKey.ANY);
+        m.put(LABEL_KEY, MappedKey.LABEL);
         SPECIAL_MAPPED_KEYS = m;
     }
 
