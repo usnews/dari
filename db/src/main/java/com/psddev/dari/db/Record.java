@@ -13,6 +13,7 @@ import java.util.UUID;
 import com.psddev.dari.util.HtmlObject;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.SettingsException;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
 
@@ -26,10 +27,17 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
      */
     protected Record() {
         State state = getState();
-        ObjectType type = state.getType();
+        ObjectType type;
 
-        if (type != null && type.hasAfterCreate()) {
-            state.fireTrigger(new AfterCreateTrigger());
+        try {
+            type = state.getType();
+
+            if (type != null && type.hasAfterCreate()) {
+                state.fireTrigger(new AfterCreateTrigger());
+            }
+
+        } catch (SettingsException error) {
+            // Ignore the error caused by non-configured default database.
         }
     }
 
