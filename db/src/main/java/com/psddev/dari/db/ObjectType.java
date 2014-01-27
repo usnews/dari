@@ -912,7 +912,7 @@ public class ObjectType extends Record implements ObjectStruct {
 
         try {
             if (modificationClass.getDeclaredMethod("afterCreate") != null) {
-                Static.HAS_AFTER_CREATE.put(modificationClass, Boolean.TRUE);
+                Static.HAS_AFTER_CREATE.put(getObjectClass(), Boolean.TRUE);
             }
         } catch (NoClassDefFoundError error) {
         } catch (NoSuchMethodException error) {
