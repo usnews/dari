@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,8 +90,6 @@ public class ObjectType extends Record implements ObjectStruct {
     @DisplayName("Java Assignable Classes")
     @InternalName("java.assignableClasses")
     private Set<String> assignableClassNames;
-
-    private Boolean hasAfterCreate;
 
     private transient Boolean isLazyLoaded;
 
@@ -728,10 +728,6 @@ public class ObjectType extends Record implements ObjectStruct {
         this.assignableClassNames = assignableClassNames;
     }
 
-    public boolean hasAfterCreate() {
-        return Boolean.TRUE.equals(hasAfterCreate);
-    }
-
     public boolean isLazyLoaded() {
         if (isLazyLoaded == null) {
             isLazyLoaded = getObjectClass() == null ? false :
@@ -916,7 +912,7 @@ public class ObjectType extends Record implements ObjectStruct {
 
         try {
             if (modificationClass.getDeclaredMethod("afterCreate") != null) {
-                hasAfterCreate = Boolean.TRUE;
+                Static.HAS_AFTER_CREATE.put(modificationClass, Boolean.TRUE);
             }
         } catch (NoClassDefFoundError error) {
         } catch (NoSuchMethodException error) {
@@ -1056,5 +1052,22 @@ public class ObjectType extends Record implements ObjectStruct {
     public static interface AnnotationProcessor<A extends Annotation> {
 
         public void process(ObjectType type, A annotation);
+    }
+
+    /**
+     * {@link ObjectType} utility methods.
+     */
+    public static class Static {
+
+        protected static final ConcurrentMap<Class<?>, Boolean> HAS_AFTER_CREATE = new ConcurrentHashMap<Class<?>, Boolean>();
+
+        /**
+         * Returns {@code true} if the given {@code objectClass} or any of
+         * the associated modification classes overrides the
+         * {@link Record#afterCreate} method.
+         */
+        public static boolean hasAfterCreate(Class<?> objectClass) {
+            return Boolean.TRUE.equals(HAS_AFTER_CREATE.get(objectClass));
+        }
     }
 }

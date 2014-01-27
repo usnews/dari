@@ -26,14 +26,9 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
      * through reflection when necessary.
      */
     protected Record() {
-        State state = getState();
-        ObjectType type;
-
         try {
-            type = state.getType();
-
-            if (type != null && type.hasAfterCreate()) {
-                state.fireTrigger(new AfterCreateTrigger());
+            if (ObjectType.Static.hasAfterCreate(getClass())) {
+                getState().fireTrigger(new AfterCreateTrigger());
             }
 
         } catch (SettingsException error) {
