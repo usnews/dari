@@ -49,9 +49,9 @@ public class WebResourceOverrideFilter extends AbstractFilter {
 
                 @Override
                 protected Map<String, Copier> update() {
-                    try {
-                        Database.Static.overrideDefault(Database.Static.getDefaultOriginal());
+                    Database.Static.overrideDefault(Database.Static.getDefaultOriginal());
 
+                    try {
                         Date cacheUpdate = getUpdateDate();
 
                         if (cacheUpdate == null ||
