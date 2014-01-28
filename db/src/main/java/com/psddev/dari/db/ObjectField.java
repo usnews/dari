@@ -521,9 +521,22 @@ public class ObjectField extends Record {
             return new ArrayList<Object>();
 
         } else {
+            ObjectType type = types.iterator().next();
             Query<Object> query = Query.
-                    fromType(types.iterator().next()).
+                    fromType(type).
                     where(getJunctionField() + " = ?", state.getId());
+
+            if (state.isResolveInvisible()) {
+                Set<String> comparisonKeys = new HashSet<String>();
+                DatabaseEnvironment environment = Database.Static.getDefault().getEnvironment();
+
+                addVisibilityFields(comparisonKeys, environment);
+                addVisibilityFields(comparisonKeys, type);
+
+                for (String key : comparisonKeys) {
+                    query.and(key + " = missing or " + key + " = true");
+                }
+            }
 
             String junctionPositionField = getJunctionPositionField();
 
@@ -532,6 +545,24 @@ public class ObjectField extends Record {
             }
 
             return query.selectAll();
+        }
+    }
+
+    private void addVisibilityFields(Set<String> comparisonKeys, ObjectStruct struct) {
+        if (struct == null) {
+            return;
+        }
+
+        for (ObjectIndex index : struct.getIndexes()) {
+            if (index.isVisibility()) {
+                for (String fieldName : index.getFields()) {
+                    ObjectField field = struct.getField(fieldName);
+
+                    if (field != null) {
+                        comparisonKeys.add(field.getUniqueName());
+                    }
+                }
+            }
         }
     }
 
