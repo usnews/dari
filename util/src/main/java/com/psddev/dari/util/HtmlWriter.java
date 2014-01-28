@@ -378,25 +378,25 @@ public class HtmlWriter extends Writer {
      * Writes CSS common to all grids.
      */
     public HtmlWriter writeCommonGridCss() throws IOException {
-        writeCss(".dari-grid-area",
+        writeCss("._da",
                 "-moz-box-sizing", "content-box",
                 "-webkit-box-sizing", "content-box",
                 "box-sizing", "content-box");
 
-        writeCss(".dari-grid-adj",
+        writeCss("._dj",
                 "float", "left");
 
-        writeCss(".dari-grid-adj-px:before",
+        writeCss("._dj-px:before",
                 "content", "'" + GRID_PADDING + "'",
                 "display", "block",
                 "height", 0,
                 "overflow", "hidden",
                 "visibility", "hidden");
 
-        writeCss(".dari-grid-mw",
+        writeCss("._dw",
                 "height", 0);
 
-        writeCss(".dari-grid-mh",
+        writeCss("._dh",
                 "width", 0);
 
         if (isGridDebug()) {
@@ -406,7 +406,7 @@ public class HtmlWriter extends Writer {
             writeCss(".dari-grid-debug:before",
                     "background-color", "rgba(0, 0, 0, 0.3)",
                     "color", "black",
-                    "content", "attr(data-grid-selector) ' / ' attr(data-grid-area)",
+                    "content", "attr(data-grid-selector) ' / ' attr(_da)",
                     "display", "block",
                     "font-family", "'Andale Mono', 'Lucida Console', monospace",
                     "font-size", "14px",
@@ -445,13 +445,13 @@ public class HtmlWriter extends Writer {
             writeRaw(cssSuffix);
         }
 
-        writeCss(selector + " > .dari-grid-area[data-grid-area]",
+        writeCss(selector + " > ._da[_da]",
                 "display", "none");
         writeRaw(cssSuffix);
 
         for (Area area : createAreas(grid).values()) {
-            String selectorPrefix = selector + " > .dari-grid-area";
-            String selectorSuffix = "[data-grid-area=\"" + area.name + "\"]";
+            String selectorPrefix = selector + " > ._da";
+            String selectorSuffix = "[_da=\"" + area.name + "\"]";
 
             writeCss(selectorPrefix + selectorSuffix,
                     "clear", area.clearLeft ? "left" : null,
@@ -465,7 +465,7 @@ public class HtmlWriter extends Writer {
             for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
                 String unit = entry.getKey();
                 Adjustment adjustment = entry.getValue();
-                selectorPrefix += " > .dari-grid-adj-" + unit;
+                selectorPrefix += " > ._dj-" + unit;
 
                 writeCss(selectorPrefix + selectorSuffix,
                         "height", adjustment.height != null ? adjustment.height : "auto",
@@ -483,13 +483,13 @@ public class HtmlWriter extends Writer {
             for (String unit : new String[] { "em", "fr", "pt", "px", "%" }) {
                 CssUnit width = widths.get(unit);
 
-                writeCss(selectorPrefix + " .dari-grid-mw-" + unit + selectorSuffix,
+                writeCss(selectorPrefix + " ._dw-" + unit + selectorSuffix,
                         "padding-left", width != null ? width : 0);
                 writeRaw(cssSuffix);
             }
 
             for (CssUnit height : area.height.getAll()) {
-                writeCss(selectorPrefix + " .dari-grid-mh-" + height.getUnit() + selectorSuffix,
+                writeCss(selectorPrefix + " ._dh-" + height.getUnit() + selectorSuffix,
                         "padding-top", height);
                 writeRaw(cssSuffix);
             }
@@ -614,9 +614,9 @@ public class HtmlWriter extends Writer {
                         write("$.each(grids, function(selector, areas) {");
                             write("$(selector).each(function() {");
                                 write("var $layout = $(this),");
-                                        write("$children = $layout.find('> .dari-grid-area'),");
+                                        write("$children = $layout.find('> ._da'),");
                                         write("expected = areas.join(', '),");
-                                        write("current = $.map($children, function(area) { return $(area).attr('data-grid-area'); }).join(', '),");
+                                        write("current = $.map($children, function(area) { return $(area).attr('_da'); }).join(', '),");
                                         write("$clear;");
 
                                 write("if (expected === current) { return; }");
@@ -624,7 +624,7 @@ public class HtmlWriter extends Writer {
                                 logJavaScript("'Rearranging [' + selector + '] from [' + current + '] to [' + expected + ']'");
 
                                 write("$.each(areas, function(index, area) {");
-                                    write("var $child = $children.filter('[data-grid-area=\"' + area + '\"]');");
+                                    write("var $child = $children.filter('[_da=\"' + area + '\"]');");
                                     write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
                                 write("});");
 
@@ -675,8 +675,9 @@ public class HtmlWriter extends Writer {
             // left 30000px so that it's off-screen as not to overlap
             // other elements that come before.
             writeStart("div",
-                    "class", "dari-grid-area",
-                    "data-grid-area", areaName);
+                    "class", "dari-grid-area _da",
+                    "data-grid-area", areaName,
+                    "_da", areaName);
 
                 int adjustments = 0;
 
@@ -684,15 +685,17 @@ public class HtmlWriter extends Writer {
                     ++ adjustments;
 
                     writeStart("div",
-                            "class", "dari-grid-adj dari-grid-adj-" + unit,
-                            "data-grid-area", areaName);
+                            "class", "dari-grid-adj _dj dari-grid-adj-" + unit + " _dj-" + unit,
+                            "data-grid-area", areaName,
+                            "_da", areaName);
                 }
 
                 if (debug) {
                     writeStart("div",
                             "class", "dari-grid-debug",
                             "data-grid-selector", grid.getSelector(),
-                            "data-grid-area", areaName);
+                            "data-grid-area", areaName,
+                            "_da", areaName);
                 }
 
                 // Minimum width with multiple units.
@@ -705,8 +708,9 @@ public class HtmlWriter extends Writer {
                         if (!"fr".equals(unit)) {
                             ++ i;
                             writeStart("div",
-                                    "class", "dari-grid-mw dari-grid-mw-" + unit,
-                                    "data-grid-area", areaName);
+                                    "class", "dari-grid-mw _dw dari-grid-mw-" + unit + " _dw-" + unit,
+                                    "data-grid-area", areaName,
+                                    "_da", areaName);
                         }
                     }
 
@@ -726,8 +730,9 @@ public class HtmlWriter extends Writer {
                     for (CssUnit row : area.height.getAll()) {
                         ++ i;
                         writeStart("div",
-                                "class", "dari-grid-mh dari-grid-mh-" + row.getUnit(),
-                                "data-grid-area", areaName);
+                                "class", "dari-grid-mh _dh dari-grid-mh-" + row.getUnit() + " _dh-" + row.getUnit(),
+                                "data-grid-area", areaName,
+                                "_da", areaName);
                     }
 
                     for (; i > 0; -- i) {
