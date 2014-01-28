@@ -1,9 +1,7 @@
 package com.psddev.dari.util;
 
 import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLEncoder;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -304,13 +302,13 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         private List<Command> commands;
         private final StorageItem item;
-        private URL imageUrl;
+        private URI imageUrl;
 
-        public void setImageUrl(URL imageUrl) {
+        public void setImageUrl(URI imageUrl) {
             this.imageUrl = imageUrl;
         }
 
-        public DimsUrl(StorageItem item) throws MalformedURLException {
+        public DimsUrl(StorageItem item) throws MalformedURLException, URISyntaxException {
             this.item = item;
 
             String url = item.getPublicUrl();
@@ -337,13 +335,13 @@ public class DimsImageEditor extends AbstractImageEditor {
                     int httpAt = url.indexOf("http", 1);
                     commandsString = url.substring(commandsOffset, httpAt);
 
-                    imageUrl = new URL(url.substring(httpAt, url.length()));
+                    imageUrl = new URI(url.substring(httpAt, url.length()));
 
                 } else {
                     int questionAt = url.indexOf("?");
                     commandsString = url.substring(commandsOffset, questionAt);
 
-                    imageUrl = new URL(StringUtils.getQueryParameterValue(url, "url"));
+                    imageUrl = new URI(StringUtils.getQueryParameterValue(url, "url"));
                 }
 
                 String[] parts = commandsString.split("/");
@@ -367,7 +365,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                 // need to decode the url because DIMS expects a non encoded URL
                 // and will take care of encoding it before it fetches the image
                 url = StringUtils.decodeUri(url);
-                imageUrl = new URL(url);
+                imageUrl = new URI(url);
 
                 // Add some commands by default based on the editor's preferences
                 if (DimsImageEditor.this.isPreserveMetadata()) {
