@@ -302,19 +302,23 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         private List<Command> commands;
         private final StorageItem item;
-        private URI imageUrl;
+        private URL imageUrl;
 
-        public void setImageUrl(URI imageUrl) {
+        public void setImageUrl(URL imageUrl) {
             this.imageUrl = imageUrl;
         }
 
-        public DimsUrl(StorageItem item) throws MalformedURLException, URISyntaxException {
+        public DimsUrl(StorageItem item) throws MalformedURLException {
             this.item = item;
 
             String url = item.getPublicUrl();
             LOGGER.trace("Creating new DIMS URL from [" + url + "]");
             if (url == null) {
                 throw new MalformedURLException("Cannot create DIMS URL for item [" + item + "] with url [null]");
+            }
+
+            if (url.startsWith("/")) {
+                url = "file:" + url;
             }
 
             String baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getBaseUrl(), "/");
@@ -335,13 +339,17 @@ public class DimsImageEditor extends AbstractImageEditor {
                     int httpAt = url.indexOf("http", 1);
                     commandsString = url.substring(commandsOffset, httpAt);
 
-                    imageUrl = new URI(url.substring(httpAt, url.length()));
+                    imageUrl = new URL(url.substring(httpAt, url.length()));
 
                 } else {
                     int questionAt = url.indexOf("?");
                     commandsString = url.substring(commandsOffset, questionAt);
 
-                    imageUrl = new URI(StringUtils.getQueryParameterValue(url, "url"));
+                    String paramValue = StringUtils.getQueryParameterValue(url, "url");
+                    if (paramValue.startsWith("/")) {
+                        paramValue = "file:" + paramValue;
+                    }
+                    imageUrl = new URL(paramValue);
                 }
 
                 String[] parts = commandsString.split("/");
@@ -365,7 +373,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                 // need to decode the url because DIMS expects a non encoded URL
                 // and will take care of encoding it before it fetches the image
                 url = StringUtils.decodeUri(url);
-                imageUrl = new URI(url);
+                imageUrl = new URL(url);
 
                 // Add some commands by default based on the editor's preferences
                 if (DimsImageEditor.this.isPreserveMetadata()) {
@@ -576,6 +584,10 @@ public class DimsImageEditor extends AbstractImageEditor {
 
             String imageUrl = this.imageUrl.toString();
             String baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getBaseUrl(), "/");
+
+            if (imageUrl.startsWith("file:")) {
+                imageUrl = imageUrl.substring(5);
+            }
 
             dimsUrlBuilder.append(baseUrl);
 
