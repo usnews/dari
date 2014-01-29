@@ -1050,7 +1050,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             if (ObjectUtils.isBlank(data)) {
                 Object original = objectState.getDatabase().readFirst(Query.from(Object.class).where("_id = ?", objectState.getId()));
                 if (original != null) {
-                    objectState.setValues(State.getInstance(original).getValues());
+                    objectState.setValues(State.getInstance(original).getSimpleValues());
                 }
 
             } else {
