@@ -190,8 +190,6 @@ public class ReferentialText extends AbstractList<Object> {
         body.select("code[data-annotations]").remove();
 
         // Convert 'text<br><br>' to '<p>text</p>'.
-        List<Element> paragraphs = new ArrayList<Element>();
-
         for (Element br : body.getElementsByTag("br")) {
             Element previousBr = null;
 
@@ -239,13 +237,13 @@ public class ReferentialText extends AbstractList<Object> {
                 paragraph.prependChild(child.clone());
             }
 
-            paragraphs.add(paragraph);
             br.before(paragraph);
             br.remove();
             previousBr.remove();
         }
 
-        for (Element paragraph : paragraphs) {
+        // Convert inline text after <p>s into paragraphs.
+        for (Element paragraph : body.getElementsByTag(P_TAG.getName())) {
             Node next = paragraph;
 
             while ((next = next.nextSibling()) != null) {
