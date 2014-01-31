@@ -207,7 +207,7 @@ public class ReferentialText extends AbstractList<Object> {
                     break;
 
                 } if (previousNode instanceof TextNode &&
-                        !ObjectUtils.isBlank(((TextNode) previousNode).text())) {
+                        !((TextNode) previousNode).isBlank()) {
                     break;
                 }
             }
