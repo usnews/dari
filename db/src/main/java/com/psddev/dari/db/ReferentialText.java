@@ -190,7 +190,7 @@ public class ReferentialText extends AbstractList<Object> {
         body.select("code[data-annotations]").remove();
 
         // Convert 'text<br><br>' to '<p>text</p>'.
-        Node lastNode = null;
+        List<Element> paragraphs = new ArrayList<Element>();
 
         for (Element br : body.getElementsByTag("br")) {
             Element previousBr = null;
@@ -233,52 +233,52 @@ public class ReferentialText extends AbstractList<Object> {
             }
 
             Element paragraph = new Element(P_TAG, "");
-            lastNode = paragraph;
 
             for (Node child : paragraphChildren) {
                 child.remove();
                 paragraph.prependChild(child.clone());
             }
 
+            paragraphs.add(paragraph);
             br.before(paragraph);
             br.remove();
             previousBr.remove();
         }
 
-        if (lastNode != null) {
-            for (Node next = lastNode;
-                    (next = next.nextSibling()) != null;
-                    lastNode = next) {
-                if (next instanceof TextNode &&
-                        !((TextNode) next).isBlank()) {
+        for (Element paragraph : paragraphs) {
+            Node next = paragraph;
+
+            while ((next = next.nextSibling()) != null) {
+                if (!(next instanceof TextNode &&
+                        ((TextNode) next).isBlank())) {
                     break;
                 }
             }
-        }
 
-        if (lastNode != null) {
-            List<Node> paragraphChildren = new ArrayList<Node>();
+            if (next != null) {
+                List<Node> paragraphChildren = new ArrayList<Node>();
 
-            for (Node next = lastNode;
-                    (next = next.nextSibling()) != null;
-                    ) {
-                if (next instanceof Element &&
-                        ((Element) next).isBlock()) {
-                    break;
+                do {
+                    if (next instanceof Element &&
+                            ((Element) next).isBlock()) {
+                        break;
 
-                } else {
-                    paragraphChildren.add(next);
+                    } else {
+                        paragraphChildren.add(next);
+                    }
+                } while ((next = next.nextSibling()) != null);
+
+                if (!paragraphChildren.isEmpty()) {
+                    Element lastParagraph = new Element(P_TAG, "");
+
+                    for (Node child : paragraphChildren) {
+                        child.remove();
+                        lastParagraph.appendChild(child.clone());
+                    }
+
+                    paragraph.after(lastParagraph);
                 }
             }
-
-            Element paragraph = new Element(P_TAG, "");
-
-            for (Node child : paragraphChildren) {
-                child.remove();
-                paragraph.appendChild(child.clone());
-            }
-
-            lastNode.after(paragraph);
         }
 
         // Convert '<div>text<div><div><br></div>' to '<p>text</p>'
