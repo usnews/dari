@@ -50,11 +50,11 @@ import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.jolbox.bonecp.BoneCPDataSource;
+import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.PeriodicValue;
 import com.psddev.dari.util.Profiler;
-import com.psddev.dari.util.PullThroughValue;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.SettingsException;
 import com.psddev.dari.util.Stats;
@@ -242,12 +242,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 }
 
                 tableColumnNames.refresh();
-                symbols.invalidate();
+                symbols.reset();
 
                 if (writable) {
                     vendor.setUp(this);
                     tableColumnNames.refresh();
-                    symbols.invalidate();
+                    symbols.reset();
                 }
 
             } catch (IOException error) {
@@ -279,7 +279,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         try {
             getVendor().setUp(this);
             tableColumnNames.refresh();
-            symbols.invalidate();
+            symbols.reset();
 
         } catch (IOException error) {
             throw new IllegalStateException(error);
@@ -564,10 +564,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     // Cache of all internal symbols.
-    private final transient PullThroughValue<Map<String, Integer>> symbols = new PullThroughValue<Map<String, Integer>>() {
+    private final transient Lazy<Map<String, Integer>> symbols = new Lazy<Map<String, Integer>>() {
 
         @Override
-        protected Map<String, Integer> produce() {
+        protected Map<String, Integer> create() {
             SqlVendor vendor = getVendor();
             StringBuilder selectBuilder = new StringBuilder();
             selectBuilder.append("SELECT ");
@@ -1429,7 +1429,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             setVendor((SqlVendor) TypeDefinition.getInstance(vendorClass).newInstance());
         }
 
-        Boolean compressData = ObjectUtils.coalesce(
+        Boolean compressData = ObjectUtils.firstNonNull(
                 ObjectUtils.to(Boolean.class, settings.get(COMPRESS_DATA_SUB_SETTING)),
                 Settings.get(Boolean.class, "dari/isCompressSqlData"));
         if (compressData != null) {
