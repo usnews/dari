@@ -328,6 +328,13 @@ public class ReferentialText extends AbstractList<Object> {
             }
         }
 
+        // Unwrap nested '<p>'s.
+        for (Element paragraph : body.getElementsByTag(P_TAG.getName())) {
+            if (paragraph.getElementsByTag(P_TAG.getName()).size() > 1) {
+                paragraph.unwrap();
+            }
+        }
+
         // Remove empty paragraphs and stringify.
         StringBuilder cleaned = new StringBuilder();
 
