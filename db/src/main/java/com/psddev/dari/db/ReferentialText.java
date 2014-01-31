@@ -282,7 +282,7 @@ public class ReferentialText extends AbstractList<Object> {
         }
 
         // Convert '<div>text<div><div><br></div>' to '<p>text</p>'
-        Element lastDiv = null;
+        List<Element> divs = new ArrayList<Element>();
 
         DIV: for (Element div : body.getElementsByTag("div")) {
             Element brDiv = nextTag(DIV_TAG, div);
@@ -314,17 +314,16 @@ public class ReferentialText extends AbstractList<Object> {
                 }
             }
 
-            lastDiv = div;
-
+            divs.add(div);
             div.tagName("p");
             brDiv.remove();
         }
 
-        if (lastDiv != null) {
-            lastDiv = nextTag(DIV_TAG, lastDiv);
+        for (Element div : divs) {
+            div = nextTag(DIV_TAG, div);
 
-            if (lastDiv != null) {
-                lastDiv.tagName("p");
+            if (div != null) {
+                div.tagName("p");
             }
         }
 
