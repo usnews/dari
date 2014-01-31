@@ -21,6 +21,7 @@ import com.psddev.dari.util.StringUtils;
 public class ReferentialText extends AbstractList<Object> {
 
     private static final Tag BR_TAG = Tag.valueOf("br");
+    private static final Tag DIV_TAG = Tag.valueOf("div");
     private static final Tag P_TAG = Tag.valueOf("p");
 
     private final List<Object> list = new ArrayList<Object>();
@@ -280,6 +281,53 @@ public class ReferentialText extends AbstractList<Object> {
             lastNode.after(paragraph);
         }
 
+        // Convert '<div>text<div><div><br></div>' to '<p>text</p>'
+        Element lastDiv = null;
+
+        DIV: for (Element div : body.getElementsByTag("div")) {
+            Element brDiv = nextTag(DIV_TAG, div);
+
+            if (brDiv == null) {
+                continue;
+            }
+
+            // '<div><br></div>'?
+            boolean sawBr = false;
+
+            for (Node child : brDiv.childNodes()) {
+                if (child instanceof TextNode) {
+                    if (((TextNode) child).isBlank()) {
+                        continue DIV;
+                    }
+
+                } else if (child instanceof Element &&
+                        BR_TAG.equals(((Element) child).tag())) {
+                    if (sawBr) {
+                        continue DIV;
+
+                    } else {
+                        sawBr = true;
+                    }
+
+                } else {
+                    continue DIV;
+                }
+            }
+
+            lastDiv = div;
+
+            div.tagName("p");
+            brDiv.remove();
+        }
+
+        if (lastDiv != null) {
+            lastDiv = nextTag(DIV_TAG, lastDiv);
+
+            if (lastDiv != null) {
+                lastDiv.tagName("p");
+            }
+        }
+
         // Remove empty paragraphs and stringify.
         StringBuilder cleaned = new StringBuilder();
 
@@ -300,6 +348,31 @@ public class ReferentialText extends AbstractList<Object> {
 
         addByBoundary(publishables, cleaned.toString(), boundary, references);
         return publishables;
+    }
+
+    // Find the closest next tag without any intervening content.
+    private Element nextTag(Tag tag, Element current) {
+        Element nextTag = null;
+
+        for (Node nextNode = current;
+                (nextNode = nextNode.nextSibling()) != null;
+                ) {
+            if (nextNode instanceof Element) {
+                Element nextElement = (Element) nextNode;
+
+                if (tag.equals(nextElement.tag())) {
+                    nextTag = nextElement;
+                }
+
+                break;
+
+            } if (nextNode instanceof TextNode &&
+                    !((TextNode) nextNode).isBlank()) {
+                break;
+            }
+        }
+
+        return nextTag;
     }
 
     // --- AbstractList support ---
