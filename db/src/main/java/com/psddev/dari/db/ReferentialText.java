@@ -280,10 +280,6 @@ public class ReferentialText extends AbstractList<Object> {
             lastNode.after(paragraph);
         }
 
-        // Remove editorial markups.
-        body.getElementsByTag("del").remove();
-        body.getElementsByTag("ins").unwrap();
-
         // Remove empty paragraphs and stringify.
         StringBuilder cleaned = new StringBuilder();
 
