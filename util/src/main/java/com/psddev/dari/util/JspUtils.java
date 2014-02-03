@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
 public final class JspUtils {
 
     private static final Pattern ABSOLUTE_URI_PATTERN = Pattern.compile("(?i)[a-z][-a-z0-9+.]*:.*");
-    private static final String DEFAULT_COOKIE_SECRET = UUID.randomUUID().toString();
     private static final Logger LOGGER = LoggerFactory.getLogger(JspUtils.class);
     private static final String WEB_INF_DIRECTORY = "WEB-INF/";
 
@@ -176,23 +175,17 @@ public final class JspUtils {
             String value,
             long timestamp) {
 
-        String secret = Settings.get(String.class, "cookieSecret");
-        if (ObjectUtils.isBlank(secret)) {
-            secret = DEFAULT_COOKIE_SECRET;
-        }
-
         try {
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
-            sha1.update(name.getBytes("UTF-8"));
-            sha1.update(value.getBytes("UTF-8"));
+
+            sha1.update(name.getBytes(StringUtils.UTF_8));
+            sha1.update(value.getBytes(StringUtils.UTF_8));
             sha1.update(Long.valueOf(timestamp).byteValue());
-            sha1.update(secret.getBytes("UTF-8"));
+            sha1.update(Settings.getSecret().getBytes(StringUtils.UTF_8));
             return StringUtils.hex(sha1.digest());
 
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("Can't hash using SHA-1!", ex);
-        } catch (UnsupportedEncodingException ex) {
-            throw new IllegalArgumentException("Can't convert to UTF-8!", ex);
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("Can't hash using SHA-1!", error);
         }
     }
 
