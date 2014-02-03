@@ -66,6 +66,7 @@ public class ReferentialText extends AbstractList<Object> {
 
         document.outputSettings().prettyPrint(false);
 
+        // Remove Microsoft-specific tags.
         for (Element element : body.select("*")) {
             String tagName = element.tagName();
 
@@ -91,6 +92,15 @@ public class ReferentialText extends AbstractList<Object> {
             // Remove empty paragraphs.
             } else {
                 p.remove();
+            }
+        }
+
+        // Find mistakes in <a> hrefs.
+        for (Element a : body.getElementsByTag("a")) {
+            String href = a.attr("href");
+
+            if (!ObjectUtils.isBlank(href)) {
+                a.attr("href", href.replaceAll("^(?:(?:https?:/?/?)*(https?://))?", "$1"));
             }
         }
 
