@@ -173,7 +173,7 @@ public class ReferentialText extends AbstractList<Object> {
 
         // Concatenate the items so that it can be fed into an HTML parser.
         StringBuilder html = new StringBuilder();
-        String boundary = "<div>" + UUID.randomUUID().toString() + "</div>";
+        String boundary = UUID.randomUUID().toString();
         List<Reference> references = new ArrayList<Reference>();
 
         for (Object item : this) {
