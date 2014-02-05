@@ -477,12 +477,12 @@ public class HtmlWriter extends Writer {
             writeRaw(cssSuffix);
         }
 
-        writeCss(selector + " > ._da[_da]",
+        writeCss(selector + ">._da[_da]",
                 "display", "none");
         writeRaw(cssSuffix);
 
         for (Area area : createAreas(grid).values()) {
-            String selectorPrefix = selector + " > ._da";
+            String selectorPrefix = selector + ">._da";
             String selectorSuffix = "[_da=\"" + area.name + "\"]";
 
             writeCss(selectorPrefix + selectorSuffix,
@@ -497,7 +497,7 @@ public class HtmlWriter extends Writer {
             for (Map.Entry<String, Adjustment> entry : area.adjustments.entrySet()) {
                 String unit = entry.getKey();
                 Adjustment adjustment = entry.getValue();
-                selectorPrefix += " > ._dj-" + unit;
+                selectorPrefix += ">._dj-" + unit;
 
                 writeCss(selectorPrefix + selectorSuffix,
                         "height", adjustment.height != null ? adjustment.height : "auto",
@@ -650,7 +650,7 @@ public class HtmlWriter extends Writer {
                         write("$.each(grids, function(selector, areas) {");
                             write("$(selector).each(function() {");
                                 write("var $layout = $(this),");
-                                        write("$children = $layout.find('> ._da'),");
+                                        write("$children = $layout.find('>._da'),");
                                         write("expected = areas.join(', '),");
                                         write("current = $.map($children, function(area) { return $(area).attr('_da'); }).join(', '),");
                                         write("$clear;");
@@ -664,7 +664,7 @@ public class HtmlWriter extends Writer {
                                     write("if ($child.length > 0) { $layout[0].appendChild($child[0]); }");
                                 write("});");
 
-                                write("$clear = $layout.find('> .dari-grid-clear');");
+                                write("$clear = $layout.find('>.dari-grid-clear');");
                                 write("if ($clear.length > 0) { $layout[0].appendChild($clear[0]); }");
                             write("});");
                         write("});");
