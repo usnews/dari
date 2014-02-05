@@ -275,10 +275,10 @@ public class CodeDebugServlet extends HttpServlet {
                                 "method", "post",
                                 "style", "margin-bottom: 70px;",
                                 "target", "result");
-                            writeTag("input", "name", "action", "type", "hidden", "value", "run");
-                            writeTag("input", "name", "type", "type", "hidden", "value", type);
-                            writeTag("input", "name", "file", "type", "hidden", "value", file);
-                            writeTag("input", "name", "jspPreviewUrl", "type", "hidden", "value", page.param(String.class, "jspPreviewUrl"));
+                            writeElement("input", "name", "action", "type", "hidden", "value", "run");
+                            writeElement("input", "name", "type", "type", "hidden", "value", type);
+                            writeElement("input", "name", "file", "type", "hidden", "value", file);
+                            writeElement("input", "name", "jspPreviewUrl", "type", "hidden", "value", page.param(String.class, "jspPreviewUrl"));
 
                             writeStart("textarea", "name", "code");
                                 writeHtml(codeBuilder);
@@ -286,19 +286,19 @@ public class CodeDebugServlet extends HttpServlet {
                             writeStart("div",
                                     "class", "form-actions",
                                     "style", "bottom: 0; left: 0; margin: 0; padding: 10px 20px; position:fixed; right: 0; z-index: 1000;");
-                                writeTag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
+                                writeElement("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
                                 writeStart("label", "class", "checkbox", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;");
-                                    writeTag("input", "name", "isLiveResult", "type", "checkbox");
+                                    writeElement("input", "name", "isLiveResult", "type", "checkbox");
                                     writeHtml("Live Result");
                                 writeEnd();
                                 writeStart("label", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;", "title", "Shortcut: ?_vim=true");
                                     boolean vimMode = page.param(boolean.class, "_vim");
                                     writeStart("label", "class", "checkbox", "style", "display: inline-block; margin-left: 10px; white-space: nowrap;");
-                                        writeTag("input", "name", "_vim", "type", "checkbox", "value", "true", vimMode ? "checked" : "_unchecked", "true");
+                                        writeElement("input", "name", "_vim", "type", "checkbox", "value", "true", vimMode ? "checked" : "_unchecked", "true");
                                         writeHtml("Vim Mode");
                                     writeEnd();
                                 writeEnd();
-                                writeTag("input",
+                                writeElement("input",
                                         "class", "btn btn-success pull-right",
                                         "name", "isSave",
                                         "type", "submit",

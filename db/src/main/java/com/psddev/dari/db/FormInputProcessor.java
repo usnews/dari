@@ -52,7 +52,7 @@ public interface FormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, State state, Object value, HtmlWriter writer) throws IOException {
-            writer.writeTag("input",
+            writer.writeElement("input",
                     "type", "checkbox",
                     "id", inputId,
                     "name", inputName,
@@ -71,7 +71,7 @@ public interface FormInputProcessor {
 
         @Override
         protected void doDisplay(String inputId, String inputName, ObjectField field, State state, Object value, HtmlWriter writer) throws IOException {
-            writer.writeTag("input",
+            writer.writeElement("input",
                     "type", "text",
                     "class", "date",
                     "id", inputId,
@@ -224,7 +224,7 @@ public interface FormInputProcessor {
                             fields.add(typeField.getInternalName());
                         }
 
-                        writer.writeTag("input",
+                        writer.writeElement("input",
                                 "type", "hidden",
                                 "name", inputName,
                                 "value", valueState != null ? valueState.getId() : null);
@@ -254,7 +254,7 @@ public interface FormInputProcessor {
                     }
                 writer.writeEnd();
 
-                writer.writeTag("input",
+                writer.writeElement("input",
                         "type", "text",
                         "class", "objectId",
                         "data-type-ids", typeIdsBuilder,
@@ -403,7 +403,7 @@ public interface FormInputProcessor {
                     writer.writeEnd();
 
                 } else {
-                    writer.writeTag("input",
+                    writer.writeElement("input",
                             "type", "text",
                             "id", inputId,
                             "name", inputName,

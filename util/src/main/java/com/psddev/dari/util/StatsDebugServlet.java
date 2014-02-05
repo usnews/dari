@@ -240,7 +240,7 @@ public class StatsDebugServlet extends HttpServlet {
                     writeEnd();
 
                     if (i.hasNext()) {
-                        writeTag("hr");
+                        writeElement("hr");
                     }
                 }
 

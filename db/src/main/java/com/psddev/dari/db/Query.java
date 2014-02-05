@@ -1335,9 +1335,9 @@ public class Query<E> extends Record {
                         "method", "post",
                         "action", "/_debug/code",
                         "target", "query");
-                    writer.writeTag("input", "type", "hidden", "name", "query", "value", code);
-                    writer.writeTag("input", "type", "hidden", "name", "objectClass", "value", objectClass);
-                    writer.writeTag("input", "class", "btn", "type", "submit", "value", "Execute");
+                    writer.writeElement("input", "type", "hidden", "name", "query", "value", code);
+                    writer.writeElement("input", "type", "hidden", "name", "objectClass", "value", objectClass);
+                    writer.writeElement("input", "class", "btn", "type", "submit", "value", "Execute");
                 writer.writeEnd();
 
             } else {

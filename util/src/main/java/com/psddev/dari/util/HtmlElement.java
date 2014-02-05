@@ -171,20 +171,23 @@ public class HtmlElement extends HtmlNode {
     @Override
     public void writeHtml(HtmlWriter writer) throws IOException {
         String name = getName();
+        Map<String, String> attributes = getAttributes();
 
         writer.writeRaw("\n");
-        writer.writeTag(name, getAttributes());
 
-        if (!VOID_ELEMENT_NAMES.contains(name)) {
+        if (VOID_ELEMENT_NAMES.contains(name)) {
+            writer.writeElement(name, attributes);
+
+        } else {
             List<HtmlNode> children = getChildren();
 
-            if (children != null) {
-                for (HtmlNode child : children) {
-                    child.writeHtml(writer);
+            writer.writeStart(name, attributes);
+                if (children != null) {
+                    for (HtmlNode child : children) {
+                        child.writeHtml(writer);
+                    }
                 }
-            }
-
-            writer.writeTag("/" + name);
+            writer.writeEnd();
         }
     }
 }

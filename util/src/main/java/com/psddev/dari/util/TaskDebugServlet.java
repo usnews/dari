@@ -50,23 +50,23 @@ public class TaskDebugServlet extends HttpServlet {
                     writeStart("h2").writeHtml(executor.getName()).writeEnd();
 
                     writeStart("form", "method", "post", "style", "position: absolute; right: 0; top: 0;");
-                        writeTag("input",
+                        writeElement("input",
                                 "name", "executor",
                                 "type", "hidden",
                                 "value", executor.getName());
-                        writeTag("input",
+                        writeElement("input",
                                 "class", "btn btn-small btn-warning",
                                 "name", "action",
                                 "type", "submit",
                                 "value", "Pause All");
                         writeHtml(' ');
-                        writeTag("input",
+                        writeElement("input",
                                 "class", "btn btn-small btn-success",
                                 "name", "action",
                                 "type", "submit",
                                 "value", "Resume All");
                         writeHtml(' ');
-                        writeTag("input",
+                        writeElement("input",
                                 "class", "btn btn-small btn-danger",
                                 "name", "action",
                                 "type", "submit",

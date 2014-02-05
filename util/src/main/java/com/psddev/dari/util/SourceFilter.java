@@ -401,14 +401,14 @@ public class SourceFilter extends AbstractFilter {
                             writeHtml("Install the reloader");
                         writeEnd();
                         writeHtml(" to automate this process.");
-                        writeTag("br");
-                        writeTag("br");
+                        writeElement("br");
+                        writeElement("br");
 
                         for (Map.Entry<String, Date> entry : changedClassTimes.entrySet()) {
                             writeHtml(entry.getKey());
                             writeHtml(" - ");
                             writeObject(entry.getValue());
-                            writeTag("br");
+                            writeElement("br");
                         }
                     }
 
@@ -427,13 +427,13 @@ public class SourceFilter extends AbstractFilter {
                                     "margin-top", "10px"));
                                 writeHtml("File: ");
                                 writeHtml(source instanceof FileObject ? ((FileObject) source).getName() : source);
-                                writeTag("br");
+                                writeElement("br");
 
                                 writeHtml("Line: ");
                                 writeHtml(diagnostic.getLineNumber());
                                 writeHtml(", Column: ");
                                 writeHtml(diagnostic.getColumnNumber());
-                                writeTag("br");
+                                writeElement("br");
 
                                 writeHtml("Error: ");
                                 writeHtml(diagnostic.getMessage(null));

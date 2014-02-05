@@ -28,6 +28,7 @@ public class HtmlWriter extends Writer {
     }
 
     private Writer delegate;
+    private Boolean selfClosing;
     private final Map<Class<?>, HtmlFormatter<Object>> defaultFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Map<Class<?>, HtmlFormatter<Object>> overrideFormatters = new HashMap<Class<?>, HtmlFormatter<Object>>();
     private final Deque<String> tags = new ArrayDeque<String>();
@@ -63,6 +64,14 @@ public class HtmlWriter extends Writer {
      */
     public void setDelegate(Writer delegate) {
         this.delegate = delegate;
+    }
+
+    public Boolean getSelfClosing() {
+        return selfClosing;
+    }
+
+    public void setSelfClosing(Boolean selfClosing) {
+        this.selfClosing = selfClosing;
     }
 
     /**
@@ -143,13 +152,11 @@ public class HtmlWriter extends Writer {
         return this;
     }
 
-    /**
-     * Writes the given {@code tag} with the given {@code attributes}.
-     *
-     * <p>This method doesn't keep state, so it should be used with doctype
-     * declaration and self-closing tags like {@code img}.</p>
-     */
-    public HtmlWriter writeTag(String tag, Object... attributes) throws IOException {
+    private HtmlWriter writeTagReally(
+            boolean selfClosing,
+            String tag,
+            Object... attributes) throws IOException {
+
         if (tag == null) {
             throw new IllegalArgumentException("Tag can't be null!");
         }
@@ -183,6 +190,11 @@ public class HtmlWriter extends Writer {
                     delegate.write('"');
                 }
             }
+        }
+
+        if (selfClosing &&
+                ObjectUtils.firstNonNull(getSelfClosing(), Settings.get(boolean.class, "dari/selfClosingElements"))) {
+            delegate.write('/');
         }
 
         delegate.write('>');
@@ -222,6 +234,26 @@ public class HtmlWriter extends Writer {
                 }
             }
         }
+    }
+
+    /**
+     * Writes the given {@code tag} with the given {@code attributes}.
+     *
+     * <p>This method doesn't keep state, so it should be used with doctype
+     * declaration, etc. For self-closing tags like {@code img}, use
+     * {@link #writeElement}.</p>
+     */
+    public HtmlWriter writeTag(String tag, Object... attributes) throws IOException {
+        return writeTagReally(false, tag, attributes);
+    }
+
+    /**
+     * Writes the given {@code tag} element with the given {@code attributes}.
+     *
+     * <p>This method should be used self-closing tags like {@code img}.</p>
+     */
+    public HtmlWriter writeElement(String tag, Object... attributes) throws IOException {
+        return writeTagReally(true, tag, attributes);
     }
 
     /**

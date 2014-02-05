@@ -228,7 +228,7 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
                             "action", "Run"));
                 writer.writeHtml(getLabel());
             writer.writeEnd();
-            writer.writeTag("br");
+            writer.writeElement("br");
 
             writer.writeHtml(ObjectUtils.toJson(state.getSimpleValues(), true));
 

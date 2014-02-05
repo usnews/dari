@@ -146,7 +146,7 @@ public class BulkDebugServlet extends HttpServlet {
                 writeEnd();
 
                 writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
-                    writeTag("input", "name", "action", "type", "hidden", "value", "index");
+                    writeElement("input", "name", "action", "type", "hidden", "value", "index");
 
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label").writeHtml("Type").writeEnd();
@@ -167,19 +167,19 @@ public class BulkDebugServlet extends HttpServlet {
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("# Of Writers").writeEnd();
                         writeStart("div", "class", "controls");
-                            writeTag("input", "name", "writersCount", "type", "text", "value", 5);
+                            writeElement("input", "name", "writersCount", "type", "text", "value", 5);
                         writeEnd();
                     writeEnd();
 
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Commit Size").writeEnd();
                         writeStart("div", "class", "controls");
-                            writeTag("input", "name", "commitSize", "type", "text", "value", 50);
+                            writeElement("input", "name", "commitSize", "type", "text", "value", 50);
                         writeEnd();
                     writeEnd();
 
                     writeStart("div", "class", "form-actions");
-                        writeTag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
+                        writeElement("input", "type", "submit", "class", "btn btn-success", "value", "Start");
                     writeEnd();
                 writeEnd();
 
@@ -203,7 +203,7 @@ public class BulkDebugServlet extends HttpServlet {
                 writeEnd();
 
                 writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
-                    writeTag("input", "name", "action", "type", "hidden", "value", "copy");
+                    writeElement("input", "name", "action", "type", "hidden", "value", "copy");
 
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label").writeHtml("Type").writeEnd();
@@ -240,7 +240,7 @@ public class BulkDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
                             writeStart("label", "class", "checkbox", "style", "margin-top: 5px;", "id", resumableControlId);
-                                writeTag("input", "name", "isResumable", "type", "checkbox", "value", "true");
+                                writeElement("input", "name", "isResumable", "type", "checkbox", "value", "true");
                                 writeHtml("Resumable");
                             writeEnd();
                         writeEnd();
@@ -249,7 +249,7 @@ public class BulkDebugServlet extends HttpServlet {
                     writeStart("div", "class", "control-group", "id", resumeIdControlId);
                         writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Resume With ID").writeEnd();
                         writeStart("div", "class", "controls");
-                            writeTag("input", "name", "resumeId", "type", "text");
+                            writeElement("input", "name", "resumeId", "type", "text");
                         writeEnd();
                     writeEnd();
 
@@ -267,14 +267,14 @@ public class BulkDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
                             writeStart("label", "class", "checkbox", "style", "margin-top: 5px;");
-                                writeTag("input", "name", "deleteDestination", "type", "checkbox", "value", "true");
+                                writeElement("input", "name", "deleteDestination", "type", "checkbox", "value", "true");
                                 writeHtml("Delete before copy");
                             writeEnd();
                         writeEnd();
                     writeEnd();
 
                     writeStart("div", "class", "form-actions");
-                        writeTag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
+                        writeElement("input", "type", "submit", "class", "btn btn-success", "value", "Start");
                     writeEnd();
                 writeEnd();
 

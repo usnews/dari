@@ -188,7 +188,7 @@ public class ProfilerFilter extends AbstractFilter {
 
                                         writer.writeStart("tr");
                                             writer.writeStart("td");
-                                                writer.writeTag("input",
+                                                writer.writeElement("input",
                                                         "type", "checkbox",
                                                         "checked", "checked",
                                                         "value", nameClasses.get(name));

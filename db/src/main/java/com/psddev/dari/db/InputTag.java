@@ -103,7 +103,7 @@ public class InputTag extends TagSupport {
                         formWriter.setDelegate(pageContext.getOut());
 
                         formWriter.inputs(state, name);
-                        formWriter.writeTag("input",
+                        formWriter.writeElement("input",
                                 "type", "hidden",
                                 "name", FIELDS_PARAMETER,
                                 "value", name);

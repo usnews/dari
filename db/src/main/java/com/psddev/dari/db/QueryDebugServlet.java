@@ -450,7 +450,7 @@ public class QueryDebugServlet extends HttpServlet {
             writeStart("div", "class", "visibilityFilters");
                 writeStart("ul", "class", "unstyled");
                     writeStart("li");
-                        writeTag("input",
+                        writeElement("input",
                                 "class", "visibility-input",
                                 "type", "checkbox",
                                 "name", "visibilityFilters",
@@ -515,7 +515,7 @@ public class QueryDebugServlet extends HttpServlet {
                             }
 
                             writeStart("li");
-                                writeTag("input",
+                                writeElement("input",
                                         "class", "visibility-input",
                                         "type", "checkbox",
                                         "name", "visibilityFilters",
@@ -597,7 +597,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 writeEnd();
                             writeEnd();
                             writeStart("div", "class", "form-actions");
-                                writeTag("input", "class", "btn btn-success", "type", "submit", "value", "Save");
+                                writeElement("input", "class", "btn btn-success", "type", "submit", "value", "Save");
                             writeEnd();
                         writeEnd();
 
@@ -619,7 +619,7 @@ public class QueryDebugServlet extends HttpServlet {
                         writeStart("form", "method", "post", "action", page.url(""));
                             form.allInputs(state);
                             writeStart("div", "class", "form-actions");
-                                writeTag("input", "class", "btn btn-success", "type", "submit", "value", "Save");
+                                writeElement("input", "class", "btn btn-success", "type", "submit", "value", "Save");
                             writeEnd();
                         writeEnd();
 
@@ -694,7 +694,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 writeHtml(where);
                             writeEnd();
 
-                            writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
+                            writeElement("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
                         writeEnd();
 
                         writeStart("div", "class", "span6");
@@ -715,8 +715,8 @@ public class QueryDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
 
-                            writeTag("br");
-                            writeTag("input",
+                            writeElement("br");
+                            writeElement("input",
                                     "class", "input-small",
                                     "name", "sortField",
                                     "type", "text",
@@ -733,15 +733,15 @@ public class QueryDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
                             writeHtml(' ');
-                            writeTag("input",
+                            writeElement("input",
                                     "class", "input-small",
                                     "name", "limit",
                                     "type", "text",
                                     "placeholder", "Limit",
                                     "value", limit);
 
-                            writeTag("br");
-                            writeTag("input",
+                            writeElement("br");
+                            writeElement("input",
                                     "class", "span6",
                                     "name", "additionalFields",
                                     "type", "text",
@@ -936,7 +936,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 writeHtml(where);
                             writeEnd();
 
-                            writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
+                            writeElement("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Run");
                         writeEnd();
 
                         writeStart("div", "class", "span6");
@@ -957,8 +957,8 @@ public class QueryDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
 
-                            writeTag("br");
-                            writeTag("input",
+                            writeElement("br");
+                            writeElement("input",
                                     "class", "input-small",
                                     "name", "sortField",
                                     "type", "text",
@@ -975,15 +975,15 @@ public class QueryDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
                             writeHtml(' ');
-                            writeTag("input",
+                            writeElement("input",
                                     "class", "input-small",
                                     "name", "limit",
                                     "type", "text",
                                     "placeholder", "Limit",
                                     "value", limit);
 
-                            writeTag("br");
-                            writeTag("input",
+                            writeElement("br");
+                            writeElement("input",
                                     "class", "span6",
                                     "name", "additionalFields",
                                     "type", "text",
@@ -991,9 +991,9 @@ public class QueryDebugServlet extends HttpServlet {
                                     "style", "margin-top: 4px;",
                                     "value", additionalFieldsString);
 
-                            writeTag("br");
+                            writeElement("br");
                             writeStart("label", "class", "checkbox");
-                                writeTag("input",
+                                writeElement("input",
                                         "name", "ignoreReadConnection",
                                         "type", "checkbox",
                                         "style", "margin-top: 4px;",
@@ -1002,7 +1002,7 @@ public class QueryDebugServlet extends HttpServlet {
                                 writeHtml(" Ignore read-specific connection settings");
                             writeEnd();
 
-                            writeTag("br");
+                            writeElement("br");
                             writeStart("div", "class", "frame", "name", "visibilityFilters");
                                 if (visibilityFilters.isEmpty()) {
                                     writeStart("a",
@@ -1030,7 +1030,7 @@ public class QueryDebugServlet extends HttpServlet {
                                     "style", "margin-bottom: 4px;");
                                 writeHtml(filter);
                             writeEnd();
-                            writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Filter");
+                            writeElement("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", "Filter");
                         writeEnd();
                     writeEnd();
                 writeEnd();
@@ -1040,11 +1040,11 @@ public class QueryDebugServlet extends HttpServlet {
                         "action", page.url("", "action", "visibilityFilters", "from", null),
                         "class", "form-inline typeChangeForm",
                         "method", "get");
-                    writeTag("input",
+                    writeElement("input",
                             "type", "hidden",
                             "name", "from",
                             "value", type != null ? type.getId() : null);
-                    writeTag("input",
+                    writeElement("input",
                             "type", "hidden",
                             "name", "showVisibilityFiltersLink",
                             "value", "true");

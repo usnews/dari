@@ -253,7 +253,7 @@ public class BuildDebugServlet extends HttpServlet {
                                                     } else {
                                                         writeHtml(issue);
                                                     }
-                                                    writeTag("br");
+                                                    writeElement("br");
                                                 }
                                             writeEnd();
                                         }

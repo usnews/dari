@@ -95,9 +95,9 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
                             "method", "post",
                             "action", "/_debug/db-solr",
                             "target", "query");
-                        writer.writeTag("input", "type", "hidden", "name", "query", "value", StringUtils.decodeUri(solrQuery));
-                        writer.writeTag("input", "type", "hidden", "name", "sort", "value", StringUtils.decodeUri(solrSort));
-                        writer.writeTag("input", "class", "btn", "type", "submit", "value", "Execute");
+                        writer.writeElement("input", "type", "hidden", "name", "query", "value", StringUtils.decodeUri(solrQuery));
+                        writer.writeElement("input", "type", "hidden", "name", "sort", "value", StringUtils.decodeUri(solrSort));
+                        writer.writeElement("input", "class", "btn", "type", "submit", "value", "Execute");
                     writer.writeEnd();
                 writer.writeEnd();
 

@@ -181,10 +181,10 @@ public class BootstrapDebugServlet extends HttpServlet {
                                     writeHtml(" ");
                                 }
 
-                                    writeTag("input", "type", "hidden", "name", "pkgName", "value", pkg.getName());
-                                    writeTag("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", LIVE_DOWNLOAD_BUTTON_TEXT);
+                                    writeElement("input", "type", "hidden", "name", "pkgName", "value", pkg.getName());
+                                    writeElement("input", "class", "btn btn-primary", "type", "submit", "name", "action", "value", LIVE_DOWNLOAD_BUTTON_TEXT);
                                     writeHtml(" ");
-                                    // writeTag("input", "class", "btn btn-warning", "type", "submit", "name", "action", "value", SNAPSHOT_BUTTON_TEXT);
+                                    // writeElement("input", "class", "btn btn-warning", "type", "submit", "name", "action", "value", SNAPSHOT_BUTTON_TEXT);
                                 writeEnd();
                             writeEnd();
 
@@ -222,7 +222,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                                 if (wp.params(UUID.class, "additionalTypeIds").contains(entry.getKey().getId())) {
                                                     adtlChecked = "CHECKED";
                                                 }
-                                                writeTag("input", "type", "checkbox", "name", "additionalTypeIds", "value", entry.getKey().getId(), adtlChecked, adtlChecked);
+                                                writeElement("input", "type", "checkbox", "name", "additionalTypeIds", "value", entry.getKey().getId(), adtlChecked, adtlChecked);
                                                 writeStart("abbr", "style", "text-transform: none;", "title", entry.getKey().getInternalName());
                                                 writeHtml(entry.getKey().getDisplayName());
                                                 writeEnd();
@@ -350,34 +350,34 @@ public class BootstrapDebugServlet extends HttpServlet {
                         writeStart("div", "class", "control-group");
                             writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Upload Bootstrap File").writeEnd();
                             writeStart("div", "class", "controls");
-                                writeTag("input", "type", "file", "name", "file");
+                                writeElement("input", "type", "file", "name", "file");
                             writeEnd();
                         writeEnd();
 
                         writeStart("div", "class", "control-group");
                             writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Delete Before Import?").writeEnd();
                             writeStart("div", "class", "controls");
-                                writeTag("input", "id", "deleteCheckbox", "type", "checkbox", "name", "deleteBeforeImport", "value", "true");
+                                writeElement("input", "id", "deleteCheckbox", "type", "checkbox", "name", "deleteBeforeImport", "value", "true");
                             writeEnd();
                         writeEnd();
 
                         writeStart("div", "class", "control-group");
                             writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("# of Writers").writeEnd();
                             writeStart("div", "class", "controls");
-                                writeTag("input", "id", "numWriters", "type", "text", "name", "numWriters", "value", 5);
+                                writeElement("input", "id", "numWriters", "type", "text", "name", "numWriters", "value", 5);
                             writeEnd();
                         writeEnd();
 
                         writeStart("div", "class", "control-group");
                             writeStart("label", "class", "control-label", "id", wp.createId()).writeHtml("Commit Size").writeEnd();
                             writeStart("div", "class", "controls");
-                                writeTag("input", "name", "commitSize", "type", "text", "value", 50);
+                                writeElement("input", "name", "commitSize", "type", "text", "value", 50);
                             writeEnd();
                         writeEnd();
 
 
                         writeStart("div", "class", "form-actions");
-                            writeTag("input", "id", "importBtn", "type", "submit", "name", "action", "class", "btn btn-primary", "value", IMPORT_BUTTON_TEXT);
+                            writeElement("input", "id", "importBtn", "type", "submit", "name", "action", "class", "btn btn-primary", "value", IMPORT_BUTTON_TEXT);
                         writeEnd();
 
                         writeStart("script", "type", "text/javascript");

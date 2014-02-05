@@ -166,7 +166,7 @@ public class FormTag extends TagSupport implements DynamicAttributes {
                     "method", method.toLowerCase(Locale.ENGLISH),
                     "action", "",
                     attributes);
-                writer.writeTag("input",
+                writer.writeElement("input",
                         "type", "hidden",
                         "name", ID_PARAMETER,
                         "value", formId);

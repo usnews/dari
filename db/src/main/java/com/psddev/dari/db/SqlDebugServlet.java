@@ -67,7 +67,7 @@ public class SqlDebugServlet extends HttpServlet {
                         writeHtml(sql);
                     writeEnd();
 
-                    writeTag("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
+                    writeElement("input", "class", "btn btn-primary", "type", "submit", "value", "Run");
                 writeEnd();
 
                 if (!ObjectUtils.isBlank(sql)) {

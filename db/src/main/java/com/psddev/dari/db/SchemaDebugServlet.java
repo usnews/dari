@@ -64,8 +64,8 @@ public class SchemaDebugServlet extends HttpServlet {
                             writeEnd();
                         }
                     writeEnd();
-                    writeTag("br");
-                    writeTag("input", "class", "btn", "type", "submit", "value", "View");
+                    writeElement("br");
+                    writeElement("input", "class", "btn", "type", "submit", "value", "View");
                 writeEnd();
 
                 includeStylesheet("/_resource/chosen/chosen.css");

@@ -92,7 +92,7 @@ public class StorageDebugServlet extends HttpServlet {
                 writeEnd();
 
                 writeStart("form", "action", "", "class", "form-horizontal", "method", "post");
-                    writeTag("input", "name", "action", "type", "hidden", "value", "copy");
+                    writeElement("input", "name", "action", "type", "hidden", "value", "copy");
 
                     writeStart("div", "class", "control-group");
                         writeStart("label", "class", "control-label").writeHtml("Type").writeEnd();
@@ -132,14 +132,14 @@ public class StorageDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
                             writeStart("label", "class", "checkbox", "style", "margin-top: 5px;");
-                                writeTag("input", "name", "saveObject", "type", "checkbox");
+                                writeElement("input", "name", "saveObject", "type", "checkbox");
                                 writeHtml("Save object? (slower - consider reusing the original storage name instead)");
                             writeEnd();
                         writeEnd();
                     writeEnd();
 
                     writeStart("div", "class", "form-actions");
-                        writeTag("input", "type", "submit", "class", "btn btn-success", "value", "Start");
+                        writeElement("input", "type", "submit", "class", "btn btn-success", "value", "Start");
                     writeEnd();
                 writeEnd();
 

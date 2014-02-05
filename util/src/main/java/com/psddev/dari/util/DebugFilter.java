@@ -547,7 +547,7 @@ public class DebugFilter extends AbstractFilter {
         }
 
         public void includeStylesheet(String url) throws IOException {
-            writeTag("link", "href", page.url(url), "rel", "stylesheet", "type", "text/css");
+            writeElement("link", "href", page.url(url), "rel", "stylesheet", "type", "text/css");
         }
 
         public void includeScript(String url) throws IOException {
