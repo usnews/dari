@@ -512,7 +512,7 @@ public class HtmlWriter extends Writer {
                 widths.put(width.getUnit(), width);
             }
 
-            for (String unit : new String[] { "em", "fr", "pt", "px", "%" }) {
+            for (String unit : new String[] { "em", "pt", "px" }) {
                 CssUnit width = widths.get(unit);
 
                 writeCss(selectorPrefix + " ._dw-" + unit + selectorSuffix,
