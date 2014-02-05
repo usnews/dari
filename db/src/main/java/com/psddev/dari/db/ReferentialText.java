@@ -304,7 +304,7 @@ public class ReferentialText extends AbstractList<Object> {
 
             for (Node child : brDiv.childNodes()) {
                 if (child instanceof TextNode) {
-                    if (((TextNode) child).isBlank()) {
+                    if (!((TextNode) child).isBlank()) {
                         continue DIV;
                     }
 
