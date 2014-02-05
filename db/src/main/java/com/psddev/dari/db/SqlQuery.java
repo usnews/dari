@@ -754,6 +754,29 @@ class SqlQuery {
                         PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR.equals(operator) ? ">=" :
                         null;
 
+                Query<?> valueQuery = mappedKey.getSubQueryWithComparison(comparisonPredicate);
+
+                // e.g. field startsWith (SELECT ...)
+                if (valueQuery != null) {
+                    if (isFieldCollection) {
+                        needsDistinct = true;
+                    }
+
+                    if (findSimilarComparison(mappedKey.getField(), query.getPredicate())) {
+                        whereBuilder.append(joinValueField);
+                        whereBuilder.append(" IN (");
+                        whereBuilder.append(new SqlQuery(database, valueQuery).subQueryStatement());
+                        whereBuilder.append(')');
+
+                    } else {
+                        SqlQuery subSqlQuery = getOrCreateSubSqlQuery(valueQuery, join.type == JoinType.LEFT_OUTER);
+                        subQueries.put(valueQuery, joinValueField + " = ");
+                        whereBuilder.append(subSqlQuery.whereClause.substring(7));
+                    }
+
+                    return;
+                }
+
                 // e.g. field OP value1 OR field OP value2 OR ... field OP value#
                 if (sqlOperator != null) {
                     for (Object value : comparisonPredicate.resolveValues(database)) {
