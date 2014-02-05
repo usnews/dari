@@ -521,9 +521,13 @@ public class HtmlWriter extends Writer {
             }
 
             for (CssUnit height : area.height.getAll()) {
-                writeCss(selectorPrefix + " ._dh-" + height.getUnit() + selectorSuffix,
-                        "padding-top", height);
-                writeRaw(cssSuffix);
+                String unit = height.getUnit();
+
+                if (!"auto".equals(unit)) {
+                    writeCss(selectorPrefix + " ._dh-" + unit + selectorSuffix,
+                            "padding-top", height);
+                    writeRaw(cssSuffix);
+                }
             }
         }
 
