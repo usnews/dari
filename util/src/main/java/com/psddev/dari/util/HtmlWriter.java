@@ -512,11 +512,28 @@ public class HtmlWriter extends Writer {
                 widths.put(width.getUnit(), width);
             }
 
+            StringBuilder paddingLeft0 = new StringBuilder();
+
             for (String unit : new String[] { "em", "pt", "px" }) {
                 CssUnit width = widths.get(unit);
+                String unitSelector = selectorPrefix + " ._dw-" + unit + selectorSuffix;
 
-                writeCss(selectorPrefix + " ._dw-" + unit + selectorSuffix,
-                        "padding-left", width != null ? width : 0);
+                if (width == null || width.getNumber() == 0) {
+                    paddingLeft0.append(unitSelector);
+                    paddingLeft0.append(',');
+
+                } else {
+                    writeCss(unitSelector, "padding-left", width);
+                    writeRaw(cssSuffix);
+                }
+            }
+
+            int paddingLeft0Length = paddingLeft0.length();
+
+            if (paddingLeft0Length > 0) {
+                paddingLeft0.setLength(paddingLeft0Length - 1);
+
+                writeCss(paddingLeft0.toString(), "padding-left", 0);
                 writeRaw(cssSuffix);
             }
 
