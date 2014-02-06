@@ -33,6 +33,7 @@ public class LazyWriter extends Writer {
     private final StringBuilder tagName = new StringBuilder();
     private boolean tagNameFound;
     private boolean inScriptOrStyle;
+    private boolean inTextarea;
     private boolean inBody;
 
     public LazyWriter(HttpServletRequest request, Writer delegate) {
@@ -116,6 +117,12 @@ public class LazyWriter extends Writer {
                     } else if ("/script".equals(tagNameLc) || "/style".equals(tagNameLc)) {
                         inScriptOrStyle = false;
 
+                    } else if ("textarea".equals(tagNameLc)) {
+                        inTextarea = true;
+
+                    } else if ("/textarea".equals(tagNameLc)) {
+                        inTextarea = false;
+
                     } else if ("body".equals(tagNameLc)) {
                         inBody = true;
 
@@ -151,7 +158,7 @@ public class LazyWriter extends Writer {
     }
 
     public void writeLazily(String string) throws IOException {
-        if (!isInBody() || inTag || inScriptOrStyle) {
+        if (!isInBody() || inTag || inScriptOrStyle || inTextarea) {
             lazy.append(string);
 
         } else {
