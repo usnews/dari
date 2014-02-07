@@ -44,13 +44,14 @@ public class CachingDatabaseFilter extends AbstractFilter {
                 !Boolean.FALSE.toString().equals(request.getParameter(CACHE_PARAMETER))) {
 
             CachingDatabase caching = new CachingDatabase();
+
             caching.setDelegate(Database.Static.getDefault());
 
-            String url = request.getServletPath() + "?" + request.getQueryString();
-            boolean preload = Settings.getOrDefault(boolean.class, "dari/isCachingFilterPreloadEnabled", false);
+            Database.Static.overrideDefault(caching);
 
             try {
-                Database.Static.overrideDefault(caching);
+                String url = request.getServletPath() + "?" + request.getQueryString();
+                boolean preload = Settings.getOrDefault(boolean.class, "dari/isCachingFilterPreloadEnabled", false);
 
                 if (preload) {
                     Set<UUID> objectIds = idCache.getIfPresent(url);
@@ -63,10 +64,12 @@ public class CachingDatabaseFilter extends AbstractFilter {
 
                 if (preload) {
                     Set<UUID> objectIds = new HashSet<UUID>(caching.getIdOnlyQueryIds());
+
                     if (!objectIds.isEmpty()) {
                         idCache.put(url, objectIds);
                     }
                 }
+
             } finally {
                 Database.Static.restoreDefault();
             }
