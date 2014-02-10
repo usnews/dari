@@ -170,6 +170,17 @@ public class ReferentialText extends AbstractList<Object> {
      * @return Never {@code null}.
      */
     public List<Object> toPublishables() {
+        return toPublishables(null);
+    }
+
+    /**
+     * Returns a mixed list of well-formed HTML strings and object references
+     * that have been converted to publishable forms.
+     *
+     * @param cleaner May be {@code null}.
+     * @return Never {@code null}.
+     */
+    public List<Object> toPublishables(Cleaner cleaner) {
 
         // Concatenate the items so that it can be fed into an HTML parser.
         StringBuilder html = new StringBuilder();
@@ -192,6 +203,10 @@ public class ReferentialText extends AbstractList<Object> {
         Element body = document.body();
 
         document.outputSettings().prettyPrint(false);
+
+        if (cleaner != null) {
+            cleaner.before(body);
+        }
 
         // Remove editorial markups.
         body.getElementsByTag("del").remove();
@@ -342,6 +357,10 @@ public class ReferentialText extends AbstractList<Object> {
             }
         }
 
+        if (cleaner != null) {
+            cleaner.after(body);
+        }
+
         // Remove empty paragraphs and stringify.
         StringBuilder cleaned = new StringBuilder();
 
@@ -451,5 +470,12 @@ public class ReferentialText extends AbstractList<Object> {
     @Override
     public int size() {
         return list.size();
+    }
+
+    public static interface Cleaner {
+
+        public void before(Element body);
+
+        public void after(Element body);
     }
 }
