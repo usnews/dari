@@ -18,6 +18,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.sql.SQLRecoverableException;
 import java.sql.SQLTimeoutException;
 import java.sql.Savepoint;
 import java.sql.Statement;
@@ -116,6 +117,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlDatabase.class);
     private static final String SHORT_NAME = "SQL";
     private static final Stats STATS = new Stats(SHORT_NAME);
+    private static final String CONNECTION_ERROR_STATS_OPERATION = "Connection Error";
     private static final String QUERY_STATS_OPERATION = "Query";
     private static final String UPDATE_STATS_OPERATION = "Update";
     private static final String QUERY_PROFILER_EVENT = SHORT_NAME + " " + QUERY_STATS_OPERATION;
@@ -1295,14 +1297,41 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     private Connection getConnectionFromDataSource(DataSource dataSource) throws SQLException {
-        Connection connection = dataSource.getConnection();
-        String catalog = getCatalog();
+        int limit = Settings.getOrDefault(int.class, "dari/sqlConnectionRetryLimit", 5);
 
-        if (catalog != null) {
-            connection.setCatalog(catalog);
+        while (true) {
+            try {
+                Connection connection = dataSource.getConnection();
+                String catalog = getCatalog();
+
+                if (catalog != null) {
+                    connection.setCatalog(catalog);
+                }
+
+                return connection;
+
+            } catch (SQLException error) {
+                if (error instanceof SQLRecoverableException) {
+                    -- limit;
+
+                    if (limit >= 0) {
+                        Stats.Timer timer = STATS.startTimer();
+
+                        try {
+                            Thread.sleep(ObjectUtils.jitter(10L, 0.5));
+
+                        } catch (InterruptedException ignore) {
+                            // Ignore and keep retrying.
+
+                        } finally {
+                            timer.stop(CONNECTION_ERROR_STATS_OPERATION);
+                        }
+                    }
+                }
+
+                throw error;
+            }
         }
-
-        return connection;
     }
 
     @Override
