@@ -184,7 +184,8 @@ public class ReferentialText extends AbstractList<Object> {
 
         // Concatenate the items so that it can be fed into an HTML parser.
         StringBuilder html = new StringBuilder();
-        String boundary = UUID.randomUUID().toString();
+        String enhancementClass = UUID.randomUUID().toString();
+        String boundary = "<span class=\"" + enhancementClass + "\"></span>";
         List<Reference> references = new ArrayList<Reference>();
 
         for (Object item : this) {
@@ -354,6 +355,28 @@ public class ReferentialText extends AbstractList<Object> {
         for (Element paragraph : body.getElementsByTag(P_TAG.getName())) {
             if (paragraph.getElementsByTag(P_TAG.getName()).size() > 1) {
                 paragraph.unwrap();
+            }
+        }
+
+        // <p>before [enh] after</p> -> <p>before</p> [enh] <p>after</p>
+        for (Element enhancement : body.getElementsByClass(enhancementClass)) {
+            Element paragraph = enhancement.parent();
+
+            if (P_TAG.equals(paragraph.tag())) {
+                Element before = new Element(P_TAG, "");
+
+                for (Node previous = enhancement.previousSibling();
+                        previous != null;
+                        previous = previous.previousSibling()) {
+                    before.prependChild(previous);
+                }
+
+                if (!before.childNodes().isEmpty()) {
+                    before.attributes().addAll(paragraph.attributes());
+                    paragraph.before(before);
+                }
+
+                paragraph.before(enhancement);
             }
         }
 
