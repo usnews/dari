@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.beans.SimpleBeanInfo;
@@ -864,12 +865,28 @@ public class DatabaseEnvironment implements ObjectStruct {
 
             this.type = type;
             this.index = index;
-            this.descriptor = new PropertyDescriptor(name, readMethod, null);
+            this.descriptor = new DynamicPropertyDescriptor(name, readMethod);
         }
 
         @Override
         public PropertyDescriptor[] getPropertyDescriptors() {
             return new PropertyDescriptor[] { descriptor };
+        }
+    }
+
+    private static class DynamicPropertyDescriptor extends PropertyDescriptor {
+
+        private final Method readMethod;
+
+        public DynamicPropertyDescriptor(String propertyName, Method readMethod) throws IntrospectionException {
+            super(propertyName, readMethod, null);
+
+            this.readMethod = readMethod;
+        }
+
+        @Override
+        public Method getReadMethod() {
+            return readMethod;
         }
     }
 
