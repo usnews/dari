@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import org.joda.time.DateTime;
+
 /** Converts an arbitrary object into an instance of another class. */
 public class Converter {
 
@@ -234,6 +236,7 @@ public class Converter {
         putDirectFunction(Object.class, Short.class, toShort);
 
         putDirectFunction(Object.class, Date.class, new ObjectToDate());
+        putDirectFunction(Object.class, DateTime.class, new ObjectToDateTime());
         putDirectFunction(Object.class, Iterable.class, new ObjectToIterable());
         putDirectFunction(Object.class, String.class, new ObjectToString());
         putDirectFunction(Object.class, UUID.class, new ObjectToUuid());
@@ -450,6 +453,22 @@ public class Converter {
                 // Try a different conversion below.
             }
             return DateUtils.fromString(object.toString());
+        }
+    }
+
+    private static class ObjectToDateTime implements ConversionFunction<Object, DateTime> {
+
+        @Override
+        public DateTime convert(Converter converter, Type returnType, Object object) {
+            Date date = converter.convert(Date.class, object);
+
+            if (date != null) {
+                return new DateTime(date);
+
+            } else {
+                throw new ConversionException(String.format(
+                        "Can't convert [%s] to DateTime instance!", object));
+            }
         }
     }
 
