@@ -10,14 +10,16 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpServletRequestWrapper;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link HttpServletRequest} that's capable of reading
@@ -27,10 +29,14 @@ public class MultipartRequest extends HttpServletRequestWrapper {
     private static final String ATTRIBUTE_PREFIX = MultipartRequest.class.getName() + ".";
     private static final String PARAMETERS_ATTRIBUTE = ATTRIBUTE_PREFIX + "parameters";
     private static final String LISTENER_ATTRIBUTE = ATTRIBUTE_PREFIX +"listener";
+    public static final String UPLOAD_PROGRESS_UNIQUE_KEY_PARAM="dari/uploadProgressUniqueKeyParam";
+    public static final String USER_COOKIE = "cmsToolUser";
     private UploadProgressListener progressListener;
+    private static final Logger LOGGER = LoggerFactory.getLogger(MultipartRequest.class);
 
     private final Map<String, List<FileItem>> parameters;
 
+   
     /**
      * Creates an instance that wraps the given {@code request}.
      *
@@ -42,26 +48,25 @@ public class MultipartRequest extends HttpServletRequestWrapper {
         // Make sure that the request body is only read once.
         @SuppressWarnings("unchecked")
         Map<String, List<FileItem>> parameters = (Map<String, List<FileItem>>) request.getAttribute(PARAMETERS_ATTRIBUTE);
-
+        //LOGGER.info("Dump of parameter names ramana:" + parameters.entrySet());
         if (parameters == null) {
             if (ServletFileUpload.isMultipartContent(request)) {
                 parameters = new CompactMap<String, List<FileItem>>();
-
                 try {
                     ServletFileUpload upload = new ServletFileUpload(new DiskFileItemFactory());
                     upload.setHeaderEncoding(StringUtils.UTF_8.name());
-                    //Set the listener so that we get notifications about upload progress
-                    progressListener=new UploadProgressListener();
-                    progressListener.setParamNames(Collections.list(request.getParameterNames()));
-                    upload.setProgressListener(progressListener);
-                    HttpSession session=request.getSession(false);
-                    if (session != null ) {
-                      session.setAttribute(LISTENER_ATTRIBUTE,progressListener);
-                    }
-
+                    String uploadProgressUniqueKey=Static.getUploadProgressUniqueKey(request);
+                    if (! StringUtils.isEmpty(uploadProgressUniqueKey)) {
+                            LOGGER.info("Value of uploadProgressUniqueKey value used to insert in db..." + uploadProgressUniqueKey);
+                            // Set the listener so that we get notifications about upload progress  
+                            progressListener = new UploadProgressListener();
+                            progressListener.setUploadProgressKey(uploadProgressUniqueKey);
+                            upload.setProgressListener(progressListener);
+                    }             
+               
                     @SuppressWarnings("unchecked")
-                    List<FileItem> items = (List<FileItem>) upload.parseRequest(request);
-
+                    List<FileItem> items = upload.parseRequest(request);
+                   
                     for (FileItem item : items) {
                         String name = item.getFieldName();
                         List<FileItem> values = parameters.get(name);
@@ -213,12 +218,25 @@ public class MultipartRequest extends HttpServletRequestWrapper {
     }
     /** {@link MultipartRequest} utility methods. */
     public static final class Static {
-          public static UploadProgressListener getListenerFromSession(HttpServletRequest request) {
-                 HttpSession session=request.getSession(false);
-                 if( session != null) {
-                    return (UploadProgressListener) session.getAttribute(LISTENER_ATTRIBUTE);
-                 }
-                 return null;
+          public static String getUploadProgressUniqueKey(HttpServletRequest request) {
+              
+              Cookie cmsToolUserCookie=JspUtils.getCookie(request, USER_COOKIE);
+              if (cmsToolUserCookie != null &&  !StringUtils.isEmpty(cmsToolUserCookie.getValue())){
+                  int indexOfBar=cmsToolUserCookie.getValue().indexOf('|');
+                  LOGGER.info("Value of msToolUserCookie.getValue():" + cmsToolUserCookie.getValue());
+                  LOGGER.info("IndexofBar:" + indexOfBar);
+                  return cmsToolUserCookie.getValue().substring(0,indexOfBar);
+              }
+
+              String uploadProgressUniqueKeyParam = ObjectUtils.to(String.class, Settings.get(UPLOAD_PROGRESS_UNIQUE_KEY_PARAM));
+              if (! StringUtils.isEmpty(uploadProgressUniqueKeyParam)) {
+                  String uploadProgressUniqueKey=request.getParameter(uploadProgressUniqueKeyParam); 
+                  //LOGGER.info("Value of uploadProgressUniqueKey param value..." + uploadProgressUniqueKey);
+                  if (!StringUtils.isEmpty(uploadProgressUniqueKey)) {
+                     return uploadProgressUniqueKey;
+                  }
+              }     
+              return null;
           }
     }
 
