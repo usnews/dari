@@ -423,6 +423,18 @@ public class KalturaStorageItem extends VideoStorageItem {
      * @param seconds
      * @return
      */
+    public String getThumbnailUrl(Integer width, Integer height) {
+        return new StringBuffer(getBaseUrl()).append(getPartnerId().toString()).append("/thumbnail/entry_id/").append(getKalturaId()).append("/width/").append(width).append("/height/").append(height).toString();
+    }
+    
+    /**
+     * Returns thumbnail with a specified width and height at a specified time
+     * 
+     * @param width
+     * @param height
+     * @param seconds
+     * @return
+     */
     public String getThumbnailUrl(Integer width, Integer height, Integer seconds) {
         return new StringBuffer(getBaseUrl()).append(getPartnerId().toString()).append("/thumbnail/entry_id/").append(getKalturaId()).append("/width/").append(width).append("/height/").append(height).append(
                 "/vid_sec/").append(seconds).toString();

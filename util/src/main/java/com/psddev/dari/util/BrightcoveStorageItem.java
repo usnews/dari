@@ -971,6 +971,13 @@ public class BrightcoveStorageItem extends VideoStorageItem {
     public void setThumbnailUrl(String thumbnailUrl) {
          throw new UnsupportedOperationException();
     }
+    public String getThumbnailUrl(Integer width, Integer height) {
+        throw new UnsupportedOperationException();
+    }
+    
+    public String getThumbnailUrl(Integer width, Integer height, Integer seconds) {
+        throw new UnsupportedOperationException();
+    }
 
     public void push() {
          pushToBrightcove();

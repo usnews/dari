@@ -67,6 +67,8 @@ public abstract class VideoStorageItem extends AbstractStorageItem {
     public abstract List<Integer> getTranscodingFlavorIds();
     public abstract String getThumbnailUrl();
     public abstract void setThumbnailUrl(String thumbnailUrl);
+    public abstract String getThumbnailUrl(Integer width, Integer height, Integer seconds);
+    public abstract String getThumbnailUrl(Integer width, Integer height);
     public abstract Long getLength();
     public abstract void delete() throws IOException;
     public abstract boolean pull();
