@@ -47,7 +47,7 @@ from the `Activity` class. This will implicitly also retrieve any
 records that are subclasses of `Activity`.
 
 {% highlight java %}
-PaginatedResults<Activity> results = Query.from(Activity.class).
+PaginatedResult<Activity> results = Query.from(Activity.class).
         where("user = ?", user).
         sortDescending("activityDate").select(0, 10);
 {% endhighlight %}
@@ -59,7 +59,7 @@ Dari supports limiting the number of results returned using the
 [first()](javadocs/com/psddev/dari/db/Query.html#first%28%29) methods.
 
 {% highlight java %}
-PaginatedResults<Article> articles = Query.from(Article.class).
+PaginatedResult<Article> articles = Query.from(Article.class).
                                         sortAscending("title").select(0, 10);
 List<Article> items = articles.getItems();
 {% endhighlight %}

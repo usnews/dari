@@ -267,7 +267,7 @@ Using bind variables allows for `IN` style queries by passing a list.
 Up until this point all the query examples either returned the first result, `first()`, or
 all results, `select()`. `Query` also supports return a subset of results.
 
-    PaginatedResults<Article> articles = Query.from(Article.class).
+    PaginatedResult<Article> articles = Query.from(Article.class).
                                          sortAscending("title").select(0, 10);
 
 This will start at offset 0 and return the next 10 instances of `Article`. The result of
