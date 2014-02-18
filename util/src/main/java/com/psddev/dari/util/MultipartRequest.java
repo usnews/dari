@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 
@@ -28,8 +27,8 @@ import org.slf4j.LoggerFactory;
 public class MultipartRequest extends HttpServletRequestWrapper {
     private static final String ATTRIBUTE_PREFIX = MultipartRequest.class.getName() + ".";
     private static final String PARAMETERS_ATTRIBUTE = ATTRIBUTE_PREFIX + "parameters";
-    private static final String LISTENER_ATTRIBUTE = ATTRIBUTE_PREFIX +"listener";
-    public static final String UPLOAD_PROGRESS_UNIQUE_KEY_PARAM="dari/uploadProgressUniqueKeyParam";
+
+    
     public static final String USER_COOKIE = "cmsToolUser";
     private UploadProgressListener progressListener;
     private static final Logger LOGGER = LoggerFactory.getLogger(MultipartRequest.class);
@@ -55,12 +54,18 @@ public class MultipartRequest extends HttpServletRequestWrapper {
                 try {
                     ServletFileUpload upload = new ServletFileUpload(new DiskFileItemFactory());
                     upload.setHeaderEncoding(StringUtils.UTF_8.name());
-                    String uploadProgressUniqueKey=Static.getUploadProgressUniqueKey(request);
+                    
+                    String uploadProgressUniqueKey=UploadProgressListener.Static.getUploadProgressUniqueKey(request);
+                    //This is to prevent updating calls to the database in case if the user is not interested in
+                    //upload progress information...users needs to pass unique key parameter in the request 
                     if (! StringUtils.isEmpty(uploadProgressUniqueKey)) {
-                            LOGGER.info("Value of uploadProgressUniqueKey value used to insert in db..." + uploadProgressUniqueKey);
+                            LOGGER.debug("Value of uploadProgressUniqueKey value used to insert in db..." + uploadProgressUniqueKey);
                             // Set the listener so that we get notifications about upload progress  
                             progressListener = new UploadProgressListener();
                             progressListener.setUploadProgressKey(uploadProgressUniqueKey);
+                            if (  ObjectUtils.to(Long.class, Settings.get(UploadProgressListener.UPLOAD_PROGRESS_INFO_MIN_BYTES_THRESHOLD)) != null ) {
+                                progressListener.setUploadBytesThreshold(ObjectUtils.to(Long.class, Settings.get(UploadProgressListener.UPLOAD_PROGRESS_INFO_MIN_BYTES_THRESHOLD)));
+                            }
                             upload.setProgressListener(progressListener);
                     }             
                
@@ -216,28 +221,5 @@ public class MultipartRequest extends HttpServletRequestWrapper {
 
         return valuesList.toArray(new String[valuesList.size()]);
     }
-    /** {@link MultipartRequest} utility methods. */
-    public static final class Static {
-          public static String getUploadProgressUniqueKey(HttpServletRequest request) {
-              
-              Cookie cmsToolUserCookie=JspUtils.getCookie(request, USER_COOKIE);
-              if (cmsToolUserCookie != null &&  !StringUtils.isEmpty(cmsToolUserCookie.getValue())){
-                  int indexOfBar=cmsToolUserCookie.getValue().indexOf('|');
-                  LOGGER.info("Value of msToolUserCookie.getValue():" + cmsToolUserCookie.getValue());
-                  LOGGER.info("IndexofBar:" + indexOfBar);
-                  return cmsToolUserCookie.getValue().substring(0,indexOfBar);
-              }
-
-              String uploadProgressUniqueKeyParam = ObjectUtils.to(String.class, Settings.get(UPLOAD_PROGRESS_UNIQUE_KEY_PARAM));
-              if (! StringUtils.isEmpty(uploadProgressUniqueKeyParam)) {
-                  String uploadProgressUniqueKey=request.getParameter(uploadProgressUniqueKeyParam); 
-                  //LOGGER.info("Value of uploadProgressUniqueKey param value..." + uploadProgressUniqueKey);
-                  if (!StringUtils.isEmpty(uploadProgressUniqueKey)) {
-                     return uploadProgressUniqueKey;
-                  }
-              }     
-              return null;
-          }
-    }
-
+   
 }
