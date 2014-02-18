@@ -1043,6 +1043,7 @@ public class ObjectType extends Record implements ObjectStruct {
 
         public void process(ObjectType type, A annotation);
     }
+
     /** {@link ObjectType} utility methods. */
     public static final class Static {
         public static boolean hasFieldsOfType(ObjectType objectType, Class fieldType) {
