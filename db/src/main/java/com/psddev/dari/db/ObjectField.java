@@ -900,6 +900,10 @@ public class ObjectField extends Record {
                 setJavaEnumClassName(javaTypeClass.getName());
                 setValues(values);
                 return TEXT_TYPE;
+
+            } else if (StorageItem.class.isAssignableFrom(javaTypeClass)) {
+
+                return FILE_TYPE;
             }
 
             String type = CLASS_TO_TYPE.get(javaTypeClass);
