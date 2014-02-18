@@ -1325,6 +1325,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         } finally {
                             timer.stop(CONNECTION_ERROR_STATS_OPERATION);
+                            continue;
                         }
                     }
                 }
