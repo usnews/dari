@@ -45,11 +45,7 @@ public class KalturaStorageItem extends VideoStorageItem {
      * Kaltura API
      */
     public static final String KALTURA_PLAYER_ID_SETTING = "playerId";
-    /**
-     * Setting key for Kaltura player key. Please look at the embed code to
-     * identify these values
-     */
-    public static final String KALTURA_PLAYER_KEY_SETTING = "playerKey";
+
     /** Kaltura settings prefix */
     public static final String KALTURA_SETTINGS_PREFIX = "dari/storage/kaltura";
 
@@ -167,17 +163,10 @@ public class KalturaStorageItem extends VideoStorageItem {
         if (ObjectUtils.isBlank(getSessionTimeout())) {
             throw new SettingsException(settingsKey + "/" + KALTURA_SESSION_TIMEOUT_SETTING, "No kaltura session timeout .");
         }
-
         setPlayerId(ObjectUtils.to(Integer.class, settings.get(KALTURA_PLAYER_ID_SETTING)));
         if (ObjectUtils.isBlank(getPlayerId())) {
             throw new SettingsException(settingsKey + "/" + KALTURA_PLAYER_ID_SETTING, "No kaltura player id.");
         }
-
-        setPlayerKey(ObjectUtils.to(String.class, settings.get(KALTURA_PLAYER_KEY_SETTING)));
-        if (ObjectUtils.isBlank(getPlayerKey())) {
-            throw new SettingsException(settingsKey + "/" + KALTURA_PLAYER_ID_SETTING, "No kaltura player key.");
-        }
-
     }
 
     public String getKalturaId() {
@@ -238,9 +227,8 @@ public class KalturaStorageItem extends VideoStorageItem {
 
     private String createVideoSkeletonEntry(String fileName) {
         try {
-            KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
-            KalturaClient client = new KalturaClient(kalturaConfig);
-            KalturaSessionUtils.startAdminSession(client, kalturaConfig);
+            
+            KalturaClient client=KalturaSessionUtils.getSession();
             // Create entry
             KalturaMediaEntry entry = new KalturaMediaEntry();
             // Can be enhanced latter to populate the name from the video object
@@ -251,11 +239,8 @@ public class KalturaStorageItem extends VideoStorageItem {
             entry.conversionProfileId = getConversionProfileId();
             entry = client.getMediaService().add(entry);
             // assertNotNull(entry);
-            // Once done..close the session
-            KalturaSessionUtils.closeSession(client);
             // assertNotNull(uploadToken);
             LOGGER.info("Value of entry id is:" + entry.id);
-
             // After the upload is successful..set kaltura id and path to this
             // URL.
             // We can add more attributes from Kaltura if needed
@@ -272,11 +257,7 @@ public class KalturaStorageItem extends VideoStorageItem {
     public void uploadVideo(InputStream fileData, String entryId, String fileName, long fileSize) {
         try {
             long t1 = System.currentTimeMillis();
-            // KalturaConfiguration kalturaConfig =
-            // KalturaSessionUtils.getKalturaConfig();
-            KalturaConfiguration kalturaConfig = getKalturaConfig();
-            KalturaClient client = new KalturaClient(kalturaConfig);
-            KalturaSessionUtils.startAdminSession(client, kalturaConfig);
+            KalturaClient client =KalturaSessionUtils.getSession();
 
             // Create token
             KalturaUploadToken uploadToken = new KalturaUploadToken();
@@ -285,7 +266,6 @@ public class KalturaStorageItem extends VideoStorageItem {
             uploadToken.fileSize = fileSize;
             KalturaUploadToken token = client.getUploadTokenService().add(uploadToken);
             // assertNotNull(token);
-
             // Define content
             KalturaUploadedFileTokenResource resource = new KalturaUploadedFileTokenResource();
             resource.token = token.id;
@@ -294,9 +274,6 @@ public class KalturaStorageItem extends VideoStorageItem {
 
             // upload
             uploadToken = client.getUploadTokenService().upload(token.id, fileData, fileName, fileSize, false);
-
-            // Once done..close the session
-            KalturaSessionUtils.closeSession(client);
             // assertNotNull(uploadToken);
             long t2 = System.currentTimeMillis();
             LOGGER.info("Time taken to upload  to Kaltura :" + (t2 - t1));
@@ -369,13 +346,10 @@ public class KalturaStorageItem extends VideoStorageItem {
     @Override
     public void delete() throws IOException {
         try {
-            KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
-            KalturaClient client = new KalturaClient(kalturaConfig);
-            KalturaSessionUtils.startAdminSession(client, kalturaConfig);
+            KalturaClient client = KalturaSessionUtils.getSession();
             // Step2: Delete Media Entry from kaltura
             client.getMediaService().delete(kalturaId);
             // Once done..close the session
-            KalturaSessionUtils.closeSession(client);
         } catch (KalturaApiException e) {
             LOGGER.error("Failed to delete kaltura entry id", e);
         }
@@ -423,6 +397,7 @@ public class KalturaStorageItem extends VideoStorageItem {
      * @param seconds
      * @return
      */
+    @Override
     public String getThumbnailUrl(Integer width, Integer height) {
         return new StringBuffer(getBaseUrl()).append(getPartnerId().toString()).append("/thumbnail/entry_id/").append(getKalturaId()).append("/width/").append(width).append("/height/").append(height).toString();
     }
@@ -435,6 +410,7 @@ public class KalturaStorageItem extends VideoStorageItem {
      * @param seconds
      * @return
      */
+    @Override
     public String getThumbnailUrl(Integer width, Integer height, Integer seconds) {
         return new StringBuffer(getBaseUrl()).append(getPartnerId().toString()).append("/thumbnail/entry_id/").append(getKalturaId()).append("/width/").append(width).append("/height/").append(height).append(
                 "/vid_sec/").append(seconds).toString();
@@ -446,10 +422,8 @@ public class KalturaStorageItem extends VideoStorageItem {
     @Override
     public boolean pull() {
         // Step1: Start kaltura sesion
-        KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
-        KalturaClient client = new KalturaClient(kalturaConfig);
+        KalturaClient client = KalturaSessionUtils.getSession();
         try {
-            KalturaSessionUtils.startAdminSession(client, kalturaConfig);
             // Step2: Get the Media Entry from kaltura
             if (kalturaId == null || "".equals(kalturaId)) {
                 LOGGER.error("Kaltura ID is empty for video: " + this);
@@ -466,8 +440,6 @@ public class KalturaStorageItem extends VideoStorageItem {
                 // }
                 status = mediaEntry.status;
             }
-            // Once done..close the session
-            KalturaSessionUtils.closeSession(client);
         } catch (KalturaApiException e) {
             LOGGER.error("Failed to pull kaltura entry id ", e);
             return false;
@@ -482,14 +454,10 @@ public class KalturaStorageItem extends VideoStorageItem {
     @Override
     public void push() {
         // Step1: Start kaltura sesion
-        KalturaConfiguration kalturaConfig = KalturaSessionUtils.getKalturaConfig();
-        KalturaClient client = new KalturaClient(kalturaConfig);
+        KalturaClient client =KalturaSessionUtils.getSession();
         try {
-            KalturaSessionUtils.startAdminSession(client, kalturaConfig);
             // Step2: Get the Media Entry from kaltura
             client.getMediaService().update(kalturaId, mediaEntry);
-            // Once done..close the session
-            KalturaSessionUtils.closeSession(client);
         } catch (KalturaApiException e) {
             LOGGER.error("Failed to update kaltura entry id", e);
         }

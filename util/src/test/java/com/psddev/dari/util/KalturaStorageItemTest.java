@@ -1,16 +1,13 @@
 package com.psddev.dari.util;
 
-import static com.psddev.dari.util.AbstractStorageItem.BASE_URL_SUB_SETTING;
 import static com.psddev.dari.util.AbstractStorageItem.HTTP_HEADERS;
 import static com.psddev.dari.util.AbstractStorageItem.HTTP_HEADER_CONTENT_LENGTH;
 import static com.psddev.dari.util.AbstractStorageItem.METADATA_PARAM_ORIGINAL_FILE_NAME;
-import static com.psddev.dari.util.AbstractStorageItem.SECURE_BASE_URL_SUB_SETTING;
 import static com.psddev.dari.util.KalturaStorageItem.KALTURA_ADMIN_SECRET_SETTING;
 import static com.psddev.dari.util.KalturaStorageItem.KALTURA_CONVERSION_PROFILE_ID_SETTING;
 import static com.psddev.dari.util.KalturaStorageItem.KALTURA_END_POINT_SETTING;
 import static com.psddev.dari.util.KalturaStorageItem.KALTURA_PARTNER_ID_SETTING;
 import static com.psddev.dari.util.KalturaStorageItem.KALTURA_PLAYER_ID_SETTING;
-import static com.psddev.dari.util.KalturaStorageItem.KALTURA_PLAYER_KEY_SETTING;
 import static com.psddev.dari.util.KalturaStorageItem.KALTURA_SECRET_SETTING;
 import static com.psddev.dari.util.KalturaStorageItem.KALTURA_SESSION_TIMEOUT_SETTING;
 import static org.junit.Assert.assertNotNull;
@@ -53,7 +50,7 @@ public class KalturaStorageItemTest {
             settings.put(KALTURA_SESSION_TIMEOUT_SETTING, "300");
             //Please look at the embed code to identify  these values.
             settings.put(KALTURA_PLAYER_ID_SETTING, 12311262);
-            settings.put(KALTURA_PLAYER_KEY_SETTING, "1363445590");
+     
 
             Settings.setOverride(KalturaStorageItem.KALTURA_SETTINGS_PREFIX,settings);
             kalturaStorageItem= new KalturaStorageItem();
