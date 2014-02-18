@@ -702,9 +702,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
+        Object queryConnection;
+
         if (connection != null &&
                 (query == null ||
-                !connection.equals(query.getOptions().get(CONNECTION_QUERY_OPTION)))) {
+                (queryConnection = query.getOptions().get(CONNECTION_QUERY_OPTION)) == null ||
+                !connection.equals(queryConnection))) {
             try {
                 if (!connection.isClosed()) {
                     connection.close();
