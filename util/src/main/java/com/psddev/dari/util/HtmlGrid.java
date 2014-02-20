@@ -14,6 +14,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -67,7 +69,11 @@ public class HtmlGrid {
 
         columns = createCssUnits(columnsString);
         rows = createCssUnits(rowsString);
-        template = new ArrayList<List<String>>();
+        template = createTemplate(columnsString, rowsString, templateStrings);
+    }
+
+    private List<List<String>> createTemplate(String columnsString, String rowsString, String... templateStrings) {
+        List<List<String>> template = new ArrayList<List<String>>();
 
         for (String t : templateStrings) {
             if (t != null && t.length() > 0) {
@@ -118,6 +124,8 @@ public class HtmlGrid {
                     "Rows mismatch! [%s] items in [%s] but [%s] in [%s]",
                     templateSize, t, rowsSize, rowsString));
         }
+
+        return template;
     }
 
     private List<CssUnit> createCssUnits(String values) {
@@ -130,6 +138,36 @@ public class HtmlGrid {
         }
 
         return instances;
+    }
+
+    public HtmlGrid(String template) {
+        ErrorUtils.errorIfBlank(template, "template");
+
+        Matcher columnsMatcher = Pattern.compile("(?s)\\s*(?:([^/]+)/)?(.*)").matcher(template);
+
+        if (!columnsMatcher.matches()) {
+            throw new IllegalArgumentException(String.format(
+                    "[%s] isn't a valid template!", template));
+        }
+
+        String columnsString = columnsMatcher.group(1);
+        Matcher rowsMatcher = Pattern.compile("['\\\"]([^'\\\"]+)['\\\"]\\s*([^'\\\"\\s]+)").matcher(columnsMatcher.group(2));
+        List<String> templateStrings = new ArrayList<String>();
+        StringBuilder rowsStringBuilder = new StringBuilder();
+
+        while (rowsMatcher.find()) {
+            templateStrings.add(rowsMatcher.group(1));
+            rowsStringBuilder.append(rowsMatcher.group(2));
+            rowsStringBuilder.append(' ');
+        }
+
+        String rowsString = rowsStringBuilder.toString();
+        this.columns = createCssUnits(columnsString);
+        this.rows = createCssUnits(rowsString);
+        this.template = createTemplate(
+                columnsString,
+                rowsString,
+                templateStrings.toArray(new String[templateStrings.size()]));
     }
 
     protected String getSelector() {
