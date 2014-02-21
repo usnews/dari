@@ -468,7 +468,7 @@ public class Poll extends Record {
 {% endhighlight %}
 
 Let's check out our updated model with the **db-schema** tool. Select
-`Poll` and `User Repsonse` from the dropdown. 
+`Poll` and `User Response` from the dropdown. 
 
 ![Poll Example 10](img/tutorial/poll10.png)
 
