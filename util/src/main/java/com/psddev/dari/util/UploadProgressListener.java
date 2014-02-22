@@ -98,20 +98,22 @@ public class UploadProgressListener implements ProgressListener {
     
     public static final class Static {
         public static String getUploadProgressUniqueKey(HttpServletRequest request) {
-            Cookie cmsToolUserCookie=JspUtils.getCookie(request, MultipartRequest.USER_COOKIE);
-            if (cmsToolUserCookie != null &&  !StringUtils.isEmpty(cmsToolUserCookie.getValue())){
-                int indexOfBar=cmsToolUserCookie.getValue().indexOf('|');
-                return cmsToolUserCookie.getValue().substring(0,indexOfBar);
-            }
-
+            //If  unique param is passed..use it to find the upload progress status
             String uploadProgressUniqueKeyParam = ObjectUtils.to(String.class, Settings.get(UPLOAD_PROGRESS_UNIQUE_KEY_PARAM));
-            if (! StringUtils.isEmpty(uploadProgressUniqueKeyParam)) {
-                String uploadProgressUniqueKey=request.getParameter(uploadProgressUniqueKeyParam); 
-                //LOGGER.info("Value of uploadProgressUniqueKey param value..." + uploadProgressUniqueKey);
+            if (!StringUtils.isEmpty(uploadProgressUniqueKeyParam)) {
+                String uploadProgressUniqueKey = request.getParameter(uploadProgressUniqueKeyParam);
+                // LOGGER.info("Value of uploadProgressUniqueKey param value..."
+                // + uploadProgressUniqueKey);
                 if (!StringUtils.isEmpty(uploadProgressUniqueKey)) {
-                   return uploadProgressUniqueKey;
+                    return uploadProgressUniqueKey;
                 }
-            }     
+            } else {
+                Cookie cmsToolUserCookie = JspUtils.getCookie(request, MultipartRequest.USER_COOKIE);
+                if (cmsToolUserCookie != null && !StringUtils.isEmpty(cmsToolUserCookie.getValue())) {
+                    int indexOfBar = cmsToolUserCookie.getValue().indexOf('|');
+                    return cmsToolUserCookie.getValue().substring(0, indexOfBar);
+                }
+            }   
             return null;
         }
   }
