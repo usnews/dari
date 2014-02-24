@@ -47,7 +47,7 @@ public class UploadProgressListener implements ProgressListener {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public void update(long bytesRead, long contentLength, int itemIndex) {
         try {   
-         LOGGER.info("uploadBytesThreshold :" + uploadBytesThreshold);
+         LOGGER.debug("bytesRead :" + bytesRead  + "contentLength:" +contentLength + "itemIndex:" +  itemIndex);
         //Update progres info only if bytes uploaded exceeds uploadBytesThreshold or if the upload is complete and contentLength exceeds threshold
         if (contentLength > -1 && bytesRead-prevBytesRead  >  uploadBytesThreshold ||bytesRead ==contentLength && bytesRead >  uploadBytesThreshold) {   
             prevBytesRead=bytesRead;
@@ -100,8 +100,8 @@ public class UploadProgressListener implements ProgressListener {
         public static String getUploadProgressUniqueKey(HttpServletRequest request) {
             //If  unique param is passed..use it to find the upload progress status
             String uploadProgressUniqueKeyParam = ObjectUtils.to(String.class, Settings.get(UPLOAD_PROGRESS_UNIQUE_KEY_PARAM));
-            if (!StringUtils.isEmpty(uploadProgressUniqueKeyParam)) {
-                String uploadProgressUniqueKey = request.getParameter(uploadProgressUniqueKeyParam);
+            String uploadProgressUniqueKey = request.getParameter(uploadProgressUniqueKeyParam);
+            if (!StringUtils.isEmpty(uploadProgressUniqueKey)) {
                 // LOGGER.info("Value of uploadProgressUniqueKey param value..."
                 // + uploadProgressUniqueKey);
                 if (!StringUtils.isEmpty(uploadProgressUniqueKey)) {
