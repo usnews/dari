@@ -2207,7 +2207,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         for (AtomicOperation operation : atomicOperations) {
                             String field = operation.getField();
-                            state.put(field, oldState.get(field));
+                            state.putByPath(field, oldState.getByPath(field));
                         }
 
                         for (AtomicOperation operation : atomicOperations) {
