@@ -20,11 +20,18 @@ public final class CompoundPredicate extends Predicate {
      * the given {@code operator}.
      */
     public static Predicate combine(String operator, Predicate left, Predicate right) {
-        if (left == null) {
-            return right;
-        }
+        if (PredicateParser.NOT_OPERATOR.equalsIgnoreCase(operator)) {
+            if (left == null) {
+                return new CompoundPredicate(PredicateParser.NOT_OPERATOR, Arrays.asList(right));
 
-        if (right == null) {
+            } else if (right == null) {
+                return new CompoundPredicate(PredicateParser.NOT_OPERATOR, Arrays.asList(left));
+            }
+
+        } else if (left == null) {
+            return right;
+
+        } else if (right == null) {
             return left;
         }
 
