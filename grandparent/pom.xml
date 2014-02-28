@@ -198,6 +198,66 @@ try {
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>prepare-release</id>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.groovy.maven</groupId>
+                        <artifactId>gmaven-plugin</artifactId>
+                        <version>1.0</version>
+                        <executions>
+                            <execution>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>execute</goal>
+                                </goals>
+                                <configuration>
+                                    <source><![CDATA[
+import java.util.*
+
+try {
+    def git = 'git'
+
+    if (System.getenv()['OS'] =~ /^Windows/) {
+        git = "cmd /c ${git}"
+    }
+
+    def newVersion = project.version.toString().replace('-SNAPSHOT', '') + '-' + ([ git, 'rev-list', '--count', 'HEAD' ].execute().in.text.trim())
+
+    project.properties['newVersion'] = newVersion
+    project.properties['generateBackupPoms'] = 'false'
+    log.info("Set newVersion to ${newVersion}.")
+
+} catch (Exception error) {
+    log.warn('Git not available!', error)
+}
+                                    ]]></source>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>versions-maven-plugin</artifactId>
+                        <version>2.1</version>
+                        <executions>
+                            <execution>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>set</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <distributionManagement>
         <repository>
             <id>psddev-releases</id>
