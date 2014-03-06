@@ -84,7 +84,7 @@ public class ReferentialText extends AbstractList<Object> {
 
         // Convert '<p>text</p>' to 'text<br><br>'.
         for (Element p : body.getElementsByTag("p")) {
-            if (p.hasText()) {
+            if (p.hasText() || !p.children().isEmpty()) {
                 p.appendChild(new Element(BR_TAG, ""));
                 p.appendChild(new Element(BR_TAG, ""));
                 p.unwrap();
