@@ -182,37 +182,23 @@ public class Stats {
          * @see Stats#startTimer
          */
         public double stop(String operation) {
+            return stop(operation, 1L);
+        }
+
+        /**
+         * Stops timing given {@code count} number of events and names the
+         * given {@code operation}.
+         *
+         * @return Duration in seconds.
+         * @see Stats#startTimer
+         */
+        public double stop(String operation, long count) {
             long end = System.nanoTime();
             double duration = (end - start) / 1e9;
 
             if (duration < 0.0) {
                 return 0.0;
 
-            } else {
-                getTotalMeasurement().update(end, duration);
-                getMeasurements().get(operation).update(end, duration);
-                return duration;
-            }
-        }
-
-        /**
-         * Stops timing and names the given {@code operation}.
-         * Measurements' discrete event counts are incremented by {@code count}.
-         *
-         * @return Duration in seconds.
-         * @see Stats#startTimer
-         */
-        public double stop(String operation, long count) {
-
-            if(count <= 1) {
-                stop(operation);
-            }
-
-            long end = System.nanoTime();
-            double duration = (end - start) / 1e9;
-
-            if(duration < 0.0) {
-                return 0.0;
             } else {
                 getTotalMeasurement().update(end, duration, count);
                 getMeasurements().get(operation).update(end, duration, count);
@@ -299,14 +285,7 @@ public class Stats {
          * {@code end} and {@code duration}.
          */
         protected void update(long end, double duration) {
-            totalCount.incrementAndGet();
-            totalDuration.addAndGet(duration);
-            for (ExponentialMovingAverage countAverage : countAverages) {
-                countAverage.updateAt(end, 1.0);
-            }
-            for (ExponentialMovingAverage durationAverage : durationAverages) {
-                durationAverage.updateAt(end, duration);
-            }
+            update(end, duration, 1L);
         }
 
         /**
@@ -316,9 +295,11 @@ public class Stats {
         protected void update(long end, double duration, long count) {
             totalCount.addAndGet(count);
             totalDuration.addAndGet(duration);
+
             for (ExponentialMovingAverage countAverage : countAverages) {
                 countAverage.updateAt(end, count);
             }
+
             for (ExponentialMovingAverage durationAverage : durationAverages) {
                 durationAverage.updateAt(end, duration);
             }
