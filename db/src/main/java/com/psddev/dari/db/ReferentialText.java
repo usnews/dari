@@ -364,11 +364,16 @@ public class ReferentialText extends AbstractList<Object> {
 
             if (P_TAG.equals(paragraph.tag())) {
                 Element before = new Element(P_TAG, "");
+                List<Node> beforeChildren = new ArrayList<Node>();
 
                 for (Node previous = enhancement.previousSibling();
                         previous != null;
                         previous = previous.previousSibling()) {
-                    before.prependChild(previous);
+                    beforeChildren.add(previous);
+                }
+
+                for (int i = beforeChildren.size() - 1; i >= 0; -- i) {
+                    before.appendChild(beforeChildren.get(i));
                 }
 
                 if (!before.childNodes().isEmpty()) {
