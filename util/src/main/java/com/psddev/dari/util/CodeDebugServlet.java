@@ -85,7 +85,7 @@ public class CodeDebugServlet extends HttpServlet {
             throw new IllegalArgumentException("Must post!");
         }
 
-        new DebugFilter.PageWriter(page) {{
+        new DebugFilter.PageWriter(page) { {
             File file = getFile(page);
             ErrorUtils.errorIfNull(file, "file");
             String code = page.paramOrDefault(String.class, "code", "");
@@ -129,7 +129,7 @@ public class CodeDebugServlet extends HttpServlet {
                     writeObject(ex);
                 writeEnd();
             }
-        }};
+        } };
     }
 
     private void doEdit(WebPageContext page) throws IOException, ServletException {
@@ -227,7 +227,7 @@ public class CodeDebugServlet extends HttpServlet {
             codeBuilder.append("}\n");
         }
 
-        new DebugFilter.PageWriter(page) {{
+        new DebugFilter.PageWriter(page) { {
             List<Object> inputs = CodeDebugServlet.Static.getInputs(getServletContext());
             Object input = inputs == null || inputs.isEmpty() ? null : inputs.get(0);
             String name;
@@ -472,7 +472,7 @@ public class CodeDebugServlet extends HttpServlet {
             @Override
             public void run(WebPageContext page) throws IOException, ServletException {
 
-                new DebugFilter.PageWriter(page) {{
+                new DebugFilter.PageWriter(page) { {
                     try {
                         Object result = CodeUtils.evaluateJava(page.paramOrDefault(String.class, "code", ""));
 
@@ -539,7 +539,7 @@ public class CodeDebugServlet extends HttpServlet {
                             writeObject(ex);
                         writeEnd();
                     }
-                }};
+                } };
             }
         },
 
@@ -550,7 +550,7 @@ public class CodeDebugServlet extends HttpServlet {
             @Override
             public void run(WebPageContext page) throws IOException, ServletException {
 
-                new DebugFilter.PageWriter(page) {{
+                new DebugFilter.PageWriter(page) { {
                     ServletContext context = page.getServletContext();
                     File file = getFile(page);
                     if (file == null) {
@@ -596,7 +596,7 @@ public class CodeDebugServlet extends HttpServlet {
                                     page.param(String.class, "jspPreviewUrl"),
                                     "_jsp", servletPath,
                                     "_draft", draft));
-                }};
+                } };
             }
         };
 

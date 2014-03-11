@@ -68,7 +68,7 @@ public final class TaskExecutor implements ScheduledExecutorService {
      */
     public List<Object> getTasks() {
         List<Object> tasks = new ArrayList<Object>();
-        for (Iterator<WeakReference<Object>> i = this.tasks.iterator(); i.hasNext(); ) {
+        for (Iterator<WeakReference<Object>> i = this.tasks.iterator(); i.hasNext();) {
             Object task = i.next().get();
             if (task != null) {
                 tasks.add(task);
@@ -251,7 +251,7 @@ public final class TaskExecutor implements ScheduledExecutorService {
         /** Returns a list of all active task executors. */
         public static synchronized List<TaskExecutor> getAll() {
             List<TaskExecutor> all = new ArrayList<TaskExecutor>();
-            for (Iterator<WeakReference<TaskExecutor>> i = INSTANCES.values().iterator(); i.hasNext(); ) {
+            for (Iterator<WeakReference<TaskExecutor>> i = INSTANCES.values().iterator(); i.hasNext();) {
                 TaskExecutor executor = i.next().get();
                 if (executor != null) {
                     all.add(executor);

@@ -363,7 +363,7 @@ public class Stats {
         public static List<Stats> getAll() {
             List<Stats> statsInstances = new ArrayList<Stats>();
 
-            for (Iterator<WeakReference<Stats>> i = STATS_REFERENCES.iterator(); i.hasNext(); ) {
+            for (Iterator<WeakReference<Stats>> i = STATS_REFERENCES.iterator(); i.hasNext();) {
                 WeakReference<Stats> ref = i.next();
                 Stats stats = ref.get();
 

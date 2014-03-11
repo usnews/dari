@@ -126,7 +126,7 @@ public final class Settings {
                         pathWithSlash = path + "/";
                     }
 
-                    for (Enumeration<Binding> e = context.listBindings(path); e.hasMoreElements(); ) {
+                    for (Enumeration<Binding> e = context.listBindings(path); e.hasMoreElements();) {
                         Binding binding = e.nextElement();
 
                         String name = binding.getName();
@@ -455,9 +455,9 @@ public final class Settings {
 
         } catch (InvocationTargetException ex) {
             Throwable cause = ex.getCause();
-            throw cause instanceof RuntimeException
-                    ? (RuntimeException) cause
-                    : new RuntimeException(String.format(
+            throw cause instanceof RuntimeException ?
+                    (RuntimeException) cause :
+                    new RuntimeException(String.format(
                             "Unexpected error trying to create [%s]!",
                             instanceClassName), cause);
         }

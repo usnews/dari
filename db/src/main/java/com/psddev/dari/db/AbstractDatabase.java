@@ -103,7 +103,7 @@ public abstract class AbstractDatabase<C> implements Database {
                 saveJunctions(state, type);
             }
 
-            for (Iterator<State> i = saves.iterator(); i.hasNext(); ) {
+            for (Iterator<State> i = saves.iterator(); i.hasNext();) {
                 State s = i.next();
 
                 if (s.equals(state)) {
@@ -217,7 +217,7 @@ public abstract class AbstractDatabase<C> implements Database {
         }
 
         public void addToIndexes(State state) {
-            for (Iterator<State> i = indexes.iterator(); i.hasNext(); ) {
+            for (Iterator<State> i = indexes.iterator(); i.hasNext();) {
                 State s = i.next();
                 if (s.equals(state)) {
                     i.remove();

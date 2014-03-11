@@ -810,7 +810,7 @@ public class HtmlWriter extends Writer {
         List<List<String>> template = new ArrayList<List<String>>(grid.getTemplate());
 
         // Clone the template so that the original isn't changed.
-        for (ListIterator<List<String>> i = template.listIterator(); i.hasNext(); ) {
+        for (ListIterator<List<String>> i = template.listIterator(); i.hasNext();) {
             i.set(new ArrayList<String>(i.next()));
         }
 

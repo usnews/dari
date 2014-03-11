@@ -192,7 +192,7 @@ public class BootstrapPackage extends Record {
             for (ObjectType type : allMyTypes) {
                 for (ObjectField field : type.getFields()) {
                     for (ObjectType t : field.getTypes()) {
-                        if (! field.isEmbedded() && ! t.isEmbedded()) {
+                        if (!field.isEmbedded() && !t.isEmbedded()) {
                             checkFields.put(field, t);
                         }
                     }
@@ -203,7 +203,7 @@ public class BootstrapPackage extends Record {
                 for (ObjectType type : additionalTypes) {
                     for (ObjectField field : type.getFields()) {
                         for (ObjectType t : field.getTypes()) {
-                            if (! field.isEmbedded() && ! t.isEmbedded()) {
+                            if (!field.isEmbedded() && !t.isEmbedded()) {
                                 checkFields.put(field, t);
                             }
                         }
@@ -213,7 +213,7 @@ public class BootstrapPackage extends Record {
 
             for (ObjectField field : database.getEnvironment().getFields()) {
                 for (ObjectType t : field.getTypes()) {
-                    if (! field.isEmbedded() && ! t.isEmbedded()) {
+                    if (!field.isEmbedded() && !t.isEmbedded()) {
                         checkFields.put(field, t);
                     }
                 }
@@ -226,9 +226,9 @@ public class BootstrapPackage extends Record {
                         field.getParentType().as(TypeData.class).getFollowReferencesFields().contains(field.getInternalName())) {
                     continue;
                 }
-                if (! allMyTypes.contains(t)) {
+                if (!allMyTypes.contains(t)) {
                     if (allTypes.contains(t)) {
-                        if (! pkg.getTypesInOtherPackages().containsKey(t)) {
+                        if (!pkg.getTypesInOtherPackages().containsKey(t)) {
                             pkg.getTypesInOtherPackages().put(t, new HashSet<BootstrapPackage>());
                         }
                         for (BootstrapPackage otherPkg : allPackages) {
@@ -238,7 +238,7 @@ public class BootstrapPackage extends Record {
                         }
                     }
                     if (t.as(TypeData.class).getTypeMappableGroups().isEmpty() || t.as(TypeData.class).getTypeMappableUniqueKey() == null) {
-                        if (! pkg.getMissingTypes().containsKey(t)) {
+                        if (!pkg.getMissingTypes().containsKey(t)) {
                             pkg.getMissingTypes().put(t, new HashSet<ObjectField>());
                         }
                         pkg.getMissingTypes().get(t).add(field);

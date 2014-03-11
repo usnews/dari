@@ -532,7 +532,8 @@ public class WebPageContext extends HtmlWriter {
         for (
                 @SuppressWarnings("unchecked")
                 Enumeration<String> e = getRequest().getParameterNames();
-                e.hasMoreElements(); ) {
+                e.hasMoreElements();
+                ) {
             String name = e.nextElement();
             if (prefix == null || name.startsWith(prefix)) {
                 names.add(name);

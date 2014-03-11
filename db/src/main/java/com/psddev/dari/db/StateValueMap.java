@@ -52,7 +52,7 @@ class StateValueMap extends AbstractMap<String, Object> {
         }
 
         Map<UUID, Object> references = StateValueUtils.resolveReferences(database, object, map.values());
-        for (Iterator<Map.Entry<String, Object>> i = map.entrySet().iterator(); i.hasNext(); ) {
+        for (Iterator<Map.Entry<String, Object>> i = map.entrySet().iterator(); i.hasNext();) {
             Map.Entry<String, Object> e = i.next();
             Object value = e.getValue();
             UUID id = StateValueUtils.toIdIfReference(value);

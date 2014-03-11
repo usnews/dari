@@ -73,7 +73,7 @@ public class Tomcat6ReloaderServlet extends HttpServlet implements ContainerServ
         // If context is still loading, display a message and wait.
         response.setContentType("text/html");
         response.setCharacterEncoding("UTF-8");
-        new HtmlWriter(response.getWriter()) {{
+        new HtmlWriter(response.getWriter()) { {
 
             putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
             putDefault(Throwable.class, HtmlFormatter.THROWABLE);
@@ -130,7 +130,7 @@ public class Tomcat6ReloaderServlet extends HttpServlet implements ContainerServ
 
                 writeEnd();
             writeEnd();
-        }};
+        } };
     }
 
     private void reload(

@@ -99,7 +99,7 @@ public class AggregateQueryResult<E> extends PaginatedResult<E> {
         if (aggregateCount == null) {
             aggregateCount = 0L;
 
-            for (int i = 0; ; ++ i) {
+            for (int i = 0;; ++ i) {
                 Long count = getCountFor(i);
 
                 if (count == null) {
@@ -122,7 +122,7 @@ public class AggregateQueryResult<E> extends PaginatedResult<E> {
             long end = start + getLimit();
             long current = 0;
 
-            for (int i = 0; ; ++ i) {
+            for (int i = 0;; ++ i) {
                 Long count = getCountFor(i);
 
                 if (count == null) {
@@ -156,7 +156,7 @@ public class AggregateQueryResult<E> extends PaginatedResult<E> {
             long nextCount = 0L;
             long nextOffset = getNextOffset();
 
-            for (int i = 0; ; ++ i) {
+            for (int i = 0;; ++ i) {
                 Long count = getCountFor(i);
 
                 if (count == null) {

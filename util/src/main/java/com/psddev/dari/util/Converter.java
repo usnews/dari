@@ -129,7 +129,7 @@ public class Converter {
                                 return Integer.valueOf(-1);
                             } else {
                                 int depth = 0;
-                                for (Class<?> parent = objectClass; (parent = parent.getSuperclass()) != null; ) {
+                                for (Class<?> parent = objectClass; (parent = parent.getSuperclass()) != null;) {
                                     ++ depth;
                                 }
                                 return Integer.valueOf(depth);

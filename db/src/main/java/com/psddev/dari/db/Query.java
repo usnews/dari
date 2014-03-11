@@ -471,9 +471,9 @@ public class Query<E> extends Record {
     public Query<E> or(Predicate predicate) {
         if (predicate != null) {
             Predicate lastPredicate = getPredicate();
-            setPredicate(lastPredicate != null
-                    ? CompoundPredicate.combine(PredicateParser.OR_OPERATOR, lastPredicate, predicate)
-                    : predicate);
+            setPredicate(lastPredicate != null ?
+                    CompoundPredicate.combine(PredicateParser.OR_OPERATOR, lastPredicate, predicate) :
+                    predicate);
         }
         return this;
     }
@@ -496,9 +496,9 @@ public class Query<E> extends Record {
         if (predicate != null) {
             predicate = new CompoundPredicate(PredicateParser.NOT_OPERATOR, Arrays.asList(predicate));
             Predicate lastPredicate = getPredicate();
-            setPredicate(lastPredicate != null
-                    ? CompoundPredicate.combine(PredicateParser.AND_OPERATOR, lastPredicate, predicate)
-                    : predicate);
+            setPredicate(lastPredicate != null ?
+                    CompoundPredicate.combine(PredicateParser.AND_OPERATOR, lastPredicate, predicate) :
+                    predicate);
         }
         return this;
     }
@@ -651,7 +651,7 @@ public class Query<E> extends Record {
         Set<ObjectType> types = environment.getTypesByGroup(getGroup());
         Class<?> queryObjectClass = getObjectClass();
 
-        for (Iterator<ObjectType> i = types.iterator(); i.hasNext(); ) {
+        for (Iterator<ObjectType> i = types.iterator(); i.hasNext();) {
             ObjectType type = i.next();
             Class<?> typeObjectClass = type.getObjectClass();
 

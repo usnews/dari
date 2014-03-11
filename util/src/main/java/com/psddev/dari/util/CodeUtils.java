@@ -96,7 +96,7 @@ public final class CodeUtils {
         Map<File, Long> jars = new HashMap<File, Long>();
 
         try {
-            for (Enumeration<URL> i = ObjectUtils.getCurrentClassLoader().getResources(BUILD_PROPERTIES_PATH); i.hasMoreElements(); ) {
+            for (Enumeration<URL> i = ObjectUtils.getCurrentClassLoader().getResources(BUILD_PROPERTIES_PATH); i.hasMoreElements();) {
                 URL buildUrl = i.nextElement();
 
                 try {
@@ -854,7 +854,7 @@ public final class CodeUtils {
             int at, inputStart, inputRepeat, outputStart, outputIncrement, offset;
             String input, output;
 
-            for (String line; (line = reader.readLine()) != null; ) {
+            for (String line; (line = reader.readLine()) != null;) {
                 at = line.indexOf('#');
                 if (at > -1) {
                     line = line.substring(at + 1);

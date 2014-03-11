@@ -16,7 +16,7 @@ final class MetricIncrementQueue {
 
     //private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
 
-    private static final ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>> queuedIncrements = new ConcurrentHashMap<Double,ConcurrentHashMap<String, QueuedMetricIncrement>>();
+    private static final ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>> queuedIncrements = new ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>>();
 
     public static void queueIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount, double withinSeconds) {
 
@@ -33,7 +33,7 @@ final class MetricIncrementQueue {
 
     private static void putInMap(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount, double waitSeconds) {
 
-        ConcurrentHashMap<String,QueuedMetricIncrement> queue = queuedIncrements.get(waitSeconds);
+        ConcurrentHashMap<String, QueuedMetricIncrement> queue = queuedIncrements.get(waitSeconds);
         if (queue == null) {
             queuedIncrements.putIfAbsent(waitSeconds, new ConcurrentHashMap<String, QueuedMetricIncrement>());
             queue = queuedIncrements.get(waitSeconds);
@@ -142,7 +142,7 @@ class MetricIncrementQueueTask extends Task {
         Iterator<String> iter = null;
         while (true) {
             if (queuedIncrements.isEmpty()) break;
-            if (iter == null || ! iter.hasNext()) {
+            if (iter == null || !iter.hasNext()) {
                 if (iter != null) {
                     long waitMilliseconds = (long) (1000 * waitSeconds);
                     try {

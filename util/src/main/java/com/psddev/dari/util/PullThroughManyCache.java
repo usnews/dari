@@ -90,7 +90,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
 
             // Figure out which keys to produce.
             Set<K> toBeProduced = new LinkedHashSet<K>();
-            for (Iterator<K> i = toBeFetched.iterator(); i.hasNext(); ) {
+            for (Iterator<K> i = toBeFetched.iterator(); i.hasNext();) {
                 K key = i.next();
 
                 // Already cached?
@@ -169,10 +169,11 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                     }
 
                 } catch (Exception ex) {
-                    throw ex instanceof RuntimeException
-                            ? (RuntimeException) ex
-                            : new RuntimeException(String.format(
-                            "Unable to produce %s!", toBeProduced), ex);
+                    throw ex instanceof RuntimeException ?
+                            (RuntimeException) ex :
+                            new RuntimeException(String.format(
+                                    "Unable to produce %s!", toBeProduced),
+                                    ex);
 
                 } finally {
                     for (K key : toBeProduced) {

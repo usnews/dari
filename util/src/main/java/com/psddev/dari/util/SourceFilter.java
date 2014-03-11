@@ -363,7 +363,7 @@ public class SourceFilter extends AbstractFilter {
             return;
         }
 
-        new HtmlWriter(response.getWriter()) {{
+        new HtmlWriter(response.getWriter()) { {
             putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
             putDefault(Throwable.class, HtmlFormatter.THROWABLE);
 
@@ -443,7 +443,7 @@ public class SourceFilter extends AbstractFilter {
                 }
 
             write("</div>");
-        }};
+        } };
     }
 
     /**

@@ -721,7 +721,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private byte[] serializeState(State state) {
         Map<String, Object> values = state.getSimpleValues();
 
-        for (Iterator<Map.Entry<String, Object>> i = values.entrySet().iterator(); i.hasNext(); ) {
+        for (Iterator<Map.Entry<String, Object>> i = values.entrySet().iterator(); i.hasNext();) {
             Map.Entry<String, Object> entry = i.next();
             ObjectField field = state.getField(entry.getKey());
 
@@ -878,13 +878,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         for (int i = 4, count = meta.getColumnCount(); i <= count; ++ i) {
             String columnName = meta.getColumnLabel(i);
             if (columnName.startsWith(SUB_DATA_COLUMN_ALIAS_PREFIX)) {
-                if (columnName.endsWith("_"+ID_COLUMN)) {
+                if (columnName.endsWith("_" + ID_COLUMN)) {
                     subId = resultSet.getObject(i);
-                } else if (columnName.endsWith("_"+TYPE_ID_COLUMN)) {
+                } else if (columnName.endsWith("_" + TYPE_ID_COLUMN)) {
                     subTypeId = resultSet.getObject(i);
-                } else if (columnName.endsWith("_"+DATA_COLUMN)) {
+                } else if (columnName.endsWith("_" + DATA_COLUMN)) {
                     subData = resultSet.getBytes(i);
-                    if (subId != null && subTypeId != null && subData != null && ! subId.equals(objectState.getId())) {
+                    if (subId != null && subTypeId != null && subData != null && !subId.equals(objectState.getId())) {
                         Object subObject = createSavedObject(subTypeId, subId, query);
                         State subObjectState = State.getInstance(subObject);
                         subObjectState.setValues(unserializeData(subData));
@@ -1532,7 +1532,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                 if (driverClass != null) {
                     Driver driver = null;
-                    for (Enumeration<Driver> e = DriverManager.getDrivers(); e.hasMoreElements(); ) {
+                    for (Enumeration<Driver> e = DriverManager.getDrivers(); e.hasMoreElements();) {
                         Driver d = e.nextElement();
                         if (driverClass.isInstance(d)) {
                             driver = d;
@@ -2739,7 +2739,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             statement.executeUpdate(sqlQuery);
 
                     return affected;
-                } catch(SQLException sqlEx) {
+                } catch (SQLException sqlEx) {
                     if (savePoint != null) {
                         connection.rollback(savePoint);
                     }

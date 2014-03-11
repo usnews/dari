@@ -27,7 +27,7 @@ public class SqlDebugServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Database", "SQL");
 
                 SqlDatabase database = null;
@@ -143,6 +143,6 @@ public class SqlDebugServlet extends HttpServlet {
                 }
 
             endPage();
-        }};
+        } };
     }
 }

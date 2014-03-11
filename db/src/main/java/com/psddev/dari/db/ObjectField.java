@@ -951,7 +951,7 @@ public class ObjectField extends Record {
             TypeVariable<?> javaTypeVar = (TypeVariable<?>) javaType;
             GenericDeclaration container = javaTypeVar.getGenericDeclaration();
 
-            for (Type current = objectClass; true; ) {
+            for (Type current = objectClass; true;) {
                 if (current instanceof ParameterizedType) {
                     ParameterizedType currentParamed = (ParameterizedType) current;
                     Type currentRaw = currentParamed.getRawType();
@@ -1048,7 +1048,7 @@ public class ObjectField extends Record {
     public boolean isMetric() {
         Set<ObjectType> types = getTypes();
 
-        return getInternalItemType().equals(METRIC_TYPE) || 
+        return getInternalItemType().equals(METRIC_TYPE) ||
                 (types != null &&
                 !types.isEmpty() &&
                 Metric.class.equals(types.iterator().next().getObjectClass()));

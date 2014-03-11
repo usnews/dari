@@ -830,7 +830,7 @@ public class SqlVendor {
                             if ("binlog_format".equalsIgnoreCase(result.getString(1))) {
                                 statementReplication = "STATEMENT".equalsIgnoreCase(result.getString(2));
                             } else if ("log_bin".equalsIgnoreCase(result.getString(1))) {
-                                binLogEnabled = (! "OFF".equalsIgnoreCase(result.getString(2)));
+                                binLogEnabled = (!"OFF".equalsIgnoreCase(result.getString(2)));
                             }
                         }
                         // Server is using statement replication only if log_bin is not OFF and binlog_format is STATEMENT
@@ -1217,7 +1217,7 @@ public class SqlVendor {
                     str.append("SUBSTR(");
                         str.append(columnIdentifier);
                         str.append(',');
-                        appendValue(str, 1+MetricAccess.DATE_BYTE_SIZE + ((position-1)*MetricAccess.AMOUNT_BYTE_SIZE));
+                        appendValue(str, 1 + MetricAccess.DATE_BYTE_SIZE + ((position - 1) * MetricAccess.AMOUNT_BYTE_SIZE));
                         str.append(',');
                         appendValue(str, MetricAccess.AMOUNT_BYTE_SIZE);
                     str.append(')');
@@ -1252,7 +1252,7 @@ public class SqlVendor {
             str.append("DATE_FORMAT(FROM_UNIXTIME(");
             appendMetricSelectTimestampSql(str, columnIdentifier);
             str.append('*');
-            appendValue(str, (MetricAccess.DATE_DECIMAL_SHIFT/1000L));
+            appendValue(str, (MetricAccess.DATE_DECIMAL_SHIFT / 1000L));
             str.append("),");
             appendValue(str, metricInterval.getSqlTruncatedDateFormat(this));
             str.append(')');
@@ -1263,7 +1263,7 @@ public class SqlVendor {
                 str.append("HEX(");
                     appendBindValue(str, (long) (amount * MetricAccess.AMOUNT_DECIMAL_SHIFT), parameters);
                 str.append(" )");
-            str.append(", "+(MetricAccess.AMOUNT_BYTE_SIZE*2)+", '0')");
+            str.append(", " + (MetricAccess.AMOUNT_BYTE_SIZE * 2) + ", '0')");
         }
 
         private void appendHexEncodeExistingTimestampSql(StringBuilder str, String columnIdentifier) {
@@ -1291,10 +1291,10 @@ public class SqlVendor {
                         appendBindValue(str, (int) (timestamp / MetricAccess.DATE_DECIMAL_SHIFT), parameters);
                     }
                 str.append(')');
-            str.append(", "+(MetricAccess.DATE_BYTE_SIZE*2)+", '0')");
+            str.append(", " + (MetricAccess.DATE_BYTE_SIZE * 2) + ", '0')");
             if (rpadChar != null) {
                 str.append(',');
-                appendValue(str, MetricAccess.DATE_BYTE_SIZE*2+MetricAccess.AMOUNT_BYTE_SIZE*2+MetricAccess.AMOUNT_BYTE_SIZE*2);
+                appendValue(str, MetricAccess.DATE_BYTE_SIZE * 2 + MetricAccess.AMOUNT_BYTE_SIZE * 2 + MetricAccess.AMOUNT_BYTE_SIZE * 2);
                 str.append(", '");
                 str.append(rpadChar);
                 str.append("')");
@@ -1309,9 +1309,9 @@ public class SqlVendor {
                     // conv(hex(substr(data, 1+4, 8)), 16, 10)
                     appendMetricSelectAmountSql(str, columnIdentifier, position);
                     str.append('+');
-                    appendBindValue(str, (long)(amount * MetricAccess.AMOUNT_DECIMAL_SHIFT), parameters);
+                    appendBindValue(str, (long) (amount * MetricAccess.AMOUNT_DECIMAL_SHIFT), parameters);
                 str.append(" )");
-            str.append(", "+(MetricAccess.AMOUNT_BYTE_SIZE*2)+", '0')");
+            str.append(", " + (MetricAccess.AMOUNT_BYTE_SIZE * 2) + ", '0')");
         }
 
         /* ******************* METRICS ******************* */
@@ -1550,10 +1550,10 @@ public class SqlVendor {
                         appendBindValue(str, (int) (timestamp / MetricAccess.DATE_DECIMAL_SHIFT), parameters);
                     }
                 str.append(')');
-            str.append(", "+(MetricAccess.DATE_BYTE_SIZE*2)+", '0')");
+            str.append(", " + (MetricAccess.DATE_BYTE_SIZE * 2) + ", '0')");
             if (rpadHexChar != null) {
                 str.append(',');
-                appendValue(str, MetricAccess.DATE_BYTE_SIZE*2+MetricAccess.AMOUNT_BYTE_SIZE*2+MetricAccess.AMOUNT_BYTE_SIZE*2);
+                appendValue(str, MetricAccess.DATE_BYTE_SIZE * 2 + MetricAccess.AMOUNT_BYTE_SIZE * 2 + MetricAccess.AMOUNT_BYTE_SIZE * 2);
                 str.append(", '");
                 str.append(rpadHexChar);
                 str.append("')");
@@ -1566,12 +1566,12 @@ public class SqlVendor {
                 str.append("SUBSTRING(");
                     appendIdentifier(str, columnIdentifier);
                     str.append(',');
-                    appendValue(str, 1+(MetricAccess.DATE_BYTE_SIZE*2) + ((position-1)*MetricAccess.AMOUNT_BYTE_SIZE*2));
+                    appendValue(str, 1 + (MetricAccess.DATE_BYTE_SIZE * 2) + ((position - 1) * MetricAccess.AMOUNT_BYTE_SIZE * 2));
                     str.append(',');
-                    appendValue(str, MetricAccess.AMOUNT_BYTE_SIZE*2);
+                    appendValue(str, MetricAccess.AMOUNT_BYTE_SIZE * 2);
                 str.append(')');
             str.append(")::bit(");
-            str.append(MetricAccess.AMOUNT_BYTE_SIZE*8);
+            str.append(MetricAccess.AMOUNT_BYTE_SIZE * 8);
             str.append(")::bigint");
         }
 
@@ -1583,10 +1583,10 @@ public class SqlVendor {
                     str.append(',');
                     appendValue(str, 1);
                     str.append(',');
-                    appendValue(str, MetricAccess.DATE_BYTE_SIZE*2);
+                    appendValue(str, MetricAccess.DATE_BYTE_SIZE * 2);
                 str.append(')');
             str.append(")::bit(");
-            str.append(MetricAccess.DATE_BYTE_SIZE*8);
+            str.append(MetricAccess.DATE_BYTE_SIZE * 8);
             str.append(")::bigint");
         }
 
@@ -1595,7 +1595,7 @@ public class SqlVendor {
             str.append("TO_CHAR(TO_TIMESTAMP(");
             appendMetricSelectTimestampSql(str, columnIdentifier);
             str.append('*');
-            appendValue(str, (MetricAccess.DATE_DECIMAL_SHIFT/1000L));
+            appendValue(str, (MetricAccess.DATE_DECIMAL_SHIFT / 1000L));
             str.append(")::TIMESTAMP,");
             appendValue(str, metricInterval.getSqlTruncatedDateFormat(this));
             str.append(')');
@@ -1620,7 +1620,7 @@ public class SqlVendor {
                 str.append(',');
                 appendValue(str, 1);
                 str.append(',');
-                appendValue(str, MetricAccess.DATE_BYTE_SIZE*2);
+                appendValue(str, MetricAccess.DATE_BYTE_SIZE * 2);
             str.append(')');
         }
 
@@ -1632,9 +1632,9 @@ public class SqlVendor {
                     // conv(hex(substr(data, 1+4, 8)), 16, 10)
                     appendMetricSelectAmountSql(str, columnIdentifier, position);
                     str.append('+');
-                    appendBindValue(str, (long)(amount * MetricAccess.AMOUNT_DECIMAL_SHIFT), parameters);
+                    appendBindValue(str, (long) (amount * MetricAccess.AMOUNT_DECIMAL_SHIFT), parameters);
                 str.append(" )");
-            str.append(", "+(MetricAccess.AMOUNT_BYTE_SIZE*2)+", '0')");
+            str.append(", " + (MetricAccess.AMOUNT_BYTE_SIZE * 2) + ", '0')");
         }
 
         private void appendHexEncodeSetAmountSql(StringBuilder str, List<Object> parameters, double amount) {
@@ -1642,7 +1642,7 @@ public class SqlVendor {
                 str.append("TO_HEX(");
                     appendBindValue(str, (long) (amount * MetricAccess.AMOUNT_DECIMAL_SHIFT), parameters);
                 str.append(" )");
-            str.append(", "+(MetricAccess.AMOUNT_BYTE_SIZE*2)+", '0')");
+            str.append(", " + (MetricAccess.AMOUNT_BYTE_SIZE * 2) + ", '0')");
         }
 
         /* ******************* METRICS ******************* */

@@ -53,8 +53,8 @@ public class Metric extends Record {
     }
 
     /**
-     * Returns the MetricAccess or throw an exception if it could not find the SQL database. 
-     * 
+     * Returns the MetricAccess or throw an exception if it could not find the SQL database.
+     *
      */
     private MetricAccess getMetricAccess() {
         if (metricAccess == null) {
@@ -63,7 +63,14 @@ public class Metric extends Record {
             }
         }
         if (metricAccess == null) {
-            throw new RuntimeException ("Metric field " +field.getUniqueName()+" cannot determine SQL database for database " + owner.getDatabase().getName() + " (" + owner.getDatabase().getClass().getName() + "), this Metric object is unusable!");
+            throw new RuntimeException(
+                    "Metric field " +
+                    field.getUniqueName() +
+                    " cannot determine SQL database for database " +
+                    owner.getDatabase().getName() +
+                    " (" +
+                    owner.getDatabase().getClass().getName() +
+                    "), this Metric object is unusable!");
         }
         return metricAccess;
     }
@@ -412,10 +419,10 @@ public class Metric extends Record {
 
         private static void doDatabasePreFetch(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricAccess> metricAccesses) {
             if (metricAccesses.isEmpty()) return;
-            try{
+            try {
                 MetricAccess.Static.preFetchMetricSums(id, dimensionId, startTimestamp, endTimestamp, metricAccesses);
             } catch (SQLException ex) {
-                LOGGER.warn("Exception when prefetching Metrics for object "+id+": " + ex.getLocalizedMessage());
+                LOGGER.warn("Exception when prefetching Metrics for object " + id + ": " + ex.getLocalizedMessage());
             }
         }
 

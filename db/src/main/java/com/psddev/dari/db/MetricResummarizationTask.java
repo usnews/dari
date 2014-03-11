@@ -15,8 +15,8 @@ import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.Task;
 import com.psddev.dari.util.TypeReference;
 
-/** Automatic resummarization of Metric values, driven by the {@code 
- * "dari/metricResummarize"} Settings map. To use, add lines like these to your 
+/** Automatic resummarization of Metric values, driven by the {@code
+ * "dari/metricResummarize"} Settings map. To use, add lines like these to your
  * context.xml:
  *
  * <pre>
@@ -53,7 +53,7 @@ public class MetricResummarizationTask extends RepeatingTask {
     private static String CONFIG_BEFORE_DAYS = "beforeDays";
     private static String CONFIG_INTERVAL_CLASS = "intervalClass";
     private static String CONFIG_DATABASE = "database";
-    private static Map<String,Map<String,Object>> CONFIG = Settings.get(new TypeReference<Map<String,Map<String,Object>>>() {}, CONFIG_PREFIX);
+    private static Map<String, Map<String, Object>> CONFIG = Settings.get(new TypeReference<Map<String, Map<String, Object>>>() { }, CONFIG_PREFIX);
 
     @Override
     protected DateTime calculateRunTime(DateTime currentTime) {
@@ -73,7 +73,7 @@ public class MetricResummarizationTask extends RepeatingTask {
         for (Map.Entry<String, Map<String, Object>> entry : CONFIG.entrySet()) {
 
             String key = entry.getKey();
-            Map<String,Object> settings = entry.getValue();
+            Map<String, Object> settings = entry.getValue();
             String fieldsStr = ObjectUtils.to(String.class, settings.get(CONFIG_FIELDS));
 
             if (ObjectUtils.isBlank(fieldsStr)) {
@@ -104,12 +104,12 @@ public class MetricResummarizationTask extends RepeatingTask {
                 }
             }
 
-            submitResummarizationTask (database, key, fieldSpecs, beforeDays, intervalClassName);
+            submitResummarizationTask(database, key, fieldSpecs, beforeDays, intervalClassName);
 
         }
     }
 
-    private void submitResummarizationTask (Database database, String key, String[] fieldSpecs, int beforeDays, String intervalClassName) {
+    private void submitResummarizationTask(Database database, String key, String[] fieldSpecs, int beforeDays, String intervalClassName) {
 
         Set<ObjectField> fields = resolveFieldSpecs(database, key, fieldSpecs);
         if (fields == null || fields.isEmpty()) {
@@ -153,7 +153,7 @@ public class MetricResummarizationTask extends RepeatingTask {
         last.setEndDate(endDate);
         last.save();
         for (ObjectField field : fields) {
-            Task task = Metric.Static.submitResummarizeAllBetweenTask(database, field.getParentType(), field, interval, startDate, endDate, 1, "Periodic Metric Resummarization", key + " (" + field.getUniqueName()+")");
+            Task task = Metric.Static.submitResummarizeAllBetweenTask(database, field.getParentType(), field, interval, startDate, endDate, 1, "Periodic Metric Resummarization", key + " (" + field.getUniqueName() + ")");
             do {
                 try {
                     Thread.sleep(1000);
@@ -176,7 +176,7 @@ public class MetricResummarizationTask extends RepeatingTask {
             if (parts.length == 1) {
                 // looking for a global field
                 if (fieldSpec.endsWith("*")) {
-                    String fieldPrefix = fieldSpec.substring(0, fieldSpec.length()-1);
+                    String fieldPrefix = fieldSpec.substring(0, fieldSpec.length() - 1);
                     for (ObjectField field : database.getEnvironment().getFields()) {
                         if (field.getInternalName().startsWith(fieldPrefix) && field.isMetric()) {
                             fields.add(field);
@@ -185,7 +185,7 @@ public class MetricResummarizationTask extends RepeatingTask {
                 } else {
                     ObjectField field = database.getEnvironment().getField(fieldSpec);
                     if (field == null || !field.isMetric()) {
-                        LOGGER.warn("Metric Resummarization: " +CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid field.");
+                        LOGGER.warn("Metric Resummarization: " + CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid field.");
                         return null;
                     }
                     fields.add(field);
@@ -196,11 +196,11 @@ public class MetricResummarizationTask extends RepeatingTask {
                 String typeFieldSpec = parts[1];
                 ObjectType type = database.getEnvironment().getTypeByName(typeName);
                 if (type == null) {
-                    LOGGER.warn("Metric Resummarization: " +CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid type.");
+                    LOGGER.warn("Metric Resummarization: " + CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid type.");
                     return null;
                 }
                 if (typeFieldSpec.endsWith("*")) {
-                    String typeFieldPrefix = typeFieldSpec.substring(0, typeFieldSpec.length()-1);
+                    String typeFieldPrefix = typeFieldSpec.substring(0, typeFieldSpec.length() - 1);
                     for (ObjectField field : type.getFields()) {
                         if (field.getInternalName().startsWith(typeFieldPrefix) && field.isMetric()) {
                             fields.add(field);
@@ -209,14 +209,14 @@ public class MetricResummarizationTask extends RepeatingTask {
                 } else {
                     ObjectField field = type.getField(typeFieldSpec);
                     if (field == null || !field.isMetric()) {
-                        LOGGER.warn("Metric Resummarization: " +CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid field.");
+                        LOGGER.warn("Metric Resummarization: " + CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid field.");
                         return null;
                     }
                     fields.add(field);
                 }
 
             } else {
-                LOGGER.warn("Metric Resummarization: " +CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid field.");
+                LOGGER.warn("Metric Resummarization: " + CONFIG_PREFIX + "/" + key + "/" + CONFIG_FIELDS + " : " + fieldSpec + " specifies an invalid field.");
                 return null;
             }
 

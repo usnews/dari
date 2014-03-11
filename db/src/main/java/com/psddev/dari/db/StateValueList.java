@@ -58,7 +58,7 @@ class StateValueList extends AbstractList<Object> {
         }
 
         Map<UUID, Object> references = StateValueUtils.resolveReferences(database, object, list);
-        for (ListIterator<Object> i = list.listIterator(); i.hasNext(); ) {
+        for (ListIterator<Object> i = list.listIterator(); i.hasNext();) {
             Object item = i.next();
             UUID id = StateValueUtils.toIdIfReference(item);
 

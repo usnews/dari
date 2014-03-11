@@ -242,7 +242,7 @@ public abstract class AbstractFilter implements Filter {
 
         dependencies = new ArrayList<Filter>(dependencies);
 
-        for (Iterator<Filter> i = dependencies.iterator(); i.hasNext(); ) {
+        for (Iterator<Filter> i = dependencies.iterator(); i.hasNext();) {
             Filter dependency = i.next();
             Class<? extends Filter> dependencyClass = dependency.getClass();
 

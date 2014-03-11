@@ -117,8 +117,7 @@ public final class DateUtils {
 
     /** Converts the given date into a string using the given format. */
     public static String toString(Date date, String format) {
-        return date == null
-                ? null : FORMATTERS.get(format).print(date.getTime());
+        return date == null ? null : FORMATTERS.get(format).print(date.getTime());
     }
 
     /** Converts the given date into a string using the default format. */

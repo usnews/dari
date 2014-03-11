@@ -102,7 +102,7 @@ public class DependencyResolver<T> {
         }
 
         List<T> sorted = new ArrayList<T>();
-        for (T item; (item = toBeChecked.poll()) != null; ) {
+        for (T item; (item = toBeChecked.poll()) != null;) {
             sorted.add(item);
             for (Map.Entry<T, Set<T>> e : graph.entrySet()) {
                 T object = e.getKey();

@@ -33,7 +33,7 @@ public class SchemaDebugServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
 
             Database database = Database.Static.getDefault();
             List<ObjectType> types = new ArrayList<ObjectType>(database.getEnvironment().getTypes());
@@ -180,6 +180,6 @@ public class SchemaDebugServlet extends HttpServlet {
                 includeScript("/_resource/dari/db-schema.js");
 
             endPage();
-        }};
+        } };
     }
 }

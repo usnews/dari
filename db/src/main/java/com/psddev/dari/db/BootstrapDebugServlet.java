@@ -75,8 +75,8 @@ public class BootstrapDebugServlet extends HttpServlet {
                 }
                 if (pkg != null && LIVE_DOWNLOAD_BUTTON_TEXT.equals(action)) {
                     response.setContentType("application/gzip");
-                    String filename = "bootstrap."+StringUtils.toNormalized(projectName)+"."+StringUtils.toNormalized(pkgName)+"." + new DateTime().toString("yyyyMMdd.HHmm") + ".txt.gz";
-                    response.setHeader("Content-Disposition", "attachment; filename="+filename);
+                    String filename = "bootstrap." + StringUtils.toNormalized(projectName) + "." + StringUtils.toNormalized(pkgName) + "." + new DateTime().toString("yyyyMMdd.HHmm") + ".txt.gz";
+                    response.setHeader("Content-Disposition", "attachment; filename=" + filename);
                     try {
                         GZIPOutputStream gzOut = new GZIPOutputStream(response.getOutputStream());
                         Writer outputWriter = new OutputStreamWriter(gzOut);
@@ -136,7 +136,7 @@ public class BootstrapDebugServlet extends HttpServlet {
             }
         }
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Database", "Bootstrap");
 
                 writeStart("div", "class", "row-fluid");
@@ -151,7 +151,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                         for (BootstrapPackage pkg : packages) {
                             // if (pkgName != null && ! pkg.getName().equals(pkgName)) continue;
                             if (pkg.getName().equals(pkgName)) {
-                                if (! additionalTypes.isEmpty()) {
+                                if (!additionalTypes.isEmpty()) {
                                     BootstrapPackage.Static.checkConsistency(selectedDatabase, pkg, new HashSet<BootstrapPackage>(packages), additionalTypes);
                                 }
                             }
@@ -188,7 +188,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 writeEnd();
                             writeEnd();
 
-                            if (! pkg.getMissingTypes().isEmpty() || ! pkg.getTypesInOtherPackages().isEmpty()) {
+                            if (!pkg.getMissingTypes().isEmpty() || !pkg.getTypesInOtherPackages().isEmpty()) {
                                 String adtlClass = "button-hidden";
                                 if (pkg.getName().equals(pkgName)) {
                                     adtlClass = "";
@@ -207,7 +207,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                                 }
                                             }
                                         }
-                                        if (pkg.getName().equals(pkgName) && ! additionalTypeIds.isEmpty()) {
+                                        if (pkg.getName().equals(pkgName) && !additionalTypeIds.isEmpty()) {
                                             writeStart("a", "href", "?").writeStart("span", "class", "label label-important").writeHtml("Clear").writeEnd().writeEnd();
                                         }
                                         for (Map.Entry<ObjectType, Set<ObjectField>> entry : missingTypes.entrySet()) {
@@ -228,7 +228,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                                 writeEnd();
                                                 if (!entry.getValue().isEmpty()) {
                                                     writeHtml(" (referenced by ");
-                                                    Map<String, String> uniqueNames = new TreeMap<String,String>();
+                                                    Map<String, String> uniqueNames = new TreeMap<String, String>();
                                                     for (ObjectField f : entry.getValue()) {
                                                         if (f.getParentType() == null) {
                                                             uniqueNames.put("Global Modification " + f.getUniqueName(), f.getDisplayName());
@@ -298,7 +298,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 }
                             writeEnd();
 
-                            if (pkg.getName().equals(pkgName) && ! additionalTypes.isEmpty()) {
+                            if (pkg.getName().equals(pkgName) && !additionalTypes.isEmpty()) {
                                 writeStart("p").writeStart("h4").writeHtml("Included Dependencies: ").writeEnd();
                                     first = true;
                                     for (ObjectType type : additionalTypes) {
@@ -384,9 +384,9 @@ public class BootstrapDebugServlet extends HttpServlet {
                             write("$(document).ready(function() {");
                                 write("$('#deleteCheckbox').change(function() {");
                                     write("if ($(this).is(':checked')) {");
-                                        write("$('#importBtn').val('"+DELETE_AND_IMPORT_BUTTON_TEXT+"').removeClass('btn-primary').addClass('btn-danger');");
+                                        write("$('#importBtn').val('" + DELETE_AND_IMPORT_BUTTON_TEXT + "').removeClass('btn-primary').addClass('btn-danger');");
                                     write("} else {");
-                                        write("$('#importBtn').val('"+IMPORT_BUTTON_TEXT+"').removeClass('btn-danger').addClass('btn-primary');");
+                                        write("$('#importBtn').val('" + IMPORT_BUTTON_TEXT + "').removeClass('btn-danger').addClass('btn-primary');");
                                     write("}");
                                 write("});");
                                 write("$('#deleteCheckbox').change();");
@@ -395,7 +395,7 @@ public class BootstrapDebugServlet extends HttpServlet {
 
                         writeEnd();
 
-                        // 
+                        //
 
                         List<TaskExecutor> ongoingTasks = new ArrayList<TaskExecutor>();
                         for (TaskExecutor executor : TaskExecutor.Static.getAll()) {
@@ -419,6 +419,6 @@ public class BootstrapDebugServlet extends HttpServlet {
                 writeEnd();
 
             endPage();
-        }};
+        } };
     }
 }

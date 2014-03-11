@@ -541,7 +541,7 @@ public class State implements Map<String, Object> {
         DatabaseEnvironment environment = getDatabase().getEnvironment();
         Object value = this;
 
-        KEY: for (String key; path != null; ) {
+        KEY: for (String key; path != null;) {
             int slashAt = path.indexOf('/');
 
             if (slashAt > -1) {
@@ -1786,7 +1786,7 @@ public class State implements Map<String, Object> {
                         put(key, value);
                     }
                 }
-                Map<String,Object> metricObjects = new HashMap<String, Object>();
+                Map<String, Object> metricObjects = new HashMap<String, Object>();
                 resolveMetricReferences(metricObjects);
                 for (Map.Entry<? extends String, ? extends Object> e : metricObjects.entrySet()) {
                     put(e.getKey(), e.getValue());

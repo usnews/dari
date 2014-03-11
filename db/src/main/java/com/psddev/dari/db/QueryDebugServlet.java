@@ -339,7 +339,7 @@ public class QueryDebugServlet extends HttpServlet {
                         int slashAt = indexUniqueName.indexOf('/');
 
                         if (slashAt >= 0) {
-                            indexName = indexUniqueName.substring(slashAt+1);
+                            indexName = indexUniqueName.substring(slashAt + 1);
 
                         } else {
                             indexName = indexUniqueName;

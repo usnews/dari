@@ -720,7 +720,7 @@ class MetricValueProcessor implements ObjectField.AnnotationProcessor<Recordable
         fieldData.setIndexTableReadOnly(true);
 
         metricFieldData.setEventDateProcessorClass(annotation.interval());
-        if (! "".equals(annotation.intervalSetting())) {
+        if (!"".equals(annotation.intervalSetting())) {
             String settingValue = Settings.getOrDefault(String.class, annotation.intervalSetting(), null);
             if (settingValue != null) {
                 metricFieldData.setEventDateProcessorClassName(settingValue);

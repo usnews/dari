@@ -91,7 +91,7 @@ public class WebResourceOverrideFilter extends AbstractFilter {
 
         String path = JspUtils.getCurrentServletPath(request);
         Copier copier = copiers.get().get(path);
-        
+
         if (copier == null) {
             restorers.getUnchecked(path).ensure();
 

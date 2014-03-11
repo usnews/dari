@@ -148,7 +148,7 @@ public class ObjectType extends Record implements ObjectStruct {
             }
 
             // Field definition.
-            for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
+            for (Iterator<ObjectField> i = fields.iterator(); i.hasNext();) {
                 ObjectField field = i.next();
                 if (internalName.equals(field.getInternalName())) {
                     i.remove();
@@ -210,7 +210,7 @@ public class ObjectType extends Record implements ObjectStruct {
             }
 
             if (extraFields != null) {
-                for (Iterator<ObjectIndex> i = indexes.iterator(); i.hasNext(); ) {
+                for (Iterator<ObjectIndex> i = indexes.iterator(); i.hasNext();) {
                     ObjectIndex index = i.next();
                     if (internalName.equals(index.getField())) {
                         i.remove();
@@ -846,7 +846,7 @@ public class ObjectType extends Record implements ObjectStruct {
         List<ObjectField> fields = getFields();
         List<ObjectIndex> indexes = getIndexes();
 
-        for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
+        for (Iterator<ObjectField> i = fields.iterator(); i.hasNext();) {
             ObjectField field = i.next();
 
             if (!ObjectUtils.isBlank(field.getJavaDeclaringClassName())) {
@@ -854,7 +854,7 @@ public class ObjectType extends Record implements ObjectStruct {
             }
         }
 
-        for (Iterator<ObjectIndex> i = indexes.iterator(); i.hasNext(); ) {
+        for (Iterator<ObjectIndex> i = indexes.iterator(); i.hasNext();) {
             ObjectIndex index = i.next();
 
             if (!ObjectUtils.isBlank(index.getJavaDeclaringClassName())) {
@@ -957,7 +957,7 @@ public class ObjectType extends Record implements ObjectStruct {
             fieldInternalNames.add(prefix + internalName);
         }
 
-        for (Iterator<ObjectField> i = localFields.iterator(); i.hasNext(); ) {
+        for (Iterator<ObjectField> i = localFields.iterator(); i.hasNext();) {
             ObjectField field = i.next();
             String declaringClassName = field.getJavaDeclaringClassName();
             if (!ObjectUtils.isBlank(declaringClassName)) {
@@ -969,7 +969,7 @@ public class ObjectType extends Record implements ObjectStruct {
             }
         }
 
-        for (Iterator<ObjectIndex> i = localIndexes.iterator(); i.hasNext(); ) {
+        for (Iterator<ObjectIndex> i = localIndexes.iterator(); i.hasNext();) {
             ObjectIndex index = i.next();
             String declaringClassName = index.getJavaDeclaringClassName();
             if (!ObjectUtils.isBlank(declaringClassName)) {

@@ -105,10 +105,13 @@ public abstract class PeriodicCache<K, V> implements Map<K, V> {
                     }
                 }
                 LOGGER.debug(
-                        "Total [{}]; New [{}]; Update [{}]; Delete [{}];"
-                        + " Same [{}]", new Object[] { newMap.size(),
-                        newKeys.size(), updateCount, deleteCount,
-                        sameCount });
+                        "Total [{}]; New [{}]; Update [{}]; Delete [{}]; Same [{}]",
+                        new Object[] {
+                                newMap.size(),
+                                newKeys.size(),
+                                updateCount,
+                                deleteCount,
+                                sameCount });
             }
         }
     }

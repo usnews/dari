@@ -795,7 +795,7 @@ public enum SqlIndex {
                     Set<Object> values = valuesList.get(i);
                     int valuesSize = values.size();
                     partitionSize /= valuesSize;
-                    for (int p = 0; p < permutationSize; ) {
+                    for (int p = 0; p < permutationSize;) {
                         for (Object value : values) {
                             for (int k = 0; k < partitionSize; ++ k, ++ p) {
                                 permutations[p][i] = value;

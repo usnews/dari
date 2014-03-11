@@ -244,8 +244,8 @@ public abstract class AbstractStorageItem implements StorageItem {
             return true;
         } else if (other instanceof StorageItem) {
             StorageItem otherItem = (StorageItem) other;
-            return ObjectUtils.equals(getStorage(), otherItem.getStorage())
-                    && ObjectUtils.equals(getPath(), otherItem.getPath());
+            return ObjectUtils.equals(getStorage(), otherItem.getStorage()) &&
+                    ObjectUtils.equals(getPath(), otherItem.getPath());
         } else {
             return false;
         }

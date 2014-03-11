@@ -528,9 +528,9 @@ public final class JspUtils {
             ServletRequest request,
             ServletResponse response) {
 
-        return (response instanceof HttpServletResponse
-                && ((HttpServletResponse) response).containsHeader("Location"))
-                || request.getAttribute(IS_FINISHED_ATTRIBUTE) != null;
+        return (response instanceof HttpServletResponse &&
+                ((HttpServletResponse) response).containsHeader("Location")) ||
+                request.getAttribute(IS_FINISHED_ATTRIBUTE) != null;
     }
 
     /**
@@ -1106,9 +1106,9 @@ public final class JspUtils {
                 Writer writer) {
 
             super(response);
-            this.writer = writer instanceof PrintWriter
-                    ? (PrintWriter) writer
-                    : new PrintWriter(writer);
+            this.writer = writer instanceof PrintWriter ?
+                    (PrintWriter) writer :
+                    new PrintWriter(writer);
         }
 
         // --- HttpServletResponseWrapper support ---

@@ -223,7 +223,7 @@ public class MongoDatabase extends AbstractDatabase<DBCollection> {
                 ObjectUtils.to(UUID.class, map.remove(ID_KEY)));
 
         State state = State.getInstance(object);
-        for (Iterator<Map.Entry<String, Object>> i = map.entrySet().iterator(); i.hasNext(); ) {
+        for (Iterator<Map.Entry<String, Object>> i = map.entrySet().iterator(); i.hasNext();) {
             Map.Entry<String, Object> e = i.next();
             String key = e.getKey();
             if (key.startsWith("_")) {

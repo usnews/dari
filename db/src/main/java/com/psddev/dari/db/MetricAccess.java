@@ -175,7 +175,7 @@ class MetricAccess {
     private boolean hasCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, String position) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras == null) return false;
-        synchronized(extras) {
+        synchronized (extras) {
             return (extras.containsKey(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp + '.' + position));
         }
     }
@@ -183,7 +183,7 @@ class MetricAccess {
     private byte[] getCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, String position) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
-            synchronized(extras) {
+            synchronized (extras) {
                 return (byte[]) extras.get(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp + '.' + position);
             }
         }
@@ -193,7 +193,7 @@ class MetricAccess {
     private void putCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, byte[] data, String position) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
-            synchronized(extras) {
+            synchronized (extras) {
                 extras.put(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp + '.' + position, data);
             }
         }
@@ -202,7 +202,7 @@ class MetricAccess {
     private void clearCachedData(CachingDatabase cachingDb, UUID id) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
         if (extras != null) {
-            synchronized(extras) {
+            synchronized (extras) {
                 Set<String> keys = new HashSet<String>(extras.keySet());
                 for (String key : keys) {
                     if (key.startsWith(METRIC_CACHE_EXTRA_PREFIX)) {
@@ -213,7 +213,7 @@ class MetricAccess {
         }
     }
 
-    private Map<String,Object> getCachedStateExtras(CachingDatabase cachingDb, UUID id) {
+    private Map<String, Object> getCachedStateExtras(CachingDatabase cachingDb, UUID id) {
         if (cachingDb != null && cachingDb.getObjectCache().containsKey(id)) {
             Object obj = cachingDb.getObjectCache().get(id);
             if (obj != null && obj instanceof Recordable) {
@@ -250,7 +250,7 @@ class MetricAccess {
         boolean isImplicitEventDate = (time == null);
         long eventDate = getEventDate(time);
         Static.doIncrementUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), dimensionId, amount, eventDate, isImplicitEventDate);
-        if (! dimensionId.equals(UuidUtils.ZERO_UUID)) {
+        if (!dimensionId.equals(UuidUtils.ZERO_UUID)) {
             // Do an additional increment for the null dimension to maintain the sum
             Static.doIncrementUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, amount, eventDate, isImplicitEventDate);
         }
@@ -268,7 +268,7 @@ class MetricAccess {
             throw new RuntimeException("MetricAccess.setMetric() can only be used if EventDateProcessor is None");
         }
         Static.doSetUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), dimensionId, amount, 0L);
-        if (! dimensionId.equals(UuidUtils.ZERO_UUID)) {
+        if (!dimensionId.equals(UuidUtils.ZERO_UUID)) {
             // Do an additional increment for the null dimension to maintain the sum
             Double allDimensionsAmount = Static.calculateMetricSumById(getDatabase(), id, getTypeId(), getSymbolId(), null, null);
             Static.doSetUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, allDimensionsAmount, 0L);
@@ -1525,7 +1525,7 @@ class MetricAccess {
                 symbolIdsString.append(',');
                 maBySymbolId.put(ma.getSymbolId(), ma);
             } while (iter.hasNext() && (ma = iter.next()) != null);
-            symbolIdsString.setLength(symbolIdsString.length()-1);
+            symbolIdsString.setLength(symbolIdsString.length() - 1);
 
             boolean selectMinData = true;
             if (startTimestamp == null) {

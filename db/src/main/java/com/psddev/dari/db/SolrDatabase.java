@@ -1695,7 +1695,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     private static class TypeAheadFieldsProcessor implements ObjectType.AnnotationProcessor<TypeAheadFields> {
         @Override
         public void process(ObjectType type, TypeAheadFields annotation) {
-            Map <String, List<String>> typeAheadFieldsMap = new HashMap<String, List<String>>();
+            Map<String, List<String>> typeAheadFieldsMap = new HashMap<String, List<String>>();
 
             for (TypeAheadFieldsMapping mapping : annotation.mappings()) {
                 List<String> fields = Arrays.asList(mapping.solrFields());

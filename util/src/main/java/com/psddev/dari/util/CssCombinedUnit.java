@@ -24,7 +24,7 @@ public class CssCombinedUnit {
             }
         }
 
-        for (Iterator<Map.Entry<String, CssUnit>> i = combined.entrySet().iterator(); i.hasNext(); ) {
+        for (Iterator<Map.Entry<String, CssUnit>> i = combined.entrySet().iterator(); i.hasNext();) {
             CssUnit value = i.next().getValue();
 
             if (!"auto".equals(value.getUnit()) && value.getNumber() == 0.0) {

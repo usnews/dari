@@ -91,7 +91,7 @@ public abstract class ListMap<K, V> implements Map<K, V> {
 
     @Override
     public V put(K key, V value) {
-        for (ListIterator<V> i = list.listIterator(); i.hasNext(); ) {
+        for (ListIterator<V> i = list.listIterator(); i.hasNext();) {
             V item = i.next();
 
             if (ObjectUtils.equals(key, getKey(item))) {
@@ -113,7 +113,7 @@ public abstract class ListMap<K, V> implements Map<K, V> {
 
     @Override
     public V remove(Object key) {
-        for (Iterator<V> i = list.iterator(); i.hasNext(); ) {
+        for (Iterator<V> i = list.iterator(); i.hasNext();) {
             V item = i.next();
 
             if (ObjectUtils.equals(key, getKey(item))) {

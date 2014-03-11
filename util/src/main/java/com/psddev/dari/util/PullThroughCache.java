@@ -146,7 +146,7 @@ public abstract class PullThroughCache<K, V> implements Map<K, V> {
     }
 
     @Override
-    public Set<Map.Entry<K,V>> entrySet() {
+    public Set<Map.Entry<K, V>> entrySet() {
         Map<K, V> map = new CompactMap<K, V>();
         for (Map.Entry<K, PullThroughReference<K, V>> entry : cache.entrySet()) {
             PullThroughReference<K, V> value = entry.getValue();

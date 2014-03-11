@@ -328,11 +328,11 @@ public class DimsImageEditor extends AbstractImageEditor {
 
                 String commandsString = null;
 
-                int commandsOffset = baseUrl.length()+1;
+                int commandsOffset = baseUrl.length() + 1;
                 if (DimsImageEditor.this.getSharedSecret() != null && baseUrl.contains("/dims4/")) {
 
                     int slashAt = url.indexOf('/', commandsOffset);
-                    commandsOffset = url.indexOf('/', slashAt+1) + 1;
+                    commandsOffset = url.indexOf('/', slashAt + 1) + 1;
                 }
 
                 if (DimsImageEditor.this.isAppendImageUrls()) {
@@ -355,8 +355,8 @@ public class DimsImageEditor extends AbstractImageEditor {
                 String[] parts = commandsString.split("/");
                 String name = null;
                 String value = null;
-                for (int i=0; i<parts.length; i++) {
-                    if (i%2==0) {
+                for (int i = 0; i < parts.length; ++ i) {
+                    if (i % 2 == 0) {
                         name = StringUtils.decodeUri(parts[i]);
                     } else {
                         value = StringUtils.decodeUri(parts[i]);
@@ -592,7 +592,7 @@ public class DimsImageEditor extends AbstractImageEditor {
             dimsUrlBuilder.append(baseUrl);
 
             StringBuilder commandsBuilder = new StringBuilder();
-            for(Command command : getCommands()) {
+            for (Command command : getCommands()) {
                 commandsBuilder
                 .append(StringUtils.encodeUri(command.getName()))
                 .append('/')
@@ -601,14 +601,14 @@ public class DimsImageEditor extends AbstractImageEditor {
             }
 
             Long expireTs = null;
-            if(expireTs == null || expireTs <= 0) {
+            if (expireTs == null || expireTs <= 0) {
                 // Sets it to 2038-01-19
-                expireTs = (long)Integer.MAX_VALUE;
+                expireTs = (long) Integer.MAX_VALUE;
             }
 
             String sharedSecret = DimsImageEditor.this.getSharedSecret();
             // construct url for dims developer key support
-            if(sharedSecret != null && baseUrl.contains("/dims4/")) {
+            if (sharedSecret != null && baseUrl.contains("/dims4/")) {
                 String signature = expireTs + sharedSecret + StringUtils.decodeUri(commandsBuilder.toString()) + imageUrl;
 
                 String md5Hex = StringUtils.hex(StringUtils.md5(signature));
@@ -622,7 +622,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
             dimsUrlBuilder.append(commandsBuilder);
 
-            if(!DimsImageEditor.this.isAppendImageUrls()) {
+            if (!DimsImageEditor.this.isAppendImageUrls()) {
                 try {
                     // DIMS doesn't like the '+' character in the URL so convert
                     // them all to %20
@@ -643,7 +643,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     /** Represents the various image formats that DIMS can convert an image to. */
     private static enum ImageFormat {
-        png,jpg,gif;
+        png, jpg, gif;
     }
 
     /** Helper class so that width and height can be returned in a single object */
@@ -710,15 +710,15 @@ public class DimsImageEditor extends AbstractImageEditor {
             // example crop value: 208x208+15+93 (none of the values can be empty)
 
             int plusAt = value.indexOf('+');
-            String coords = value.substring(plusAt+1);
+            String coords = value.substring(plusAt + 1);
             int coordsPlusAt = coords.indexOf('+');
             this.x = ObjectUtils.to(Integer.class, coords.substring(0, coordsPlusAt));
-            this.y = ObjectUtils.to(Integer.class, coords.substring(coordsPlusAt+1));
+            this.y = ObjectUtils.to(Integer.class, coords.substring(coordsPlusAt + 1));
 
             String dimensions = value.substring(0, plusAt);
             int xAt = dimensions.indexOf('x');
             this.width = ObjectUtils.to(Integer.class, dimensions.substring(0, xAt));
-            this.height = ObjectUtils.to(Integer.class, dimensions.substring(xAt+1));
+            this.height = ObjectUtils.to(Integer.class, dimensions.substring(xAt + 1));
 
             this.useLegacy = useLegacy;
 
@@ -773,15 +773,15 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         public ThumbnailCommand(String value, boolean useLegacy) {
             // thumbnail value: 100x100> (width nor height can be empty, but option can be empty)
-            char last = value.charAt(value.length()-1);
+            char last = value.charAt(value.length() - 1);
             if (!Character.isDigit(last) && last != 'x') {
                 this.option = String.valueOf(last);
-                value = value.substring(0, value.length()-1);
+                value = value.substring(0, value.length() - 1);
             }
             int xAt = value.indexOf('x');
             if (xAt != -1) {
                 this.width = xAt > 0 ? ObjectUtils.to(Integer.class, value.substring(0, xAt)) : null;
-                this.height = xAt < value.length()-1 ? ObjectUtils.to(Integer.class, value.substring(xAt+1)) : null;
+                this.height = xAt < value.length() - 1 ? ObjectUtils.to(Integer.class, value.substring(xAt + 1)) : null;
             }
             this.useLegacy = useLegacy;
 
@@ -846,15 +846,15 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         public ResizeCommand(String value) {
             // resize value: 400x300! (width or height can be empty but not both, and option can be empty)
-            char last = value.charAt(value.length()-1);
+            char last = value.charAt(value.length() - 1);
             if (!Character.isDigit(last) && last != 'x') {
                 this.option = String.valueOf(last);
-                value = value.substring(0, value.length()-1);
+                value = value.substring(0, value.length() - 1);
             }
             int xAt = value.indexOf('x');
             if (xAt != -1) {
                 this.width = xAt > 0 ? ObjectUtils.to(Integer.class, value.substring(0, xAt)) : null;
-                this.height = xAt < value.length()-1 ? ObjectUtils.to(Integer.class, value.substring(xAt+1)) : null;
+                this.height = xAt < value.length() - 1 ? ObjectUtils.to(Integer.class, value.substring(xAt + 1)) : null;
             }
 
             if (this.width == null && this.height == null) {
@@ -905,7 +905,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                     actualHeight = actualDimension.height;
 
                 } else if (">".equals(option)) { // only shrink larger images
-                    if (    (this.height == null && this.width >= original.width) ||
+                    if ((this.height == null && this.width >= original.width) ||
                             (this.width == null && this.height >= original.height) || //            -->  <-- this is an AND
                             (this.width != null && this.height != null && this.width >= original.width && this.height >= original.height)) {
 
@@ -919,7 +919,7 @@ public class DimsImageEditor extends AbstractImageEditor {
                     }
 
                 } else if ("<".equals(option)) { // only enlarge smaller images
-                    if (    (this.height == null && this.width <= original.width) ||
+                    if ((this.height == null && this.width <= original.width) ||
                             (this.width == null && this.height <= original.height) || //             -->  <-- This is an OR
                             (this.width != null && this.height != null && (this.width <= original.width || this.height <= original.height))) {
 

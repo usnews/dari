@@ -40,12 +40,12 @@ class BootstrapImportTask extends Task {
     private final List<AsyncDatabaseWriter<Record>> savers = new ArrayList<AsyncDatabaseWriter<Record>>();
     private final List<AsyncDatabaseWriter<Record>> deleters = new ArrayList<AsyncDatabaseWriter<Record>>();
     private AsyncQueue<Record> deleteQueue;
-    private final Map<UUID,ObjectType> unknownTypes = new HashMap<UUID,ObjectType>();
+    private final Map<UUID, ObjectType> unknownTypes = new HashMap<UUID, ObjectType>();
     private boolean needsTranslation;
     private final Pattern uuidPattern = Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", Pattern.CASE_INSENSITIVE);
-    private final Map<UUID,UUID> remoteToLocalIdMap = new HashMap<UUID,UUID>();
-    private final Map<String,String> remoteToLocalIdStringMap = new HashMap<String,String>();
-    private final TypeReference<Map<String,Object>> MAP_STRING_OBJECT_TYPE = new TypeReference<Map<String,Object>>() {};
+    private final Map<UUID, UUID> remoteToLocalIdMap = new HashMap<UUID, UUID>();
+    private final Map<String, String> remoteToLocalIdStringMap = new HashMap<String, String>();
+    private final TypeReference<Map<String, Object>> MAP_STRING_OBJECT_TYPE = new TypeReference<Map<String, Object>>() { };
 
     public BootstrapImportTask(Database database, String filename, InputStream fileInputStream, boolean deleteFirst, int numWriters, int commitSize) {
         super(EXECUTOR_PREFIX, EXECUTOR_PREFIX + " " + filename);
@@ -83,7 +83,7 @@ class BootstrapImportTask extends Task {
             // get headers
             // read leading blank lines
             do {
-                line = reader.readLine(); 
+                line = reader.readLine();
                 if (line != null) line = line.trim();
             } while ("".equals(line));
 
@@ -94,14 +94,14 @@ class BootstrapImportTask extends Task {
                 if (parts.length == 2) {
                     headers.put(parts[0].trim(), parts[1].trim());
                 }
-            } while (! "".equals((line = reader.readLine())));
+            } while (!"".equals((line = reader.readLine())));
 
             if (deleteFirst) {
-                if (! headers.containsKey(BootstrapPackage.Static.TYPES_HEADER) || headers.get(BootstrapPackage.Static.TYPES_HEADER) == null || "".equals(headers.get(BootstrapPackage.Static.TYPES_HEADER).trim())) {
+                if (!headers.containsKey(BootstrapPackage.Static.TYPES_HEADER) || headers.get(BootstrapPackage.Static.TYPES_HEADER) == null || "".equals(headers.get(BootstrapPackage.Static.TYPES_HEADER).trim())) {
                     throw new RuntimeException("Missing " + BootstrapPackage.Static.TYPES_HEADER + " header");
                 }
             }
-            if (! headers.containsKey(BootstrapPackage.Static.ROW_COUNT_HEADER) || headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER) == null || "".equals(headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER).trim())) {
+            if (!headers.containsKey(BootstrapPackage.Static.ROW_COUNT_HEADER) || headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER) == null || "".equals(headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER).trim())) {
             } else {
                 setProgressTotal(ObjectUtils.to(Long.class, headers.get(BootstrapPackage.Static.ROW_COUNT_HEADER)));
             }
@@ -109,7 +109,7 @@ class BootstrapImportTask extends Task {
             UUID globalsId = new UUID(-1L, -1L);
             Set<String> typeNames = new HashSet<String>();
             boolean isAllTypes = false;
-            Map<String,String> typeMapTypeFields = new HashMap<String,String>();
+            Map<String, String> typeMapTypeFields = new HashMap<String, String>();
             if (headers.get(BootstrapPackage.Static.TYPES_HEADER).trim().equals(BootstrapPackage.Static.ALL_TYPES_HEADER_VALUE)) {
                 isAllTypes = true;
                 if (deleteFirst) {
@@ -161,13 +161,13 @@ class BootstrapImportTask extends Task {
             if (deleteQueue != null) {
                 deleteQueue.closeAutomatically();
                 boolean done = false;
-                while (! done) {
+                while (!done) {
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException e) {
                         continue;
                     }
-                    if (! shouldContinue()) {
+                    if (!shouldContinue()) {
                         for (Task deleter : deleters) {
                             deleter.stop();
                         }
@@ -191,7 +191,7 @@ class BootstrapImportTask extends Task {
                 line = line.trim();
                 if ("".equals(line)) continue;
                 if (line.startsWith("#")) continue;
-                if (! line.startsWith("{") || ! line.endsWith("}")) throw new RuntimeException("Invalid line in input file: " + line);
+                if (!line.startsWith("{") || !line.endsWith("}")) throw new RuntimeException("Invalid line in input file: " + line);
                 line = translateIds(line);
                 Map<String, Object> stateMap = ObjectUtils.to(MAP_STRING_OBJECT_TYPE, ObjectUtils.fromJson(line));
                 UUID globalId = new UUID(-1L, -1L);
@@ -261,7 +261,7 @@ class BootstrapImportTask extends Task {
 
                     setProgressIndex(++numRows);
                 } catch (RuntimeException t) {
-                    LOGGER.error("Error when saving state at "+stateMap.get("_id")+": ", t);
+                    LOGGER.error("Error when saving state at " + stateMap.get("_id") + ": ", t);
                 }
             }
         } catch (RuntimeException e) {
@@ -277,13 +277,13 @@ class BootstrapImportTask extends Task {
                 deleteQueue.closeAutomatically();
             }
             boolean done = false;
-            while (! done) {
+            while (!done) {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     continue;
                 }
-                if (! shouldContinue()) {
+                if (!shouldContinue()) {
                     for (Task task : tasks) {
                         task.stop();
                     }
@@ -302,8 +302,8 @@ class BootstrapImportTask extends Task {
     }
 
     private void prepareIdTranslation() {
-        needsTranslation = ! remoteToLocalIdMap.isEmpty();
-        for (Map.Entry<UUID,UUID> entry : remoteToLocalIdMap.entrySet()) {
+        needsTranslation = !remoteToLocalIdMap.isEmpty();
+        for (Map.Entry<UUID, UUID> entry : remoteToLocalIdMap.entrySet()) {
             remoteToLocalIdStringMap.put(entry.getKey().toString(), entry.getValue().toString());
         }
     }

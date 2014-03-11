@@ -30,7 +30,7 @@ public class SettingsDebugServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Settings");
 
             writeStart("table", "class", "table table-condensed table-striped");
@@ -68,7 +68,7 @@ public class SettingsDebugServlet extends HttpServlet {
             writeEnd();
 
             endPage();
-        }};
+        } };
     }
 
     private Map<String, Object> flatten(Map<String, Object> map) {

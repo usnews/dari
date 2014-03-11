@@ -80,7 +80,7 @@ public class StorageDebugServlet extends HttpServlet {
             }
         }
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Database", "Storage Item Bulk Operations");
 
                 writeStart("h2");
@@ -115,7 +115,7 @@ public class StorageDebugServlet extends HttpServlet {
                         writeStart("div", "class", "controls");
                             writeStart("select", "class", "span2", "id", wp.getId(), "name", "source");
                                 writeStart("option", "value", "").writeHtml("").writeEnd();
-                                for (String name : StorageItem.Static.getStorages()){
+                                for (String name : StorageItem.Static.getStorages()) {
                                     writeStart("option", "value", name).writeHtml(name).writeEnd();
                                 }
                             writeEnd();
@@ -127,7 +127,7 @@ public class StorageDebugServlet extends HttpServlet {
                         writeStart("div", "class", "controls");
                             writeStart("select", "class", "span2", "id", wp.getId(), "name", "destination");
                                 writeStart("option", "value", "").writeHtml("").writeEnd();
-                                for (String name : StorageItem.Static.getStorages()){
+                                for (String name : StorageItem.Static.getStorages()) {
                                     writeStart("option", "value", name).writeHtml(name).writeEnd();
                                 }
                             writeEnd();
@@ -157,6 +157,6 @@ public class StorageDebugServlet extends HttpServlet {
                 }
 
             endPage();
-        }};
+        } };
     }
 }

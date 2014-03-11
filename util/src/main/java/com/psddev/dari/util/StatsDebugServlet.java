@@ -55,7 +55,7 @@ public class StatsDebugServlet extends HttpServlet {
                             writer.write("[");
 
                             if (Type.COUNT.equals(type)) {
-                                for (Iterator<Double> i = measurement.getCountAverages(page.param(int.class, "interval"), begin, end).iterator(); i.hasNext(); ) {
+                                for (Iterator<Double> i = measurement.getCountAverages(page.param(int.class, "interval"), begin, end).iterator(); i.hasNext();) {
                                     double average = i.next();
                                     writer.write(Double.isNaN(average) ? "null" : String.valueOf(average));
                                     if (i.hasNext()) {
@@ -64,7 +64,7 @@ public class StatsDebugServlet extends HttpServlet {
                                 }
 
                             } else {
-                                for (Iterator<Double> i = measurement.getDurationAverages(0, begin, end).iterator(); i.hasNext(); ) {
+                                for (Iterator<Double> i = measurement.getDurationAverages(0, begin, end).iterator(); i.hasNext();) {
                                     double average = i.next();
                                     writer.write(Double.isNaN(average) ? "null" : String.valueOf(average * 5e3));
                                     if (i.hasNext()) {
@@ -86,7 +86,7 @@ public class StatsDebugServlet extends HttpServlet {
             }
         }
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Stats");
 
                 writeStart("style", "type", "text/css");
@@ -156,7 +156,7 @@ public class StatsDebugServlet extends HttpServlet {
                     write("var context = cubism.context().serverDelay(0).clientDelay(0).step(5e3).size(maxDataSize);");
                 writeEnd();
 
-                for (Iterator<Stats> i = Stats.Static.getAll().iterator(); i.hasNext(); ) {
+                for (Iterator<Stats> i = Stats.Static.getAll().iterator(); i.hasNext();) {
                     Stats stats = i.next();
                     String statsName = stats.getName();
                     String operation = page.paramOrDefault(String.class, statsName + "/operation", "Total");

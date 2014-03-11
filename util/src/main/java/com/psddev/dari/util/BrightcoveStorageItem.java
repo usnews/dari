@@ -457,12 +457,12 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
         super.initialize(settingsKey, settings);
 
         setReadServiceUrl(ObjectUtils.to(String.class, settings.get(READ_SERVICE_URL_SETTING)));
-        if(ObjectUtils.isBlank(getReadServiceUrl())) {
+        if (ObjectUtils.isBlank(getReadServiceUrl())) {
             throw new SettingsException(settingsKey + "/" + READ_SERVICE_URL_SETTING, "No read service url!");
         }
 
         setWriteServiceUrl(ObjectUtils.to(String.class, settings.get(WRITE_SERVICE_URL_SETTING)));
-        if(ObjectUtils.isBlank(getWriteServiceUrl())) {
+        if (ObjectUtils.isBlank(getWriteServiceUrl())) {
             throw new SettingsException(settingsKey + "/" + WRITE_SERVICE_URL_SETTING, "No write service url!");
         }
 
@@ -512,10 +512,10 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
 
             Map<String, Object> videoJson = (Map<String, Object>) ObjectUtils.fromJson(writer.toString());
 
-            if(!ObjectUtils.isBlank(videoJson)) {
+            if (!ObjectUtils.isBlank(videoJson)) {
                 url = videoJson.get("FLVURL").toString();
             }
-        } catch(IOException ex) {
+        } catch (IOException ex) {
             throw new IllegalStateException("Could not retrieve FLV_URL from Brightcove!");
         } finally {
             try {
@@ -532,7 +532,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
     protected InputStream createData() throws MalformedURLException, IOException {
 
         String publicUrl = getPublicUrl();
-        if(!ObjectUtils.isBlank(publicUrl)) {
+        if (!ObjectUtils.isBlank(publicUrl)) {
             URL url = new URL(publicUrl);
             return url.openStream();
         }
@@ -549,26 +549,26 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
         Map<String, Object> params = new HashMap<String, Object>();
 
         // set writeToken as the "token" parameter or throw an exception if it's.
-        if(this.writeToken != null) {
+        if (this.writeToken != null) {
             params.put("token", this.writeToken);
         } else {
             throw new IllegalStateException("writeToken is null.");
         }
 
         // encoding is required by Brightcove, so throw an error if it's not set.
-        if(this.encoding != null) {
+        if (this.encoding != null) {
             params.put("encode_to", this.encoding.name());
-        } else if(this.defaultEncoding != null) {
+        } else if (this.defaultEncoding != null) {
             params.put("encode_to", this.defaultEncoding.name());
         }
 
         // name is required by Brightcove, so throw an error if it's not set.
-        if(this.name == null) {
+        if (this.name == null) {
             throw new IllegalStateException("name is null.");
         }
 
         // shortDescription is required by Brightcove, so throw an error if it's not set.
-        if(this.shortDescription == null) {
+        if (this.shortDescription == null) {
             throw new IllegalStateException("shortDescription is null.");
         }
 
@@ -613,9 +613,9 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
 
                 Map<String, Object> responseJson = (Map<String, Object>) ObjectUtils.fromJson(writer.toString());
 
-                if(!ObjectUtils.isBlank(responseJson)) {
+                if (!ObjectUtils.isBlank(responseJson)) {
                     String brightcoveId = ObjectUtils.to(String.class, responseJson.get("result"));
-                    if(!ObjectUtils.isBlank(brightcoveId)) {
+                    if (!ObjectUtils.isBlank(brightcoveId)) {
                         setBrightcoveId(brightcoveId);
                     }
                 }
@@ -643,7 +643,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
 
             // set writeToken as the "token" parameter or throw an exception if it's.
             Map<String, Object> params = new HashMap<String, Object>();
-            if(this.writeToken != null) {
+            if (this.writeToken != null) {
                 params.put("token", this.writeToken);
             } else {
                 throw new IllegalStateException("writeToken is null.");
@@ -672,7 +672,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
 
                 Map<String, Object> resultJson = (Map<String, Object>) ObjectUtils.fromJson(writer.toString());
 
-                if(!ObjectUtils.isBlank(resultJson.get("error"))) {
+                if (!ObjectUtils.isBlank(resultJson.get("error"))) {
                     return null;
                 } else {
                     Map<String, Object> videoJson = (Map<String, Object>) resultJson.get("result");
@@ -682,7 +682,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
             } finally {
                 try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
             }
-        } catch(IOException e) {
+        } catch (IOException e) {
             return null;
         }
     }
@@ -692,84 +692,84 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
         try {
             update(fetchVideoJsonFromBrightcove());
             return true;
-        } catch(IOException e) {
+        } catch (IOException e) {
             return false;
         }
     }
 
     private void update(Map<String, Object> videoJson) {
 
-        if(!ObjectUtils.isBlank(videoJson.get("id"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("id"))) {
             this.brightcoveId = ObjectUtils.to(String.class, videoJson.get("id"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("name"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("name"))) {
             this.name = ObjectUtils.to(String.class, videoJson.get("name"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("shortDescription"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("shortDescription"))) {
             this.shortDescription = ObjectUtils.to(String.class, videoJson.get("shortDescription"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("longDescription"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("longDescription"))) {
             this.longDescription = ObjectUtils.to(String.class, videoJson.get("longDescription"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("creationDate"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("creationDate"))) {
             this.creationDate = ObjectUtils.to(Date.class, videoJson.get("creationDate"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("publishedDate"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("publishedDate"))) {
             this.publishedDate = ObjectUtils.to(Date.class, videoJson.get("publishedDate"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("lastModifiedDate"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("lastModifiedDate"))) {
             this.lastModifiedDate = ObjectUtils.to(Date.class, videoJson.get("lastModifiedDate"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("linkURL"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("linkURL"))) {
             this.linkUrl = ObjectUtils.to(String.class, videoJson.get("linkURL"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("linkText"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("linkText"))) {
             this.linkText = ObjectUtils.to(String.class, videoJson.get("linkText"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("tags"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("tags"))) {
             this.tags = ObjectUtils.to(LIST_STRING_TYPE, videoJson.get("tags"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("videoStillURL"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("videoStillURL"))) {
             this.videoStillUrl = ObjectUtils.to(String.class, videoJson.get("videoStillURL"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("thumbnailURL"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("thumbnailURL"))) {
             this.thumbnailUrl = ObjectUtils.to(String.class, videoJson.get("thumbnailURL"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("referenceId"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("referenceId"))) {
             this.referenceId = ObjectUtils.to(String.class, videoJson.get("referenceId"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("length"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("length"))) {
             this.length = ObjectUtils.to(Long.class, videoJson.get("length"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("economics"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("economics"))) {
             try {
                 this.economics = ObjectUtils.to(Economics.class, videoJson.get("economics"));
             } catch (RuntimeException ignore) { }
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("playsTotal"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("playsTotal"))) {
             this.playsTotal = ObjectUtils.to(Integer.class, videoJson.get("playsTotal"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("playsTrailingWeek"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("playsTrailingWeek"))) {
             this.playsTrailingWeek = ObjectUtils.to(Integer.class, videoJson.get("playsTrailingWeek"));
         }
 
-        if(!ObjectUtils.isBlank(videoJson.get("FLVURL"))) {
+        if (!ObjectUtils.isBlank(videoJson.get("FLVURL"))) {
             this.flvUrl = ObjectUtils.to(String.class, videoJson.get("FLVURL"));
         }
     }
@@ -781,7 +781,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
 
         // set writeToken as the "token" parameter or throw an exception if it's.
         Map<String, Object> params = new HashMap<String, Object>();
-        if(this.writeToken != null) {
+        if (this.writeToken != null) {
             params.put("token", this.writeToken);
         } else {
             throw new IllegalStateException("writeToken is null.");
@@ -792,75 +792,75 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
 
         Map<String, Object> videoJson = new HashMap<String, Object>();
         // set the brightcoveId as the "id" property of the "video" json property or throw an exception if it's null
-        if(this.brightcoveId != null) {
+        if (this.brightcoveId != null) {
             videoJson.put("id", this.brightcoveId);
         }
 
-        if(this.name != null) {
+        if (this.name != null) {
             videoJson.put("name", this.name);
         }
 
-        if(this.referenceId != null) {
+        if (this.referenceId != null) {
             videoJson.put("referenceId", this.referenceId);
         }
 
-        if(this.shortDescription != null) {
+        if (this.shortDescription != null) {
             videoJson.put("shortDescription", this.shortDescription);
         }
 
-        if(this.longDescription != null) {
+        if (this.longDescription != null) {
             videoJson.put("longDescription", this.longDescription);
         }
 
-        if(this.itemState != null) {
+        if (this.itemState != null) {
             videoJson.put("itemState", this.itemState.name());
         }
 
-        if(this.startDate != null) {
+        if (this.startDate != null) {
             videoJson.put("startDate", this.startDate);
         }
 
-        if(this.endDate != null) {
+        if (this.endDate != null) {
             videoJson.put("endDate", this.endDate);
         }
 
-        if(this.linkUrl != null) {
+        if (this.linkUrl != null) {
             videoJson.put("linkURL", this.linkUrl);
         }
 
-        if(this.linkText != null) {
+        if (this.linkText != null) {
             videoJson.put("linkText", this.linkText);
         }
 
-        if(this.tags != null && this.tags.size() > 0) {
+        if (this.tags != null && this.tags.size() > 0) {
             videoJson.put("tags", this.tags);
         }
 
-        if(this.customFields != null) {
+        if (this.customFields != null) {
             videoJson.put("customFields", this.customFields);
         }
 
-        if(this.economics != null) {
+        if (this.economics != null) {
             videoJson.put("economics", this.economics.name());
         }
 
-        if(this.adKeys != null) {
+        if (this.adKeys != null) {
             List<String> keyValues = new ArrayList<String>();
-            for(String key : this.adKeys.keySet()) {
+            for (String key : this.adKeys.keySet()) {
                 keyValues.add(key + "=" + adKeys.get(key));
             }
             videoJson.put("adKeys", StringUtils.join(keyValues, "&"));
         }
 
-        if(this.geoRestricted != null) {
+        if (this.geoRestricted != null) {
             videoJson.put("geoRestricted", this.geoRestricted);
         }
 
-        if(this.geoFilteredCountries != null) {
+        if (this.geoFilteredCountries != null) {
             videoJson.put("geoFilteredCountries", this.geoFilteredCountries);
         }
 
-        if(this.geoFilterExclude != null) {
+        if (this.geoFilterExclude != null) {
             videoJson.put("geoFilterExclude", this.geoFilterExclude);
         }
 
@@ -872,18 +872,18 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
         StringBuilder requestUrl = new StringBuilder();
 
         // start with the readServiceUrl or throw an exception if it's null
-        if(this.readServiceUrl != null) {
+        if (this.readServiceUrl != null) {
             requestUrl.append(this.readServiceUrl);
         } else {
             throw new IllegalStateException("readServiceUrl is null.");
         }
 
         // set the brightcoveId as a "video_id" parameter or throw an exception if it's null
-        if(getBrightcoveId() != null) {
+        if (getBrightcoveId() != null) {
             // append "find_video_by_id" as the "command" parameter (differs significantly from the POST methods)
             requestUrl.append("?command=find_video_by_id");
             requestUrl.append("&video_id=").append(getBrightcoveId());
-        } else if(getReferenceId() != null) {
+        } else if (getReferenceId() != null) {
             // append "find_vide_by_reference_id" as the "command" parameter
             requestUrl.append("?command=find_video_by_reference_id");
             requestUrl.append("&reference_id=").append(getReferenceId());
@@ -892,9 +892,9 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
         }
 
         // set readUrlToken or readToken as the "token" parameter or throw an exception if both are null.
-        if(this.readUrlToken != null) {
+        if (this.readUrlToken != null) {
             requestUrl.append("&token=").append(this.readUrlToken);
-        } else if(this.readToken != null) {
+        } else if (this.readToken != null) {
             requestUrl.append("&token=").append(this.readToken);
         } else {
             throw new IllegalStateException("Both readToken and readUrlToken are null.");
@@ -912,10 +912,10 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
 
             Map<String, Object> resultJson = (Map<String, Object>) ObjectUtils.fromJson(writer.toString());
 
-            if(ObjectUtils.isBlank(resultJson)) {
-                if(getBrightcoveId() != null) {
+            if (ObjectUtils.isBlank(resultJson)) {
+                if (getBrightcoveId() != null) {
                     throw new IllegalStateException("No video was found in Brightcove with brightcoveId = " + getBrightcoveId());
-                } else if(getReferenceId() != null) {
+                } else if (getReferenceId() != null) {
                     throw new IllegalStateException("No video was found in Brightcove with referenceId = " + getReferenceId());
                 } else {
                     throw new IllegalStateException("This point should never be reached; both brightcoveId and referenceId are null!");

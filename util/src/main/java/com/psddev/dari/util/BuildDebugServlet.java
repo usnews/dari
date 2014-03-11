@@ -90,7 +90,7 @@ public class BuildDebugServlet extends HttpServlet {
 
         final String buildContext = request.getParameter("context");
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Build Information");
 
                 writeStart("style", "type", "text/css");
@@ -113,7 +113,7 @@ public class BuildDebugServlet extends HttpServlet {
                 if (paths != null) {
                     for (String path : paths) {
                         if (path.endsWith("/")) {
-                            path = path.substring(0, path.length()-1);
+                            path = path.substring(0, path.length() - 1);
                             Properties properties = getEmbeddedProperties(getServletContext(), path);
                             if (!properties.isEmpty()) {
                                 embeddedProperties.put(path.substring(1), properties);

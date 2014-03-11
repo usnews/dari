@@ -62,8 +62,8 @@ public class ClassFinder {
     public <T> Set<Class<? extends T>> find(ClassLoader loader, Class<T> baseClass) {
         Set<String> classNames = new HashSet<String>();
         for (ClassLoader l = loader; l != null; l = l.getParent()) {
-            if (l instanceof URLClassLoader
-                    && !getClassLoaderExclusions().contains(l.getClass().getName())) {
+            if (l instanceof URLClassLoader &&
+                    !getClassLoaderExclusions().contains(l.getClass().getName())) {
                 for (URL url : ((URLClassLoader) l).getURLs()) {
                     processUrl(classNames, url);
                 }
@@ -118,10 +118,10 @@ public class ClassFinder {
                     Manifest manifest = jarInput.getManifest();
                     if (manifest != null) {
                         Attributes attributes = manifest.getMainAttributes();
-                        if (attributes != null
-                                && Boolean.parseBoolean(attributes.getValue(INCLUDE_ATTRIBUTE))) {
+                        if (attributes != null &&
+                                Boolean.parseBoolean(attributes.getValue(INCLUDE_ATTRIBUTE))) {
 
-                            for (JarEntry entry; (entry = jarInput.getNextJarEntry()) != null; ) {
+                            for (JarEntry entry; (entry = jarInput.getNextJarEntry()) != null;) {
                                 String name = entry.getName();
                                 if (name.endsWith(CLASS_FILE_SUFFIX)) {
                                     String className = name.substring(0, name.length() - CLASS_FILE_SUFFIX.length());

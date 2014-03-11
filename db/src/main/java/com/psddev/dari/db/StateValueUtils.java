@@ -166,7 +166,7 @@ abstract class StateValueUtils {
                 }
             }
 
-            for (Iterator<Map.Entry<UUID, Object>> i = references.entrySet().iterator(); i.hasNext(); ) {
+            for (Iterator<Map.Entry<UUID, Object>> i = references.entrySet().iterator(); i.hasNext();) {
                 Map.Entry<UUID, Object> entry = i.next();
                 Object object = entry.getValue();
 
@@ -203,7 +203,7 @@ abstract class StateValueUtils {
             String type,
             Object value) {
 
-        if (value == null && (field == null || ! field.isMetric())) {
+        if (value == null && (field == null || !field.isMetric())) {
             return null;
         }
 

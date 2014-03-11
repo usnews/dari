@@ -282,7 +282,7 @@ public final class StringUtils {
      *  passing the result to this method will always return the same array
      *  as specified by the <code>Arrays.equals()</code> method. */
     public static String[] fromCsv(String string) {
-        if(string == null) {
+        if (string == null) {
             return null;
         } else {
             // replaces a call to string.split(",")
@@ -293,14 +293,14 @@ public final class StringUtils {
                     commaCount++;
                 }
             }
-            String[] escaped = new String[commaCount+1];
+            String[] escaped = new String[commaCount + 1];
             int index = 0;
             int offset = 0;
             int count = 0;
             for (char c : charArr) {
                 if (c == ',') {
-                    escaped[index++] = new String(charArr, offset, count);
-                    offset += count+1;
+                    escaped[index ++] = new String(charArr, offset, count);
+                    offset += count + 1;
                     count = 0;
                 } else {
                     count++;
@@ -313,23 +313,23 @@ public final class StringUtils {
 
             int length = escaped.length;
             List<String> unescaped = new ArrayList<String>();
-            for(int i = 0; i < length; i ++) {
+            for (int i = 0; i < length; i ++) {
                 String value = escaped[i];
-                if(value.startsWith("\"")) { // there are commas and/or double quotes escaped within
+                if (value.startsWith("\"")) { // there are commas and/or double quotes escaped within
                     StringBuilder builder = new StringBuilder();
                     int quoteCount = 0;
                     do {
                         builder.append(value);
-                        for(char c : value.toCharArray()) {
-                            if(c == '"') {
+                        for (char c : value.toCharArray()) {
+                            if (c == '"') {
                                 quoteCount++;
                             }
                         }
-                        if(quoteCount % 2 == 1) {
+                        if (quoteCount % 2 == 1) {
                             value = escaped[++i];
                             builder.append(',');
                         }
-                    } while(quoteCount % 2 == 1);
+                    } while (quoteCount % 2 == 1);
                     value = builder.toString();
                 }
                 unescaped.add(StringUtils.unescapeCsv(value));
@@ -349,7 +349,7 @@ public final class StringUtils {
             builder.append(escapeCsv(string)).append(',');
         }
         if (builder.length() > 0) {
-            builder.setLength(builder.length()-1);
+            builder.setLength(builder.length() - 1);
         }
         return builder.toString();
     }
@@ -534,7 +534,7 @@ public final class StringUtils {
                     if (equalsIndex > -1) {
                         query.append(encodeUri(decodeUri(param.substring(0, equalsIndex))));
                         query.append('=');
-                        query.append(encodeUri(decodeUri(param.substring(equalsIndex+1))));
+                        query.append(encodeUri(decodeUri(param.substring(equalsIndex + 1))));
 
                     } else {
                         query.append(encodeUri(decodeUri(param)));
@@ -542,7 +542,7 @@ public final class StringUtils {
                 }
 
                 if (ampIndex > -1) {
-                    beginAt = ampIndex+1;
+                    beginAt = ampIndex + 1;
                 } else {
                     break;
                 }
@@ -933,9 +933,9 @@ public final class StringUtils {
         StringBuilder sb = new StringBuilder();
         for (int i = 0, s = string.length(); i < s; ++ i) {
             char c = string.charAt(i);
-            if (0x30 <= c && c <= 0x39
-                    || 0x41 <= c && c <= 0x5A
-                    || 0x61 <= c && c <= 0x7A) {
+            if (0x30 <= c && c <= 0x39 ||
+                    0x41 <= c && c <= 0x5A ||
+                    0x61 <= c && c <= 0x7A) {
                 sb.append(c);
             } else {
                 String hex = Integer.toHexString(c);

@@ -47,7 +47,7 @@ public class LogCaptureFilter extends AbstractFilter {
         String parameterPrefix = Settings.getOrDefault(String.class, PARAMETER_PREFIX_SETTING, DEFAULT_PARAMETER_PREFIX);
         LogCapture capture = null;
 
-        for (Enumeration<String> e = request.getParameterNames(); e.hasMoreElements(); ) {
+        for (Enumeration<String> e = request.getParameterNames(); e.hasMoreElements();) {
             String name = e.nextElement();
 
             if (name.startsWith(parameterPrefix)) {

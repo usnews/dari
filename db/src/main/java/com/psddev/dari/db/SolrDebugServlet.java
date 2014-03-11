@@ -31,7 +31,7 @@ public class SolrDebugServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Database", "Solr");
 
                 SolrDatabase database = null;
@@ -102,7 +102,7 @@ public class SolrDebugServlet extends HttpServlet {
                     try {
                         long startTime = System.nanoTime();
                         QueryResponse response = server.query(solrQuery, SolrRequest.METHOD.POST);
-                        Map<String,String> explainMap = response.getExplainMap();
+                        Map<String, String> explainMap = response.getExplainMap();
                         SolrDocumentList documents = response.getResults();
 
                         writeStart("p");
@@ -155,6 +155,6 @@ public class SolrDebugServlet extends HttpServlet {
                 }
 
             endPage();
-        }};
+        } };
     }
 }

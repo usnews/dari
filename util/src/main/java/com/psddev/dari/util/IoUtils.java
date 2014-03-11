@@ -71,7 +71,7 @@ public final class IoUtils {
     public static long copy(InputStream source, OutputStream destination) throws IOException {
         byte[] buffer = new byte[BUFFER_SIZE];
         long total = 0L;
-        for (int read; (read = source.read(buffer)) > -1; ) {
+        for (int read; (read = source.read(buffer)) > -1;) {
             destination.write(buffer, 0, read);
             total += read;
         }

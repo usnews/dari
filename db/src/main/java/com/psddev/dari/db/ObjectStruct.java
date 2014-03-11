@@ -48,7 +48,7 @@ public interface ObjectStruct {
 
             List<ObjectField> fields = struct.getFields();
 
-            for (Iterator<ObjectField> i = fields.iterator(); i.hasNext(); ) {
+            for (Iterator<ObjectField> i = fields.iterator(); i.hasNext();) {
                 ObjectField field = i.next();
 
                 if (!indexed.contains(field.getInternalName())) {

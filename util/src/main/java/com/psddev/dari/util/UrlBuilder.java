@@ -125,7 +125,7 @@ public class UrlBuilder {
 
             url.append(path);
         }
-        
+
         return url.toString();
     }
 }

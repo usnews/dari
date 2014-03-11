@@ -24,7 +24,7 @@ public final class CollectionUtils {
                     null;
         }
 
-        for (String key; path != null; ) {
+        for (String key; path != null;) {
             if (object == null) {
                 return null;
             }

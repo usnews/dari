@@ -41,7 +41,7 @@ public class TaskDebugServlet extends HttpServlet {
             return;
         }
 
-        new DebugFilter.PageWriter(page) {{
+        new DebugFilter.PageWriter(page) { {
             startPage("Task Status");
 
             for (TaskExecutor executor : TaskExecutor.Static.getAll()) {
@@ -239,7 +239,7 @@ public class TaskDebugServlet extends HttpServlet {
             }
 
             endPage();
-        }};
+        } };
     }
 
     private static QueueTasks getQueueTasks(Map<AsyncQueue<?>, QueueTasks> queues, AsyncQueue<?> queue) {

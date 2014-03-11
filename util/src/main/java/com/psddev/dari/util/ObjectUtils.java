@@ -484,7 +484,7 @@ public abstract class ObjectUtils {
             BufferedReader mimeInputReader = new BufferedReader(new InputStreamReader(mimeInput, StringUtils.UTF_8));
 
             try {
-                for (String line; (line = mimeInputReader.readLine()) != null; ) {
+                for (String line; (line = mimeInputReader.readLine()) != null;) {
                     if (!line.startsWith("#")) {
                         String[] items = StringUtils.split(line.trim(), "\\s+");
                         String contentType = items[0].toLowerCase(Locale.ENGLISH);

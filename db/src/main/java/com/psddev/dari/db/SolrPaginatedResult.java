@@ -49,7 +49,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
     public List<DariFacetField> getFacetedFields() {
         List<DariFacetField> fields = new ArrayList<DariFacetField>();
         if (_facetedFields != null) {
-            for(FacetField field : _facetedFields) {
+            for (FacetField field : _facetedFields) {
                 fields.add(new DariFacetField(_klass, field));
             }
         }
@@ -143,7 +143,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
             Map<String, FacetField.Count> index = new HashMap<String, FacetField.Count>();
 
             List<String> ids = new ArrayList<String>();
-            for(FacetField.Count c : _field.getValues()) {
+            for (FacetField.Count c : _field.getValues()) {
                 index.put(c.getName(), c);
                 ids.add(c.getName());
             }
@@ -155,7 +155,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
             if (objects != null) {
                 for (Object o : objects) {
-                    Record record = (Record)o;
+                    Record record = (Record) o;
                     FacetField.Count c = index.get(record.getId().toString());
                     record.getState().getExtras().put("count", Long.valueOf(c.getCount()));
                 }

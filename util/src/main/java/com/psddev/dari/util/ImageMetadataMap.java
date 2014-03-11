@@ -121,13 +121,13 @@ public class ImageMetadataMap extends HashMap<String, Object> {
 
     // Populates the map based on the given {@code metadata}.
     private void populateMetadata(Metadata metadata) {
-        for (Iterator<?> di = metadata.getDirectoryIterator(); di.hasNext(); ) {
+        for (Iterator<?> di = metadata.getDirectoryIterator(); di.hasNext();) {
             Directory directory = (Directory) di.next();
             Map<String, String> tags = new HashMap<String, String>();
 
             put(directory.getName(), tags);
 
-            for (Iterator<?> ti = directory.getTagIterator(); ti.hasNext(); ) {
+            for (Iterator<?> ti = directory.getTagIterator(); ti.hasNext();) {
                 Tag tag = (Tag) ti.next();
 
                 try {

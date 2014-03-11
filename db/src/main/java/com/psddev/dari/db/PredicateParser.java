@@ -259,7 +259,7 @@ public class PredicateParser {
         Predicate predicate = readGroup(tokens, parameters);
 
         if (predicate != null) {
-            for (String operator; (operator = tokens.peek()) != null; ) {
+            for (String operator; (operator = tokens.peek()) != null;) {
 
                 operator = operator.toLowerCase(Locale.ENGLISH);
                 String compoundOperator = getCompoundOperators().get(operator);
@@ -525,7 +525,7 @@ public class PredicateParser {
         private boolean evaluateOne(State state, Object keyValue, List<Object> values) {
             if (!(keyValue instanceof Recordable || keyValue instanceof UUID)) {
                 Class<?> keyValueClass = keyValue.getClass();
-                for (ListIterator<Object> i = values.listIterator(); i.hasNext(); ) {
+                for (ListIterator<Object> i = values.listIterator(); i.hasNext();) {
                     i.set(ObjectUtils.to(keyValueClass, i.next()));
                 }
             }

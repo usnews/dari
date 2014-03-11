@@ -275,7 +275,7 @@ public class DebugFilter extends AbstractFilter {
             }
         }
 
-        new PageWriter(getServletContext(), request, response) {{
+        new PageWriter(getServletContext(), request, response) { {
             startPage();
                 writeStart("div", "class", "row-fluid");
 
@@ -363,7 +363,7 @@ public class DebugFilter extends AbstractFilter {
 
                 writeEnd();
             endPage();
-        }};
+        } };
     }
 
     private static final class PathInfoOverrideRequest extends HttpServletRequestWrapper {

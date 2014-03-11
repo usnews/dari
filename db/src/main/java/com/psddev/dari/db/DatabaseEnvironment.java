@@ -295,7 +295,7 @@ public class DatabaseEnvironment implements ObjectStruct {
 
                     Set<Class<? extends Recordable>> objectClasses = ClassFinder.Static.findClasses(Recordable.class);
 
-                    for (Iterator<Class<? extends Recordable>> i = objectClasses.iterator(); i.hasNext(); ) {
+                    for (Iterator<Class<? extends Recordable>> i = objectClasses.iterator(); i.hasNext();) {
                         Class<? extends Recordable> objectClass = i.next();
 
                         try {

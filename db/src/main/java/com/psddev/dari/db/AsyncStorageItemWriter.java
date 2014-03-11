@@ -130,7 +130,7 @@ public class AsyncStorageItemWriter<E> extends AsyncConsumer<E> {
         boolean isChanged = false;
 
         if (value instanceof List) {
-            for (ListIterator<Object> i = ((List<Object>) value).listIterator(); i.hasNext(); ) {
+            for (ListIterator<Object> i = ((List<Object>) value).listIterator(); i.hasNext();) {
                 Object item = i.next();
                 if (item instanceof StorageItem) {
                     StorageItem newItem = copyItem((StorageItem) item, source, destination);

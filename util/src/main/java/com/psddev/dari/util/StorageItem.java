@@ -240,11 +240,11 @@ public interface StorageItem extends SettingsBackedObject {
                     }
 
                     item.setContentType(contentType);
-                    Map<String, Object> metaDataMap = new HashMap<String,Object>();
-                    Map<String, List<String>> httpHeaderMap = new HashMap<String,List<String>>();
+                    Map<String, Object> metaDataMap = new HashMap<String, Object>();
+                    Map<String, List<String>> httpHeaderMap = new HashMap<String, List<String>>();
                     httpHeaderMap.put(CACHE_CONTROL_KEY, Arrays.asList(CACHE_CONTROL_VALUE));
-                    httpHeaderMap.put("Content-Encoding", Arrays.asList( "gzip"));
-                    metaDataMap.put(AbstractStorageItem.HTTP_HEADERS,httpHeaderMap);
+                    httpHeaderMap.put("Content-Encoding", Arrays.asList("gzip"));
+                    metaDataMap.put(AbstractStorageItem.HTTP_HEADERS, httpHeaderMap);
                     item.setMetadata(metaDataMap);
 
                     item.setData(new ByteArrayInputStream(byteOutput.toByteArray()));
@@ -263,10 +263,10 @@ public interface StorageItem extends SettingsBackedObject {
             protected void saveItem(String contentType, StorageItem item, byte[] source) throws IOException {
                 item.setContentType(contentType);
 
-                Map<String, Object> metaDataMap = new HashMap<String,Object>();
-                Map<String, List<String>> httpHeaderMap = new HashMap<String,List<String>>();
+                Map<String, Object> metaDataMap = new HashMap<String, Object>();
+                Map<String, List<String>> httpHeaderMap = new HashMap<String, List<String>>();
                 httpHeaderMap.put(CACHE_CONTROL_KEY, Arrays.asList(CACHE_CONTROL_VALUE));
-                metaDataMap.put(AbstractStorageItem.HTTP_HEADERS,httpHeaderMap);
+                metaDataMap.put(AbstractStorageItem.HTTP_HEADERS, httpHeaderMap);
                 item.setMetadata(metaDataMap);
 
                 item.setData(new ByteArrayInputStream(source));

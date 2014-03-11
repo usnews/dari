@@ -99,7 +99,7 @@ public class BulkDebugServlet extends HttpServlet {
                     destination.deleteByQuery(query);
                 }
 
-                new AsyncDatabaseReader<Object>(
+                (new AsyncDatabaseReader<Object>(
                         executor, queue, source, query) {
                         @Override
                         protected Object produce() {
@@ -109,7 +109,7 @@ public class BulkDebugServlet extends HttpServlet {
                             }
                             return obj;
                         }
-                }.submit();
+                }).submit();
 
                 queue.closeAutomatically();
 
@@ -134,7 +134,7 @@ public class BulkDebugServlet extends HttpServlet {
             }
         }
 
-        new DebugFilter.PageWriter(getServletContext(), request, response) {{
+        new DebugFilter.PageWriter(getServletContext(), request, response) { {
             startPage("Database", "Bulk Operations");
 
                 writeStart("h2").writeHtml("Index").writeEnd();
@@ -280,20 +280,20 @@ public class BulkDebugServlet extends HttpServlet {
 
                 writeStart("script", "type", "text/javascript");
                     write("$(document).ready(function() {");
-                        write("$('#"+resumableControlId+"').hide();");
+                        write("$('#" + resumableControlId + "').hide();");
                         write("$('[name=source]').change(function() {");
-                             write("if ($('option:selected', this).attr('className') == '"+SqlDatabase.class.getName()+"') {");
-                                 write("$('#"+resumableControlId+"').show();");
+                             write("if ($('option:selected', this).attr('className') == '" + SqlDatabase.class.getName() + "') {");
+                                 write("$('#" + resumableControlId + "').show();");
                              write("} else {");
-                                 write("$('#"+resumableControlId+"').hide();");
+                                 write("$('#" + resumableControlId + "').hide();");
                              write("}");
                         write("});");
-                        write("$('#"+resumeIdControlId+"').hide();");
+                        write("$('#" + resumeIdControlId + "').hide();");
                         write("$('[name=isResumable]').change(function() {");
                             write("if ($(this).is(':checked')) {");
-                                write("$('#"+resumeIdControlId+"').show();");
+                                write("$('#" + resumeIdControlId + "').show();");
                             write("} else {");
-                                write("$('#"+resumeIdControlId+"').hide();");
+                                write("$('#" + resumeIdControlId + "').hide();");
                             write("}");
                         write("})");
                     write("})");
@@ -313,6 +313,6 @@ public class BulkDebugServlet extends HttpServlet {
                 }
 
             endPage();
-        }};
+        } };
     }
 }

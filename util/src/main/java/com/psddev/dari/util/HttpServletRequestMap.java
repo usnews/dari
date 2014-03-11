@@ -71,11 +71,11 @@ public class HttpServletRequestMap implements Map<String, String> {
         int port = request.getServerPort();
         all.put(SERVER_PORT_KEY, String.valueOf(port == 0 ? -1 : port));
 
-        for (Enumeration<String> e = request.getHeaderNames(); e.hasMoreElements(); ) {
+        for (Enumeration<String> e = request.getHeaderNames(); e.hasMoreElements();) {
             String headerName = e.nextElement();
             String key = headerName.toUpperCase(Locale.ENGLISH).replace('-', '_');
-            if (!(AUTHORIZATION_KEY.equals(key)
-                    || PROXY_AUTHORIZATION_KEY.equals(key))) {
+            if (!(AUTHORIZATION_KEY.equals(key) ||
+                    PROXY_AUTHORIZATION_KEY.equals(key))) {
                 all.put(HTTP_PREFIX + key, request.getHeader(headerName));
             }
         }
@@ -99,7 +99,7 @@ public class HttpServletRequestMap implements Map<String, String> {
 
     /** Resolves all the lazy values. */
     private void resolveAll() {
-        for (Iterator<Map.Entry<String, Lazy>> i = lazies.entrySet().iterator(); i.hasNext(); ) {
+        for (Iterator<Map.Entry<String, Lazy>> i = lazies.entrySet().iterator(); i.hasNext();) {
             Map.Entry<String, Lazy> e = i.next();
             i.remove();
             String key = e.getKey();

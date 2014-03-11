@@ -406,7 +406,7 @@ public class ProfilerFilter extends AbstractFilter {
         public void format(HtmlWriter writer, Collection collection) throws IOException {
             writer.writeHtml(collection.getClass().getSimpleName());
             writer.writeHtml(": [");
-            for (Iterator<Object> i = collection.iterator(); i.hasNext(); ) {
+            for (Iterator<Object> i = collection.iterator(); i.hasNext();) {
                 writer.writeObject(i.next());
                 if (i.hasNext()) {
                     writer.write(", ");
