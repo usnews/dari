@@ -134,7 +134,7 @@ public class BootstrapPackage extends Record {
 
     }
 
-    public final static class Static {
+    public static final class Static {
         public static final String INIT_NAME = " _init";
 
         public static final String PACKAGE_NAME_HEADER = "Bootstrap Package Name";

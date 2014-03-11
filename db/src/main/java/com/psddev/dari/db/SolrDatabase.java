@@ -810,7 +810,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
-    private final static char[] UUID_WORD_CHARS = new char[] {
+    private static final char[] UUID_WORD_CHARS = new char[] {
             'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
             'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
             'y', 'z' };

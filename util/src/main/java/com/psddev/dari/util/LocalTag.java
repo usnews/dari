@@ -11,7 +11,7 @@ public class LocalTag extends TagSupport implements TryCatchFinally {
 
     private static final long serialVersionUID = 1L;
 
-    private transient final Map<String, Object> oldAttributes = new CompactMap<String, Object>();
+    private final transient Map<String, Object> oldAttributes = new CompactMap<String, Object>();
 
     public void setAttribute(String name, Object value) {
         if (!ObjectUtils.isBlank(name)) {

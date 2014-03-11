@@ -496,7 +496,7 @@ public class PredicateParser {
         }
     }
 
-    private static abstract class ComparisonEvaluator implements Evaluator {
+    private abstract static class ComparisonEvaluator implements Evaluator {
 
         @Override
         public final boolean evaluate(PredicateParser parser, Object object, Predicate predicate) {

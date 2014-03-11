@@ -674,7 +674,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     /** An abstract ResizingCommand that alters the dimensions of an image
      *  based on a width and height parameter. */
-    private static abstract class AbstractResizeCommand implements ResizingCommand {
+    private abstract static class AbstractResizeCommand implements ResizingCommand {
         protected Integer width;
         protected Integer height;
 

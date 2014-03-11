@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 /** Provides STMP mail support **/
 public class SmtpMailProvider extends AbstractMailProvider {
 
-    private final static Logger logger = LoggerFactory.getLogger(SmtpMailProvider.class);
+    private static final Logger logger = LoggerFactory.getLogger(SmtpMailProvider.class);
 
     private String host;
     private int port = 25;

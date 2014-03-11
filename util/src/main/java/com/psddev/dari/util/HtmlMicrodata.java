@@ -206,7 +206,7 @@ public class HtmlMicrodata {
     /**
      * {@link HtmlMicrodata} utility methods.
      */
-    public final static class Static {
+    public static final class Static {
 
         /**
          * Returns all microdata items in the given {@code document},

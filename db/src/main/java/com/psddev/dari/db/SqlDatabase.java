@@ -134,7 +134,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile DataSource readDataSource;
     private volatile String catalog;
     private volatile String metricCatalog;
-    private volatile transient String defaultCatalog;
+    private transient volatile String defaultCatalog;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;

@@ -121,7 +121,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
         writer.writeEnd();
     }
 
-    static public class DariFacetField {
+    public static class DariFacetField {
 
         private final Class<?> _klass;
         private final FacetField _field;

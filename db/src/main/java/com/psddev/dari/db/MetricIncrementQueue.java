@@ -114,10 +114,10 @@ class MetricIncrementQueueTask extends Task {
     //private static MetricIncrementQueueTask instance;
     private static final transient ConcurrentHashMap<Double, MetricIncrementQueueTask> instances = new ConcurrentHashMap<Double, MetricIncrementQueueTask>();
 
-    private transient final ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
+    private final transient ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
 
-    private transient final double executeSeconds;
-    private transient final double waitSeconds;
+    private final transient double executeSeconds;
+    private final transient double waitSeconds;
 
     private MetricIncrementQueueTask(double executeSeconds, double waitSeconds, ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
         this.queuedIncrements = queuedIncrements;
