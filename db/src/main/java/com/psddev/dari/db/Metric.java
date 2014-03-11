@@ -418,7 +418,9 @@ public class Metric extends Record {
         }
 
         private static void doDatabasePreFetch(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricAccess> metricAccesses) {
-            if (metricAccesses.isEmpty()) return;
+            if (metricAccesses.isEmpty()) {
+                return;
+            }
             try {
                 MetricAccess.Static.preFetchMetricSums(id, dimensionId, startTimestamp, endTimestamp, metricAccesses);
             } catch (SQLException ex) {

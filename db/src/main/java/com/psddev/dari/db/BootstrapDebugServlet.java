@@ -213,10 +213,14 @@ public class BootstrapDebugServlet extends HttpServlet {
                                         for (Map.Entry<ObjectType, Set<ObjectField>> entry : missingTypes.entrySet()) {
                                             boolean allGlobalModifications = true;
                                             for (ObjectField f : entry.getValue()) {
-                                                if (f.getParentType() != null) allGlobalModifications = false;
+                                                if (f.getParentType() != null) {
+                                                    allGlobalModifications = false;
+                                                }
                                             }
                                             String adtlStyle = "";
-                                            if (allGlobalModifications) adtlStyle = "color: #888;";
+                                            if (allGlobalModifications) {
+                                                adtlStyle = "color: #888;";
+                                            }
                                             writeStart("label", "class", "checkbox control-label", "style", adtlStyle);
                                                 String adtlChecked = "";
                                                 if (wp.params(UUID.class, "additionalTypeIds").contains(entry.getKey().getId())) {
@@ -238,7 +242,11 @@ public class BootstrapDebugServlet extends HttpServlet {
                                                     }
                                                     first = true;
                                                     for (Map.Entry<String, String> f : uniqueNames.entrySet()) {
-                                                        if (!first) writeHtml(", "); else first = false;
+                                                        if (!first) {
+                                                            writeHtml(", ");
+                                                        } else {
+                                                            first = false;
+                                                        }
                                                         writeStart("abbr", "style", "text-transform: none;", "title", f.getKey());
                                                         writeHtml(f.getValue());
                                                         writeEnd();
@@ -251,7 +259,11 @@ public class BootstrapDebugServlet extends HttpServlet {
                                                         }
                                                         first = true;
                                                         for (String f : uniquePackageNames) {
-                                                            if (!first) writeHtml(", "); else first = false;
+                                                            if (!first) {
+                                                                writeHtml(", ");
+                                                            } else {
+                                                                first = false;
+                                                            }
                                                             writeStart("strong").writeHtml(f).writeEnd();
                                                         }
                                                     }
@@ -268,14 +280,24 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 first = true;
                                 Set<ObjectType> types = pkg.getTypes();
                                 for (ObjectType type : types) {
-                                    if (!first) writeHtml(", "); else first = false;
+                                    if (!first) {
+                                        writeHtml(", ");
+                                    } else {
+                                        first = false;
+                                    }
                                     writeStart("abbr", "style", "text-transform: none; font-weight: bold;", "title", type.getInternalName());
                                     writeHtml(type.getDisplayName());
                                     writeEnd();
                                 }
                                 for (ObjectType type : BootstrapPackage.Static.getAllTypes(selectedDatabase, pkg)) {
-                                    if (types.contains(type)) continue;
-                                    if (!first) writeHtml(", "); else first = false;
+                                    if (types.contains(type)) {
+                                        continue;
+                                    }
+                                    if (!first) {
+                                        writeHtml(", ");
+                                    } else {
+                                        first = false;
+                                    }
                                     writeStart("abbr", "style", "text-transform: none;", "title", type.getInternalName());
                                     writeHtml(type.getDisplayName());
                                     writeEnd();
@@ -291,7 +313,11 @@ public class BootstrapDebugServlet extends HttpServlet {
                                     }
                                 }
                                 for (ObjectType type : followReferenceTypes) {
-                                    if (!first) writeHtml(", "); else first = false;
+                                    if (!first) {
+                                        writeHtml(", ");
+                                    } else {
+                                        first = false;
+                                    }
                                     writeStart("abbr", "style", "text-transform: none; font-weight: bold;", "title", type.getInternalName());
                                     writeHtml(type.getDisplayName());
                                     writeEnd();
@@ -302,14 +328,24 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 writeStart("p").writeStart("h4").writeHtml("Included Dependencies: ").writeEnd();
                                     first = true;
                                     for (ObjectType type : additionalTypes) {
-                                        if (!first) writeHtml(", "); else first = false;
+                                        if (!first) {
+                                            writeHtml(", ");
+                                        } else {
+                                            first = false;
+                                        }
                                         writeStart("abbr", "style", "text-transform: none; font-weight: bold;", "title", type.getInternalName());
                                         writeHtml(type.getDisplayName());
                                         writeEnd();
                                     }
                                     for (ObjectType type : BootstrapPackage.Static.getAllTypes(selectedDatabase, additionalTypes)) {
-                                        if (additionalTypes.contains(type)) continue;
-                                        if (!first) writeHtml(", "); else first = false;
+                                        if (additionalTypes.contains(type)) {
+                                            continue;
+                                        }
+                                        if (!first) {
+                                            writeHtml(", ");
+                                        } else {
+                                            first = false;
+                                        }
                                         writeStart("abbr", "style", "text-transform: none;", "title", type.getInternalName());
                                         writeHtml(type.getDisplayName());
                                         writeEnd();

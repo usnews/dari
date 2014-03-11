@@ -174,7 +174,9 @@ class MetricAccess {
 
     private boolean hasCachedData(CachingDatabase cachingDb, UUID id, UUID dimensionId, Long timestamp, String position) {
         Map<String, Object> extras = getCachedStateExtras(cachingDb, id);
-        if (extras == null) return false;
+        if (extras == null) {
+            return false;
+        }
         synchronized (extras) {
             return (extras.containsKey(METRIC_CACHE_EXTRA_PREFIX + getSymbolId() + '.' + dimensionId + '.' + timestamp + '.' + position));
         }
@@ -1511,9 +1513,13 @@ class MetricAccess {
         }
 
         public static void preFetchMetricSums(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp, Collection<MetricAccess> metricAccesses) throws SQLException {
-            if (metricAccesses.isEmpty()) return;
+            if (metricAccesses.isEmpty()) {
+                return;
+            }
             CachingDatabase cachingDb = getCachingDatabase();
-            if (cachingDb == null) return;
+            if (cachingDb == null) {
+                return;
+            }
             Iterator<MetricAccess> iter = metricAccesses.iterator();
             MetricAccess ma = iter.next();
             UUID typeId = ma.getTypeId();
@@ -1585,7 +1591,9 @@ class MetricAccess {
         }
 
         public static MetricAccess getMetricAccess(Database db, ObjectType type, ObjectField field) {
-            if (db == null || field == null) return null;
+            if (db == null || field == null) {
+                return null;
+            }
             StringBuilder keyBuilder = new StringBuilder(db.getName());
             keyBuilder.append(':');
             // For some reason metrics are being created with the wrong typeId; make sure a new typeId busts the cache

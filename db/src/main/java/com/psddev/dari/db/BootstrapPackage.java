@@ -92,7 +92,9 @@ public class BootstrapPackage extends Record {
         private Set<String> followReferencesFields;
 
         public Set<String> getPackageNames() {
-            if (packages == null) packages = new HashSet<String>();
+            if (packages == null) {
+                packages = new HashSet<String>();
+            }
             return packages;
         }
 
@@ -320,12 +322,22 @@ public class BootstrapPackage extends Record {
                 query.where("_type = ?", exportTypes);
 
                 if (exportTypes.contains(objType)) {
-                    if (!first) writer.write(','); else first = false;
+                    if (!first) {
+                        writer.write(',');
+                    } else {
+                        first = false;
+                    }
                     writer.write(objType.getInternalName());
                 }
                 for (ObjectType type : exportTypes) {
-                    if (type.equals(objType)) continue;
-                    if (!first) writer.write(','); else first = false;
+                    if (type.equals(objType)) {
+                        continue;
+                    }
+                    if (!first) {
+                        writer.write(',');
+                    } else {
+                        first = false;
+                    }
                     writer.write(type.getInternalName());
                 }
                 writer.write('\n');

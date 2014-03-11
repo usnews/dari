@@ -84,12 +84,16 @@ class BootstrapImportTask extends Task {
             // read leading blank lines
             do {
                 line = reader.readLine();
-                if (line != null) line = line.trim();
+                if (line != null) {
+                    line = line.trim();
+                }
             } while ("".equals(line));
 
             Map<String, String> headers = new HashMap<String, String>();
             do {
-                if (line != null) line = line.trim();
+                if (line != null) {
+                    line = line.trim();
+                }
                 String[] parts = line.split(":", 2);
                 if (parts.length == 2) {
                     headers.put(parts[0].trim(), parts[1].trim());
@@ -115,7 +119,9 @@ class BootstrapImportTask extends Task {
                 if (deleteFirst) {
                     LOGGER.info("Deleting all records in database to load " + filename);
                     for (Object obj : Query.fromAll().where("_type != ?", localObjTypeId).and("_id != ?", globalsId).noCache().using(database).resolveToReferenceOnly().iterable(100)) {
-                        if (!shouldContinue()) break;
+                        if (!shouldContinue()) {
+                            break;
+                        }
                         if (obj instanceof Record) {
                             deleteQueue.add((Record) obj);
                         }
@@ -139,7 +145,9 @@ class BootstrapImportTask extends Task {
                 if (deleteFirst) {
                     LOGGER.info("Deleting all records of types specified in " + filename);
                     for (Object obj : Query.fromAll().where("_type = ?", typeIds).and("_type != ?", localObjTypeId).and("_id != ?", globalsId).noCache().using(database).resolveToReferenceOnly().iterable(100)) {
-                        if (!shouldContinue()) break;
+                        if (!shouldContinue()) {
+                            break;
+                        }
                         if (obj instanceof Record) {
                             deleteQueue.add((Record) obj);
                         }
@@ -187,11 +195,19 @@ class BootstrapImportTask extends Task {
             boolean afterMappingTypes = false;
             ObjectType objType = database.getEnvironment().getTypeByClass(ObjectType.class);
             while (null != (line = reader.readLine())) {
-                if (!shouldContinue()) break;
+                if (!shouldContinue()) {
+                    break;
+                }
                 line = line.trim();
-                if ("".equals(line)) continue;
-                if (line.startsWith("#")) continue;
-                if (!line.startsWith("{") || !line.endsWith("}")) throw new RuntimeException("Invalid line in input file: " + line);
+                if ("".equals(line)) {
+                    continue;
+                }
+                if (line.startsWith("#")) {
+                    continue;
+                }
+                if (!line.startsWith("{") || !line.endsWith("}")) {
+                    throw new RuntimeException("Invalid line in input file: " + line);
+                }
                 line = translateIds(line);
                 Map<String, Object> stateMap = ObjectUtils.to(MAP_STRING_OBJECT_TYPE, ObjectUtils.fromJson(line));
                 UUID globalId = new UUID(-1L, -1L);
@@ -309,7 +325,9 @@ class BootstrapImportTask extends Task {
     }
 
     private String translateIds(String line) {
-        if (!needsTranslation) return line;
+        if (!needsTranslation) {
+            return line;
+        }
         StringBuilder newLine = new StringBuilder();
         Matcher idMatcher = uuidPattern.matcher(line);
         int cursor = 0;

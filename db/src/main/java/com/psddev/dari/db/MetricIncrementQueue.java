@@ -141,7 +141,9 @@ class MetricIncrementQueueTask extends Task {
         long sleepMilliseconds = 0L;
         Iterator<String> iter = null;
         while (true) {
-            if (queuedIncrements.isEmpty()) break;
+            if (queuedIncrements.isEmpty()) {
+                break;
+            }
             if (iter == null || !iter.hasNext()) {
                 if (iter != null) {
                     long waitMilliseconds = (long) (1000 * waitSeconds);
@@ -152,7 +154,9 @@ class MetricIncrementQueueTask extends Task {
                     }
                 }
                 sleepMilliseconds = (long) (1000 * (executeSeconds / (double) queuedIncrements.size())) - 10L;
-                if (sleepMilliseconds <= 0) sleepMilliseconds = 10L;
+                if (sleepMilliseconds <= 0) {
+                    sleepMilliseconds = 10L;
+                }
                 //LOGGER.info("running MetricIncrementQueueTask within " + executeSeconds + " seconds, approx. size: " + queuedIncrements.size() + " sleeping for " + sleepMilliseconds + " milliseconds between executions");
                 iter = queuedIncrements.keySet().iterator();
             }
