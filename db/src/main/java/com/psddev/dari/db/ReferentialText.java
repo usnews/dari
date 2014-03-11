@@ -232,7 +232,7 @@ public class ReferentialText extends AbstractList<Object> {
 
                     break;
 
-                } if (previousNode instanceof TextNode &&
+                } else if (previousNode instanceof TextNode &&
                         !((TextNode) previousNode).isBlank()) {
                     break;
                 }
@@ -427,7 +427,7 @@ public class ReferentialText extends AbstractList<Object> {
 
                 break;
 
-            } if (nextNode instanceof TextNode &&
+            } else if (nextNode instanceof TextNode &&
                     !((TextNode) nextNode).isBlank()) {
                 break;
             }
