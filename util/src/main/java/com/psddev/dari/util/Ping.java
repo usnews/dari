@@ -2,7 +2,6 @@ package com.psddev.dari.util;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 /** Pings a service to ensure that it's operational. */
 public interface Ping {
