@@ -47,13 +47,13 @@ import com.psddev.dari.util.TypeReference;
 
 public class MetricResummarizationTask extends RepeatingTask {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(MetricResummarizationTask.class);
-    private static String CONFIG_PREFIX = "dari/metricResummarize";
-    private static String CONFIG_FIELDS = "fields";
-    private static String CONFIG_BEFORE_DAYS = "beforeDays";
-    private static String CONFIG_INTERVAL_CLASS = "intervalClass";
-    private static String CONFIG_DATABASE = "database";
-    private static Map<String, Map<String, Object>> CONFIG = Settings.get(new TypeReference<Map<String, Map<String, Object>>>() { }, CONFIG_PREFIX);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricResummarizationTask.class);
+    private static final String CONFIG_PREFIX = "dari/metricResummarize";
+    private static final String CONFIG_FIELDS = "fields";
+    private static final String CONFIG_BEFORE_DAYS = "beforeDays";
+    private static final String CONFIG_INTERVAL_CLASS = "intervalClass";
+    private static final String CONFIG_DATABASE = "database";
+    private static final Map<String, Map<String, Object>> CONFIG = Settings.get(new TypeReference<Map<String, Map<String, Object>>>() { }, CONFIG_PREFIX);
 
     @Override
     protected DateTime calculateRunTime(DateTime currentTime) {
