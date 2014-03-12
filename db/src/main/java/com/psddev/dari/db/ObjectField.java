@@ -996,6 +996,18 @@ public class ObjectField extends Record {
                     // try the next one.
                 }
             }
+
+        // Wildcards such as ?, ? extends, or ? super
+        } else if (javaType instanceof WildcardType) {
+            for (Type bound : ((WildcardType) javaType).getUpperBounds()) {
+                try {
+                    return translateType(environment, objectClass, bound);
+
+                } catch (IllegalArgumentException error) {
+                    // If the bound type can't be translated correctly,
+                    // try the next one.
+                }
+            }
         }
 
         ObjectStruct parent = getParent();
