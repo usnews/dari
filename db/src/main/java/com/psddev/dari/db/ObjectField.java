@@ -11,6 +11,7 @@ import java.lang.reflect.GenericDeclaration;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -941,10 +942,15 @@ public class ObjectField extends Record {
         } else if (javaType instanceof ParameterizedType) {
             ParameterizedType javaTypeParamed = (ParameterizedType) javaType;
             Type[] javaTypeArgs = javaTypeParamed.getActualTypeArguments();
+            String firstType = translateType(environment, objectClass, javaTypeParamed.getRawType());
+            String secondType = translateType(environment, objectClass, javaTypeArgs[javaTypeArgs.length - 1]);
 
-            return translateType(environment, objectClass, javaTypeParamed.getRawType()) +
-                    "/" +
-                    translateType(environment, objectClass, javaTypeArgs[javaTypeArgs.length - 1]);
+            if (RECORD_TYPE.equals(firstType)) {
+                return firstType;
+
+            } else {
+                return firstType + "/" + secondType;
+            }
 
         // Complex translation like List<T> to list/record.
         } else if (javaType instanceof TypeVariable) {
