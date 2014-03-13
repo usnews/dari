@@ -134,11 +134,11 @@ public class Query<E> extends Record {
     private List<Sorter> sorters;
     private List<String> fields;
     private transient Database database;
-    private boolean isResolveToReferenceOnly;
-    private boolean noCache;
-    private boolean master;
-    private boolean resolveInvisible;
-    private Double timeout;
+    private transient boolean isResolveToReferenceOnly;
+    private transient boolean noCache;
+    private transient boolean master;
+    private transient boolean resolveInvisible;
+    private transient Double timeout;
     private transient Map<String, Object> options;
     private final transient Map<String, String> extraSourceColumns = new HashMap<String, String>();
 
