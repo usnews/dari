@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ConversionException;
+import com.psddev.dari.util.ConversionFunction;
 import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectToIterable;
@@ -1560,8 +1561,19 @@ public class State implements Map<String, Object> {
 
     private static final Converter CONVERTER; static {
         CONVERTER = new Converter();
-        CONVERTER.putAllStandardFunctions();
+
         CONVERTER.setThrowError(true);
+        CONVERTER.putAllStandardFunctions();
+        CONVERTER.putInheritableFunction(Query.class, Query.class, new QueryToQuery());
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static class QueryToQuery implements ConversionFunction<Query, Query> {
+
+        @Override
+        public Query convert(Converter converter, Type returnType, Query query) {
+            return query;
+        }
     }
 
     private void setJavaField(
