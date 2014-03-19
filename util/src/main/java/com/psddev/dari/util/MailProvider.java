@@ -1,5 +1,9 @@
 package com.psddev.dari.util;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** Interface for sending a {@link MailMessage} **/
 public interface MailProvider extends SettingsBackedObject {
 
@@ -22,14 +26,15 @@ public interface MailProvider extends SettingsBackedObject {
      */
     public static final class Static {
 
-        private static final PullThroughCache<String, MailProvider>
-                INSTANCES = new PullThroughCache<String, MailProvider>() {
+        private static final LoadingCache<String, MailProvider> INSTANCES = CacheBuilder.
+                newBuilder().
+                build(new CacheLoader<String, MailProvider>() {
 
             @Override
-            public MailProvider produce(String name) {
+            public MailProvider load(String name) {
                 return Settings.newInstance(MailProvider.class, SETTING_PREFIX + "/" + name);
             }
-        };
+        });
 
         /**
          * Returns the MailProvider instance associated with the given
@@ -48,7 +53,7 @@ public interface MailProvider extends SettingsBackedObject {
                 }
             }
 
-            return INSTANCES.get(name);
+            return INSTANCES.getUnchecked(name);
         }
 
         /**
