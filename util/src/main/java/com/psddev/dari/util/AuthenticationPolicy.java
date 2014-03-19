@@ -1,5 +1,9 @@
 package com.psddev.dari.util;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** Policy for authenticating a user. */
 public interface AuthenticationPolicy extends SettingsBackedObject {
 
@@ -25,14 +29,15 @@ public interface AuthenticationPolicy extends SettingsBackedObject {
      */
     public static final class Static {
 
-        private static final PullThroughCache<String, AuthenticationPolicy>
-                INSTANCES = new PullThroughCache<String, AuthenticationPolicy>() {
+        private static final LoadingCache<String, AuthenticationPolicy> INSTANCES = CacheBuilder.
+                newBuilder().
+                build(new CacheLoader<String, AuthenticationPolicy>() {
 
             @Override
-            public AuthenticationPolicy produce(String name) {
+            public AuthenticationPolicy load(String name) {
                 return Settings.newInstance(AuthenticationPolicy.class, SETTING_PREFIX + "/" + name);
             }
-        };
+        });
 
         /**
          * Returns the authentication policy associated with the given
@@ -42,7 +47,7 @@ public interface AuthenticationPolicy extends SettingsBackedObject {
          * @return May be {@code null}.
          */
         public static AuthenticationPolicy getInstance(String name) {
-            return ObjectUtils.isBlank(name) ? null : INSTANCES.get(name);
+            return ObjectUtils.isBlank(name) ? null : INSTANCES.getUnchecked(name);
         }
     }
 }
