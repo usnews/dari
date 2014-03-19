@@ -1,5 +1,9 @@
 package com.psddev.dari.util;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** Policy for {@link Password} creation. */
 public interface PasswordPolicy extends SettingsBackedObject {
 
@@ -23,14 +27,15 @@ public interface PasswordPolicy extends SettingsBackedObject {
      */
     public static final class Static {
 
-        private static final PullThroughCache<String, PasswordPolicy>
-                INSTANCES = new PullThroughCache<String, PasswordPolicy>() {
+        private static final LoadingCache<String, PasswordPolicy> INSTANCES = CacheBuilder.
+                newBuilder().
+                build(new CacheLoader<String, PasswordPolicy>() {
 
             @Override
-            public PasswordPolicy produce(String name) {
+            public PasswordPolicy load(String name) {
                 return Settings.newInstance(PasswordPolicy.class, SETTING_PREFIX + "/" + name);
             }
-        };
+        });
 
         /**
          * Returns the password policy associated with the given
@@ -40,7 +45,7 @@ public interface PasswordPolicy extends SettingsBackedObject {
          * @return May be {@code null}.
          */
         public static PasswordPolicy getInstance(String name) {
-            return ObjectUtils.isBlank(name) ? null : INSTANCES.get(name);
+            return ObjectUtils.isBlank(name) ? null : INSTANCES.getUnchecked(name);
         }
     }
 }
