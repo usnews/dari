@@ -366,14 +366,14 @@ public class Converter {
 
     private static class ObjectToBoolean implements ConversionFunction<Object, Boolean> {
         @Override
-        public Boolean convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
+        public Boolean convert(Converter converter, Type returnType, Object object) {
             return Boolean.parseBoolean(object.toString());
         }
     }
 
     private static class ObjectToByte implements ConversionFunction<Object, Byte> {
         @Override
-        public Byte convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
+        public Byte convert(Converter converter, Type returnType, Object object) {
             return object instanceof Number ?
                     Byte.valueOf(((Number) object).byteValue()) :
                     Byte.valueOf(object.toString().trim());
@@ -397,7 +397,7 @@ public class Converter {
 
     private static class ObjectToDouble implements ConversionFunction<Object, Double> {
         @Override
-        public Double convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
+        public Double convert(Converter converter, Type returnType, Object object) {
             return object instanceof Number ?
                     Double.valueOf(((Number) object).doubleValue()) :
                     Double.valueOf(object.toString().trim());
@@ -406,7 +406,7 @@ public class Converter {
 
     private static class ObjectToFloat implements ConversionFunction<Object, Float> {
         @Override
-        public Float convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
+        public Float convert(Converter converter, Type returnType, Object object) {
             return object instanceof Number ?
                     Float.valueOf(((Number) object).floatValue()) :
                     Float.valueOf(object.toString().trim());
@@ -415,7 +415,7 @@ public class Converter {
 
     private static class ObjectToInteger implements ConversionFunction<Object, Integer> {
         @Override
-        public Integer convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
+        public Integer convert(Converter converter, Type returnType, Object object) {
             return object instanceof Number ?
                     Integer.valueOf(((Number) object).intValue()) :
                     Integer.valueOf(object.toString().trim());
@@ -424,7 +424,7 @@ public class Converter {
 
     private static class ObjectToLong implements ConversionFunction<Object, Long> {
         @Override
-        public Long convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
+        public Long convert(Converter converter, Type returnType, Object object) {
             return object instanceof Number ?
                     Long.valueOf(((Number) object).longValue()) :
                     Long.valueOf(object.toString().trim());
@@ -433,7 +433,7 @@ public class Converter {
 
     private static class ObjectToShort implements ConversionFunction<Object, Short> {
         @Override
-        public Short convert(Converter converter, Type returnType, Object object) throws NumberFormatException {
+        public Short convert(Converter converter, Type returnType, Object object) {
             return object instanceof Number ?
                     Short.valueOf(((Number) object).shortValue()) :
                     Short.valueOf(object.toString().trim());
