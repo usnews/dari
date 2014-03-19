@@ -2,6 +2,10 @@ package com.psddev.dari.util;
 
 import java.util.Map;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /**
  * Image editor can manipulate an {@linkplain StorageItem image item in a
  * storage system}. Typically, this is used to crop or resize an image.
@@ -58,20 +62,22 @@ public interface ImageEditor extends SettingsBackedObject {
      */
     public static final class Static {
 
-        private static final PullThroughCache<String, ImageEditor>
-                EDITORS = new PullThroughCache<String, ImageEditor>() {
+        private static final LoadingCache<String, ImageEditor> INSTANCES = CacheBuilder.
+                newBuilder().
+                build(new CacheLoader<String, ImageEditor>() {
 
             @Override
-            protected ImageEditor produce(String name) {
-                ImageEditor editor = Settings.newInstance(ImageEditor.class, SETTING_PREFIX + "/" + name);
-                editor.setName(name);
-                return editor;
+            public ImageEditor load(String name) {
+                ImageEditor instance = Settings.newInstance(ImageEditor.class, SETTING_PREFIX + "/" + name);
+
+                instance.setName(name);
+                return instance;
             }
-        };
+        });
 
         /** Returns the image editor with the given {@code name}. */
         public static ImageEditor getInstance(String name) {
-            return EDITORS.get(name);
+            return INSTANCES.getUnchecked(name);
         }
 
         /** Returns the default image editor. */
