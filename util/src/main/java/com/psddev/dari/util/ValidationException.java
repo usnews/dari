@@ -6,47 +6,85 @@ import java.util.List;
 
 /**
  * For when there are multiple illegal arguments.
- * @author Hyoo Lim
+ *
+ * @deprecated No replacement.
  */
-@SuppressWarnings("serial")
+@Deprecated
 public class ValidationException extends IllegalArgumentException {
-    private final List<String> _messages;
 
-    /** Creates an exception without any messages. */
+    private static final long serialVersionUID = 1L;
+
+    private final List<String> messages;
+
+    /**
+     * Creates an exception without any messages.
+     */
     public ValidationException() {
         super();
-        _messages = new ArrayList<String>();
+
+        this.messages = Collections.emptyList();
     }
 
-    /** Creates an exception with the given list of messages. */
+    /**
+     * Creates an exception with the given {@code messages}.
+     *
+     * @param messages May be {@code null}.
+     */
     public ValidationException(List<String> messages) {
         super();
-        _messages = Collections.unmodifiableList(messages);
+
+        this.messages = messages != null ?
+                Collections.unmodifiableList(new ArrayList<String>(messages)) :
+                Collections.<String>emptyList();
     }
 
-    /** Creates an exception with the given list of messages and cause. */
+    /**
+     * Creates an exception with the given {@code messages} and {@code cause}.
+     *
+     * @param messages May be {@code null}.
+     * @param cause May be {@code null}.
+     */
     public ValidationException(List<String> messages, Throwable cause) {
         super(cause);
-        _messages = Collections.unmodifiableList(messages);
+
+        this.messages = messages != null ?
+                Collections.unmodifiableList(new ArrayList<String>(messages)) :
+                Collections.<String>emptyList();
     }
 
-    /** Creates an exception with the given cause. */
+    /**
+     * Creates an exception with the given {@code cause}.
+     *
+     * @param cause May be {@code null}.
+     */
     public ValidationException(Throwable cause) {
         super(cause);
-        _messages = new ArrayList<String>();
+
+        this.messages = Collections.emptyList();
     }
 
-    /** Gets a list of messages. */
+    /**
+     * Returns the messages.
+     *
+     * @param Never {@code null}. Immutable.
+     */
     public List<String> getMessages() {
-        return _messages;
+        return messages;
     }
 
     // --- Throwable support ---
+
+    @Override
     public String getMessage() {
-        StringBuilder mb = new StringBuilder();
-        for (String m : _messages) {
-            mb.append(m).append('\n');
+        StringBuilder message = new StringBuilder();
+
+        for (String m : getMessages()) {
+            if (!ObjectUtils.isBlank(m)) {
+                message.append(m);
+                message.append('\n');
+            }
         }
-        return mb.toString();
+
+        return message.toString();
     }
 }
