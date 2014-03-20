@@ -25,9 +25,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
@@ -650,16 +652,19 @@ public class ObjectField extends Record {
         Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
 
         return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
-                javaFieldCache.get(objectClass) :
+                javaFieldCache.getUnchecked(objectClass) :
                 null;
     }
 
-    private final transient Map<Class<?>, Field> javaFieldCache = new PullThroughCache<Class<?>, Field>() {
+    private final transient LoadingCache<Class<?>, Field> javaFieldCache = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<Class<?>, Field>() {
+
         @Override
-        protected Field produce(Class<?> objectClass) {
+        public Field load(Class<?> objectClass) {
             return TypeDefinition.getInstance(objectClass).getField(getJavaFieldName());
         }
-    };
+    });
 
     /** Sets the Java field name. */
     public void setJavaFieldName(String fieldName) {
