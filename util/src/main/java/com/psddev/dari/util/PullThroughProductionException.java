@@ -1,6 +1,11 @@
 package com.psddev.dari.util;
 
-/** For when a pull-through class couldn't produce a value. */
+/**
+ * For when a pull-through class couldn't produce a value.
+ *
+ * @deprecated Use {@link com.google.common.cache.CacheBuilder} instead.
+ */
+@Deprecated
 public class PullThroughProductionException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

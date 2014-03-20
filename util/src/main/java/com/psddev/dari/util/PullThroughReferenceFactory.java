@@ -3,7 +3,12 @@ package com.psddev.dari.util;
 import java.lang.ref.ReferenceQueue;
 import java.util.Date;
 
-/** Factory for creating {@link PullThroughReference}. */
+/**
+ * Factory for creating {@link PullThroughReference}.
+ *
+ * @deprecated Use {@link com.google.common.cache.CacheBuilder} instead.
+ */
+@Deprecated
 public interface PullThroughReferenceFactory {
 
     public <K, V> PullThroughReference<K, V> create(ReferenceQueue<V> queue, K key, V value, Date produceDate);

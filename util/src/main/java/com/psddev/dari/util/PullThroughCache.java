@@ -30,7 +30,10 @@ import org.slf4j.LoggerFactory;
  * <ul>
  * <li>{@link #isExpired}
  * </ul>
+ *
+ * @deprecated Use {@link com.google.common.cache.CacheBuilder} instead.
  */
+@Deprecated
 public abstract class PullThroughCache<K, V> implements Map<K, V> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PullThroughCache.class);

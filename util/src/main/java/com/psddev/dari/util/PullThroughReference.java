@@ -5,7 +5,12 @@ import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.util.Date;
 
-/** Reference to a value created in the pull-through classes. */
+/**
+ * Reference to a value created in the pull-through classes.
+ *
+ * @deprecated Use {@link com.google.common.cache.CacheBuilder} instead.
+ */
+@Deprecated
 public interface PullThroughReference<K, V> {
 
     /**

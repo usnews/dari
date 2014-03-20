@@ -2,7 +2,12 @@ package com.psddev.dari.util;
 
 import java.util.Date;
 
-/** Holds a value that's produced and cached on demand. */
+/**
+ * Holds a value that's produced and cached on demand.
+ *
+ * @deprecated Use {@link Lazy} instead.
+ */
+@Deprecated
 public abstract class PullThroughValue<T> {
 
     private static final PullThroughCache<PullThroughValue<?>, Object>

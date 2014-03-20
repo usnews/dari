@@ -16,7 +16,12 @@ import java.util.concurrent.CountDownLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Read-only map that can produce many values at once on demand. */
+/**
+ * Read-only map that can produce many values at once on demand.
+ *
+ * @deprecated Use {@link com.google.common.cache.CacheBuilder} instead.
+ */
+@Deprecated
 public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
 
     private static final Logger

@@ -3,7 +3,10 @@ package com.psddev.dari.util;
 /**
  * For when there is a deadlock while producing a value in a pull-through
  * class.
+ *
+ * @deprecated Use {@link com.google.common.cache.CacheBuilder} instead.
  */
+@Deprecated
 @SuppressWarnings("serial")
 public class PullThroughDeadlockException extends RuntimeException {
 
