@@ -9,6 +9,10 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /**
  * Gathers statistics about arbitrary operations.
  *
@@ -47,12 +51,15 @@ public class Stats {
     private final long start;
     private final Measurement totalMeasurement;
 
-    private final PullThroughCache<String, Measurement> measurements = new PullThroughCache<String, Measurement>(null, PullThroughReferenceFactory.Strong.class) {
+    private final LoadingCache<String, Measurement> measurements = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<String, Measurement>() {
+
         @Override
-        protected Measurement produce(String operation) {
+        public Measurement load(String operation) {
             return new Measurement();
         }
-    };
+    });
 
     /**
      * Creates an instance with the given {@code name} and {@linkplain
@@ -167,7 +174,7 @@ public class Stats {
      * @return Never blank.
      */
     public Map<String, Measurement> getMeasurements() {
-        return measurements;
+        return new LoadingCacheMap<String, Measurement>(String.class, measurements);
     }
 
     /** Timer for measuring the duration of an operation. */
