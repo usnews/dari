@@ -496,18 +496,14 @@ public class QueryDebugServlet extends HttpServlet {
 
                             String visibilityLabel = visibilityValue.toString();
 
-                            try {
-                                if (field != null) {
-                                    State state = new State();
-                                    state.put(index.getName(), visibilityValue);
-                                    Object declaringObject = state.as(declaringClass);
+                            if (field != null) {
+                                State state = new State();
+                                state.put(index.getName(), visibilityValue);
+                                Object declaringObject = state.as(declaringClass);
 
-                                    if (declaringObject instanceof VisibilityLabel) {
-                                        visibilityLabel = ((VisibilityLabel) declaringObject).createVisibilityLabel(field);
-                                    }
+                                if (declaringObject instanceof VisibilityLabel) {
+                                    visibilityLabel = ((VisibilityLabel) declaringObject).createVisibilityLabel(field);
                                 }
-
-                            } catch (Exception e) {
                             }
 
                             writeStart("li");
