@@ -20,6 +20,10 @@ import java.util.UUID;
 
 import org.joda.time.DateTime;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /** Converts an arbitrary object into an instance of another class. */
 public class Converter {
 
@@ -57,7 +61,7 @@ public class Converter {
         if (fromClass == null || toType == null) {
             return null;
         } else {
-            return (ConversionFunction<F, Object>) functionCache.get(new FunctionCacheKey(fromClass, toType));
+            return (ConversionFunction<F, Object>) functionCache.getUnchecked(new FunctionCacheKey(fromClass, toType));
         }
     }
 
@@ -89,12 +93,13 @@ public class Converter {
         }
     }
 
-    private final PullThroughCache<FunctionCacheKey, ConversionFunction<?, ?>>
-            functionCache = new PullThroughCache<FunctionCacheKey, ConversionFunction<?, ?>>() {
+    private final LoadingCache<FunctionCacheKey, ConversionFunction<?, ?>> functionCache = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<FunctionCacheKey, ConversionFunction<?, ?>>() {
 
         @Override
         @SuppressWarnings("all")
-        protected ConversionFunction<?, ?> produce(FunctionCacheKey cacheKey) {
+        public ConversionFunction<?, ?> load(FunctionCacheKey cacheKey) {
             List<Class<?>> fromAssignables = cacheKey.fromClass != null ?
                     (List) TypeDefinition.getInstance(cacheKey.fromClass).getAssignableClasses() :
                     Collections.<Class<?>>singletonList(null);
@@ -148,7 +153,7 @@ public class Converter {
 
             return null;
         }
-    };
+    });
 
     /**
      * Puts the function used to convert an instance of the given
@@ -165,7 +170,7 @@ public class Converter {
             directFunctions.put(fromClass, functions);
         }
         functions.put(toType, function);
-        functionCache.invalidate();
+        functionCache.invalidateAll();
     }
 
     public <F, T> void putDirectFunction(
@@ -199,7 +204,7 @@ public class Converter {
             inheritableFunctions.put(fromClass, functions);
         }
         functions.put(toClass, function);
-        functionCache.invalidate();
+        functionCache.invalidateAll();
     }
 
     public void putAllStandardFunctions() {
