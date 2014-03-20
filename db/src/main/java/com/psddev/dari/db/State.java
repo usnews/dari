@@ -22,14 +22,16 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ConversionException;
 import com.psddev.dari.util.ConversionFunction;
 import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
+import com.psddev.dari.util.LoadingCacheMap;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
 import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
@@ -57,6 +59,7 @@ public class State implements Map<String, Object> {
     public static final String SUB_DATA_STATE_EXTRA_PREFIX = "dari.subDataState.";
 
     private static final String ATOMIC_OPERATIONS_EXTRA = "dari.atomicOperations";
+    private static final String MODIFICATIONS_EXTRA = "dari.modifications";
 
     private static final int STATUS_FLAG_OFFSET = 16;
     private static final int STATUS_FLAG_MASK = -1 >>> STATUS_FLAG_OFFSET;
@@ -1878,14 +1881,17 @@ public class State implements Map<String, Object> {
 
     // --- JSTL support ---
 
-    private transient Map<String, Object> modifications;
-
     public Map<String, Object> getAs() {
-        if (modifications == null) {
-            modifications = new PullThroughCache<String, Object>() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> as = (Map<String, Object>) getExtras().get(MODIFICATIONS_EXTRA);
+
+        if (as == null) {
+            as = new LoadingCacheMap<String, Object>(String.class, CacheBuilder.
+                    newBuilder().
+                    build(new CacheLoader<String, Object>() {
 
                 @Override
-                protected Object produce(String modificationClassName) {
+                public Object load(String modificationClassName) {
                     Class<?> modificationClass = ObjectUtils.getClassByName(modificationClassName);
 
                     if (modificationClass != null) {
@@ -1896,10 +1902,12 @@ public class State implements Map<String, Object> {
                                 "[%s] isn't a valid class name!", modificationClassName));
                     }
                 }
-            };
+            }));
+
+            extras.put(MODIFICATIONS_EXTRA, as);
         }
 
-        return modifications;
+        return as;
     }
 
     // --- Database bridge ---
