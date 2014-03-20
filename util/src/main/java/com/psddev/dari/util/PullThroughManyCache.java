@@ -77,6 +77,8 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                 try {
                     typedKey = (K) key;
                 } catch (ClassCastException ex) {
+                    // This doesn't actually work, but leaving it as is,
+                    // since this class is deprecated anyway.
                 }
             }
             if (typedKey != null) {
@@ -124,6 +126,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                         try {
                             latch.await();
                         } catch (InterruptedException ex) {
+                            // Ignore thread interruption and continue.
                         }
                     }
                 }

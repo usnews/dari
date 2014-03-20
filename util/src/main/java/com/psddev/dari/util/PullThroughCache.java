@@ -229,6 +229,7 @@ public abstract class PullThroughCache<K, V> implements Map<K, V> {
                     try {
                         latch.await();
                     } catch (InterruptedException ex) {
+                        // Ignore thread interruption and continue.
                     }
                 }
 

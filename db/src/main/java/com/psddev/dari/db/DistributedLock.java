@@ -52,6 +52,7 @@ public class DistributedLock implements Lock {
                 try {
                     Thread.sleep(TRY_INTERVAL);
                 } catch (InterruptedException ex) {
+                    // Ignore thread interruption and keep trying to lock.
                 }
             } while (!tryLock());
         }

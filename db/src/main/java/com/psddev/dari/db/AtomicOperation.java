@@ -106,6 +106,7 @@ public abstract class AtomicOperation {
             if (oldValue instanceof Collection) {
                 Collection<?> collection = (Collection<?>) oldValue;
                 while (collection.remove(value)) {
+                    // Until all instances of value are removed.
                 }
             }
         }

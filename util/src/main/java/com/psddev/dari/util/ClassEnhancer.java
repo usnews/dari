@@ -100,6 +100,7 @@ public abstract class ClassEnhancer extends ClassAdapter {
                 throws IOException {
 
             if (!file.exists()) {
+                // Can't process a non-existent file.
 
             } else if (file.isDirectory()) {
                 int count = 0;

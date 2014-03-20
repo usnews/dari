@@ -22,6 +22,7 @@ public class Css {
         this.cssLength = css.length();
 
         while (readRule(null)) {
+            // Until all the rules are read.
         }
 
         List<CssRule> rules = new ArrayList<CssRule>();

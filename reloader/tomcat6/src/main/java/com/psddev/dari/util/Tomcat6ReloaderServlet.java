@@ -162,6 +162,7 @@ public class Tomcat6ReloaderServlet extends HttpServlet implements ContainerServ
                 try {
                     latch.await();
                 } catch (InterruptedException ex) {
+                    // Ignore thread interruption and continue.
                 }
             }
         }

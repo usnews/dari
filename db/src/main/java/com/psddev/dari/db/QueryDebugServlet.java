@@ -133,10 +133,6 @@ public class QueryDebugServlet extends HttpServlet {
 
             this.showVisible = showVisible;
             visibilityColors = new HashMap<String, Double>();
-
-            if (!visibilityFilters.isEmpty()) {
-            }
-
             offset = page.param(long.class, "offset");
             limit = page.paramOrDefault(int.class, "limit", 50);
             filter = "Filter".equals(page.param(String.class, "action")) ? page.param(String.class, "filter") : null;

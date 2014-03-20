@@ -325,6 +325,7 @@ public interface Database extends SettingsBackedObject {
                 Object database) {
 
             if (database == null) {
+                // Nothing to add.
 
             } else if (databaseClass.isInstance(database)) {
                 result.add((T) database);

@@ -624,7 +624,11 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
                 IoUtils.delete(storageFile);
             }
         } finally {
-            try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
+            try {
+                client.getConnectionManager().shutdown();
+            } catch (RuntimeException error) {
+                // Can't recover anyway so ignore.
+            }
         }
     }
 
@@ -680,7 +684,11 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
                     return videoJson;
                 }
             } finally {
-                try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
+                try {
+                    client.getConnectionManager().shutdown();
+                } catch (RuntimeException error) {
+                    // Can't recover anyway so ignore.
+                }
             }
         } catch (IOException e) {
             return null;
@@ -756,9 +764,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
         }
 
         if (!ObjectUtils.isBlank(videoJson.get("economics"))) {
-            try {
-                this.economics = ObjectUtils.to(Economics.class, videoJson.get("economics"));
-            } catch (RuntimeException ignore) { }
+            this.economics = ObjectUtils.to(Economics.class, videoJson.get("economics"));
         }
 
         if (!ObjectUtils.isBlank(videoJson.get("playsTotal"))) {
@@ -926,7 +932,11 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
             }
 
         } finally {
-            try { client.getConnectionManager().shutdown(); } catch (RuntimeException ignore) { }
+            try {
+                client.getConnectionManager().shutdown();
+            } catch (RuntimeException error) {
+                // Can't recover anyway so ignore.
+            }
         }
     }
 

@@ -977,6 +977,7 @@ public abstract class AbstractDatabase<C> implements Database {
                             continue;
 
                         } catch (InterruptedException ex2) {
+                            // Ignore thread interruption and continue.
                         }
                     }
 

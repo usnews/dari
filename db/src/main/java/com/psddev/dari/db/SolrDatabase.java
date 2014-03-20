@@ -939,6 +939,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     private void addToStreamBody(StringBuilder streamBody, Object value) {
         if (value == null ||
                 value instanceof Boolean) {
+            // No need to search against null or a boolean.
 
         } else if (value instanceof Iterable) {
             for (Object item : (Iterable<?>) value) {

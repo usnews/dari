@@ -143,7 +143,9 @@ public final class StringUtils {
 
             if (" -_.$".indexOf(c) > -1) {
                 words.add(string.substring(marker, i).toLowerCase(Locale.ENGLISH));
-                for (++ i; i < length && " -_.$".indexOf(letters[i]) > -1; ++ i) { }
+                for (++ i; i < length && " -_.$".indexOf(letters[i]) > -1; ++ i) {
+                    // Skip past all special delimiters.
+                }
 
                 marker = i;
 

@@ -692,6 +692,7 @@ public class Query<E> extends Record {
             Predicate predicate) {
 
         if (predicate == null) {
+            // Nothing to add.
 
         } else if (predicate instanceof CompoundPredicate) {
             for (Predicate child : ((CompoundPredicate) predicate).getChildren()) {
@@ -1221,6 +1222,7 @@ public class Query<E> extends Record {
             Predicate predicate) {
 
         if (predicate == null) {
+            // Nothing to add.
 
         } else if (predicate instanceof CompoundPredicate) {
             for (Predicate child : ((CompoundPredicate) predicate).getChildren()) {

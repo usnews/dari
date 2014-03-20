@@ -65,6 +65,8 @@ public class ObjectToIterable implements ConversionFunction<Object, Iterable<Obj
         }
 
         if (returnType instanceof Class) {
+            // No need to further convert the item in the iterable,
+            // because generic type argument isn't available.
 
         } else if (returnType instanceof ParameterizedType) {
             Type itemType = ((ParameterizedType) returnType).getActualTypeArguments()[0];

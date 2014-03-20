@@ -140,6 +140,7 @@ public class CodeDebugServlet extends HttpServlet {
         if (file != null) {
             if (file.exists()) {
                 if (file.isDirectory()) {
+                    // Can't edit a directory.
 
                 } else {
                     codeBuilder.append(IoUtils.toString(file, StringUtils.UTF_8));

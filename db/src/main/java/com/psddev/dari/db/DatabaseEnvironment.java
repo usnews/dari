@@ -845,6 +845,8 @@ public class DatabaseEnvironment implements ObjectStruct {
                             beanPropertyIndexes.get(beanProperty)));
 
                 } catch (Exception error) {
+                    // Failed introspection so probably not a valid bean
+                    // property.
                 }
             }
 
