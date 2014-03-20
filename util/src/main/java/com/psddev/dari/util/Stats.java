@@ -216,8 +216,8 @@ public class Stats {
 
         private final AtomicLong totalCount = new AtomicLong();
         private final AtomicDouble totalDuration = new AtomicDouble();
-        public final List<ExponentialMovingAverage> countAverages = new ArrayList<ExponentialMovingAverage>();
-        public final List<ExponentialMovingAverage> durationAverages = new ArrayList<ExponentialMovingAverage>();
+        private final List<ExponentialMovingAverage> countAverages = new ArrayList<ExponentialMovingAverage>();
+        private final List<ExponentialMovingAverage> durationAverages = new ArrayList<ExponentialMovingAverage>();
 
         {
             double keepDuration = getKeepDuration();
