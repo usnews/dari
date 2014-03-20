@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +49,9 @@ import javax.tools.ToolProvider;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 
 /**
  * Enables rapid web application development by making source code changes
@@ -263,7 +267,7 @@ public class SourceFilter extends AbstractFilter {
             FilterChain chain)
             throws IOException, ServletException {
 
-        COPY_RESOURCES.get();
+        copyResources.get();
 
         // Intercept special actions.
         if (!ObjectUtils.isBlank(request.getParameter("_reload")) &&
@@ -519,22 +523,24 @@ public class SourceFilter extends AbstractFilter {
         return false;
     }
 
-    /** Copies all resources. */
-    private final PullThroughValue<Void> COPY_RESOURCES = new PullThroughValue<Void>() {
+    // Copies all resources, throttled to run at most once per second.
+    private final Supplier<Void> copyResources = Suppliers.memoizeWithExpiration(new Supplier<Void>() {
 
         @Override
-        protected boolean isExpired(Date lastProduce) {
-            return System.currentTimeMillis() - lastProduce.getTime() > 1000;
-        }
-
-        @Override
-        protected Void produce() throws IOException {
+        public Void get() {
             if (classOutput != null) {
                 for (File resourceDirectory : CodeUtils.getResourceDirectories()) {
                     Long jarModified = CodeUtils.getJarLastModified(resourceDirectory);
-                    copy(resourceDirectory, jarModified, resourceDirectory);
+
+                    try {
+                        copy(resourceDirectory, jarModified, resourceDirectory);
+
+                    } catch (IOException error) {
+                        throw new IllegalStateException(error);
+                    }
                 }
             }
+
             return null;
         }
 
@@ -546,17 +552,18 @@ public class SourceFilter extends AbstractFilter {
 
             } else {
                 File output = new File(classOutput, resource.toString().substring(resourceDirectory.toString().length()).replace(File.separatorChar, '/'));
-
                 long resourceModified = resource.lastModified();
                 long outputModified = output.lastModified();
-                if ((jarModified == null || resourceModified > jarModified) &&
+
+                if ((jarModified == null ||
+                        resourceModified > jarModified) &&
                         resourceModified > outputModified) {
                     IoUtils.copy(resource, output);
                     LOGGER.info("Copied [{}]", resource);
                 }
             }
         }
-    };
+    }, 1, TimeUnit.SECONDS);
 
     // Compile any Java source files that's changed and redefine them
     // in place if possible.
