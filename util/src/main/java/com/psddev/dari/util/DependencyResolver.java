@@ -33,9 +33,9 @@ import java.util.Set;
  */
 public class DependencyResolver<T> {
 
-    public final Set<T> allObjects = new HashSet<T>();
-    public final Set<T> allDependencies = new HashSet<T>();
-    public final Set<Edge<T>> edges = new HashSet<Edge<T>>();
+    private final Set<T> allObjects = new HashSet<T>();
+    private final Set<T> allDependencies = new HashSet<T>();
+    private final Set<Edge<T>> edges = new HashSet<Edge<T>>();
 
     /**
      * Add an item that is needed, plus any dependencies
