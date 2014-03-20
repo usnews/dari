@@ -13,6 +13,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /**
  * Skeletal runnable implementation that contains basic execution control
  * and status methods. Subclasses must implement:
@@ -55,15 +59,18 @@ public abstract class Task implements Comparable<Task>, Runnable {
         if (ObjectUtils.isBlank(initialName)) {
             initialName = getClass().getName();
         }
-        name = initialName + " #" + TASK_INDEXES.get(initialName).incrementAndGet();
+        name = initialName + " #" + TASK_INDEXES.getUnchecked(initialName).incrementAndGet();
     }
 
-    private static final PullThroughCache<String, AtomicLong> TASK_INDEXES = new PullThroughCache<String, AtomicLong>() {
+    private static final LoadingCache<String, AtomicLong> TASK_INDEXES = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<String, AtomicLong>() {
+
         @Override
-        protected AtomicLong produce(String name) {
+        public AtomicLong load(String name) {
             return new AtomicLong();
         }
-    };
+    });
 
     /**
      * Creates an instance that will run in the default executor
