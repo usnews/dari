@@ -97,12 +97,12 @@ public class HuslColorSpace extends ColorSpace {
 
     private static final double PI = 3.1415926535897932384626433832795;
 
-    private static final float m[][] = {
+    private static final float[][] m = {
             { 3.2406f, -1.5372f, -0.4986f },
             { -0.9689f, 1.8758f, 0.0415f },
             { 0.0557f, -0.2040f, 1.0570f } };
 
-    private static final float m_inv[][] = {
+    private static final float[][] m_inv = {
             { 0.4124f, 0.3576f, 0.1805f },
             { 0.2126f, 0.7152f, 0.0722f },
             { 0.0193f, 0.1192f, 0.9505f } };
@@ -116,8 +116,8 @@ public class HuslColorSpace extends ColorSpace {
     private static float maxChroma(float L, float H) {
         float C, bottom, cosH, hrad, lbottom, m1, m2, m3, rbottom, result, sinH, sub1, sub2, t, top;
         int _i, _j, _len, _len1;
-        float row[];
-        float _ref[] = { 0.0f, 1.0f };
+        float[] row;
+        float[] _ref = { 0.0f, 1.0f };
 
         hrad = (float) ((H / 360.0f) * 2 * PI);
         sinH = (float) (Math.sin(hrad));
@@ -149,7 +149,7 @@ public class HuslColorSpace extends ColorSpace {
         return result;
     }
 
-    private static float dotProduct(float a[], float b[], int len) {
+    private static float dotProduct(float[] a, float[] b, int len) {
         int i, _i, _ref;
         float ret = 0.0f;
 
@@ -198,7 +198,7 @@ public class HuslColorSpace extends ColorSpace {
         }
     }
 
-    private static float[] XYZ_RGB(float tuple[]) {
+    private static float[] XYZ_RGB(float[] tuple) {
         float B, G, R;
 
         R = fromLinear(dotProduct(m[0], tuple, 3));
@@ -212,9 +212,9 @@ public class HuslColorSpace extends ColorSpace {
         return tuple;
     }
 
-    private static float[] RGB_XYZ(float tuple[]) {
+    private static float[] RGB_XYZ(float[] tuple) {
         float B, G, R, X, Y, Z;
-        float rgbl[] = new float[3];
+        float[] rgbl = new float[3];
 
         R = tuple[0];
         G = tuple[1];
@@ -235,7 +235,7 @@ public class HuslColorSpace extends ColorSpace {
         return tuple;
     }
 
-    private static float[] XYZ_LUV(float tuple[]) {
+    private static float[] XYZ_LUV(float[] tuple) {
         float L, U, V, X, Y, Z, varU, varV;
 
         X = tuple[0];
@@ -255,7 +255,7 @@ public class HuslColorSpace extends ColorSpace {
         return tuple;
     }
 
-    private static float[] LUV_XYZ(float tuple[]) {
+    private static float[] LUV_XYZ(float[] tuple) {
         float L, U, V, X, Y, Z, varU, varV, varY;
 
         L = tuple[0];
@@ -281,7 +281,7 @@ public class HuslColorSpace extends ColorSpace {
         return tuple;
     }
 
-    private static float[] LUV_LCH(float tuple[]) {
+    private static float[] LUV_LCH(float[] tuple) {
         float C, H, Hrad, L, U, V;
 
         L = tuple[0];
@@ -303,7 +303,7 @@ public class HuslColorSpace extends ColorSpace {
         return tuple;
     }
 
-    private static float[] LCH_LUV(float tuple[]) {
+    private static float[] LCH_LUV(float[] tuple) {
         float C, H, Hrad, L, U, V;
 
         L = tuple[0];
@@ -321,7 +321,7 @@ public class HuslColorSpace extends ColorSpace {
         return tuple;
     }
 
-    private static float[] HUSL_LCH(float tuple[]) {
+    private static float[] HUSL_LCH(float[] tuple) {
         float C, H, L, S, max;
 
         H = tuple[0];
@@ -338,7 +338,7 @@ public class HuslColorSpace extends ColorSpace {
         return tuple;
     }
 
-    private static float[] LCH_HUSL(float tuple[]) {
+    private static float[] LCH_HUSL(float[] tuple) {
         float C, H, L, S, max;
 
         L = tuple[0];

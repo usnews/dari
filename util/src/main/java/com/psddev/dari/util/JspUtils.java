@@ -874,7 +874,7 @@ public final class JspUtils {
      * expire.
      */
     public static String unsignCookieWithExpiry(String name, String signedValue, long expirationDuration) {
-        String parts[] = StringUtils.split(signedValue, "\\|");
+        String[] parts = StringUtils.split(signedValue, "\\|");
         if (parts.length != 3) {
             LOGGER.debug("Not a valid signed cookie! {}", signedValue);
             return null;
