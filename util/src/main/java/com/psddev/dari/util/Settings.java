@@ -65,10 +65,10 @@ public final class Settings {
                 }
             });
 
-    private static final PullThroughValue<Map<String, Object>> SETTINGS = new PullThroughValue<Map<String, Object>>() {
+    private static final Lazy<Map<String, Object>> SETTINGS = new Lazy<Map<String, Object>>() {
 
         @Override
-        protected Map<String, Object> produce() {
+        public Map<String, Object> create() {
             return new PeriodicCache<String, Object>(0.0, 10.0) {
 
                 @Override
