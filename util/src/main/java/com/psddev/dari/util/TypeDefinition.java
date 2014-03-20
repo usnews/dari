@@ -16,23 +16,28 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 public class TypeDefinition<T> {
 
     private final Type type;
 
     /** Returns an instance based on the given {@code type}. */
     public static TypeDefinition<?> getInstance(Type type) {
-        return INSTANCES.get(type);
+        return INSTANCES.getUnchecked(type);
     }
 
-    private static final PullThroughCache<Type, TypeDefinition<?>>
-            INSTANCES = new PullThroughCache<Type, TypeDefinition<?>>() {
+    private static final LoadingCache<Type, TypeDefinition<?>> INSTANCES = CacheBuilder.
+            newBuilder().
+            build(new CacheLoader<Type, TypeDefinition<?>>() {
 
         @Override
-        protected TypeDefinition<?> produce(Type type) {
+        public TypeDefinition<?> load(Type type) {
             return new TypeDefinition<Object>(type);
         }
-    };
+    });
 
     /** Returns an instance based on the given {@code objectClass}. */
     @SuppressWarnings("unchecked")
@@ -90,11 +95,10 @@ public class TypeDefinition<T> {
         return assignableClasses.get();
     }
 
-    private final PullThroughValue<List<Class<? super T>>>
-            assignableClasses = new PullThroughValue<List<Class<? super T>>>() {
+    private final transient Lazy<List<Class<? super T>>> assignableClasses = new Lazy<List<Class<? super T>>>() {
 
         @Override
-        protected List<Class<? super T>> produce() {
+        protected List<Class<? super T>> create() {
 
             Class<T> objectClass = getObjectClass();
             List<Class<? super T>> classes = new ArrayList<Class<? super T>>();
@@ -118,11 +122,10 @@ public class TypeDefinition<T> {
         return assignableClassesAndInterfaces.get();
     }
 
-    private final transient PullThroughValue<Set<Class<?>>>
-            assignableClassesAndInterfaces = new PullThroughValue<Set<Class<?>>>() {
+    private final transient Lazy<Set<Class<?>>> assignableClassesAndInterfaces = new Lazy<Set<Class<?>>>() {
 
         @Override
-        protected Set<Class<?>> produce() {
+        protected Set<Class<?>> create() {
             Class<T> objectClass = getObjectClass();
             Set<Class<?>> classes = new LinkedHashSet<Class<?>>();
 
@@ -146,11 +149,10 @@ public class TypeDefinition<T> {
         return allFields.get();
     }
 
-    private final PullThroughValue<List<Field>>
-            allFields = new PullThroughValue<List<Field>>() {
+    private final transient Lazy<List<Field>> allFields = new Lazy<List<Field>>() {
 
         @Override
-        protected List<Field> produce() {
+        protected List<Field> create() {
 
             Class<T> objectClass = getObjectClass();
             List<Field> fields = new ArrayList<Field>();
@@ -176,11 +178,10 @@ public class TypeDefinition<T> {
         return allSerializableFields.get();
     }
 
-    private final PullThroughValue<Map<String, List<Field>>>
-            allSerializableFields = new PullThroughValue<Map<String, List<Field>>>() {
+    private final transient Lazy<Map<String, List<Field>>> allSerializableFields = new Lazy<Map<String, List<Field>>>() {
 
         @Override
-        protected Map<String, List<Field>> produce() {
+        protected Map<String, List<Field>> create() {
 
             Class<T> objectClass = getObjectClass();
             Map<String, List<Field>> fieldsMap = new CompactMap<String, List<Field>>();
@@ -241,12 +242,11 @@ public class TypeDefinition<T> {
         return constructors.get();
     }
 
-    private final PullThroughValue<List<Constructor<T>>>
-            constructors = new PullThroughValue<List<Constructor<T>>>() {
+    private final transient Lazy<List<Constructor<T>>> constructors = new Lazy<List<Constructor<T>>>() {
 
         @Override
         @SuppressWarnings("unchecked")
-        protected List<Constructor<T>> produce() {
+        protected List<Constructor<T>> create() {
             List<Constructor<T>> constructors = new ArrayList<Constructor<T>>();
             for (Constructor<?> constructor : getObjectClass().getDeclaredConstructors()) {
                 constructor.setAccessible(true);
@@ -316,11 +316,10 @@ public class TypeDefinition<T> {
         return allMethods.get();
     }
 
-    private final PullThroughValue<List<Method>>
-            allMethods = new PullThroughValue<List<Method>>() {
+    private final transient Lazy<List<Method>> allMethods = new Lazy<List<Method>>() {
 
         @Override
-        protected List<Method> produce() {
+        protected List<Method> create() {
 
             Class<T> objectClass = getObjectClass();
             List<Method> methods = new ArrayList<Method>();
@@ -347,11 +346,10 @@ public class TypeDefinition<T> {
         return allGetters.get();
     }
 
-    private final PullThroughValue<Map<String, Method>>
-            allGetters = new PullThroughValue<Map<String, Method>>() {
+    private final transient Lazy<Map<String, Method>> allGetters = new Lazy<Map<String, Method>>() {
 
         @Override
-        protected Map<String, Method> produce() {
+        protected Map<String, Method> create() {
 
             Map<String, Method> getters = new CompactMap<String, Method>();
             for (Method method : getAllMethods()) {
@@ -390,11 +388,10 @@ public class TypeDefinition<T> {
         return allSetters.get();
     }
 
-    private final PullThroughValue<Map<String, Method>>
-            allSetters = new PullThroughValue<Map<String, Method>>() {
+    private final transient Lazy<Map<String, Method>> allSetters = new Lazy<Map<String, Method>>() {
 
         @Override
-        protected Map<String, Method> produce() {
+        protected Map<String, Method> create() {
 
             Map<String, Method> setters = new CompactMap<String, Method>();
             for (Method method : getAllMethods()) {
@@ -424,7 +421,7 @@ public class TypeDefinition<T> {
 
         /** Invalidates all caches. */
         public static void invalidateAll() {
-            INSTANCES.invalidate();
+            INSTANCES.invalidateAll();
         }
     }
 }
