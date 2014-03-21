@@ -7,6 +7,8 @@ import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -17,8 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -447,17 +454,69 @@ public class Converter {
 
     private static class ObjectToDate implements ConversionFunction<Object, Date> {
 
+        private static final String[] STANDARD_FORMATS = {
+                "(GMT)yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "(GMT)yyyy-MM-dd'T'HH:mm:ss.S'Z'",
+                "EEE MMM dd HH:mm:ss z yyyy",
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy-MM-dd",
+                "yyyy-MM-dd'T'HH:mm" };
+
+        private static Pattern TIME_ZONE_PATTERN = Pattern.compile("^\\(([^)]+)\\)\\s*(.+)$");
+
+        private static final LoadingCache<String, DateTimeFormatter> FORMATTERS = CacheBuilder.
+                newBuilder().
+                build(new CacheLoader<String, DateTimeFormatter>() {
+
+            @Override
+            public DateTimeFormatter load(String format) {
+                Matcher timeZoneMatcher = TIME_ZONE_PATTERN.matcher(format);
+
+                if (timeZoneMatcher.matches()) {
+                    return DateTimeFormat.
+                            forPattern(timeZoneMatcher.group(2)).
+                            withZone(DateTimeZone.forID(timeZoneMatcher.group(1)));
+
+                } else {
+                    return DateTimeFormat.forPattern(format);
+                }
+            }
+        });
+
         @Override
         public Date convert(Converter converter, Type returnType, Object object) {
             try {
                 Long millis = converter.convert(Long.class, object);
+
                 if (millis != null) {
                     return new Date(millis);
                 }
+
             } catch (ConversionException error) {
                 // Try a different conversion below.
             }
-            return DateUtils.fromString(object.toString());
+
+            String objectString = object.toString().trim();
+
+            for (String format : STANDARD_FORMATS) {
+                try {
+                    return new Date(FORMATTERS.getUnchecked(format).parseMillis(objectString));
+
+                } catch (IllegalArgumentException error) {
+                    // Try the default Java conversion or the next format.
+                }
+
+                if (format.contains("z")) {
+                    try {
+                        return new SimpleDateFormat(format).parse(objectString);
+                    } catch (ParseException error) {
+                        // Try the next format.
+                    }
+                }
+            }
+
+            throw new ConversionException(String.format(
+                    "Can't convert [%s] to Date instance!", objectString));
         }
     }
 
