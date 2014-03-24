@@ -651,8 +651,10 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         m.put(PredicateParser.EQUALS_ANY_OPERATOR, new ExactMatchOperator(false, true));
         m.put(PredicateParser.NOT_EQUALS_ALL_OPERATOR, new ExactMatchOperator(true, false));
-        m.put(PredicateParser.MATCHES_ANY_OPERATOR, new FullTextMatchOperator(false, true));
-        m.put(PredicateParser.MATCHES_ALL_OPERATOR, new FullTextMatchOperator(false, false));
+        m.put(PredicateParser.MATCHES_ANY_OPERATOR, new FullTextMatchOperator(false, true, false));
+        m.put(PredicateParser.MATCHES_ALL_OPERATOR, new FullTextMatchOperator(false, false, false));
+        m.put(PredicateParser.MATCHES_EXACT_ANY_OPERATOR, new FullTextMatchOperator(false, true, true));
+        m.put(PredicateParser.MATCHES_EXACT_ALL_OPERATOR, new FullTextMatchOperator(false, false, true));
 
         m.put(PredicateParser.STARTS_WITH_OPERATOR, new MatchOperator(false, true) {
             @Override
@@ -842,8 +844,11 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
     private class FullTextMatchOperator extends MatchOperator {
 
-        public FullTextMatchOperator(boolean isNegate, boolean isAny) {
+        private final boolean isExact;
+
+        public FullTextMatchOperator(boolean isNegate, boolean isAny, boolean isExact) {
             super(isNegate, isAny);
+            this.isExact = isExact;
         }
 
         @Override
@@ -877,9 +882,12 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 } else {
                     comparisonBuilder.append('(');
                     comparisonBuilder.append(escapedValue);
-                    comparisonBuilder.append(" || ");
-                    comparisonBuilder.append(escapedValue);
-                    comparisonBuilder.append("*)");
+                    if(!isExact){
+                        comparisonBuilder.append(" || ");
+                        comparisonBuilder.append(escapedValue);
+                        comparisonBuilder.append("*");
+                    }
+                    comparisonBuilder.append(")");
                 }
             }
         }

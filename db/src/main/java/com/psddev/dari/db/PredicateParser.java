@@ -60,6 +60,8 @@ public class PredicateParser {
     public static final String CONTAINS_OPERATOR = "contains";
     public static final String MATCHES_ANY_OPERATOR = "matchesany";
     public static final String MATCHES_ALL_OPERATOR = "matchesall";
+    public static final String MATCHES_EXACT_ANY_OPERATOR = "matchesexactany";
+    public static final String MATCHES_EXACT_ALL_OPERATOR = "matchesexactall";
 
     private final Map<String, String> compoundOperators; {
         Map<String, String> m = new ConcurrentHashMap<String, String>();
