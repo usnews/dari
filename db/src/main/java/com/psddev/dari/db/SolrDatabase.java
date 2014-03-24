@@ -848,6 +848,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         public FullTextMatchOperator(boolean isNegate, boolean isAny, boolean isExact) {
             super(isNegate, isAny);
+
             this.isExact = isExact;
         }
 
@@ -882,11 +883,13 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 } else {
                     comparisonBuilder.append('(');
                     comparisonBuilder.append(escapedValue);
-                    if(!isExact){
+
+                    if (!isExact) {
                         comparisonBuilder.append(" || ");
                         comparisonBuilder.append(escapedValue);
                         comparisonBuilder.append("*");
                     }
+
                     comparisonBuilder.append(")");
                 }
             }
