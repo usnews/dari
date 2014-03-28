@@ -141,12 +141,13 @@ public abstract class AsyncProducer<E> extends Task {
         /**
          * Creates an {@link AsyncProducer} instance that runs in the
          * given {@code executor} and produces items from the given
-         * {@code iterable} into the given {@link AsyncQueue}.
+         * {@code iterable} into the given {@code queue}.
          */
-        public static<T> AsyncProducer<T> inExecutorFromIterableToQueue(String executor, Iterable<T> iterable, AsyncQueue<T> queue) {
-
+        public static <T> AsyncProducer<T> inExecutorFromIterableIntoQueue(String executor, Iterable<T> iterable, AsyncQueue<T> queue) {
             final Iterator<T> iterator = iterable.iterator();
+
             return new AsyncProducer<T>(executor, queue) {
+
                 @Override
                 protected T produce() {
                     return iterator.hasNext() ? iterator.next() : null;
@@ -154,11 +155,12 @@ public abstract class AsyncProducer<E> extends Task {
             };
         }
 
-        /** @deprecated Use {@link #inExecutorFromIterableToQueue} instead. */
+        /**
+         * @deprecated Use {@link #inExecutorFromIterableIntoQueue} instead.
+         */
         @Deprecated
         public static <T> AsyncProducer<T> inExecutorFromIterable(String executor, Iterable<T> iterable) {
-
-            return inExecutorFromIterableToQueue(executor, iterable, null);
+            return inExecutorFromIterableIntoQueue(executor, iterable, null);
         }
 
         /**
@@ -167,7 +169,7 @@ public abstract class AsyncProducer<E> extends Task {
          * {@code iterable}.
          */
         public static <T> AsyncProducer<T> fromIterable(Iterable<T> iterable) {
-            return inExecutorFromIterableToQueue(null, iterable, null);
+            return inExecutorFromIterableIntoQueue(null, iterable, null);
         }
 
         /** @deprecated Use {@link #fromIterable} instead. */
