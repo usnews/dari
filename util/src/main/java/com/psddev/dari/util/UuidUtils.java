@@ -56,6 +56,15 @@ public final class UuidUtils {
     }
 
     /**
+     * Returns the timestamp embedded within the given sequential {@code UUID}.
+     *
+     * @param uuid Can't be {@code null}.
+     */
+    public static long sequentialUuidTimestamp(UUID uuid) {
+        return ((uuid.getMostSignificantBits() >> 16) << 16) + ((uuid.getLeastSignificantBits() >> 16) & 0xffff);
+    }
+
+    /**
      * Creates a version 3 (MD5 hash) UUID based on the given {@code name}.
      *
      * @param name Can't be {@code null}.

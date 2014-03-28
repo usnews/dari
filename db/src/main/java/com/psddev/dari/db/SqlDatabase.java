@@ -888,6 +888,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         Object subObject = createSavedObject(subTypeId, subId, query);
                         State subObjectState = State.getInstance(subObject);
                         subObjectState.setValues(unserializeData(subData));
+                        subObject = swapObjectType(null, subObject);
                         subId = null;
                         subTypeId = null;
                         subData = null;
