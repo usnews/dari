@@ -26,11 +26,15 @@ class ColorImageData extends Modification<ColorImage> {
         ColorDistribution.Data distributionData = as(ColorDistribution.Data.class);
 
         if (distributionData.getDistribution() == null) {
-            try {
-                distributionData.setDistribution(ColorDistribution.Static.createDistribution(getOriginalObject().getColorImage()));
+            StorageItem image = getOriginalObject().getColorImage();
 
-            } catch (IOException error) {
-                throw new IllegalArgumentException(error);
+            if (image != null) {
+                try {
+                    distributionData.setDistribution(ColorDistribution.Static.createDistribution(image));
+
+                } catch (IOException error) {
+                    throw new IllegalArgumentException(error);
+                }
             }
         }
     }
