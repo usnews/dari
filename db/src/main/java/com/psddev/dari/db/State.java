@@ -1887,9 +1887,9 @@ public class State implements Map<String, Object> {
         Map<String, Object> as = (Map<String, Object>) getExtras().get(MODIFICATIONS_EXTRA);
 
         if (as == null) {
-            as = new LoadingCacheMap<String, Object>(String.class, (LoadingCache<String, Object>) CacheBuilder.
+            as = new LoadingCacheMap<String, Object>(String.class, CacheBuilder.
                     newBuilder().
-                    build(new CacheLoader<String, Object>() {
+                    <String, Object>build(new CacheLoader<String, Object>() {
 
                 @Override
                 public Object load(String modificationClassName) {
