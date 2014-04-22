@@ -94,6 +94,7 @@
                 <version>1.0</version>
                 <executions>
                     <execution>
+                        <id>create-build-properties</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>execute</goal>
@@ -210,6 +211,7 @@ try {
                         <version>1.0</version>
                         <executions>
                             <execution>
+                                <id>generate-release-version</id>
                                 <phase>initialize</phase>
                                 <goals>
                                     <goal>execute</goal>
@@ -248,6 +250,7 @@ try {
                         <version>2.1</version>
                         <executions>
                             <execution>
+                                <id>set-release-version</id>
                                 <phase>initialize</phase>
                                 <goals>
                                     <goal>set</goal>

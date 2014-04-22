@@ -45,6 +45,7 @@
 
                 <executions>
                     <execution>
+                        <id>enhance-classes</id>
                         <phase>compile</phase>
                         <goals>
                             <goal>java</goal>
