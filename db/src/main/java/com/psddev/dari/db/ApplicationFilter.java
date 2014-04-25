@@ -34,6 +34,7 @@ public class ApplicationFilter extends AbstractFilter {
         dependencies.add(ResetFilter.class);
         dependencies.add(ProfilingDatabaseFilter.class);
         dependencies.add(CachingDatabaseFilter.class);
+        dependencies.add(LocalStorageFilter.class);
         return dependencies;
     }
 }
