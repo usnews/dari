@@ -263,11 +263,11 @@ try {
         </profile>
 
         <profile>
-            <id>run-npm</id>
+            <id>run-grunt</id>
 
             <activation>
                 <file>
-                    <exists>package.json</exists>
+                    <exists>Gruntfile.js</exists>
                 </file>
             </activation>
 
@@ -290,35 +290,6 @@ try {
                                 </configuration>
                             </execution>
 
-                            <execution>
-                                <id>npm</id>
-                                <goals>
-                                    <goal>npm</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <profile>
-            <id>run-grunt</id>
-
-            <activation>
-                <file>
-                    <exists>Gruntfile.js</exists>
-                </file>
-            </activation>
-
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.github.eirslett</groupId>
-                        <artifactId>frontend-maven-plugin</artifactId>
-                        <version>0.0.14</version>
-
-                        <executions>
                             <execution>
                                 <id>grunt</id>
                                 <goals>
