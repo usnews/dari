@@ -291,6 +291,13 @@ try {
                             </execution>
 
                             <execution>
+                                <id>npm</id>
+                                <goals>
+                                    <goal>npm</goal>
+                                </goals>
+                            </execution>
+
+                            <execution>
                                 <id>grunt</id>
                                 <goals>
                                     <goal>grunt</goal>
