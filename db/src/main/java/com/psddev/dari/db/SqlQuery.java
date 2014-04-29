@@ -54,6 +54,7 @@ class SqlQuery {
 
     private boolean needsDistinct;
     private Join mysqlIndexHint;
+    private boolean mysqlIgnoreIndexPrimaryDisabled;
     private boolean forceLeftJoins;
 
     private final List<Predicate> recordMetricDatePredicates = new ArrayList<Predicate>();
@@ -309,6 +310,13 @@ class SqlQuery {
             } else if (join.sqlIndex == SqlIndex.LOCATION &&
                     join.sqlIndexTable.getVersion() >= 2) {
                 fromBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
+            }
+
+            if ((join.sqlIndex == SqlIndex.LOCATION && join.sqlIndexTable.getVersion() < 3) ||
+                    (join.sqlIndex == SqlIndex.NUMBER && join.sqlIndexTable.getVersion() < 3) ||
+                    (join.sqlIndex == SqlIndex.STRING && join.sqlIndexTable.getVersion() < 4) ||
+                    (join.sqlIndex == SqlIndex.UUID && join.sqlIndexTable.getVersion() < 3)) {
+                mysqlIgnoreIndexPrimaryDisabled = true;
             }
 
             // e.g. ON i#.recordId = r.id
@@ -1571,7 +1579,8 @@ class SqlQuery {
         statementBuilder.append('r');
 
         if (fromClause.length() > 0 &&
-                !fromClause.contains("LEFT OUTER JOIN")) {
+                !fromClause.contains("LEFT OUTER JOIN") &&
+                !mysqlIgnoreIndexPrimaryDisabled) {
             statementBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
         }
 
