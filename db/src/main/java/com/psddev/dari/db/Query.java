@@ -1,5 +1,6 @@
 package com.psddev.dari.db;
 
+import com.psddev.dari.util.CompactMap;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -125,6 +126,10 @@ public class Query<E> extends Record {
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
 
+    public static final String RANGE_START = "start";
+    public static final String RANGE_END = "end";
+    public static final String RANGE_GAP = "gap";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(Query.class);
 
     private final String group;
@@ -144,6 +149,8 @@ public class Query<E> extends Record {
 
     private final transient Map<String, Object> facetedFields = new HashMap<String, Object>();
     private transient Query<?> facetedQuery;
+
+    private final transient Map<String, Object> facetedRanges = new HashMap<String, Object>();
 
     /**
      * Queries over objects of types that are compatible with the given
@@ -1647,6 +1654,19 @@ public class Query<E> extends Record {
 
     public Map<String, String> getExtraSourceColumns() {
         return this.extraSourceColumns;
+    }
+
+    public Query<E> facetedRange(String fieldName, Number start, Number end, Number gap) {
+        CompactMap<String, Object> facetedRangeMap = new CompactMap<String, Object>();
+        facetedRangeMap.put(RANGE_START, start);
+        facetedRangeMap.put(RANGE_END, end);
+        facetedRangeMap.put(RANGE_GAP, gap);
+        this.facetedRanges.put(fieldName, facetedRangeMap);
+        return this;
+    }
+
+    public Map<String, Object> getFacetedRanges() {
+        return facetedRanges;
     }
 
     /** @deprecated Use {@link #delete} instead. */

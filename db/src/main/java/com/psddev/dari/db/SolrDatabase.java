@@ -386,6 +386,19 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
         }
 
+        Map<String, Object> facetedRanges = query.getFacetedRanges();
+        if (!facetedRanges.isEmpty()) {
+            for (Map.Entry<String, Object> entry : facetedRanges.entrySet()) {
+                String field = entry.getKey();
+                if (entry.getValue() instanceof Map) {
+                    Map<String, Object> facetedRangeMap = (Map)entry.getValue();
+                    Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, field);
+                    field = getSolrField(mappedKey.getInternalType()).facetPrefix + mappedKey.getIndexKey(null);
+                    solrQuery.addNumericRangeFacet(field, (Number)facetedRangeMap.get(Query.RANGE_START), (Number)facetedRangeMap.get(Query.RANGE_END), (Number)facetedRangeMap.get(Query.RANGE_GAP));
+                }
+            }
+        }
+
         if (!query.isFromAll()) {
             Set<ObjectType> types = query.getConcreteTypes(getEnvironment());
 
