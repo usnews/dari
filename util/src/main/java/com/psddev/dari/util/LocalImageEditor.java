@@ -25,14 +25,23 @@ public class LocalImageEditor extends AbstractImageEditor {
         ByteArrayOutputStream ouputStream = new ByteArrayOutputStream();
 
         try {
-            bufferedImage = ImageIO.read(new URL(storageItem.getPublicUrl()));
+
+            if (storageItem.getPublicUrl().endsWith("tif") || storageItem.getPublicUrl().endsWith("tiff")) {
+                //TODO add support for tif
+            } else {
+                bufferedImage = ImageIO.read(new URL(storageItem.getPublicUrl()));
+            }
+
+            if (bufferedImage == null) {
+                 LOGGER.error("can't read image " + storageItem.getPublicUrl());
+            }
 
             if (bufferedImage != null) {
                 Integer width = null;
                 Integer height = null;
 
                 StringBuilder path = new StringBuilder();
-                path.append(LocalImageServlet.PATH)
+                path.append(LocalImageServlet.LEGACY_PATH)
                     .append(command)
                     .append("/");
 
@@ -64,17 +73,9 @@ public class LocalImageEditor extends AbstractImageEditor {
                     }
 
                 }
-                path.append("/").append(storageItem.getPublicUrl());
+                path.append("?url=").append(storageItem.getPublicUrl());
 
-                StorageItem newStorageItem = null;
-                if (StorageItem.Static.getStorages().contains("local")) {
-                    newStorageItem = StorageItem.Static.createIn("local");
-                    if (newStorageItem instanceof UrlStorageItem) {
-                        ((UrlStorageItem) newStorageItem).setBaseUrl("");
-                    }
-                } else {
-                    newStorageItem = StorageItem.Static.create();
-                }
+                UrlStorageItem newStorageItem = StorageItem.Static.createUrl("");
 
                 String format = DEFAULT_IMAGE_FORMAT;
                 String contentType = DEFAULT_IMAGE_CONTENT_TYPE;
