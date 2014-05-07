@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
@@ -529,7 +528,7 @@ public class BrightcoveStorageItem extends AbstractStorageItem {
     }
 
     @Override
-    protected InputStream createData() throws MalformedURLException, IOException {
+    protected InputStream createData() throws IOException {
 
         String publicUrl = getPublicUrl();
         if (!ObjectUtils.isBlank(publicUrl)) {

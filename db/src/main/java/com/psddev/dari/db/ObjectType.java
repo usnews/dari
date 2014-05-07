@@ -84,8 +84,11 @@ public class ObjectType extends Record implements ObjectStruct {
     @InternalName("java.objectClass")
     private String objectClassName;
 
-    private Set<String> java$modificationClasses;
-    private List<String> java$superClasses;
+    @InternalName("java.modificationClasses")
+    private Set<String> modificationClasses;
+
+    @InternalName("java.superClasses")
+    private List<String> superClasses;
 
     @DisplayName("Java Assignable Classes")
     @InternalName("java.assignableClasses")
@@ -685,28 +688,28 @@ public class ObjectType extends Record implements ObjectStruct {
 
     /** Returns the set of modification class names. */
     public Set<String> getModificationClassNames() {
-        if (java$modificationClasses == null) {
-            java$modificationClasses = new LinkedHashSet<String>();
+        if (modificationClasses == null) {
+            modificationClasses = new LinkedHashSet<String>();
         }
-        return java$modificationClasses;
+        return modificationClasses;
     }
 
     /** Sets the set of modification class names. */
     public void setModificationClasses(Set<String> modificationClasses) {
-        this.java$modificationClasses = modificationClasses;
+        this.modificationClasses = modificationClasses;
     }
 
     /** Returns the list of super class names. */
     public List<String> getSuperClassNames() {
-        if (java$superClasses == null) {
-            java$superClasses = new ArrayList<String>();
+        if (superClasses == null) {
+            superClasses = new ArrayList<String>();
         }
-        return java$superClasses;
+        return superClasses;
     }
 
     /** Sets the list of super class names. */
     public void setSuperClassNames(List<String> superClassNames) {
-        this.java$superClasses = superClassNames;
+        this.superClasses = superClassNames;
     }
 
     /**

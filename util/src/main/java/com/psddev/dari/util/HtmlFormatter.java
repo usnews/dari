@@ -289,8 +289,8 @@ public interface HtmlFormatter<T> {
 
     public static final HtmlFormatter<Object> JASPER_EXCEPTION = new HtmlFormatter<Object>() {
 
-        private final Pattern ERROR_PATTERN = Pattern.compile("(line: (\\d+) in the jsp(?s:.)*?)(\\2:(?-s:.)*(?m:$))");
-        private final Pattern STACK_TRACE_PATTERN = Pattern.compile("\\s*Stacktrace:\\s*$");
+        private final Pattern errorPattern = Pattern.compile("(line: (\\d+) in the jsp(?s:.)*?)(\\2:(?-s:.)*(?m:$))");
+        private final Pattern stackTracePattern = Pattern.compile("\\s*Stacktrace:\\s*$");
 
         @Override
         public void format(HtmlWriter writer, Object object) throws IOException {
@@ -310,7 +310,7 @@ public interface HtmlFormatter<T> {
 
                 // Highlight the line mentioned in the error message.
                 StringBuilder messageBuilder = new StringBuilder();
-                Matcher errorMatcher = ERROR_PATTERN.matcher(message);
+                Matcher errorMatcher = errorPattern.matcher(message);
                 int lastEnd = 0;
                 for (; errorMatcher.find(); lastEnd = errorMatcher.end()) {
                     messageBuilder.append(message.substring(lastEnd, errorMatcher.start()));
@@ -325,7 +325,7 @@ public interface HtmlFormatter<T> {
                 messageBuilder.append(message.substring(lastEnd));
 
                 message = messageBuilder.toString();
-                message = STACK_TRACE_PATTERN.matcher(message).replaceFirst("");
+                message = stackTracePattern.matcher(message).replaceFirst("");
                 writer.write(message);
             writer.writeEnd();
         }

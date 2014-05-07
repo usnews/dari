@@ -724,7 +724,7 @@ public final class StringUtils {
     }
 
     // --- Pattern bridge ---
-    private static final Map<String, Pattern> _patterns = new PullThroughCache<String, Pattern>() {
+    private static final Map<String, Pattern> PATTERNS = new PullThroughCache<String, Pattern>() {
         @Override
         protected Pattern produce(String pattern) {
             return Pattern.compile(pattern);
@@ -735,7 +735,7 @@ public final class StringUtils {
      * Gets a cached regular expression pattern object based on the given string.
      */
     public static Pattern getPattern(String pattern) {
-        return _patterns.get(pattern);
+        return PATTERNS.get(pattern);
     }
 
     /**
