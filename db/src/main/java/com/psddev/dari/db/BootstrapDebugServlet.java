@@ -120,7 +120,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 InputStream input = file.getInputStream();
                                 InputStream fileInput = input;
 
-                                if (contentType != null && ("application/x-gzip".equals(contentType) || "application/gzip".equals(contentType))) {
+                                if ((contentType != null && ("application/x-gzip".equals(contentType) || "application/gzip".equals(contentType))) || (fileName != null && fileName.endsWith(".gz"))) {
                                     fileInput = new GZIPInputStream(input);
                                 }
                                 boolean deleteFirst = false;
