@@ -30,6 +30,7 @@ import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.RangeFacet;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
@@ -339,6 +340,27 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
         solrQuery.setFacet(true);
         solrQuery.addFacetField(solrField);
+
+        return solrQuery;
+    }
+
+    public SolrQuery buildQueryNumericRangeFacet(Query<?> query, String field, Number start, Number end, Number gap) {
+        SolrQuery solrQuery = buildQuery(query);
+        Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, field);
+        String solrField = SPECIAL_FIELDS.get(mappedKey);
+
+        if (solrField == null) {
+            String internalType = mappedKey.getInternalType();
+            if (internalType != null) {
+                solrField = getSolrField(internalType).searchPrefix + mappedKey.getIndexKey(null);
+            }
+        }
+
+        if (solrField == null) {
+            throw new UnsupportedIndexException(this, field);
+        }
+
+        solrQuery.addNumericRangeFacet(solrField, start, end, gap);
 
         return solrQuery;
     }
@@ -1246,27 +1268,55 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             return super.readPartialGrouped(query, offset, limit, fields);
         }
 
-        SolrQuery solrQuery = buildQueryFacetByField(query, fields[0]);
-        solrQuery.setStart(0);
-        solrQuery.setRows(0);
-        solrQuery.setFacetMinCount(1);
-
         List<Grouping<T>> groupings = new ArrayList<Grouping<T>>();
-        QueryResponse response = queryWithOptions(solrQuery, query);
 
-        for (FacetField facetField : response.getFacetFields()) {
-            List<FacetField.Count> values = facetField.getValues();
-            if (values == null) {
-                continue;
+        Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(fields[0]);
+        if(groupingMatcher.find()) {
+            String field = groupingMatcher.group(1);
+            Double start = Double.parseDouble(groupingMatcher.group(2).trim());
+            Double end   = Double.parseDouble(groupingMatcher.group(3).trim());
+            Double gap   = Double.parseDouble(groupingMatcher.group(4).trim());
+
+            SolrQuery solrQuery = buildQueryNumericRangeFacet(query, field, start, end, gap);
+            solrQuery.setStart(0);
+            solrQuery.setRows(0);
+            QueryResponse response = queryWithOptions(solrQuery, query);
+
+            for (RangeFacet rangeFacet : response.getFacetRanges()) {
+                List<RangeFacet.Count> counts = rangeFacet.getCounts();
+                
+                if (counts != null) {
+                    for (RangeFacet.Count count : counts) {
+                        if (count.getCount() > 0 ) {
+                            Object key = count.getValue();
+                            groupings.add(new SolrGrouping<T>(Arrays.asList(key), query, fields, count.getCount()));
+                        }
+                    }
+                }
             }
 
-            for (FacetField.Count value : facetField.getValues()) {
-                Object key = value.getName();
-                ObjectField field = mapFullyDenormalizedKey(query, fields[0]).getField();
-                if (field != null) {
-                    key = StateValueUtils.toJavaValue(query.getDatabase(), null, field, field.getInternalItemType(), key);
+        } else {
+            SolrQuery solrQuery = buildQueryFacetByField(query, fields[0]);
+            solrQuery.setStart(0);
+            solrQuery.setRows(0);
+            solrQuery.setFacetMinCount(1);
+
+            QueryResponse response = queryWithOptions(solrQuery, query);
+
+            for (FacetField facetField : response.getFacetFields()) {
+                List<FacetField.Count> values = facetField.getValues();
+                if (values == null) {
+                    continue;
                 }
-                groupings.add(new SolrGrouping<T>(Arrays.asList(key), query, fields, value.getCount()));
+
+                for (FacetField.Count value : facetField.getValues()) {
+                    Object key = value.getName();
+                    ObjectField field = mapFullyDenormalizedKey(query, fields[0]).getField();
+                    if (field != null) {
+                        key = StateValueUtils.toJavaValue(query.getDatabase(), null, field, field.getInternalItemType(), key);
+                    }
+                    groupings.add(new SolrGrouping<T>(Arrays.asList(key), query, fields, value.getCount()));
+                }
             }
         }
 

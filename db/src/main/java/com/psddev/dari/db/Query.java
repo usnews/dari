@@ -24,6 +24,7 @@ import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.UuidUtils;
+import java.util.regex.Pattern;
 
 /**
  * Query over objects in a {@linkplain Database database}.
@@ -126,6 +127,7 @@ public class Query<E> extends Record {
 
     public static final String CREATOR_EXTRA = "dari.creatorQuery";
 
+    public static final Pattern RANGE_PATTERN = Pattern.compile("([^\\(]*)\\(([^,)]*),([^,)]*),([^\\))]*)\\)");
     public static final String RANGE_START = "start";
     public static final String RANGE_END = "end";
     public static final String RANGE_GAP = "gap";
@@ -1657,7 +1659,7 @@ public class Query<E> extends Record {
     }
 
     public Query<E> facetedRange(String fieldName, Number start, Number end, Number gap) {
-        CompactMap<String, Object> facetedRangeMap = new CompactMap<String, Object>();
+        Map<String, Object> facetedRangeMap = new CompactMap<String, Object>();
         facetedRangeMap.put(RANGE_START, start);
         facetedRangeMap.put(RANGE_END, end);
         facetedRangeMap.put(RANGE_GAP, gap);

@@ -39,7 +39,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
+import java.util.regex.Matcher;
 import javax.sql.DataSource;
 
 import org.iq80.snappy.Snappy;
@@ -1835,6 +1835,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public <T> PaginatedResult<Grouping<T>> readPartialGrouped(Query<T> query, long offset, int limit, String... fields) {
+        for (String field : fields) {
+            Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(field);
+            if(groupingMatcher.find()) {
+                throw new UnsupportedOperationException("SqlDatabase does not support group by numeric range");
+            }
+        }
+
         List<Grouping<T>> groupings = new ArrayList<Grouping<T>>();
         String sqlQuery = buildGroupStatement(query, fields);
         Connection connection = null;
