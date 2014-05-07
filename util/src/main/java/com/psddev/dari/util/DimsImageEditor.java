@@ -282,6 +282,12 @@ public class DimsImageEditor extends AbstractImageEditor {
                 if (ObjectUtils.to(boolean.class, arguments[0])) {
                     dimsUrl.addCommand(new SepiaCommand(0.8));
                 }
+
+            } else if ("format".equals(command)) {
+                String format = ObjectUtils.to(String.class, arguments[0]);
+                if (format != null) {
+                    dimsUrl.addCommand(new FormatCommand(format));
+                }
             }
 
             newImage = dimsUrl.toStorageItem();
