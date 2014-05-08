@@ -40,13 +40,24 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
     }
 
     public SolrPaginatedResult(
-            long offset, int limit, long count, List<E> items, List<FacetField> facetedFields, List<RangeFacet> rangeFacets,
+            long offset, int limit, long count, List<E> items, List<FacetField> facetedFields,
             Class<?> klass, SolrQuery solrQuery) {
         super(offset, limit, count, items);
 
         this.klass = klass;
         this.facetedFields = facetedFields;
         this.rangeFacets = null;
+        this.solrQuery = solrQuery;
+    }
+
+    public SolrPaginatedResult(
+            long offset, int limit, long count, List<E> items, List<FacetField> facetedFields, List<RangeFacet> rangeFacets,
+            Class<?> klass, SolrQuery solrQuery) {
+        super(offset, limit, count, items);
+
+        this.klass = klass;
+        this.facetedFields = facetedFields;
+        this.rangeFacets = rangeFacets;
         this.solrQuery = solrQuery;
     }
 
