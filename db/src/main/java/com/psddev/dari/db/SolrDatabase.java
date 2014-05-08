@@ -413,10 +413,10 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             for (Map.Entry<String, Object> entry : facetedRanges.entrySet()) {
                 String field = entry.getKey();
                 if (entry.getValue() instanceof Map) {
-                    Map<String, Object> facetedRangeMap = (Map)entry.getValue();
+                    Map<String, Object> facetedRangeMap = (Map) entry.getValue();
                     Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, field);
                     field = getSolrField(mappedKey.getInternalType()).facetPrefix + mappedKey.getIndexKey(null);
-                    solrQuery.addNumericRangeFacet(field, (Number)facetedRangeMap.get(Query.RANGE_START), (Number)facetedRangeMap.get(Query.RANGE_END), (Number)facetedRangeMap.get(Query.RANGE_GAP));
+                    solrQuery.addNumericRangeFacet(field, (Number) facetedRangeMap.get(Query.RANGE_START), (Number) facetedRangeMap.get(Query.RANGE_END), (Number) facetedRangeMap.get(Query.RANGE_GAP));
                 }
             }
         }
@@ -1271,7 +1271,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         List<Grouping<T>> groupings = new ArrayList<Grouping<T>>();
 
         Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(fields[0]);
-        if(groupingMatcher.find()) {
+        if (groupingMatcher.find()) {
             String field = groupingMatcher.group(1);
             Double start = Double.parseDouble(groupingMatcher.group(2).trim());
             Double end   = Double.parseDouble(groupingMatcher.group(3).trim());
@@ -1284,10 +1284,10 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             for (RangeFacet rangeFacet : response.getFacetRanges()) {
                 List<RangeFacet.Count> counts = rangeFacet.getCounts();
-                
+
                 if (counts != null) {
                     for (RangeFacet.Count count : counts) {
-                        if (count.getCount() > 0 ) {
+                        if (count.getCount() > 0) {
                             Object key = count.getValue();
                             groupings.add(new SolrGrouping<T>(Arrays.asList(key), query, fields, count.getCount()));
                         }

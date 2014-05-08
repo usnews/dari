@@ -1837,7 +1837,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public <T> PaginatedResult<Grouping<T>> readPartialGrouped(Query<T> query, long offset, int limit, String... fields) {
         for (String field : fields) {
             Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(field);
-            if(groupingMatcher.find()) {
+            if (groupingMatcher.find()) {
                 throw new UnsupportedOperationException("SqlDatabase does not support group by numeric range");
             }
         }

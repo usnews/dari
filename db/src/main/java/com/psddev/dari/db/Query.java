@@ -1,6 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.CompactMap;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -15,16 +14,17 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.UuidUtils;
-import java.util.regex.Pattern;
 
 /**
  * Query over objects in a {@linkplain Database database}.

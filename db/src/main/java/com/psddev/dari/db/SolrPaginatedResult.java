@@ -27,7 +27,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
     final Class<?> klass;
     final List<FacetField> facetedFields;
-    final List<RangeFacet> _rangeFacets;
+    final List<RangeFacet> rangeFacets;
 
     public SolrPaginatedResult(
             long offset, int limit, long count, List<E> items, List<FacetField> facetedFields,
@@ -36,7 +36,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
         this.klass = klass;
         this.facetedFields = facetedFields;
-        _rangeFacets = null;
+        this.rangeFacets = null;
     }
 
     public SolrPaginatedResult(
@@ -46,7 +46,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
         this.klass = klass;
         this.facetedFields = facetedFields;
-        _rangeFacets = null;
+        this.rangeFacets = null;
         this.solrQuery = solrQuery;
     }
 
@@ -63,9 +63,9 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
     public List<DariRangeFacet> getRangeFacets() {
         List<DariRangeFacet> ranges = new ArrayList<DariRangeFacet>();
-        if (_rangeFacets != null) {
-            for (RangeFacet rageFacet : _rangeFacets) {
-                ranges.add(new DariRangeFacet(this.klass, rageFacet));
+        if (this.rangeFacets != null) {
+            for (RangeFacet rangeFacet : this.rangeFacets) {
+                ranges.add(new DariRangeFacet(this.klass, rangeFacet));
             }
         }
 
@@ -182,20 +182,20 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
     public static class DariRangeFacet {
 
-        private final Class<?> _klass;
-        private final RangeFacet _rangeFacet;
+        private final Class<?> klass;
+        private final RangeFacet rangeFacet;
 
         public DariRangeFacet(Class<?> klass, RangeFacet rangeFacet) {
-            this._klass = klass;
-            this._rangeFacet = rangeFacet;
+            this.klass = klass;
+            this.rangeFacet = rangeFacet;
         }
 
         public String getName() {
-            return _rangeFacet.getName();
+            return rangeFacet.getName();
         }
-        
+
         public RangeFacet getRangeFacet() {
-            return _rangeFacet;
+            return rangeFacet;
         }
     }
 }
