@@ -574,24 +574,23 @@ public abstract class AbstractDatabase<C> implements Database {
                 for (String field : fields) {
                     Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(field);
                     if (groupingMatcher.find()) {
-                        Double value = null;
+                        Double bucket = null;
                         String fieldName = groupingMatcher.group(1);
 
                         if (itemState.getByPath(fieldName) != null) {
                             Double start = ObjectUtils.to(Double.class, groupingMatcher.group(2).trim());
                             Double end   = ObjectUtils.to(Double.class, groupingMatcher.group(3).trim());
                             Double gap   = ObjectUtils.to(Double.class, groupingMatcher.group(4).trim());
+                            Double value = ObjectUtils.to(Double.class, itemState.getByPath(fieldName));
 
-                            value = ObjectUtils.to(Double.class, itemState.getByPath(fieldName));
-
-                            for (double window = end; window > start; window -= gap) {
-                                if (value > window) {
-                                    value = window + gap;
+                            for (double window = start; window <= end; window += gap) {
+                                if (value < window) {
+                                    bucket = window - gap;
                                     break;
                                 }
                             }
                         }
-                        keys.add(String.format("%s (%s)", fieldName, value));
+                        keys.add(bucket);
 
                     } else {
                         keys.add(itemState.getByPath(field));
