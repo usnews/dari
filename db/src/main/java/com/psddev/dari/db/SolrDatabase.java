@@ -347,7 +347,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public SolrQuery buildQueryNumericRangeFacet(Query<?> query, String field, Number start, Number end, Number gap) {
         SolrQuery solrQuery = buildQuery(query);
         Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, field);
-        String solrField = SPECIAL_FIELDS.get(mappedKey);
+        String solrField = specialFields.get(mappedKey);
 
         if (solrField == null) {
             String internalType = mappedKey.getInternalType();

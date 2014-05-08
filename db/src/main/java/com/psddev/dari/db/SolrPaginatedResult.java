@@ -65,7 +65,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
         List<DariRangeFacet> ranges = new ArrayList<DariRangeFacet>();
         if (_rangeFacets != null) {
             for (RangeFacet rageFacet : _rangeFacets) {
-                ranges.add(new DariRangeFacet(_klass, rageFacet));
+                ranges.add(new DariRangeFacet(this.klass, rageFacet));
             }
         }
 
