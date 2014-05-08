@@ -29,22 +29,22 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
 
     // Stores actual cached values.
     private final ConcurrentMap<K, ValueReference>
-            _map = new ConcurrentHashMap<K, ValueReference>();
+            map = new ConcurrentHashMap<K, ValueReference>();
 
     // To clean up keys in the cache.
-    private final ReferenceQueue<V> _refQueue = new ReferenceQueue<V>();
+    private final ReferenceQueue<V> refQueue = new ReferenceQueue<V>();
 
     // Stores cache value production dates.
     private final ConcurrentMap<K, Date>
-            _dates = new ConcurrentHashMap<K, Date>();
+            dates = new ConcurrentHashMap<K, Date>();
 
     // Controls which thread can produce the value.
     private final ConcurrentMap<K, CountDownLatch>
-            _latches = new ConcurrentHashMap<K, CountDownLatch>();
+            latches = new ConcurrentHashMap<K, CountDownLatch>();
 
     // For deadlock detection.
     private final ConcurrentMap<K, Thread>
-            _threads = new ConcurrentHashMap<K, Thread>();
+            threads = new ConcurrentHashMap<K, Thread>();
 
     /**
      * Returns a map of values that should be associated with the given set
@@ -61,14 +61,14 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
 
         // Any GC'd values?
         ValueReference ref;
-        while ((ref = (ValueReference) _refQueue.poll()) != null) {
-            if (_map.remove(ref._key, ref)) {
-                _dates.remove(ref._key);
-                _latches.remove(ref._key);
-                _threads.remove(ref._key);
+        while ((ref = (ValueReference) this.refQueue.poll()) != null) {
+            if (this.map.remove(ref.key, ref)) {
+                this.dates.remove(ref.key);
+                this.latches.remove(ref.key);
+                this.threads.remove(ref.key);
                 LOGGER.debug(
                         "Removing [{}]; Cache size=[{}].",
-                        ref._key, _map.size());
+                        ref.key, this.map.size());
             }
         }
 
@@ -101,9 +101,9 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                 K key = i.next();
 
                 // Already cached?
-                Date date = _dates.get(key);
+                Date date = this.dates.get(key);
                 if (date != null && !isExpired(key, date)) {
-                    ref = _map.get(key);
+                    ref = this.map.get(key);
                     if (ref != null && !ref.isEnqueued()) {
                         i.remove();
                         fetched.put(key, ref.get());
@@ -113,20 +113,20 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
 
                 // [G] This guard guarantees that the produceMany is never
                 // called by multiple threads at the same time.
-                if (_latches.putIfAbsent(
+                if (this.latches.putIfAbsent(
                         key, new CountDownLatch(1)) == null) {
                     toBeProduced.add(key);
 
                 } else {
 
                     // [D] Detect when produceMany calls itself.
-                    if (Thread.currentThread().equals(_threads.get(key))) {
+                    if (Thread.currentThread().equals(this.threads.get(key))) {
                         throw new PullThroughDeadlockException(key);
                     }
 
                     // [W] Wait on the guard using the latch at [G].
                     LOGGER.debug("Waiting on [{}].", key);
-                    CountDownLatch latch = _latches.get(key);
+                    CountDownLatch latch = this.latches.get(key);
                     if (latch != null) {
                         try {
                             latch.await();
@@ -144,7 +144,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                     // For deadlock detection at [D].
                     Thread currentThread = Thread.currentThread();
                     for (K key : toBeProduced) {
-                        _threads.put(key, currentThread);
+                        this.threads.put(key, currentThread);
                     }
 
                     Map<K, V> produced = produceMany(toBeProduced);
@@ -157,8 +157,8 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                         for (Map.Entry<K, V> e : produced.entrySet()) {
                             K key = e.getKey();
                             V value = e.getValue();
-                            _map.put(key, new ValueReference(key, value));
-                            _dates.put(key, now);
+                            this.map.put(key, new ValueReference(key, value));
+                            this.dates.put(key, now);
                         }
                         for (K key : toBeProduced) {
                             LOGGER.debug("Storing [{}].", key);
@@ -169,8 +169,8 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
                     } else {
                         LOGGER.debug("Setting {} to null.", toBeProduced);
                         for (K key : toBeProduced) {
-                            _map.put(key, new ValueReference(key, null));
-                            _dates.put(key, now);
+                            this.map.put(key, new ValueReference(key, null));
+                            this.dates.put(key, now);
                             toBeFetched.remove(key);
                             fetched.put(key, null);
                         }
@@ -185,10 +185,10 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
 
                 } finally {
                     for (K key : toBeProduced) {
-                        _threads.remove(key);
+                        this.threads.remove(key);
 
                         // Release the latch so other threads can continue.
-                        CountDownLatch latch = _latches.remove(key);
+                        CountDownLatch latch = this.latches.remove(key);
                         if (latch != null) {
                             latch.countDown();
                         }
@@ -207,7 +207,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
      * was produced.
      */
     public Date getLastProduceDate(K key) {
-        return _dates.get(key);
+        return this.dates.get(key);
     }
 
     /**
@@ -221,19 +221,19 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
     /** Invalidates all the values in this cache. */
     public synchronized void invalidate() {
         LOGGER.debug("Invalidating all cached values.");
-        _map.clear();
-        _dates.clear();
-        _latches.clear();
-        _threads.clear();
+        this.map.clear();
+        this.dates.clear();
+        this.latches.clear();
+        this.threads.clear();
     }
 
     /** Invalidates the value at the given {@code key}. */
     public synchronized void invalidate(K key) {
         LOGGER.debug("Invalidating [{}].", key);
-        _map.remove(key);
-        _dates.remove(key);
-        _latches.remove(key);
-        _threads.remove(key);
+        this.map.remove(key);
+        this.dates.remove(key);
+        this.latches.remove(key);
+        this.threads.remove(key);
     }
 
     /**
@@ -270,7 +270,7 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
     @Override
     public Set<Map.Entry<K, V>> entrySet() {
         Map<K, V> map = new CompactMap<K, V>();
-        for (Map.Entry<K, ValueReference> e : _map.entrySet()) {
+        for (Map.Entry<K, ValueReference> e : this.map.entrySet()) {
             ValueReference ref = e.getValue();
             if (ref != null && !ref.isEnqueued()) {
                 map.put(e.getKey(), ref.get());
@@ -282,11 +282,11 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
     // Simple wrapper around SoftReference to clean up keys.
     private class ValueReference extends SoftReference<V> {
 
-        public final K _key;
+        public final K key;
 
         public ValueReference(K key, V value) {
-            super(value, _refQueue);
-            _key = key;
+            super(value, refQueue);
+            this.key = key;
         }
     }
 }

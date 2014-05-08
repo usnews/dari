@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 /** Provides STMP mail support **/
 public class SmtpMailProvider extends AbstractMailProvider {
 
-    private static final Logger logger = LoggerFactory.getLogger(SmtpMailProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SmtpMailProvider.class);
 
     private String host;
     private int port = 25;
@@ -105,13 +105,13 @@ public class SmtpMailProvider extends AbstractMailProvider {
     public void send(MailMessage message) {
         if (StringUtils.isEmpty(host)) {
             String errorText = "SMTP Host can't be null!";
-            logger.error(errorText);
+            LOGGER.error(errorText);
             throw new IllegalArgumentException(errorText);
         }
 
         if (message == null) {
             String errorText = "EmailMessage can't be null!";
-            logger.error(errorText);
+            LOGGER.error(errorText);
             throw new IllegalArgumentException(errorText);
         }
 
@@ -177,11 +177,11 @@ public class SmtpMailProvider extends AbstractMailProvider {
             mimeMessage.setContent(multiPartContent);
 
             Transport.send(mimeMessage);
-            logger.debug("Sent email to [{}] with subject [{}].",
+            LOGGER.debug("Sent email to [{}] with subject [{}].",
                     message.getTo(), message.getSubject());
 
         } catch (MessagingException me) {
-            logger.warn("Failed to send: [{}]", me.getMessage());
+            LOGGER.warn("Failed to send: [{}]", me.getMessage());
             me.printStackTrace();
             throw new RuntimeException(me);
         }

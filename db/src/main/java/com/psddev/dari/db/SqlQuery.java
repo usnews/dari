@@ -962,22 +962,14 @@ class SqlQuery {
     }
 
     private boolean hasDeferredHavingPredicates() {
-        if (!havingPredicates.isEmpty()) {
-            return true;
-        } else {
-            return false;
-        }
+        return !havingPredicates.isEmpty();
     }
 
     private boolean hasAnyDeferredMetricPredicates() {
-        if (!recordMetricDatePredicates.isEmpty() ||
+        return !recordMetricDatePredicates.isEmpty() ||
                 !recordMetricDimensionPredicates.isEmpty() ||
                 !recordMetricHavingPredicates.isEmpty() ||
-                !recordMetricSorters.isEmpty()) {
-            return true;
-        } else {
-            return false;
-        }
+                !recordMetricSorters.isEmpty();
     }
 
     /**

@@ -313,6 +313,129 @@ try {
                 </plugins>
             </build>
         </profile>
+
+        <profile>
+            <id>library</id>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-checkstyle-plugin</artifactId>
+                        <version>2.12</version>
+                        <executions>
+                            <execution>
+                                <id>verify-style</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <configuration>
+                                    <checkstyleRules>
+                                        <module name="Checker">
+                                            <module name="FileTabCharacter"/>
+                                            <module name="NewlineAtEndOfFile"/>
+
+                                            <module name="RegexpSingleline">
+                                               <property name="format" value="\s+$"/>
+                                               <property name="maximum" value="0"/>
+                                               <property name="message" value="Line has trailing spaces."/>
+                                               <property name="minimum" value="0"/>
+                                            </module>
+
+                                            <module name="SuppressionCommentFilter"/>
+                                            <module name="Translation"/>
+
+                                            <module name="TreeWalker">
+                                                <module name="ArrayTypeStyle"/>
+                                                <module name="AvoidNestedBlocks"/>
+                                                <module name="AvoidStarImport"/>
+                                                <module name="ConstantName"/>
+
+                                                <module name="EmptyBlock">
+                                                    <property name="option" value="text"/>
+                                                </module>
+
+                                                <module name="EmptyForIteratorPad"/>
+                                                <module name="EmptyStatement"/>
+                                                <module name="EqualsHashCode"/>
+                                                <module name="FileContentsHolder"/>
+                                                <module name="FinalClass"/>
+                                                <module name="GenericWhitespace"/>
+                                                <module name="IllegalImport"/>
+                                                <module name="IllegalInstantiation"/>
+                                                <module name="InterfaceIsType"/>
+                                                <module name="LeftCurly"/>
+                                                <module name="LocalFinalVariableName"/>
+                                                <module name="LocalVariableName"/>
+                                                <module name="MemberName"/>
+                                                <module name="MethodName"/>
+                                                <module name="MethodParamPad"/>
+                                                <module name="MissingSwitchDefault"/>
+                                                <module name="ModifierOrder"/>
+                                                <module name="NeedBraces"/>
+
+                                                <module name="NoWhitespaceAfter">
+                                                    <property name="tokens" value="BNOT, DOT, LNOT, UNARY_MINUS, UNARY_PLUS"/>
+                                                </module>
+
+                                                <module name="NoWhitespaceBefore">
+                                                    <property name="tokens" value="SEMI"/>
+                                                </module>
+
+                                                <module name="OperatorWrap">
+                                                    <property name="option" value="eol"/>
+                                                </module>
+
+                                                <module name="PackageName"/>
+                                                <module name="ParameterName"/>
+                                                <module name="ParenPad"/>
+                                                <module name="RedundantImport"/>
+
+                                                <module name="RedundantThrows">
+                                                    <property name="suppressLoadErrors" value="true"/>
+                                                </module>
+
+                                                <module name="RightCurly"/>
+                                                <module name="SimplifyBooleanExpression"/>
+                                                <module name="SimplifyBooleanReturn"/>
+                                                <module name="StaticVariableName"/>
+                                                <module name="TypecastParenPad"/>
+                                                <module name="TypeName"/>
+                                                <module name="UnusedImports"/>
+                                                <module name="UpperEll"/>
+                                                <module name="WhitespaceAfter"/>
+                                                <module name="WhitespaceAround"/>
+                                            </module>
+                                        </module>
+                                    </checkstyleRules>
+
+                                    <consoleOutput>true</consoleOutput>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>clirr-maven-plugin</artifactId>
+                        <version>2.6.1</version>
+                        <executions>
+                            <execution>
+                                <id>verify-api</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <configuration>
+                                    <logResults>true</logResults>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 
     <distributionManagement>
