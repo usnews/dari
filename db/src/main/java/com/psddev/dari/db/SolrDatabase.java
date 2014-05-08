@@ -1273,9 +1273,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(fields[0]);
         if (groupingMatcher.find()) {
             String field = groupingMatcher.group(1);
-            Double start = Double.parseDouble(groupingMatcher.group(2).trim());
-            Double end   = Double.parseDouble(groupingMatcher.group(3).trim());
-            Double gap   = Double.parseDouble(groupingMatcher.group(4).trim());
+            Double start = ObjectUtils.to(Double.class, groupingMatcher.group(2).trim());
+            Double end   = ObjectUtils.to(Double.class, groupingMatcher.group(3).trim());
+            Double gap   = ObjectUtils.to(Double.class, groupingMatcher.group(4).trim());
 
             SolrQuery solrQuery = buildQueryNumericRangeFacet(query, field, start, end, gap);
             solrQuery.setStart(0);
