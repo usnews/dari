@@ -10,10 +10,12 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RoutingFilter.Path(application = "", value = "/dims4")
 public class LocalImageServlet extends HttpServlet {
-
+    protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
     public static final String LEGACY_PATH = "/dims4/";
 
     @Override
@@ -72,6 +74,19 @@ public class LocalImageServlet extends HttpServlet {
                 } else if (command.equals(ImageEditor.CROP_COMMAND)) {
                     String[] xywh = value.split("x");
                     bufferedImage = LocalImageEditor.Crop(bufferedImage, parseInteger(xywh[0]), parseInteger(xywh[1]), parseInteger(xywh[2]), parseInteger(xywh[3]));
+                } else if (command.equals(LocalImageEditor.THUMBNAIL_COMMAND)) {
+                    String[] wh = value.split("x");
+                    Integer width = ObjectUtils.to(Integer.class, wh[0]);
+                    Integer height = ObjectUtils.to(Integer.class, wh[1]);
+
+                    int resizeHeight = (int) ((double) bufferedImage.getHeight() / (double) bufferedImage.getWidth() * (double) width);
+                    int resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
+
+                    bufferedImage = LocalImageEditor.Resize(bufferedImage, resizeWidth, resizeHeight, null);
+                    if ((width != bufferedImage.getHeight() || height != bufferedImage.getHeight()) &&
+                            width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
+                        bufferedImage = LocalImageEditor.Crop(bufferedImage, 0, 0, width, height);
+                    }
                 }
             }
 

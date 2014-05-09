@@ -18,6 +18,7 @@ public class LocalImageEditor extends AbstractImageEditor {
 
     private static final String DEFAULT_IMAGE_FORMAT = "png";
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/" + DEFAULT_IMAGE_FORMAT;
+    protected static final String THUMBNAIL_COMMAND = "thumbnail";
 
     protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
 
@@ -62,10 +63,32 @@ public class LocalImageEditor extends AbstractImageEditor {
                 Integer width = null;
                 Integer height = null;
 
+                String url = storageItem.getPublicUrl();
+
+                if (url.contains("/" + THUMBNAIL_COMMAND + "/")) {
+                    return storageItem;
+                }
+
+                boolean newLocalImage = !url.contains(LocalImageServlet.LEGACY_PATH);
+
                 StringBuilder path = new StringBuilder();
-                path.append(LocalImageServlet.LEGACY_PATH)
-                    .append(command)
-                    .append("/");
+                if (newLocalImage) {
+                    path.append(LocalImageServlet.LEGACY_PATH);
+                } else {
+                    path.append("/");
+                }
+
+                if (ImageEditor.CROP_COMMAND.equals(command) &&
+                        ObjectUtils.to(Integer.class, arguments[0]) == null  &&
+                        ObjectUtils.to(Integer.class, arguments[1]) == null) {
+                    path.append(THUMBNAIL_COMMAND);
+                    command = RESIZE_COMMAND;
+                    arguments[0] = arguments[2];
+                    arguments[1] = arguments[3];
+                } else {
+                    path.append(command);
+                }
+                path.append("/");
 
                 if (ImageEditor.CROP_COMMAND.equals(command)) {
                     Integer x = ObjectUtils.to(Integer.class, arguments[0]);
@@ -96,7 +119,15 @@ public class LocalImageEditor extends AbstractImageEditor {
                     }
 
                 }
-                path.append("?url=").append(storageItem.getPublicUrl());
+
+                if (newLocalImage) {
+                    path.append("?url=").append(storageItem.getPublicUrl());
+                } else {
+                    String[] imageParameters = storageItem.getPublicUrl().split("\\?");
+                    path.insert(0, imageParameters[0])
+                        .append("?")
+                        .append(imageParameters[1]);
+                }
 
                 UrlStorageItem newStorageItem = StorageItem.Static.createUrl("");
 
