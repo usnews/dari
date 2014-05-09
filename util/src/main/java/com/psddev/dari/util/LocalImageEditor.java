@@ -60,6 +60,7 @@ public class LocalImageEditor extends AbstractImageEditor {
             }
 
             if (bufferedImage != null) {
+                Object cropOption = options != null ? options.get(ImageEditor.CROP_OPTION) : null;
 
                 if (ImageEditor.CROP_COMMAND.equals(command) &&
                         options != null &&
@@ -99,7 +100,6 @@ public class LocalImageEditor extends AbstractImageEditor {
                 path.append("/");
 
                 if (ImageEditor.CROP_COMMAND.equals(command)) {
-                    Object cropOption = options != null ? options.get(ImageEditor.CROP_OPTION) : null;
                     Integer x = ObjectUtils.to(Integer.class, arguments[0]);
                     Integer y = ObjectUtils.to(Integer.class, arguments[1]);
                     width = ObjectUtils.to(Integer.class, arguments[2]);
@@ -128,7 +128,8 @@ public class LocalImageEditor extends AbstractImageEditor {
                     }
                     Object resizeOption = options != null ? options.get(ImageEditor.RESIZE_OPTION) : null;
                     
-                    if (resizeOption != null) {
+                    if (resizeOption != null && 
+                            (cropOption == null || !cropOption.equals(ImageEditor.CROP_OPTION_AUTOMATIC)) ) {
                         if (resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
                             path.append("!");
                         } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {

@@ -75,6 +75,21 @@ public class LocalImageServlet extends HttpServlet {
                     String[] xywh = value.split("x");
                     bufferedImage = LocalImageEditor.Crop(bufferedImage, parseInteger(xywh[0]), parseInteger(xywh[1]), parseInteger(xywh[2]), parseInteger(xywh[3]));
                 } else if (command.equals(LocalImageEditor.THUMBNAIL_COMMAND)) {
+                    String option = null;
+
+                    if (value.endsWith("!")) {
+                        option = ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO;
+                    } else if (value.endsWith(">")) {
+                        option = ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER;
+                    } else if (value.endsWith("<")) {
+                        option = ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER;
+                    } else if (value.endsWith("^")) {
+                        option = ImageEditor.RESIZE_OPTION_FILL_AREA;
+                    }
+                    if (option != null) {
+                        value = value.substring(0, value.length()-1);
+                    }
+
                     String[] wh = value.split("x");
                     Integer width = ObjectUtils.to(Integer.class, wh[0]);
                     Integer height = ObjectUtils.to(Integer.class, wh[1]);
@@ -82,7 +97,7 @@ public class LocalImageServlet extends HttpServlet {
                     int resizeHeight = (int) ((double) bufferedImage.getHeight() / (double) bufferedImage.getWidth() * (double) width);
                     int resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
 
-                    bufferedImage = LocalImageEditor.Resize(bufferedImage, resizeWidth, resizeHeight, null);
+                    bufferedImage = LocalImageEditor.Resize(bufferedImage, resizeWidth, resizeHeight, option);
                     if ((width != bufferedImage.getHeight() || height != bufferedImage.getHeight()) &&
                             width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
                         bufferedImage = LocalImageEditor.Crop(bufferedImage, 0, 0, width, height);
