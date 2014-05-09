@@ -9,6 +9,8 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import javax.imageio.ImageIO;
+import javax.servlet.http.HttpServletRequest;
+import org.imgscalr.Scalr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,15 +27,35 @@ public class LocalImageEditor extends AbstractImageEditor {
         ByteArrayOutputStream ouputStream = new ByteArrayOutputStream();
 
         try {
+            StringBuilder imageUrl = new StringBuilder();
+            if (storageItem.getPublicUrl().startsWith("http") || PageContextFilter.Static.getRequest() == null) {
+                imageUrl.append(storageItem.getPublicUrl());
+            } else {
+                HttpServletRequest request = PageContextFilter.Static.getRequest();
+
+                imageUrl.append("http");
+                if (request.isSecure()) {
+                    imageUrl.append("s");
+                }
+                imageUrl.append("://");
+                imageUrl.append(request.getServerName());
+
+                if (request.getServerPort() != 80 && request.getServerPort() != 443 ) {
+                    imageUrl.append(":")
+                            .append(request.getServerPort());
+                }
+                imageUrl.append(storageItem.getPublicUrl());
+
+            }
 
             if (storageItem.getPublicUrl().endsWith("tif") || storageItem.getPublicUrl().endsWith("tiff")) {
                 //TODO add support for tif
             } else {
-                bufferedImage = ImageIO.read(new URL(storageItem.getPublicUrl()));
+                bufferedImage = ImageIO.read(new URL(imageUrl.toString()));
             }
 
             if (bufferedImage == null) {
-                 LOGGER.error("can't read image " + storageItem.getPublicUrl());
+                 LOGGER.error("can't read image " + imageUrl.toString());
             }
 
             if (bufferedImage != null) {
@@ -50,19 +72,20 @@ public class LocalImageEditor extends AbstractImageEditor {
                     Integer y = ObjectUtils.to(Integer.class, arguments[1]);
                     width = ObjectUtils.to(Integer.class, arguments[2]);
                     height = ObjectUtils.to(Integer.class, arguments[3]);
-                    bufferedImage = LocalImage.Crop(bufferedImage, x, y, width, height);
+                    bufferedImage = Crop(bufferedImage, x, y, width, height);
 
                     path.append(x)
                         .append("x")
                         .append(y)
                         .append("x")
                         .append(width)
+                        .append("x")
                         .append(height);
 
                 } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
                     width = ObjectUtils.to(Integer.class, arguments[0]);
                     height = ObjectUtils.to(Integer.class, arguments[1]);
-                    bufferedImage = LocalImage.Resize(bufferedImage, width, height);
+                    bufferedImage = Resize(bufferedImage, width, height, null);
 
                     if (width != null) {
                         path.append(width);
@@ -110,6 +133,115 @@ public class LocalImageEditor extends AbstractImageEditor {
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
         //To Do
+    }
+
+    /** Helper class so that width and height can be returned in a single object */
+    protected static class Dimension {
+        public final Integer width;
+        public final Integer height;
+        public Dimension(Integer width, Integer height) {
+            this.width = width;
+            this.height = height;
+        }
+    }
+
+    public static BufferedImage Resize(BufferedImage bufferedImage, Integer width, Integer height, String option) {
+
+        if (width != null || height != null) {
+
+            if (!StringUtils.isBlank(option) &&
+                    option.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER) &&
+                    ((height == null && width >= bufferedImage.getWidth()) ||
+                            (width == null && height >= bufferedImage.getHeight()) ||
+                            (width != null && height != null && width >= bufferedImage.getWidth() && height >= bufferedImage.getHeight()))) {
+                 return bufferedImage;
+            } else if (!StringUtils.isBlank(option) &&
+                    option.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER) &&
+                    ((height == null && width <= bufferedImage.getWidth()) ||
+                            (width == null && height <= bufferedImage.getHeight()) ||
+                            (width != null && height != null && (width <= bufferedImage.getWidth() || height <= bufferedImage.getHeight())))) {
+                return bufferedImage;
+            }
+
+
+            if (StringUtils.isBlank(option)) {
+                if (height == null) {
+                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_TO_WIDTH, width);
+                } else if (width == null) {
+                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_TO_HEIGHT, height);
+                } else {
+                    return Scalr.resize(bufferedImage, width, height);
+                }
+            } else if (height != null && width != null) {
+                if (option.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
+                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_EXACT, width, height);
+                } else if (option.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
+
+                    Dimension dimension = getFillAreaDimension(bufferedImage.getWidth(), bufferedImage.getHeight(), width, height);
+                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_EXACT, dimension.width, dimension.height);
+                }
+            }
+
+        }
+        return null;
+    }
+
+    public static BufferedImage Crop(BufferedImage bufferedImage, Integer x, Integer y, Integer width, Integer height) {
+
+        if (width != null || height != null) {
+            if (height == null) {
+                height = (int) ((double) bufferedImage.getHeight() / (double) bufferedImage.getWidth() * (double) width);
+            } else if (width == null) {
+                width = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
+            }
+
+            if (x == null) {
+                x = bufferedImage.getWidth() / 2;
+            }
+
+            if (y == null) {
+                y = bufferedImage.getHeight() / 2;
+            }
+
+            return Scalr.crop(bufferedImage, x, y, width, height);
+        }
+
+        return null;
+    }
+
+    private static Dimension getFillAreaDimension(Integer originalWidth, Integer originalHeight, Integer requestedWidth, Integer requestedHeight) {
+        Integer actualWidth = null;
+        Integer actualHeight = null;
+
+        if (originalWidth != null && originalHeight != null &&
+                (requestedWidth != null || requestedHeight != null)) {
+
+            float originalRatio = (float) originalWidth / (float) originalHeight;
+            if (requestedWidth != null && requestedHeight != null) {
+
+                Integer potentialWidth = Math.round((float) requestedHeight * originalRatio);
+                Integer potentialHeight = Math.round((float) requestedWidth / originalRatio);
+
+                if (potentialWidth > requestedWidth) {
+                    actualWidth = potentialWidth;
+                    actualHeight = requestedHeight;
+
+                } else { // potentialHeight > requestedHeight
+                    actualWidth = requestedWidth;
+                    actualHeight = potentialHeight;
+                }
+
+            } else if (originalWidth > originalHeight) {
+                actualHeight = requestedHeight != null ? requestedHeight : requestedWidth;
+                actualWidth = Math.round((float) actualHeight * originalRatio);
+
+            } else { // originalWidth <= originalHeight
+                actualWidth = requestedWidth != null ? requestedWidth : requestedHeight;
+                actualHeight = Math.round((float) actualWidth / originalRatio);
+            }
+        }
+
+        return new Dimension(actualWidth, actualHeight);
     }
 
 }

@@ -22,8 +22,6 @@ public class LocalImageServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, ServletException {
 
-        Date startDate = new Date();
-
         String[] urlAttributes = request.getServletPath().split("/http");
         String imageUrl = "";
         if (urlAttributes.length == 1  & request.getParameter("url") != null) {
@@ -46,22 +44,36 @@ public class LocalImageServlet extends HttpServlet {
                 String value = parameters[i + 1];
 
                 if (command.equals(ImageEditor.RESIZE_COMMAND)) {
+                    String option = null;
                     Integer width = null;
                     Integer height = null;
-                    String[] wh = value.split("x");
-                    width = wh[0].equals("") ? null : Integer.parseInt(wh[0]);
-                    if (wh.length == 2) {
-                        height = Integer.parseInt(wh[1]);
+
+                    if (value.endsWith("!")) {
+                        option = ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO;
+                    } else if (value.endsWith(">")) {
+                        option = ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER;
+                    } else if (value.endsWith("<")) {
+                        option = ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER;
+                    } else if (value.endsWith("^")) {
+                        option = ImageEditor.RESIZE_OPTION_FILL_AREA;
+                    }
+                    if (option != null) {
+                        value = value.substring(0, value.length()-1);
                     }
 
-                    bufferedImage = LocalImage.Resize(bufferedImage, width, height);
+                    String[] wh = value.split("x");
+                    width = parseInteger(wh[0]);
+                    if (wh.length == 2) {
+                        height = parseInteger(wh[1]);
+                    }
+
+                    bufferedImage = LocalImageEditor.Resize(bufferedImage, width, height, option);
+                    
                 } else if (command.equals(ImageEditor.CROP_COMMAND)) {
                     String[] xywh = value.split("x");
-                    bufferedImage = LocalImage.Crop(bufferedImage, Integer.parseInt(xywh[0]), Integer.parseInt(xywh[1]), Integer.parseInt(xywh[2]), Integer.parseInt(xywh[3]));
+                    bufferedImage = LocalImageEditor.Crop(bufferedImage, parseInteger(xywh[0]), parseInteger(xywh[1]), parseInteger(xywh[2]), parseInteger(xywh[3]));
                 }
             }
-
-            Date resizeDate = new Date();
 
             String imageType = "png";
             if (imageUrl.endsWith(".jpg") || imageUrl.endsWith(".jpeg")) {
@@ -77,6 +89,14 @@ public class LocalImageServlet extends HttpServlet {
             out.close();
         } else {
             response.getWriter().write("error");
+        }
+    }
+
+    private Integer parseInteger(String integer) {
+        if (StringUtils.isBlank(integer) || integer.matches("null")) {
+            return null;
+        } else {
+            return Integer.parseInt(integer);
         }
     }
 }
