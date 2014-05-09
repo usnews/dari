@@ -44,8 +44,8 @@ public class QueryDebugServlet extends HttpServlet {
 
     private static class Page extends DebugFilter.PageWriter {
 
-        private final Pattern ID_PATTERN = Pattern.compile("([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})");
-        private final Pattern DATE_FIELD_PATTERN = Pattern.compile("(?m)^(\\s*\".*\" : (\\d{11,}),)$");
+        private static final Pattern ID_PATTERN = Pattern.compile("([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})");
+        private static final Pattern DATE_FIELD_PATTERN = Pattern.compile("(?m)^(\\s*\".*\" : (\\d{11,}),)$");
         private static final double INITIAL_VISIBILITY_HUE = Math.random();
 
         private enum SortOrder {

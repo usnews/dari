@@ -462,7 +462,7 @@ public class Converter {
                 "yyyy-MM-dd",
                 "yyyy-MM-dd'T'HH:mm" };
 
-        private static Pattern TIME_ZONE_PATTERN = Pattern.compile("^\\(([^)]+)\\)\\s*(.+)$");
+        private static final Pattern TIME_ZONE_PATTERN = Pattern.compile("^\\(([^)]+)\\)\\s*(.+)$");
 
         private static final LoadingCache<String, DateTimeFormatter> FORMATTERS = CacheBuilder.
                 newBuilder().

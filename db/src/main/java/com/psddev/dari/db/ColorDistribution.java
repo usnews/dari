@@ -25,6 +25,7 @@ import com.psddev.dari.util.StorageItem;
 @ColorDistribution.Embedded
 public class ColorDistribution extends Record {
 
+    // CHECKSTYLE:OFF
     // Grayscale
     @Indexed private Double n_0_0_0;
     @Indexed private Double n_0_0_20;
@@ -109,6 +110,7 @@ public class ColorDistribution extends Record {
     @Indexed private Double n_336_80_20; @Indexed private Double n_336_80_40; @Indexed private Double n_336_80_60; @Indexed private Double n_336_80_80;
     @Indexed private Double n_336_100_20; @Indexed private Double n_336_100_40; @Indexed private Double n_336_100_60; @Indexed private Double n_336_100_80;
 
+    // CHECKSTYLE:ON
     /**
      * Global modification for associating a {@link ColorDistribution}
      * instance to an object.

@@ -45,7 +45,7 @@ class BootstrapImportTask extends Task {
     private final Pattern uuidPattern = Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", Pattern.CASE_INSENSITIVE);
     private final Map<UUID, UUID> remoteToLocalIdMap = new HashMap<UUID, UUID>();
     private final Map<String, String> remoteToLocalIdStringMap = new HashMap<String, String>();
-    private final TypeReference<Map<String, Object>> MAP_STRING_OBJECT_TYPE = new TypeReference<Map<String, Object>>() { };
+    private static final TypeReference<Map<String, Object>> MAP_STRING_OBJECT_TYPE = new TypeReference<Map<String, Object>>() { };
 
     public BootstrapImportTask(Database database, String filename, InputStream fileInputStream, boolean deleteFirst, int numWriters, int commitSize) {
         super(EXECUTOR_PREFIX, EXECUTOR_PREFIX + " " + filename);

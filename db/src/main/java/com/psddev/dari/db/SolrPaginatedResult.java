@@ -24,16 +24,16 @@ import com.psddev.dari.util.StringUtils;
  */
 public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlObject {
 
-    final Class<?> _klass;
-    final List<FacetField> _facetedFields;
+    final Class<?> klass;
+    final List<FacetField> facetedFields;
 
     public SolrPaginatedResult(
             long offset, int limit, long count, List<E> items, List<FacetField> facetedFields,
             Class<?> klass) {
         super(offset, limit, count, items);
 
-        _klass = klass;
-        _facetedFields = facetedFields;
+        this.klass = klass;
+        this.facetedFields = facetedFields;
     }
 
     public SolrPaginatedResult(
@@ -41,16 +41,16 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
             Class<?> klass, SolrQuery solrQuery) {
         super(offset, limit, count, items);
 
-        _klass = klass;
-        _facetedFields = facetedFields;
+        this.klass = klass;
+        this.facetedFields = facetedFields;
         this.solrQuery = solrQuery;
     }
 
     public List<DariFacetField> getFacetedFields() {
         List<DariFacetField> fields = new ArrayList<DariFacetField>();
-        if (_facetedFields != null) {
-            for (FacetField field : _facetedFields) {
-                fields.add(new DariFacetField(_klass, field));
+        if (this.facetedFields != null) {
+            for (FacetField field : this.facetedFields) {
+                fields.add(new DariFacetField(this.klass, field));
             }
         }
 
@@ -123,35 +123,35 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
     public static class DariFacetField {
 
-        private final Class<?> _klass;
-        private final FacetField _field;
+        private final Class<?> klass;
+        private final FacetField field;
 
         public DariFacetField(Class<?> klass, FacetField field) {
-            this._klass = klass;
-            this._field = field;
+            this.klass = klass;
+            this.field = field;
         }
 
         public String getName() {
-            return _field.getName();
+            return this.field.getName();
         }
 
         public Long getCount() {
-            return Long.valueOf(_field.getValueCount());
+            return Long.valueOf(this.field.getValueCount());
         }
 
         public <T> List<T> getObjects() {
             Map<String, FacetField.Count> index = new HashMap<String, FacetField.Count>();
 
             List<String> ids = new ArrayList<String>();
-            for (FacetField.Count c : _field.getValues()) {
+            for (FacetField.Count c : this.field.getValues()) {
                 index.put(c.getName(), c);
                 ids.add(c.getName());
             }
 
             @SuppressWarnings("unchecked")
-            List<T> objects = (List<T>) (_klass == null || _klass == Query.class ?
+            List<T> objects = (List<T>) (this.klass == null || this.klass == Query.class ?
                     Query.fromAll().where("id = ?", ids).selectAll() :
-                    Query.from(_klass).where("id = ?", ids).selectAll());
+                    Query.from(this.klass).where("id = ?", ids).selectAll());
 
             if (objects != null) {
                 for (Object o : objects) {

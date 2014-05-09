@@ -58,9 +58,9 @@ class MetricAccess {
     private static final String CACHE_MIN = "min";
     private static final String CACHE_MAX = "max";
 
-    private static final transient Cache<String, UUID> dimensionCache = CacheBuilder.newBuilder().maximumSize(DIMENSION_CACHE_SIZE).build();
+    private static final transient Cache<String, UUID> DIMENSION_CACHE = CacheBuilder.newBuilder().maximumSize(DIMENSION_CACHE_SIZE).build();
 
-    private static final ConcurrentMap<String, MetricAccess> metricAccesses = new ConcurrentHashMap<String, MetricAccess>();
+    private static final ConcurrentMap<String, MetricAccess> METRIC_ACCESSES = new ConcurrentHashMap<String, MetricAccess>();
 
     private final String symbol;
     private final SqlDatabase db;
@@ -303,7 +303,7 @@ class MetricAccess {
         if (dimensionValue == null || "".equals(dimensionValue)) {
             return UuidUtils.ZERO_UUID;
         }
-        UUID dimensionId = dimensionCache.getIfPresent(dimensionValue);
+        UUID dimensionId = DIMENSION_CACHE.getIfPresent(dimensionValue);
         if (dimensionId == null) {
             try {
                 dimensionId = Static.getDimensionIdByValue(db, dimensionValue);
@@ -311,7 +311,7 @@ class MetricAccess {
                     dimensionId = UuidUtils.createSequentialUuid();
                     Static.doInsertDimensionValue(db, dimensionId, dimensionValue);
                 }
-                dimensionCache.put(dimensionValue, dimensionId);
+                DIMENSION_CACHE.put(dimensionValue, dimensionId);
             } catch (SQLException e) {
                 throw new DatabaseException(db, "Error in MetricAccess.getDimensionIdByValue() : " + e.getLocalizedMessage());
             }
@@ -323,14 +323,14 @@ class MetricAccess {
         if (dimensionValue == null || "".equals(dimensionValue)) {
             return UuidUtils.ZERO_UUID;
         }
-        UUID dimensionId = dimensionCache.getIfPresent(dimensionValue);
+        UUID dimensionId = DIMENSION_CACHE.getIfPresent(dimensionValue);
         if (dimensionId == null) {
             dimensionId = Static.getDimensionIdByValue(db, dimensionValue);
             if (dimensionId == null) {
                 dimensionId = UuidUtils.createSequentialUuid();
                 Static.doInsertDimensionValue(db, dimensionId, dimensionValue);
             }
-            dimensionCache.put(dimensionValue, dimensionId);
+            DIMENSION_CACHE.put(dimensionValue, dimensionId);
         }
         return dimensionId;
     }
@@ -1603,7 +1603,7 @@ class MetricAccess {
             keyBuilder.append(':');
             keyBuilder.append(field.as(MetricAccess.FieldData.class).getEventDateProcessorClassName());
             String maKey = keyBuilder.toString();
-            MetricAccess metricAccess = metricAccesses.get(maKey);
+            MetricAccess metricAccess = METRIC_ACCESSES.get(maKey);
             if (metricAccess == null) {
                 SqlDatabase sqlDb = null;
                 while (db instanceof ForwardingDatabase) {
@@ -1620,7 +1620,7 @@ class MetricAccess {
                 }
                 if (sqlDb != null) {
                     metricAccess = new MetricAccess(sqlDb, (type != null ? type.getId() : UuidUtils.ZERO_UUID), field.getUniqueName(), field.as(MetricAccess.FieldData.class).getEventDateProcessor());
-                    metricAccesses.put(maKey, metricAccess);
+                    METRIC_ACCESSES.put(maKey, metricAccess);
                 }
             }
             return metricAccess;

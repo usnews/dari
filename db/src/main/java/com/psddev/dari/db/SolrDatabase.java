@@ -324,7 +324,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     public SolrQuery buildQueryFacetByField(Query<?> query, String field) {
         SolrQuery solrQuery = buildQuery(query);
         Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, field);
-        String solrField = SPECIAL_FIELDS.get(mappedKey);
+        String solrField = specialFields.get(mappedKey);
 
         if (solrField == null) {
             String internalType = mappedKey.getInternalType();
@@ -425,7 +425,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             if (isAscending || Sorter.DESCENDING_OPERATOR.equals(operator)) {
                 String queryKey = (String) sorter.getOptions().get(0);
                 Query.MappedKey mappedKey = mapFullyDenormalizedKey(query, queryKey);
-                String solrField = SPECIAL_FIELDS.get(mappedKey);
+                String solrField = specialFields.get(mappedKey);
 
                 if (solrField == null) {
                     String internalType = mappedKey.getInternalType();
@@ -519,7 +519,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             CompoundPredicate compoundPredicate = (CompoundPredicate) predicate;
 
             String operator = compoundPredicate.getOperator();
-            CompoundOperator solrOperator = COMPOUND_OPERATORS.get(operator);
+            CompoundOperator solrOperator = compoundOperators.get(operator);
 
             if (solrOperator != null) {
                 List<Predicate> children = compoundPredicate.getChildren();
@@ -536,7 +536,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
             String queryKey = comparisonPredicate.getKey();
             Query.MappedKey mappedKey = query.mapDenormalizedKey(getEnvironment(), queryKey);
-            String solrField = SPECIAL_FIELDS.get(mappedKey);
+            String solrField = specialFields.get(mappedKey);
 
             if (solrField == null) {
                 String internalType = mappedKey.getInternalType();
@@ -550,7 +550,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             String operator = comparisonPredicate.getOperator();
-            ComparisonOperator solrOperator = COMPARISON_OPERATORS.get(operator);
+            ComparisonOperator solrOperator = comparisonOperators.get(operator);
 
             if (solrOperator != null) {
                 List<Object> values;
@@ -576,7 +576,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         throw new UnsupportedPredicateException(this, predicate);
     }
 
-    private final Map<String, CompoundOperator> COMPOUND_OPERATORS; {
+    private final Map<String, CompoundOperator> compoundOperators; {
         Map<String, CompoundOperator> m = new HashMap<String, CompoundOperator>();
 
         m.put(PredicateParser.AND_OPERATOR, new StandardCompoundOperator("&&"));
@@ -600,7 +600,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
         });
 
-        COMPOUND_OPERATORS = m;
+        compoundOperators = m;
     }
 
     private abstract class CompoundOperator {
@@ -638,15 +638,15 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
-    private final Map<Query.MappedKey, String> SPECIAL_FIELDS; {
+    private final Map<Query.MappedKey, String> specialFields; {
         Map<Query.MappedKey, String> m = new HashMap<Query.MappedKey, String>();
         m.put(Query.MappedKey.ID, ID_FIELD);
         m.put(Query.MappedKey.TYPE, TYPE_ID_FIELD);
         m.put(Query.MappedKey.ANY, ALL_FIELD);
-        SPECIAL_FIELDS = m;
+        specialFields = m;
     }
 
-    private final Map<String, ComparisonOperator> COMPARISON_OPERATORS; {
+    private final Map<String, ComparisonOperator> comparisonOperators; {
         Map<String, ComparisonOperator> m = new HashMap<String, ComparisonOperator>();
 
         m.put(PredicateParser.EQUALS_ANY_OPERATOR, new ExactMatchOperator(false, true));
@@ -669,7 +669,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         m.put(PredicateParser.GREATER_THAN_OPERATOR, new RangeOperator("{", " TO *}"));
         m.put(PredicateParser.GREATER_THAN_OR_EQUALS_OPERATOR, new RangeOperator("[", " TO *]"));
 
-        COMPARISON_OPERATORS = m;
+        comparisonOperators = m;
     }
 
     private abstract class ComparisonOperator {

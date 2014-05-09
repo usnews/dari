@@ -4,20 +4,20 @@ package com.psddev.dari.db;
 public class UnsupportedIndexException
         extends UnsupportedOperationException {
 
-    private final Object _reader;
-    private final String _field;
+    private final Object reader;
+    private final String field;
 
     public UnsupportedIndexException(Object reader, String field) {
-        _reader = reader;
-        _field = field;
+        this.reader = reader;
+        this.field = field;
     }
 
     public Object getReader() {
-        return _reader;
+        return reader;
     }
 
     public String getField() {
-        return _field;
+        return field;
     }
 
     // --- Throwable support ---
@@ -26,6 +26,6 @@ public class UnsupportedIndexException
     public String getMessage() {
         return String.format(
                 "[%s] field is not indexed in [%s]!",
-                _field, _reader.getClass().getSimpleName());
+                getField(), getReader().getClass().getSimpleName());
     }
 }

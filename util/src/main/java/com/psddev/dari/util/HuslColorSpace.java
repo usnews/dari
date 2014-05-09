@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.awt.Color;
 import java.awt.color.ColorSpace;
 
+// CHECKSTYLE:OFF
 /**
  * Human-friendly alternative to the HSL color space based on CIE
  * LCh<sub>uv</sub>.
