@@ -41,7 +41,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                 imageUrl.append("://");
                 imageUrl.append(request.getServerName());
 
-                if (request.getServerPort() != 80 && request.getServerPort() != 443 ) {
+                if (request.getServerPort() != 80 && request.getServerPort() != 443) {
                     imageUrl.append(":")
                             .append(request.getServerPort());
                 }
@@ -65,7 +65,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                 if (ImageEditor.CROP_COMMAND.equals(command) &&
                         options != null &&
                         options.containsKey(ImageEditor.CROP_OPTION) &&
-                        options.get(ImageEditor.CROP_OPTION).equals(ImageEditor.CROP_OPTION_NONE) ) {
+                        options.get(ImageEditor.CROP_OPTION).equals(ImageEditor.CROP_OPTION_NONE)) {
                     return storageItem;
                 }
 
@@ -86,7 +86,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                 } else {
                     path.append("/");
                 }
-                
+
                 if (ImageEditor.CROP_COMMAND.equals(command) &&
                         ObjectUtils.to(Integer.class, arguments[0]) == null  &&
                         ObjectUtils.to(Integer.class, arguments[1]) == null) {
@@ -104,7 +104,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                     Integer y = ObjectUtils.to(Integer.class, arguments[1]);
                     width = ObjectUtils.to(Integer.class, arguments[2]);
                     height = ObjectUtils.to(Integer.class, arguments[3]);
-                    bufferedImage = Crop(bufferedImage, x, y, width, height);
+                    bufferedImage = crop(bufferedImage, x, y, width, height);
 
                     path.append(x)
                         .append("x")
@@ -117,7 +117,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                 } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
                     width = ObjectUtils.to(Integer.class, arguments[0]);
                     height = ObjectUtils.to(Integer.class, arguments[1]);
-                    bufferedImage = Resize(bufferedImage, width, height, null);
+                    bufferedImage = reSize(bufferedImage, width, height, null);
 
                     if (width != null) {
                         path.append(width);
@@ -127,9 +127,9 @@ public class LocalImageEditor extends AbstractImageEditor {
                         path.append(height);
                     }
                     Object resizeOption = options != null ? options.get(ImageEditor.RESIZE_OPTION) : null;
-                    
-                    if (resizeOption != null && 
-                            (cropOption == null || !cropOption.equals(ImageEditor.CROP_OPTION_AUTOMATIC)) ) {
+
+                    if (resizeOption != null &&
+                            (cropOption == null || !cropOption.equals(ImageEditor.CROP_OPTION_AUTOMATIC))) {
                         if (resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
                             path.append("!");
                         } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
@@ -199,7 +199,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         }
     }
 
-    public static BufferedImage Resize(BufferedImage bufferedImage, Integer width, Integer height, String option) {
+    public static BufferedImage reSize(BufferedImage bufferedImage, Integer width, Integer height, String option) {
 
         if (width != null || height != null) {
             if (!StringUtils.isBlank(option) &&
@@ -209,7 +209,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                             (width != null && height != null && width >= bufferedImage.getWidth() && height >= bufferedImage.getHeight())) {
                     return bufferedImage;
                 }
-                
+
             } else if (!StringUtils.isBlank(option) &&
                     option.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
                 if ((height == null && width <= bufferedImage.getWidth()) ||
@@ -229,7 +229,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                 } else {
                     return Scalr.resize(bufferedImage, width, height);
                 }
-                
+
             } else if (height != null && width != null) {
                 if (option.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
                     return Scalr.resize(bufferedImage, Scalr.Mode.FIT_EXACT, width, height);
@@ -237,14 +237,14 @@ public class LocalImageEditor extends AbstractImageEditor {
                     Dimension dimension = getFillAreaDimension(bufferedImage.getWidth(), bufferedImage.getHeight(), width, height);
                     return Scalr.resize(bufferedImage, Scalr.Mode.FIT_EXACT, dimension.width, dimension.height);
                 }
-                
+
             }
 
         }
         return null;
     }
 
-    public static BufferedImage Crop(BufferedImage bufferedImage, Integer x, Integer y, Integer width, Integer height) {
+    public static BufferedImage crop(BufferedImage bufferedImage, Integer x, Integer y, Integer width, Integer height) {
 
         if (width != null || height != null) {
             if (height == null) {

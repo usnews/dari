@@ -60,7 +60,7 @@ public class LocalImageServlet extends HttpServlet {
                         option = ImageEditor.RESIZE_OPTION_FILL_AREA;
                     }
                     if (option != null) {
-                        value = value.substring(0, value.length()-1);
+                        value = value.substring(0, value.length() - 1);
                     }
 
                     String[] wh = value.split("x");
@@ -69,11 +69,11 @@ public class LocalImageServlet extends HttpServlet {
                         height = parseInteger(wh[1]);
                     }
 
-                    bufferedImage = LocalImageEditor.Resize(bufferedImage, width, height, option);
-                    
+                    bufferedImage = LocalImageEditor.reSize(bufferedImage, width, height, option);
+
                 } else if (command.equals(ImageEditor.CROP_COMMAND)) {
                     String[] xywh = value.split("x");
-                    bufferedImage = LocalImageEditor.Crop(bufferedImage, parseInteger(xywh[0]), parseInteger(xywh[1]), parseInteger(xywh[2]), parseInteger(xywh[3]));
+                    bufferedImage = LocalImageEditor.crop(bufferedImage, parseInteger(xywh[0]), parseInteger(xywh[1]), parseInteger(xywh[2]), parseInteger(xywh[3]));
                 } else if (command.equals(LocalImageEditor.THUMBNAIL_COMMAND)) {
                     String option = null;
 
@@ -87,7 +87,7 @@ public class LocalImageServlet extends HttpServlet {
                         option = ImageEditor.RESIZE_OPTION_FILL_AREA;
                     }
                     if (option != null) {
-                        value = value.substring(0, value.length()-1);
+                        value = value.substring(0, value.length() - 1);
                     }
 
                     String[] wh = value.split("x");
@@ -97,10 +97,10 @@ public class LocalImageServlet extends HttpServlet {
                     int resizeHeight = (int) ((double) bufferedImage.getHeight() / (double) bufferedImage.getWidth() * (double) width);
                     int resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
 
-                    bufferedImage = LocalImageEditor.Resize(bufferedImage, resizeWidth, resizeHeight, option);
+                    bufferedImage = LocalImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option);
                     if ((width != bufferedImage.getHeight() || height != bufferedImage.getHeight()) &&
                             width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
-                        bufferedImage = LocalImageEditor.Crop(bufferedImage, 0, 0, width, height);
+                        bufferedImage = LocalImageEditor.crop(bufferedImage, 0, 0, width, height);
                     }
                 }
             }
@@ -115,7 +115,7 @@ public class LocalImageServlet extends HttpServlet {
             response.setContentType("image/" + imageType);
             ServletOutputStream out = response.getOutputStream();
             ImageIO.write(bufferedImage, imageType, out);
-           
+
             out.close();
         } else {
             response.getWriter().write("error");
