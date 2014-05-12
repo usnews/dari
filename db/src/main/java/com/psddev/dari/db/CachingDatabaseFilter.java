@@ -21,7 +21,7 @@ public class CachingDatabaseFilter extends AbstractFilter {
 
     public static final String CACHE_PARAMETER = "_cache";
 
-    private static final Cache<String, Set<UUID>> idCache = CacheBuilder.newBuilder().maximumSize(250).build();
+    private static final Cache<String, Set<UUID>> ID_CACHE = CacheBuilder.newBuilder().maximumSize(250).build();
 
     // --- AbstractFilter support ---
     @Override
@@ -54,7 +54,7 @@ public class CachingDatabaseFilter extends AbstractFilter {
                 boolean preload = Settings.getOrDefault(boolean.class, "dari/isCachingFilterPreloadEnabled", false);
 
                 if (preload) {
-                    Set<UUID> objectIds = idCache.getIfPresent(url);
+                    Set<UUID> objectIds = ID_CACHE.getIfPresent(url);
                     if (objectIds != null) {
                         Query.from(Object.class).using(caching).where("id = ?", objectIds).selectAll();
                     }
@@ -66,7 +66,7 @@ public class CachingDatabaseFilter extends AbstractFilter {
                     Set<UUID> objectIds = new HashSet<UUID>(caching.getIdOnlyQueryIds());
 
                     if (!objectIds.isEmpty()) {
-                        idCache.put(url, objectIds);
+                        ID_CACHE.put(url, objectIds);
                     }
                 }
 

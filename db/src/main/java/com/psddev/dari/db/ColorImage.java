@@ -2,6 +2,9 @@ package com.psddev.dari.db;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.psddev.dari.util.StorageItem;
 
 /**
@@ -21,6 +24,8 @@ public interface ColorImage extends Recordable {
 
 class ColorImageData extends Modification<ColorImage> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ColorImageData.class);
+
     @Override
     protected void beforeSave() {
         ColorDistribution.Data distributionData = as(ColorDistribution.Data.class);
@@ -33,7 +38,9 @@ class ColorImageData extends Modification<ColorImage> {
                     distributionData.setDistribution(ColorDistribution.Static.createDistribution(image));
 
                 } catch (IOException error) {
-                    throw new IllegalArgumentException(error);
+                    LOGGER.error("Exception during ColorImage", error);
+                } catch (RuntimeException error) {
+                    LOGGER.error("Exception during ColorImage", error);
                 }
             }
         }

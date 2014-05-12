@@ -588,6 +588,9 @@ public class SqlVendor {
             case UUID :
                 appendColumnTypeUuid(builder);
                 break;
+            default :
+                throw new UnsupportedOperationException(String.format(
+                        "Unknown column type! [%s]", type));
         }
     }
 

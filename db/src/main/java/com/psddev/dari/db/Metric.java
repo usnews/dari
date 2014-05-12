@@ -401,7 +401,7 @@ public class Metric extends Record {
                 return;
             }
             String extraKey = EXTRA_METRICS_FETCHED_PREFIX + ObjectUtils.to(String.class, dimensionId) + '.' + ObjectUtils.to(String.class, startTimestamp) + '.' + ObjectUtils.to(String.class, endTimestamp);
-            if (state.getExtra(extraKey) != null && ((Boolean) state.getExtra(extraKey)) == true) {
+            if (Boolean.TRUE.equals(state.getExtra(extraKey))) {
                 return;
             }
             state.getExtras().put(extraKey, true);

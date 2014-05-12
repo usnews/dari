@@ -138,7 +138,7 @@ public class JsonProcessor {
     }
 
     // Parses the given source.
-    private Object parseAny(Object source) throws JsonParseException, IOException {
+    private Object parseAny(Object source) throws IOException {
         if (source != null) {
             JsonParser parser = null;
 
@@ -175,7 +175,7 @@ public class JsonProcessor {
      * Reads the current JSON token from the given {@code parser} and
      * converts it to an object.
      */
-    private Object readAny(JsonParser parser) throws JsonParseException, IOException {
+    private Object readAny(JsonParser parser) throws IOException {
         JsonToken token = parser.getCurrentToken();
 
         if (token == null) {

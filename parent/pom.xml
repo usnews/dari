@@ -27,14 +27,6 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.2.1</version>
 
-                <configuration>
-                    <includePluginDependencies>true</includePluginDependencies>
-                    <mainClass>com.psddev.dari.util.ClassEnhancer$Static</mainClass>
-                    <arguments>
-                        <argument>${project.build.outputDirectory}</argument>
-                    </arguments>
-                </configuration>
-
                 <dependencies>
                     <dependency>
                         <groupId>com.psddev</groupId>
@@ -45,10 +37,18 @@
 
                 <executions>
                     <execution>
+                        <id>enhance-classes</id>
                         <phase>compile</phase>
                         <goals>
                             <goal>java</goal>
                         </goals>
+                        <configuration>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <mainClass>com.psddev.dari.util.ClassEnhancer$Static</mainClass>
+                            <arguments>
+                                <argument>${project.build.outputDirectory}</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

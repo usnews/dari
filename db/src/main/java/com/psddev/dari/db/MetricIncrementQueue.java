@@ -10,13 +10,14 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Task;
 
 final class MetricIncrementQueue {
 
     //private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
 
-    private static final ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>> queuedIncrements = new ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>>();
+    private static final ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>> QUEUED_INCREMENTS = new ConcurrentHashMap<Double, ConcurrentHashMap<String, QueuedMetricIncrement>>();
 
     public static void queueIncrement(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount, double withinSeconds) {
 
@@ -26,17 +27,17 @@ final class MetricIncrementQueue {
         putInMap(id, dimensionId, eventDate, metricAccess, amount, waitSeconds);
 
         // If the task is already running or has been scheduled, this won't do anything.
-        MetricIncrementQueueTask task = MetricIncrementQueueTask.getInstance(executeSeconds, waitSeconds, queuedIncrements.get(waitSeconds));
+        MetricIncrementQueueTask task = MetricIncrementQueueTask.getInstance(executeSeconds, waitSeconds, QUEUED_INCREMENTS.get(waitSeconds));
         task.schedule(waitSeconds);
 
     }
 
     private static void putInMap(UUID id, UUID dimensionId, DateTime eventDate, MetricAccess metricAccess, double amount, double waitSeconds) {
 
-        ConcurrentHashMap<String, QueuedMetricIncrement> queue = queuedIncrements.get(waitSeconds);
+        ConcurrentHashMap<String, QueuedMetricIncrement> queue = QUEUED_INCREMENTS.get(waitSeconds);
         if (queue == null) {
-            queuedIncrements.putIfAbsent(waitSeconds, new ConcurrentHashMap<String, QueuedMetricIncrement>());
-            queue = queuedIncrements.get(waitSeconds);
+            QUEUED_INCREMENTS.putIfAbsent(waitSeconds, new ConcurrentHashMap<String, QueuedMetricIncrement>());
+            queue = QUEUED_INCREMENTS.get(waitSeconds);
         }
 
         String key = getKey(id, dimensionId, eventDate, metricAccess);
@@ -95,24 +96,24 @@ class QueuedMetricIncrement {
             return false;
         } else {
             QueuedMetricIncrement otherIncr = (QueuedMetricIncrement) other;
-            if (this.amount == otherIncr.amount &&
+            return this.amount == otherIncr.amount &&
                 this.metricAccess.equals(otherIncr.metricAccess) &&
                 this.dimensionId.equals(otherIncr.dimensionId) &&
                 ((this.eventDate == null && otherIncr.eventDate == null) || (this.eventDate != null && this.eventDate.equals(otherIncr.eventDate))) &&
-                this.id.equals(otherIncr.id)) {
-                return true;
-            } else {
-                return false;
-            }
+                this.id.equals(otherIncr.id);
         }
     }
 
+    @Override
+    public int hashCode() {
+        return ObjectUtils.hashCode(id, dimensionId, eventDate, metricAccess, amount);
+    }
 }
 
-class MetricIncrementQueueTask extends Task {
+final class MetricIncrementQueueTask extends Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricIncrementQueue.class);
     //private static MetricIncrementQueueTask instance;
-    private static final transient ConcurrentHashMap<Double, MetricIncrementQueueTask> instances = new ConcurrentHashMap<Double, MetricIncrementQueueTask>();
+    private static final transient ConcurrentHashMap<Double, MetricIncrementQueueTask> INSTANCES = new ConcurrentHashMap<Double, MetricIncrementQueueTask>();
 
     private final transient ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements;
 
@@ -127,10 +128,10 @@ class MetricIncrementQueueTask extends Task {
 
     public static MetricIncrementQueueTask getInstance(double executeSeconds, double waitSeconds, ConcurrentHashMap<String, QueuedMetricIncrement> queuedIncrements) {
 
-        MetricIncrementQueueTask instance = instances.get(executeSeconds);
+        MetricIncrementQueueTask instance = INSTANCES.get(executeSeconds);
         if (instance == null) {
-            instances.putIfAbsent(executeSeconds, new MetricIncrementQueueTask(executeSeconds, waitSeconds, queuedIncrements));
-            instance = instances.get(executeSeconds);
+            INSTANCES.putIfAbsent(executeSeconds, new MetricIncrementQueueTask(executeSeconds, waitSeconds, queuedIncrements));
+            instance = INSTANCES.get(executeSeconds);
         }
 
         return instance;
