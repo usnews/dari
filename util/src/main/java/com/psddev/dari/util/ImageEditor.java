@@ -71,7 +71,13 @@ public interface ImageEditor extends SettingsBackedObject {
 
             @Override
             public ImageEditor load(String name) {
-                ImageEditor instance = name.equals(LOCAL_IMAGE_EDITOR) ? new LocalImageEditor() : Settings.newInstance(ImageEditor.class, SETTING_PREFIX + "/" + name);
+                String settingsName = SETTING_PREFIX + "/" + name;
+                ImageEditor instance = null;
+                if (Settings.get(settingsName) != null) {
+                    instance = Settings.newInstance(ImageEditor.class, settingsName);
+                } else if (name.equals(LOCAL_IMAGE_EDITOR)) {
+                    instance = new LocalImageEditor();
+                }
 
                 instance.setName(name);
                 return instance;
