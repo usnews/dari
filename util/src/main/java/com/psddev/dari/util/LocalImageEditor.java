@@ -18,9 +18,21 @@ public class LocalImageEditor extends AbstractImageEditor {
 
     private static final String DEFAULT_IMAGE_FORMAT = "png";
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/" + DEFAULT_IMAGE_FORMAT;
-    protected static final String THUMBNAIL_COMMAND = "thumbnail";
+    /** Setting key for quality to use for the output images. */
+    private static final String QUALITY_SETTING = "quality";
 
-    protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
+    protected static final String THUMBNAIL_COMMAND = "thumbnail";
+    private static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
+
+    private Scalr.Method quality = Scalr.Method.AUTOMATIC;
+
+    public Scalr.Method getQuality() {
+        return quality;
+    }
+
+    public void setQuality(Scalr.Method quality) {
+        this.quality = quality;
+    }
 
     @Override
     public StorageItem edit(StorageItem storageItem, String command, Map<String, Object> options, Object... arguments) {
@@ -117,7 +129,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                 } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
                     width = ObjectUtils.to(Integer.class, arguments[0]);
                     height = ObjectUtils.to(Integer.class, arguments[1]);
-                    bufferedImage = reSize(bufferedImage, width, height, null);
+                    bufferedImage = reSize(bufferedImage, width, height, null, null);
 
                     if (width != null) {
                         path.append(width);
@@ -186,7 +198,33 @@ public class LocalImageEditor extends AbstractImageEditor {
 
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
-        //To Do
+        Object qualitySetting = settings.get(QUALITY_SETTING);
+        if (qualitySetting == null) {
+            qualitySetting = Settings.get(QUALITY_SETTING);
+        }
+
+        if (qualitySetting != null) {
+            if (qualitySetting instanceof Integer) {
+                Integer qualityInteger = ObjectUtils.to(Integer.class, qualitySetting);
+                quality = findQualityByInteger(qualityInteger);
+            } else if (qualitySetting instanceof String) {
+                quality = Scalr.Method.valueOf(ObjectUtils.to(String.class, qualitySetting));
+            }
+        }
+    }
+
+    protected static Scalr.Method findQualityByInteger(Integer quality) {
+        if (quality >= 80) {
+            return Scalr.Method.ULTRA_QUALITY;
+        } else if (quality >= 60) {
+            return Scalr.Method.QUALITY;
+        } else if (quality >= 40) {
+            return Scalr.Method.AUTOMATIC;
+        } else if (quality >= 20) {
+            return Scalr.Method.BALANCED;
+        } else {
+            return Scalr.Method.SPEED;
+        }
     }
 
     /** Helper class so that width and height can be returned in a single object */
@@ -199,8 +237,10 @@ public class LocalImageEditor extends AbstractImageEditor {
         }
     }
 
-    public static BufferedImage reSize(BufferedImage bufferedImage, Integer width, Integer height, String option) {
-
+    public BufferedImage reSize(BufferedImage bufferedImage, Integer width, Integer height, String option, Scalr.Method quality) {
+        if (quality == null) {
+            quality = this.quality;
+        }
         if (width != null || height != null) {
             if (!StringUtils.isBlank(option) &&
                     option.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
@@ -223,19 +263,19 @@ public class LocalImageEditor extends AbstractImageEditor {
                     option.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER) ||
                     option.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
                 if (height == null) {
-                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_TO_WIDTH, width);
+                    return Scalr.resize(bufferedImage, quality, Scalr.Mode.FIT_TO_WIDTH, width);
                 } else if (width == null) {
-                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_TO_HEIGHT, height);
+                    return Scalr.resize(bufferedImage, quality, Scalr.Mode.FIT_TO_HEIGHT, height);
                 } else {
-                    return Scalr.resize(bufferedImage, width, height);
+                    return Scalr.resize(bufferedImage, quality, width, height);
                 }
 
             } else if (height != null && width != null) {
                 if (option.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
-                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_EXACT, width, height);
+                    return Scalr.resize(bufferedImage, quality, Scalr.Mode.FIT_EXACT, width, height);
                 } else if (option.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
                     Dimension dimension = getFillAreaDimension(bufferedImage.getWidth(), bufferedImage.getHeight(), width, height);
-                    return Scalr.resize(bufferedImage, Scalr.Mode.FIT_EXACT, dimension.width, dimension.height);
+                    return Scalr.resize(bufferedImage, quality, Scalr.Mode.FIT_EXACT, dimension.width, dimension.height);
                 }
 
             }

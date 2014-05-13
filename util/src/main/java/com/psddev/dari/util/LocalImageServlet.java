@@ -3,18 +3,19 @@ package com.psddev.dari.util;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Date;
 import javax.imageio.ImageIO;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.imgscalr.Scalr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RoutingFilter.Path(application = "", value = "/dims4")
 public class LocalImageServlet extends HttpServlet {
+    private static final String QUALITY_OPTION = "quality";
     protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
     public static final String LEGACY_PATH = "/dims4/";
 
@@ -39,7 +40,21 @@ public class LocalImageServlet extends HttpServlet {
             String[] parameters = urlAttributes[0].substring(LEGACY_PATH.length()).split("/");
 
             BufferedImage bufferedImage = ImageIO.read(new URL(imageUrl));
-            Date downloadDate = new Date();
+            LocalImageEditor localImageEditor = ObjectUtils.to(LocalImageEditor.class, ImageEditor.Static.getInstance("local"));
+
+            Scalr.Method quality = null;
+            for (int i = 0; i < parameters.length; i = i + 2) {
+                String command = parameters[i];
+
+                if (command.equals(QUALITY_OPTION)) {
+                    try {
+                        String value = parameters[i + 1];
+                        quality = Scalr.Method.valueOf(Scalr.Method.class, value);
+                    } catch (IllegalArgumentException ex) {
+                        quality = LocalImageEditor.findQualityByInteger(Integer.parseInt(value));
+                    }
+                }
+            }
 
             for (int i = 0; i < parameters.length; i = i + 2) {
                 String command = parameters[i];
@@ -69,7 +84,7 @@ public class LocalImageServlet extends HttpServlet {
                         height = parseInteger(wh[1]);
                     }
 
-                    bufferedImage = LocalImageEditor.reSize(bufferedImage, width, height, option);
+                    bufferedImage = localImageEditor.reSize(bufferedImage, width, height, option, quality);
 
                 } else if (command.equals(ImageEditor.CROP_COMMAND)) {
                     String[] xywh = value.split("x");
@@ -97,7 +112,7 @@ public class LocalImageServlet extends HttpServlet {
                     int resizeHeight = (int) ((double) bufferedImage.getHeight() / (double) bufferedImage.getWidth() * (double) width);
                     int resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
 
-                    bufferedImage = LocalImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option);
+                    bufferedImage = localImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option, quality);
                     if ((width != bufferedImage.getWidth() || height != bufferedImage.getHeight()) &&
                             width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
                         bufferedImage = LocalImageEditor.crop(bufferedImage, 0, 0, width, height);
