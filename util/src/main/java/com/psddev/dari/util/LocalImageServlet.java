@@ -113,9 +113,20 @@ public class LocalImageServlet extends HttpServlet {
                     int resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
 
                     bufferedImage = localImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option, quality);
-                    if ((width != bufferedImage.getWidth() || height != bufferedImage.getHeight()) &&
-                            width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
-                        bufferedImage = LocalImageEditor.crop(bufferedImage, 0, 0, width, height);
+                    if ((width != bufferedImage.getWidth() || height != bufferedImage.getHeight())) {
+
+                        //Allows for crop when resized size is slightly off
+                        if (width > bufferedImage.getWidth() && (width - 2) <= bufferedImage.getWidth()) {
+                            width = bufferedImage.getWidth();
+                        }
+
+                        if (height > bufferedImage.getHeight() && (height - 2) <= bufferedImage.getHeight()) {
+                            height = bufferedImage.getHeight();
+                        }
+
+                        if (width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
+                            bufferedImage = LocalImageEditor.crop(bufferedImage, 0, 0, width, height);
+                        }
                     }
                 }
             }
