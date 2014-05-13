@@ -47,8 +47,8 @@ public class LocalImageServlet extends HttpServlet {
                 String command = parameters[i];
 
                 if (command.equals(QUALITY_OPTION)) {
+                    String value = parameters[i + 1];
                     try {
-                        String value = parameters[i + 1];
                         quality = Scalr.Method.valueOf(Scalr.Method.class, value);
                     } catch (IllegalArgumentException ex) {
                         quality = LocalImageEditor.findQualityByInteger(Integer.parseInt(value));
