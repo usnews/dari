@@ -109,8 +109,13 @@ public class LocalImageServlet extends HttpServlet {
                     Integer width = ObjectUtils.to(Integer.class, wh[0]);
                     Integer height = ObjectUtils.to(Integer.class, wh[1]);
 
-                    int resizeHeight = (int) ((double) bufferedImage.getHeight() / (double) bufferedImage.getWidth() * (double) width);
-                    int resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
+                    int resizeHeight =  height;
+                    int resizeWidth = width;
+
+                    if (option == null || !option.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
+                        resizeHeight = (int) ((double) bufferedImage.getHeight() / (double) bufferedImage.getWidth() * (double) width);
+                        resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
+                    }
 
                     bufferedImage = localImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option, quality);
                     if ((width != bufferedImage.getWidth() || height != bufferedImage.getHeight())) {
