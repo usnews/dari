@@ -161,6 +161,8 @@ public class LocalImageServlet extends HttpServlet {
                             bufferedImage = LocalImageEditor.crop(bufferedImage, 0, 0, width, height);
                         }
                     }
+                } else if (command.equals("grayscale")) {
+                    bufferedImage = LocalImageEditor.grayscale(bufferedImage);
                 }
             }
 

@@ -1,5 +1,6 @@
 package com.psddev.dari.util;
 
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -305,6 +306,14 @@ public class LocalImageEditor extends AbstractImageEditor {
         }
 
         return null;
+    }
+
+    public static BufferedImage grayscale(BufferedImage sourceImage) {
+        BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        Graphics g = resultImage.getGraphics();
+        g.drawImage(sourceImage, 0, 0, null);
+        g.dispose();
+        return resultImage;
     }
 
     private static Dimension getFillAreaDimension(Integer originalWidth, Integer originalHeight, Integer requestedWidth, Integer requestedHeight) {
