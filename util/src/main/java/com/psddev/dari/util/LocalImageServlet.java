@@ -87,8 +87,36 @@ public class LocalImageServlet extends HttpServlet {
                     bufferedImage = localImageEditor.reSize(bufferedImage, width, height, option, quality);
 
                 } else if (command.equals(ImageEditor.CROP_COMMAND)) {
-                    String[] xywh = value.split("x");
-                    bufferedImage = LocalImageEditor.crop(bufferedImage, parseInteger(xywh[0]), parseInteger(xywh[1]), parseInteger(xywh[2]), parseInteger(xywh[3]));
+                    Integer x = 0;
+                    Integer y = 0;
+                    Integer width = null;
+                    Integer height = null;
+                    String[] size;
+
+                    if (value.contains("+")) {
+                        int delimiter = value.indexOf("+");
+                        String[] xy = value.substring(delimiter + 1).split("\\+");
+
+                        x = parseInteger(xy[0]) != null ? parseInteger(xy[0]) : 0;
+                        y = parseInteger(xy[1]) != null ? parseInteger(xy[1]) : 0;
+
+                        size = value.substring(0, delimiter).split("x");
+
+                    } else {
+                        size = value.split("x");
+                        if (size.length > 3) {
+                            x = parseInteger(size[2]) != null ? parseInteger(size[2]) : 0;
+                            y = parseInteger(size[3]) != null ? parseInteger(size[3]) : 0;
+                        }
+                    }
+
+                    width = parseInteger(size[0]);
+                    if (size.length > 1) {
+                        height = parseInteger(size[1]);
+                    }
+
+                    bufferedImage = LocalImageEditor.crop(bufferedImage, x, y, width, height);
+
                 } else if (command.equals(LocalImageEditor.THUMBNAIL_COMMAND)) {
                     String option = null;
 
