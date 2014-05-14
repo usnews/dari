@@ -393,6 +393,18 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
+    public static BufferedImage rotate(BufferedImage sourceImage, int degrees) {
+        Scalr.Rotation rotation = null;
+        if (degrees == 90) {
+            rotation = Scalr.Rotation.CW_90;
+        } else if (degrees == 180) {
+            rotation = Scalr.Rotation.CW_180;
+        } else if (degrees == 270 || degrees == -90) {
+            rotation = Scalr.Rotation.CW_270;
+        }
+        return Scalr.rotate(sourceImage, rotation);
+    }
+
     private static int adjustColor(int color, int multiply, int add) {
         color =  Math.round(color * (multiply / 100.0f)) + add;
         if (color > 255) {

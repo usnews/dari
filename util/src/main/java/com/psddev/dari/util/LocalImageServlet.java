@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 @RoutingFilter.Path(application = "", value = "/dims4")
 public class LocalImageServlet extends HttpServlet {
     private static final String QUALITY_OPTION = "quality";
+    private static final String ROTATE_OPTION = "rotate";
     protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
     public static final String LEGACY_PATH = "/dims4/";
 
@@ -176,6 +177,8 @@ public class LocalImageServlet extends HttpServlet {
                     }
                 } else if (command.equals("invert")) {
                     bufferedImage = LocalImageEditor.invert(bufferedImage);
+                } else if (command.equals("rotate")) {
+                    bufferedImage = LocalImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
                 }
             }
 
