@@ -102,8 +102,10 @@ public final class Settings {
                                 input.close();
                             }
 
-                        } catch (IOException ex) {
-                            LOGGER.warn(String.format("Cannot read [%s] file!", SETTINGS_FILE), ex);
+                        } catch (IOException error) {
+                            LOGGER.warn(String.format(
+                                    "Can't read from [%s]!", SETTINGS_FILE),
+                                    error);
                         }
                     }
 
