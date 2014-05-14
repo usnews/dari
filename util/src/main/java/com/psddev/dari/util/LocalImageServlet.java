@@ -168,6 +168,12 @@ public class LocalImageServlet extends HttpServlet {
                     Integer brightness = Integer.valueOf(wh[0]);
                     Integer contrast = Integer.valueOf(wh[1]);
                     bufferedImage = LocalImageEditor.brightness(bufferedImage, brightness, contrast);
+                } else if (command.equals("flipflop")) {
+                    if (value.equals("horizontal")) {
+                        bufferedImage = LocalImageEditor.flipHorizontal(bufferedImage);
+                    } else if (value.equals("vertical")) {
+                        bufferedImage = LocalImageEditor.flipVertical(bufferedImage);
+                    }
                 }
             }
 

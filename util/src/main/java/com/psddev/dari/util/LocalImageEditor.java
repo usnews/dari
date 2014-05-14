@@ -357,6 +357,52 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
+    public static BufferedImage flipHorizontal(BufferedImage sourceImage) {
+        BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        int width = sourceImage.getWidth();
+
+        for (int x = 0; x < (width / 2); x++) {
+            for (int y = 0; y < sourceImage.getHeight(); y++) {
+                int sourceX = sourceImage.getWidth() - x - 1;
+                resultImage.setRGB(x, y, sourceImage.getRGB(sourceX, y));
+                resultImage.setRGB(sourceX, y, sourceImage.getRGB(x, y));
+            }
+        }
+
+        //odd width size copy center pixel
+        if (width % 2 == 1) {
+            int x = (width / 2);
+            for (int y = 0; y < sourceImage.getHeight(); y++) {
+                resultImage.setRGB(x, y, sourceImage.getRGB(x, y));
+            }
+        }
+
+        return resultImage;
+    }
+
+    public static BufferedImage flipVertical(BufferedImage sourceImage) {
+        BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        int height = sourceImage.getWidth();
+
+        for (int y = 0; y < (height / 2); y++) {
+            for (int x = 0; x < sourceImage.getWidth(); x++) {
+                int sourceY = sourceImage.getHeight() - y - 1;
+                resultImage.setRGB(x, y, sourceImage.getRGB(x, sourceY));
+                resultImage.setRGB(x, sourceY, sourceImage.getRGB(x, y));
+            }
+        }
+
+        //odd height size copy center pixel
+        if (height % 2 == 1) {
+            int y = (height / 2);
+            for (int x = 0; x < sourceImage.getHeight(); x++) {
+                resultImage.setRGB(x, y, sourceImage.getRGB(x, y));
+            }
+        }
+
+        return resultImage;
+    }
+
     private static int adjustColor(int color, int multiply, int add) {
         color =  Math.round(color * (multiply / 100.0f)) + add;
         if (color > 255) {
