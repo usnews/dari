@@ -26,7 +26,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-/** Global map of settings. */
+/**
+ * Global map of settings.
+ */
 public final class Settings {
 
     /**
@@ -35,16 +37,24 @@ public final class Settings {
      */
     public static final String CLASS_SUB_SETTING = "class";
 
-    /** Key used to toggle debug mode. */
+    /**
+     * Key used to toggle debug mode.
+     */
     public static final String DEBUG_SETTING = "DEBUG";
 
-    /** Key used to indicate when running in a production environment. */
+    /**
+     * Key used to indicate when running in a production environment.
+     */
     public static final String PRODUCTION_SETTING = "PRODUCTION";
 
-    /** Key used to specify a shared secret. */
+    /**
+     * Key used to specify a shared secret.
+     */
     public static final String SECRET_SETTING = "SECRET";
 
-    /** Default properties file that contains all settings. */
+    /**
+     * Default properties file that contains all settings.
+     */
     public static final String SETTINGS_FILE = "/settings.properties";
 
     private static final String JNDI_PREFIX = "java:comp/env";
@@ -77,15 +87,19 @@ public final class Settings {
                     // Optional file.
                     Map<String, Object> settings = new TreeMap<String, Object>();
                     InputStream input = Settings.class.getResourceAsStream(SETTINGS_FILE);
+
                     if (input != null) {
                         try {
                             try {
                                 Properties properties = new Properties();
+
                                 properties.load(input);
                                 putAllMap(settings, properties);
+
                             } finally {
                                 input.close();
                             }
+
                         } catch (IOException ex) {
                             LOGGER.warn(String.format("Cannot read [%s] file!", SETTINGS_FILE), ex);
                         }
@@ -97,6 +111,7 @@ public final class Settings {
                     // JNDI.
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
+
                     } catch (Throwable error) {
                         LOGGER.info(
                                 "Can't read from JNDI! [{}: {}]",
@@ -110,6 +125,7 @@ public final class Settings {
                 private void putAllMap(Map<String, Object> map, Map<?, ?> other) {
                     for (Map.Entry<?, ?> entry : other.entrySet()) {
                         Object key = entry.getKey();
+
                         if (key != null) {
                             CollectionUtils.putByPath(map, key.toString(), entry.getValue());
                         }
@@ -117,19 +133,20 @@ public final class Settings {
                 }
 
                 private void putAllContext(Map<String, Object> map, Context context, String path) throws NamingException {
-
                     String pathWithSlash;
+
                     if (path.endsWith("/")) {
                         pathWithSlash = path;
                         path = path.substring(0, path.length() - 1);
+
                     } else {
                         pathWithSlash = path + "/";
                     }
 
                     for (Enumeration<Binding> e = context.listBindings(path); e.hasMoreElements();) {
                         Binding binding = e.nextElement();
-
                         String name = binding.getName();
+
                         if (name.startsWith(pathWithSlash)) {
                             name = name.substring(pathWithSlash.length());
                         }
@@ -137,8 +154,10 @@ public final class Settings {
                         if (!ObjectUtils.isBlank(name)) {
                             String fullName = pathWithSlash + name;
                             Object value = binding.getObject();
+
                             if (value instanceof Context) {
                                 putAllContext(map, context, fullName);
+
                             } else {
                                 CollectionUtils.putByPath(map, fullName.substring(JNDI_PREFIX.length() + 1), value);
                             }
@@ -263,6 +282,7 @@ public final class Settings {
     private static <T> T checkValue(T value, String key, String message) {
         if (ObjectUtils.isBlank(value)) {
             throw new SettingsException(key, message != null ? message : "[" + key + "] can't be blank!");
+
         } else {
             return value;
         }
@@ -340,6 +360,7 @@ public final class Settings {
                 overrides = new HashMap<String, Object>();
                 OVERRIDES.set(overrides);
             }
+
             CollectionUtils.putByPath(overrides, key, value);
 
         } else {
@@ -349,17 +370,23 @@ public final class Settings {
         }
     }
 
-    /** Returns {@code true} if running in debug mode. */
+    /**
+     * Returns {@code true} if running in debug mode.
+     */
     public static boolean isDebug() {
         return get(boolean.class, DEBUG_SETTING);
     }
 
-    /** Returns {@code true} if running in a production environment. */
+    /**
+     * Returns {@code true} if running in a production environment.
+     */
     public static boolean isProduction() {
         return get(boolean.class, PRODUCTION_SETTING);
     }
 
-    /** Returns a shared secret. */
+    /**
+     * Returns a shared secret.
+     */
     public static String getSecret() {
         String secret = get(String.class, SECRET_SETTING);
 
@@ -455,6 +482,7 @@ public final class Settings {
 
         } catch (InvocationTargetException ex) {
             Throwable cause = ex.getCause();
+
             throw cause instanceof RuntimeException ?
                     (RuntimeException) cause :
                     new RuntimeException(String.format(
@@ -463,31 +491,36 @@ public final class Settings {
         }
 
         object.initialize(key, (Map<String, Object>) instanceSettings);
-
         return object;
     }
 
-    // --- Deprecated ---
-
-    /** @deprecated Use {@link #getOrDefault(String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(String, Object)} instead.
+     */
     @Deprecated
     public static Object get(String key, Object defaultValue) {
         return getOrDefault(key, defaultValue);
     }
 
-    /** @deprecated Use {@link #getOrDefault(Type, String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(Type, String, Object)} instead.
+     */
     @Deprecated
     public static Object get(Type returnType, String key, Object defaultValue) {
         return getOrDefault(returnType, key, defaultValue);
     }
 
-    /** @deprecated Use {@link #getOrDefault(Class, String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(Class, String, Object)} instead.
+     */
     @Deprecated
     public static <T> T get(Class<T> returnClass, String key, T defaultValue) {
         return getOrDefault(returnClass, key, defaultValue);
     }
 
-    /** @deprecated Use {@link #getOrDefault(TypeReference, String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(TypeReference, String, Object)} instead.
+     */
     @Deprecated
     public static <T> T get(TypeReference<T> returnTypeReference, String key, T defaultValue) {
         return getOrDefault(returnTypeReference, key, defaultValue);
