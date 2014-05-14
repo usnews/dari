@@ -81,6 +81,8 @@ public final class Settings {
         public Map<String, Object> create() {
             return new PeriodicCache<String, Object>(0.0, 10.0) {
 
+                private boolean jndiErrorLogged;
+
                 @Override
                 protected Map<String, Object> update() {
 
@@ -113,10 +115,14 @@ public final class Settings {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
 
                     } catch (Throwable error) {
-                        LOGGER.info(
-                                "Can't read from JNDI! [{}: {}]",
-                                error.getClass().getName(),
-                                error.getMessage());
+                        if (!jndiErrorLogged) {
+                            jndiErrorLogged = true;
+
+                            LOGGER.info(
+                                    "Can't read from JNDI! [{}: {}]",
+                                    error.getClass().getName(),
+                                    error.getMessage());
+                        }
                     }
 
                     return Collections.unmodifiableMap(settings);
