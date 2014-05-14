@@ -8,6 +8,7 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
@@ -22,6 +23,7 @@ import javax.naming.NamingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -59,7 +61,8 @@ public final class Settings {
 
     private static final String JNDI_PREFIX = "java:comp/env";
     private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
-    private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
+    private static final Map<String, Map<String, Object>> PERMANENT_OVERRIDES_MAP = new LinkedHashMap<String, Map<String, Object>>();
+    private static final ThreadLocal<Map<String, Object>> THREAD_OVERRIDES = new ThreadLocal<Map<String, Object>>();
     private static final String RANDOM_SECRET = UUID.randomUUID().toString();
 
     private static final LoadingCache<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = CacheBuilder.
@@ -109,6 +112,7 @@ public final class Settings {
                         }
                     }
 
+                    // Environment.
                     putAllMap(settings, System.getenv());
                     putAllMap(settings, System.getProperties());
 
@@ -124,6 +128,13 @@ public final class Settings {
                                     "Can't read from JNDI! [{}: {}]",
                                     error.getClass().getName(),
                                     error.getMessage());
+                        }
+                    }
+
+                    // Permanent overrides.
+                    synchronized (PERMANENT_OVERRIDES_MAP) {
+                        for (Map<String, Object> overrides : PERMANENT_OVERRIDES_MAP.values()) {
+                            CollectionUtils.putAllRecursively(settings, overrides);
                         }
                     }
 
@@ -185,7 +196,7 @@ public final class Settings {
      */
     public static Object getOrDefault(String key, Object defaultValue) {
         Object value = null;
-        Map<String, Object> overrides = OVERRIDES.get();
+        Map<String, Object> overrides = THREAD_OVERRIDES.get();
 
         if (overrides != null) {
             value = CollectionUtils.getByPath(overrides, key);
@@ -357,16 +368,51 @@ public final class Settings {
     }
 
     /**
+     * Puts all entries from the given {@code overrides} permanently to the
+     * global settings and associates them with the given {@code name}.
+     * They can be later removed with {@link #removePermanentOverrides}
+     * using the given {@code name}. Any subsequent changes in the given
+     * {@code overrides} will be automatically synchronized to the global
+     * settings.
+     *
+     * @param name Can't be {@code null}.
+     * @param overrides Does nothing if {@code null}.
+     */
+    public static void putPermanentOverrides(String name, Map<String, Object> overrides) {
+        Preconditions.checkNotNull(name);
+
+        if (overrides != null) {
+            synchronized (PERMANENT_OVERRIDES_MAP) {
+                PERMANENT_OVERRIDES_MAP.put(name, overrides);
+            }
+        }
+    }
+
+    /**
+     * Removes the permanent overrides previously associated with the given
+     * {@code name} using {@link #putPermanentOverrides}.
+     *
+     * @param name Can't be {@code null}.
+     */
+    public static void removePermanentOverrides(String name) {
+        Preconditions.checkNotNull(name);
+
+        synchronized (PERMANENT_OVERRIDES_MAP) {
+            PERMANENT_OVERRIDES_MAP.remove(name);
+        }
+    }
+
+    /**
      * Temporarily overrides the value associated with the given
      * {@code key} in the current thread.
      */
     public static void setOverride(String key, Object value) {
-        Map<String, Object> overrides = OVERRIDES.get();
+        Map<String, Object> overrides = THREAD_OVERRIDES.get();
 
         if (value != null) {
             if (overrides == null) {
                 overrides = new HashMap<String, Object>();
-                OVERRIDES.set(overrides);
+                THREAD_OVERRIDES.set(overrides);
             }
 
             CollectionUtils.putByPath(overrides, key, value);
