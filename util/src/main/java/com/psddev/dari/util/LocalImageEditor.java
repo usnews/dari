@@ -302,6 +302,14 @@ public class LocalImageEditor extends AbstractImageEditor {
                 y = bufferedImage.getHeight() / 2;
             }
 
+            if (x + width > bufferedImage.getWidth()) {
+                width = bufferedImage.getWidth() - x;
+            }
+
+            if (y + height > bufferedImage.getHeight()) {
+                height = bufferedImage.getHeight() - y;
+            }
+
             return Scalr.crop(bufferedImage, x, y, width, height);
         }
 
