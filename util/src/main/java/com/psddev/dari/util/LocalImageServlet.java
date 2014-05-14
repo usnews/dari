@@ -148,7 +148,7 @@ public class LocalImageServlet extends HttpServlet {
                     bufferedImage = localImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option, quality);
                     if ((width != bufferedImage.getWidth() || height != bufferedImage.getHeight())) {
 
-                        //Allows for crop when resized size is slightly off
+                        //Allows for crop when reSized size is slightly off
                         if (width > bufferedImage.getWidth() && (width - 2) <= bufferedImage.getWidth()) {
                             width = bufferedImage.getWidth();
                         }
@@ -174,6 +174,8 @@ public class LocalImageServlet extends HttpServlet {
                     } else if (value.equals("vertical")) {
                         bufferedImage = LocalImageEditor.flipVertical(bufferedImage);
                     }
+                } else if (command.equals("invert")) {
+                    bufferedImage = LocalImageEditor.invert(bufferedImage);
                 }
             }
 

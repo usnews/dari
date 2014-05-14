@@ -403,6 +403,26 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
+    public static BufferedImage invert(BufferedImage sourceImage) {
+        BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+
+        for (int x = 0; x < sourceImage.getWidth(); x++) {
+            for (int y = 0; y < sourceImage.getHeight(); y++) {
+                int rgb = sourceImage.getRGB(x, y);
+                int alpha = (rgb >> 24) & 0xFF;
+                int red   = 255 - (rgb >> 16) & 0xFF;
+                int green = 255 - (rgb >> 8) & 0xFF;
+                int blue  = 255 - rgb & 0xFF;
+
+                int newRgb = (alpha << 24) | (red << 16) | (green << 8) | blue;
+
+                resultImage.setRGB(x, y, newRgb);
+            }
+        }
+
+        return resultImage;
+    }
+
     private static int adjustColor(int color, int multiply, int add) {
         color =  Math.round(color * (multiply / 100.0f)) + add;
         if (color > 255) {
