@@ -1,6 +1,8 @@
 package com.psddev.dari.util;
 
+import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -394,13 +396,30 @@ public class LocalImageEditor extends AbstractImageEditor {
     }
 
     public static BufferedImage rotate(BufferedImage sourceImage, int degrees) {
-        Scalr.Rotation rotation = null;
+        Scalr.Rotation rotation;
         if (degrees == 90) {
             rotation = Scalr.Rotation.CW_90;
         } else if (degrees == 180) {
             rotation = Scalr.Rotation.CW_180;
         } else if (degrees == 270 || degrees == -90) {
             rotation = Scalr.Rotation.CW_270;
+        } else {
+            double radians = Math.toRadians(degrees);
+            int w = (new Double(Math.abs(sourceImage.getWidth() * Math.cos(radians)) + Math.abs(sourceImage.getHeight() * Math.sin(radians)))).intValue();
+            int h = (new Double(Math.abs(sourceImage.getWidth() * Math.sin(radians)) + Math.abs(sourceImage.getHeight() * Math.cos(radians)))).intValue();
+
+            BufferedImage resultImage = new BufferedImage(w, h, sourceImage.getType());
+            Graphics2D graphics = resultImage.createGraphics();
+
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, w, h);
+
+            int x = -1 * (sourceImage.getWidth() - w) / 2;
+            int y = -1 * (sourceImage.getHeight() - h) / 2;
+
+            graphics.rotate(Math.toRadians(degrees), (w / 2), (h / 2));
+            graphics.drawImage(sourceImage, null, x, y);
+            return resultImage;
         }
         return Scalr.rotate(sourceImage, rotation);
     }
