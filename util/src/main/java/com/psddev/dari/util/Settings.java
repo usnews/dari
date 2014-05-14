@@ -78,10 +78,10 @@ public final class Settings {
                 }
             });
 
-    private static final Lazy<Map<String, Object>> SETTINGS = new Lazy<Map<String, Object>>() {
+    private static final Lazy<PeriodicCache<String, Object>> SETTINGS = new Lazy<PeriodicCache<String, Object>>() {
 
         @Override
-        public Map<String, Object> create() {
+        public PeriodicCache<String, Object> create() {
             return new PeriodicCache<String, Object>(0.0, 10.0) {
 
                 private boolean jndiErrorLogged;
@@ -384,6 +384,7 @@ public final class Settings {
         if (overrides != null) {
             synchronized (PERMANENT_OVERRIDES_MAP) {
                 PERMANENT_OVERRIDES_MAP.put(name, overrides);
+                SETTINGS.get().refresh();
             }
         }
     }
@@ -399,6 +400,7 @@ public final class Settings {
 
         synchronized (PERMANENT_OVERRIDES_MAP) {
             PERMANENT_OVERRIDES_MAP.remove(name);
+            SETTINGS.get().refresh();
         }
     }
 
