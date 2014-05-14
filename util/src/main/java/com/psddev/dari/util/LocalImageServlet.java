@@ -163,6 +163,11 @@ public class LocalImageServlet extends HttpServlet {
                     }
                 } else if (command.equals("grayscale")) {
                     bufferedImage = LocalImageEditor.grayscale(bufferedImage);
+                } else if (command.equals("brightness")) {
+                    String[] wh = value.split("x");
+                    Integer brightness = Integer.valueOf(wh[0]);
+                    Integer contrast = Integer.valueOf(wh[1]);
+                    bufferedImage = LocalImageEditor.brightness(bufferedImage, brightness, contrast);
                 }
             }
 

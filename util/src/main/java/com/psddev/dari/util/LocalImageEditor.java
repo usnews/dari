@@ -316,6 +316,57 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
+    public static BufferedImage brightness(BufferedImage sourceImage, int brightness, int contrast) {
+        BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+
+        int multiply = 100;
+        int add;
+
+        if (contrast == 0) {
+            add = Math.round(brightness / 100.0f * 255);
+        } else {
+            if (contrast > 0) {
+                contrast = contrast * 4;
+            }
+            contrast = 100 - (contrast * -1);
+            multiply = contrast;
+            brightness = Math.round(brightness / 100.0f * 255);
+
+            add = ((Double) (((brightness - 128) * (multiply / 100.0d) + 128))).intValue();
+
+        }
+
+        for (int x = 0; x < sourceImage.getWidth(); x++) {
+            for (int y = 0; y < sourceImage.getHeight(); y++) {
+                int rgb = sourceImage.getRGB(x, y);
+                int alpha = (rgb >> 24) & 0xFF;
+                int red   = (rgb >> 16) & 0xFF;
+                int green = (rgb >> 8) & 0xFF;
+                int blue  = rgb & 0xFF;
+
+                red = adjustColor(red, multiply, add);
+                green = adjustColor(green, multiply, add);
+                blue = adjustColor(blue, multiply, add);
+
+                int newRgb = (alpha << 24) | (red << 16) | (green << 8) | blue;
+
+                resultImage.setRGB(x, y, newRgb);
+            }
+        }
+
+        return resultImage;
+    }
+
+    private static int adjustColor(int color, int multiply, int add) {
+        color =  Math.round(color * (multiply / 100.0f)) + add;
+        if (color > 255) {
+            color = 255;
+        } else if (color < 0) {
+            color = 0;
+        }
+        return color;
+    }
+
     private static Dimension getFillAreaDimension(Integer originalWidth, Integer originalHeight, Integer requestedWidth, Integer requestedHeight) {
         Integer actualWidth = null;
         Integer actualHeight = null;
