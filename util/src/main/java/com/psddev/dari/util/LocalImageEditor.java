@@ -424,12 +424,44 @@ public class LocalImageEditor extends AbstractImageEditor {
         return Scalr.rotate(sourceImage, rotation);
     }
 
+    public static BufferedImage sepia(BufferedImage sourceImage) {
+        BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+
+        for (int x = 0; x < sourceImage.getWidth(); x++) {
+            for (int y = 0; y < sourceImage.getHeight(); y++) {
+                int rgb = sourceImage.getRGB(x, y);
+                int alpha = (rgb >> 24) & 0xFF;
+                int red   = (rgb >> 16) & 0xFF;
+                int green = (rgb >> 8) & 0xFF;
+                int blue  = rgb & 0xFF;
+
+                int newRed = (new Double((red * .393) + (green * .769) + (blue * .189))).intValue();
+                int newGreen = (new Double((red * .349) + (green * .686) + (blue * .168))).intValue();
+                int newBlue = (new Double((red * .272) + (green * .534) + (blue * .131))).intValue();
+
+                newRed = colorMinMax(newRed);
+                newGreen = colorMinMax(newGreen);
+                newBlue = colorMinMax(newBlue);
+
+                int newRgb = (alpha << 24) | (newRed << 16) | (newGreen << 8) | newBlue;
+
+                resultImage.setRGB(x, y, newRgb);
+            }
+        }
+
+        return resultImage;
+    }
+
     private static int adjustColor(int color, int multiply, int add) {
         color =  Math.round(color * (multiply / 100.0f)) + add;
-        if (color > 255) {
-            color = 255;
-        } else if (color < 0) {
-            color = 0;
+        return colorMinMax(color);
+    }
+
+    private static int colorMinMax(int color) {
+        if (color < 0) {
+            return 0;
+        } else if (color > 255) {
+            return 255;
         }
         return color;
     }

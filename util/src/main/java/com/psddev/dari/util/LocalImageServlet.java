@@ -179,6 +179,8 @@ public class LocalImageServlet extends HttpServlet {
                     bufferedImage = LocalImageEditor.invert(bufferedImage);
                 } else if (command.equals("rotate")) {
                     bufferedImage = LocalImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
+                } else if (command.equals("sepia")) {
+                    bufferedImage = LocalImageEditor.sepia(bufferedImage);
                 }
             }
 
