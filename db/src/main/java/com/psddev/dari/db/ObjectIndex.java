@@ -25,6 +25,7 @@ public class ObjectIndex {
     private static final String IS_UNIQUE_KEY = "isUnique";
     private static final String CASE_SENSITIVE_KEY = "caseSensitive";
     private static final String VISIBILITY_KEY = "visibility";
+    private static final String DYNAMIC_KEY = "dynamic";
     private static final String JAVA_DECLARING_CLASS_NAME_KEY = "java.declaringClass";
     private static final String LEGACY_FIELD_KEY = "field";
 
@@ -36,6 +37,7 @@ public class ObjectIndex {
     private boolean isUnique;
     private boolean caseSensitive;
     private boolean visibility;
+    private boolean dynamic;
     private String javaDeclaringClassName;
     private Map<String, Object> options;
 
@@ -69,6 +71,7 @@ public class ObjectIndex {
         setUnique(ObjectUtils.to(boolean.class, definition.remove(IS_UNIQUE_KEY)));
         setCaseSensitive(ObjectUtils.to(boolean.class, definition.remove(CASE_SENSITIVE_KEY)));
         setVisibility(ObjectUtils.to(boolean.class, definition.remove(VISIBILITY_KEY)));
+        setDynamic(ObjectUtils.to(boolean.class, definition.remove(DYNAMIC_KEY)));
         setJavaDeclaringClassName(ObjectUtils.to(String.class, definition.remove(JAVA_DECLARING_CLASS_NAME_KEY)));
         setOptions(definition);
     }
@@ -82,6 +85,7 @@ public class ObjectIndex {
         definition.put(IS_UNIQUE_KEY, isUnique());
         definition.put(CASE_SENSITIVE_KEY, isCaseSensitive());
         definition.put(VISIBILITY_KEY, isVisibility());
+        definition.put(DYNAMIC_KEY, isDynamic());
         definition.put(JAVA_DECLARING_CLASS_NAME_KEY, getJavaDeclaringClassName());
         definition.put(LEGACY_FIELD_KEY, getField());
         return definition;
@@ -170,6 +174,14 @@ public class ObjectIndex {
 
     public void setVisibility(boolean visibility) {
         this.visibility = visibility;
+    }
+
+    public boolean isDynamic() {
+        return dynamic;
+    }
+
+    public void setDynamic(boolean dynamic) {
+        this.dynamic = dynamic;
     }
 
     /** Returns the name of the class that declared this index. */

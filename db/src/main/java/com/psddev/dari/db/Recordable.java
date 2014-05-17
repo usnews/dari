@@ -165,6 +165,7 @@ public interface Recordable {
         boolean unique() default false;
         boolean caseSensitive() default false;
         boolean visibility() default false;
+        boolean dynamic() default false;
 
         /** @deprecated Use {@link #unique} instead. */
         @Deprecated

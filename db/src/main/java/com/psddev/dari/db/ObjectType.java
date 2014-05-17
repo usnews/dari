@@ -191,6 +191,7 @@ public class ObjectType extends Record implements ObjectStruct {
             boolean isUnique = false;
             boolean caseSensitive = false;
             boolean visibility = false;
+            boolean dynamic = false;
 
             FieldUnique uniqueAnnotation = javaField.getAnnotation(FieldUnique.class);
             if (uniqueAnnotation != null) {
@@ -210,6 +211,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 isUnique = isUnique || indexedAnnotation.unique() || indexedAnnotation.isUnique();
                 caseSensitive = indexedAnnotation.caseSensitive();
                 visibility = indexedAnnotation.visibility();
+                dynamic = indexedAnnotation.dynamic();
             }
 
             if (extraFields != null) {
@@ -231,6 +233,7 @@ public class ObjectType extends Record implements ObjectStruct {
                 newIndex.setUnique(isUnique);
                 newIndex.setCaseSensitive(caseSensitive);
                 newIndex.setVisibility(visibility);
+                newIndex.setDynamic(dynamic);
                 newIndex.setJavaDeclaringClassName(declaringClass);
                 newIndex.getOptions().putAll(new ObjectField(field.getParent(), field.toDefinition()).getOptions());
                 indexes.add(newIndex);

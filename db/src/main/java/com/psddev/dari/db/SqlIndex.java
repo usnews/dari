@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
@@ -383,44 +384,69 @@ public enum SqlIndex {
                 List<List<Object>> parameters) throws SQLException {
 
             SqlVendor vendor = database.getVendor();
-            Object indexKey = convertKey(database, index, indexValue.getUniqueName());
+            Object defaultIndexKey = convertKey(database, index, indexValue.getUniqueName(null));
             int fieldsSize = index.getFields().size();
             StringBuilder insertBuilder = new StringBuilder();
             boolean writeIndex = true;
 
-            for (Object[] valuesArray : indexValue.getValuesArray()) {
-                StringBuilder bindKeyBuilder = new StringBuilder();
-                bindKeyBuilder.append(id.toString());
-                bindKeyBuilder.append(indexKey);
+            Object[][] indexValueValuesArray = indexValue.getValuesArray();
+            String[] indexValueKeysArray = indexValue.getKeysArray();
 
-                for (int i = 0; i < fieldsSize; i++) {
-                    Object parameter = convertValue(database, index, i, valuesArray[i]);
-                    vendor.appendValue(bindKeyBuilder, parameter);
+            for (int i=0; i<indexValueValuesArray.length; i++) {
 
-                    if (ObjectUtils.isBlank(parameter)) {
-                        writeIndex = false;
-                        break;
+                Object[] valuesArray = indexValueValuesArray[i];
+                String key = indexValueKeysArray[i];
+
+                Object dynamicIndexKey = null;
+                if (index.isDynamic() && !StringUtils.isEmpty(key)) {
+                    dynamicIndexKey = convertKey(database, index, indexValue.getUniqueName(key));
+
+                    if (defaultIndexKey.equals(dynamicIndexKey)) {
+                        dynamicIndexKey = null;
                     }
                 }
 
-                String bindKey = bindKeyBuilder.toString();
+                Object[] indexKeys = new Object[dynamicIndexKey == null ? 1 : 2];
+                indexKeys[0] = defaultIndexKey;
+                if (dynamicIndexKey != null) {
+                    indexKeys[1] = dynamicIndexKey;
+                }
 
-                if (writeIndex && !bindKeys.contains(bindKey)) {
-                    List<Object> rowData = new ArrayList<Object>();
+                for (Object indexKey : indexKeys) {
 
-                    vendor.appendBindValue(insertBuilder, id, rowData);
-                    if (getTypeIdField(database, index) != null) {
-                        vendor.appendBindValue(insertBuilder, typeId, rowData);
+                    StringBuilder bindKeyBuilder = new StringBuilder();
+                    bindKeyBuilder.append(id.toString());
+                    bindKeyBuilder.append(indexKey);
+
+                    for (int j = 0; j < fieldsSize; j++) {
+                        Object parameter = convertValue(database, index, j, valuesArray[j]);
+                        vendor.appendValue(bindKeyBuilder, parameter);
+
+                        if (ObjectUtils.isBlank(parameter)) {
+                            writeIndex = false;
+                            break;
+                        }
                     }
-                    vendor.appendBindValue(insertBuilder, indexKey, rowData);
 
-                    for (int i = 0; i < fieldsSize; i++) {
-                        Object parameter = convertValue(database, index, i, valuesArray[i]);
-                        vendor.appendBindValue(insertBuilder, parameter, rowData);
+                    String bindKey = bindKeyBuilder.toString();
+
+                    if (writeIndex && !bindKeys.contains(bindKey)) {
+                        List<Object> rowData = new ArrayList<Object>();
+
+                        vendor.appendBindValue(insertBuilder, id, rowData);
+                        if (getTypeIdField(database, index) != null) {
+                            vendor.appendBindValue(insertBuilder, typeId, rowData);
+                        }
+                        vendor.appendBindValue(insertBuilder, indexKey, rowData);
+
+                        for (int j = 0; j < fieldsSize; j++) {
+                            Object parameter = convertValue(database, index, j, valuesArray[j]);
+                            vendor.appendBindValue(insertBuilder, parameter, rowData);
+                        }
+
+                        bindKeys.add(bindKey);
+                        parameters.add(rowData);
                     }
-
-                    bindKeys.add(bindKey);
-                    parameters.add(rowData);
                 }
             }
         }
@@ -475,16 +501,22 @@ public enum SqlIndex {
 
         private final ObjectField[] prefixes;
         private final ObjectIndex index;
+        private final String[] keysArray;
         private final Object[][] valuesArray;
 
-        private IndexValue(ObjectField[] prefixes, ObjectIndex index, Object[][] valuesArray) {
+        private IndexValue(ObjectField[] prefixes, ObjectIndex index, String[] keysArray, Object[][] valuesArray) {
             this.prefixes = prefixes;
             this.index = index;
+            this.keysArray = keysArray;
             this.valuesArray = valuesArray;
         }
 
         public ObjectIndex getIndex() {
             return index;
+        }
+
+        public String[] getKeysArray() {
+            return keysArray;
         }
 
         public Object[][] getValuesArray() {
@@ -496,7 +528,7 @@ public enum SqlIndex {
          * This is a helper method for database implementations and
          * isn't meant for general consumption.
          */
-        public String getUniqueName() {
+        public String getUniqueName(String dynamicSuffix) {
             StringBuilder nameBuilder = new StringBuilder();
 
             if (prefixes == null) {
@@ -519,6 +551,11 @@ public enum SqlIndex {
             while (indexFieldsIterator.hasNext()) {
                 nameBuilder.append(',');
                 nameBuilder.append(indexFieldsIterator.next());
+            }
+
+            if (dynamicSuffix != null) {
+                nameBuilder.append("#");
+                nameBuilder.append(StringUtils.removeStart(dynamicSuffix, "/"));
             }
 
             return nameBuilder.toString();
@@ -685,6 +722,7 @@ public enum SqlIndex {
 
                         int nameId = database.getSymbolId(index.getUniqueName());
                         for (Object[] values : indexValue.getValuesArray()) {
+
                             StringBuilder tokenBuilder = new StringBuilder();
                             tokenBuilder.append(nameId);
                             tokenBuilder.append("=");
@@ -765,7 +803,7 @@ public enum SqlIndex {
                 Map<String, Object> stateValues) {
 
             INDEX: for (ObjectIndex index : struct.getIndexes()) {
-                List<Set<Object>> valuesList = new ArrayList<Set<Object>>();
+                List<Map<String, Object>> keyValuesList = new ArrayList<Map<String, Object>>();
 
                 for (String fieldName : index.getFields()) {
                     ObjectField field = struct.getField(fieldName);
@@ -773,48 +811,57 @@ public enum SqlIndex {
                         continue INDEX;
                     }
 
-                    Set<Object> values = new HashSet<Object>();
-                    collectFieldValues(state, indexValues, prefixes, struct, field, values, stateValues.get(field.getInternalName()));
-                    if (values.isEmpty()) {
+                    Map<String, Object> keyValues = new CompactMap<String, Object>();
+
+                    collectFieldKeyValues(state, indexValues, prefixes, "", struct, field, keyValues, stateValues.get(field.getInternalName()));
+                    if (keyValues.isEmpty()) {
                         continue INDEX;
                     }
 
-                    valuesList.add(values);
+                    keyValuesList.add(keyValues);
                 }
 
-                int valuesListSize = valuesList.size();
+                int keyValuesListSize = keyValuesList.size();
                 int permutationSize = 1;
-                for (Set<Object> values : valuesList) {
-                    permutationSize *= values.size();
+                for (Map<String, Object> keyValues : keyValuesList) {
+                    permutationSize *= keyValues.size();
                 }
 
                 // Calculate all permutations on multi-field indexes.
-                Object[][] permutations = new Object[permutationSize][valuesListSize];
+                String[]  permutationKeys = new String[permutationSize];
+                Object[][] permutationValues = new Object[permutationSize][keyValuesListSize];
+
                 int partitionSize = permutationSize;
-                for (int i = 0; i < valuesListSize; ++ i) {
-                    Set<Object> values = valuesList.get(i);
-                    int valuesSize = values.size();
-                    partitionSize /= valuesSize;
+                for (int i = 0; i < keyValuesListSize; ++ i) {
+                    Map<String, Object> keyValues = keyValuesList.get(i);
+                    int keyValuesSize = keyValues.size();
+                    partitionSize /= keyValuesSize;
+
                     for (int p = 0; p < permutationSize;) {
-                        for (Object value : values) {
+
+                        for (Map.Entry<String, Object> keyValue : keyValues.entrySet()) {
+
                             for (int k = 0; k < partitionSize; ++ k, ++ p) {
-                                permutations[p][i] = value;
+
+                                permutationKeys[p] = keyValue.getKey();
+                                permutationValues[p][i] = keyValue.getValue();
                             }
                         }
                     }
                 }
 
-                indexValues.add(new IndexValue(prefixes, index, permutations));
+                indexValues.add(new IndexValue(prefixes, index, permutationKeys, permutationValues));
             }
         }
 
-        private static void collectFieldValues(
+        private static void collectFieldKeyValues(
                 State state,
                 List<IndexValue> indexValues,
                 ObjectField[] prefixes,
+                String suffix,
                 ObjectStruct struct,
                 ObjectField field,
-                Set<Object> values,
+                Map<String, Object> keyValues,
                 Object value) {
 
             if (value == null) {
@@ -823,13 +870,14 @@ public enum SqlIndex {
 
             Iterable<Object> valueIterable = ObjectToIterable.iterable(value);
             if (valueIterable != null) {
+                int index = 0;
                 for (Object item : valueIterable) {
-                    collectFieldValues(state, indexValues, prefixes, struct, field, values, item);
+                    collectFieldKeyValues(state, indexValues, prefixes, suffix + "/" + index++, struct, field, keyValues, item);
                 }
 
             } else if (value instanceof Map) {
-                for (Object item : ((Map<?, ?>) value).values()) {
-                    collectFieldValues(state, indexValues, prefixes, struct, field, values, item);
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+                    collectFieldKeyValues(state, indexValues, prefixes, suffix + "/" + entry.getKey(), struct, field, keyValues, entry.getValue());
                 }
 
             } else if (value instanceof Recordable) {
@@ -858,27 +906,27 @@ public enum SqlIndex {
                         collectIndexValues(state, indexValues, newPrefixes, valueType, valueState.getValues());
 
                     } else {
-                        values.add(valueState.getId());
+                        keyValues.put(suffix, valueState.getId());
                     }
 
                 } else {
-                    values.add(valueState.getId());
+                    keyValues.put(suffix, valueState.getId());
                 }
 
             } else if (value instanceof Character ||
                     value instanceof CharSequence ||
                     value instanceof URI ||
                     value instanceof URL) {
-                values.add(value.toString());
+                keyValues.put(suffix, value.toString());
 
             } else if (value instanceof Date) {
-                values.add(((Date) value).getTime());
+                keyValues.put(suffix, ((Date) value).getTime());
 
             } else if (value instanceof Enum) {
-                values.add(((Enum<?>) value).name());
+                keyValues.put(suffix, ((Enum<?>) value).name());
 
             } else {
-                values.add(value);
+                keyValues.put(suffix, value);
             }
         }
 
