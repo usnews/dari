@@ -1091,7 +1091,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-
+    /**
+     * Returns an object of the given {@code id} from the MySQL binary log cache if present.
+     * If not, execute the given {@code query} and populate the cache before returning it.
+     */
     private <T> T getObjectFromCache(Object id, Query<T> query) {
 
         if (id == null) {
@@ -1166,6 +1169,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     }
 
+    /**
+     * Selects the first object that matches the given {@code query}
+     * from MySQL binary log cache if enabled.
+     */
     public <T> T selectFirstWithOptions(Query<T> query) {
 
         if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache() && !isDisableBinLogCacheInCms(query)) {
@@ -1221,6 +1228,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return selectFirstWithOptions(sqlQuery, null);
     }
 
+    /**
+     * Selects a list of objects that match the given {@code query}
+     * from MySQL binary log cache if enabled.
+     */
     public <T> List<T> selectListWithOptions(Query<T> query) {
 
         if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache() && !isDisableBinLogCacheInCms(query)) {
@@ -1637,6 +1648,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
 
         setSettingsKeyPrefix(settingsKey);
+
+        // Use binary log cache if the vendor is MySQL.
+        // Bin log reader thread will be running regardless of initial settings
+        // as cache can be turned on through CMS later.
         if (vendor instanceof SqlVendor.MySQL) {
             if (!isMySQLBinLogReaderThreadRunning()) {
                 spawnMySQLBinaryLogReaderThread();
@@ -1645,10 +1660,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         LOGGER.debug("SQLDATABASE INITIALIZED");
     }
 
+    /**
+     * Checks whether MySQL binary log reader thread is running.
+     */
     private boolean isMySQLBinLogReaderThreadRunning() {
         return binLogReaderThreadExecutor != null && !binLogReaderThreadExecutor.isShutdown();
     }
 
+    /**
+     * Spawns up MySQL binary log reader thread.
+     */
     private void spawnMySQLBinaryLogReaderThread() {
         MySQLBinaryLogReader mySQLBinaryLogReader = MySQLBinaryLogReader.getInstance(binLogCache, readDataSource != null ? readDataSource : dataSource);
         if (mySQLBinaryLogReader == null) {
