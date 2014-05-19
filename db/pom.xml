@@ -63,6 +63,20 @@
             <artifactId>bonecp</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>tomcat-dbcp</artifactId>
+            <version>7.0.53</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- MySQL binary log reader -->
+        <dependency>
+            <groupId>com.github.shyiko</groupId>
+            <artifactId>mysql-binlog-connector-java</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>
+
         <!-- Compression -->
         <dependency>
             <groupId>org.iq80.snappy</groupId>

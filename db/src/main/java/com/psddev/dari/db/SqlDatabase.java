@@ -8,6 +8,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.ref.WeakReference;
+import java.nio.ByteBuffer;
 import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -38,8 +39,12 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
+
 import javax.sql.DataSource;
 
 import org.iq80.snappy.Snappy;
@@ -61,6 +66,7 @@ import com.psddev.dari.util.SettingsException;
 import com.psddev.dari.util.Stats;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.UuidUtils;
 
 /** Database backed by a SQL engine. */
 public class SqlDatabase extends AbstractDatabase<Connection> {
@@ -84,6 +90,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
+    public static final String DISABLE_BIN_LOG_CACHE_SETTING = "disableBinLogCache";
+    public static final String DISABLE_BIN_LOG_CACHE_IN_CMS_SETTING = "disableBinLogCacheInCMS";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -138,6 +146,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
+    private volatile boolean disableBinLogCache;
+
+    private String settingsKeyPrefix;
+    private static final byte[] NULL_ID = new byte[16];
+    private volatile ThreadPoolExecutor binLogReaderThreadExecutor;
+    private volatile Cache<ByteBuffer, List<byte[]>> binLogCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+
+    public Cache<ByteBuffer, List<byte[]>> getBinLogCache() {
+        return binLogCache;
+    }
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -349,6 +367,30 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         this.cacheData = cacheData;
     }
 
+    /** Returns {@code true} if the binary log cache is disabled. */
+    public boolean isDisableBinLogCache() {
+        return disableBinLogCache || Settings.getOrDefault(boolean.class, getSettingsKeyPrefix() + "/" + DISABLE_BIN_LOG_CACHE_SETTING, false);
+    }
+
+    /** Sets if the binary log cache is disabled. */
+    public void setDisableBinLogCache(boolean disableBinLogCache) {
+        this.disableBinLogCache = disableBinLogCache;
+    }
+
+    /** Returns {@code true} if the binary log cache should not be use in CMS. */
+    public <T> boolean isDisableBinLogCacheInCms(Query<T> query) {
+        // TODO: isolate cms requests from regular requests.
+        return query.isMaster() && Settings.getOrDefault(boolean.class, getSettingsKeyPrefix() + "/" + DISABLE_BIN_LOG_CACHE_IN_CMS_SETTING, false);
+    }
+
+    private String getSettingsKeyPrefix() {
+        return settingsKeyPrefix;
+    }
+
+    private void setSettingsKeyPrefix(String settingsKeyPrefix) {
+        this.settingsKeyPrefix = settingsKeyPrefix;
+    }
+
     /**
      * Returns {@code true} if the {@link #RECORD_TABLE} in this database
      * has the {@link #IN_ROW_INDEX_COLUMN}.
@@ -356,7 +398,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public boolean hasInRowIndex() {
         return hasInRowIndex;
     }
-
     /**
      * Returns {@code true} if all comparisons executed in this database
      * should ignore case by default.
@@ -530,7 +571,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return id;
     }
 
-    private Supplier<Long> nowOffset = Suppliers.memoizeWithExpiration(new Supplier<Long>() {
+    private final Supplier<Long> nowOffset = Suppliers.memoizeWithExpiration(new Supplier<Long>() {
+        @Override
         public Long get() {
             String selectSql = getVendor().getSelectTimestampMillisSql();
             Connection connection;
@@ -638,6 +680,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         setDataSource(null);
         setReadDataSource(null);
+
+        // Shutdown bin log thread
+        if (isMySQLBinLogReaderThreadRunning()) {
+            LOGGER.info("Shutting down bin log thread [{}]", binLogReaderThreadExecutor.toString());
+            binLogReaderThreadExecutor.shutdownNow();
+        }
     }
 
     /**
@@ -1043,11 +1091,106 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
+
+    private <T> T getObjectFromCache(Object id, Query<T> query) {
+
+        if (id == null) {
+            return null;
+        }
+
+        UUID uuid = UUID.fromString(id.toString());
+        byte[] key = UuidUtils.toBytes(uuid);
+        List<byte[]> value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
+        if (value == null) {
+            SqlVendor vendor = getVendor();
+            StringBuilder sqlQuery = new StringBuilder();
+
+            sqlQuery.append("SELECT ");
+            vendor.appendIdentifier(sqlQuery, "typeId");
+            sqlQuery.append(", ");
+            vendor.appendIdentifier(sqlQuery, "data");
+            sqlQuery.append(" FROM ");
+            vendor.appendIdentifier(sqlQuery, "Record");
+            sqlQuery.append(" WHERE ");
+            vendor.appendIdentifier(sqlQuery, "id");
+            sqlQuery.append(" = ");
+            vendor.appendUuid(sqlQuery, uuid);
+
+            Connection connection = null;
+            ConnectionRef extraConnectionRef = new ConnectionRef();
+            Statement statement = null;
+            ResultSet result = null;
+
+            try {
+                connection = extraConnectionRef.getOrOpen(query);
+                statement = connection.createStatement();
+                result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
+                if (result.next()) {
+                    byte[] typeId = result.getBytes(1);
+                    value = new ArrayList<byte[]>();
+                    value.add(typeId);
+                    value.add(result.getBytes(2));
+                    // Skip null type.
+                    if (!Arrays.equals(typeId, NULL_ID)) {
+                        binLogCache.put(ByteBuffer.wrap(key), value);
+                        LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(key));
+                    }
+                } else {
+                    return null;
+                }
+
+            } catch (SQLException error) {
+                throw createQueryException(error, sqlQuery.toString(), query);
+
+            } finally {
+                closeResources(query, connection, statement, result);
+                extraConnectionRef.close();
+            }
+
+        } else {
+            LOGGER.debug("READING CACHE [{}]", StringUtils.hex(key));
+        }
+
+        T object = createSavedObject(value.get(0), id, query);
+        State objectState = State.getInstance(object);
+
+        objectState.setValues(unserializeData(value.get(1)));
+        Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
+        if (returnOriginal == null) {
+            returnOriginal = Boolean.FALSE;
+        }
+        if (returnOriginal) {
+            objectState.getExtras().put(ORIGINAL_DATA_EXTRA, value.get(1));
+        }
+        return object;
+
+    }
+
+    public <T> T selectFirstWithOptions(Query<T> query) {
+
+        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache() && !isDisableBinLogCacheInCms(query)) {
+            List<Object> ids = query.findIdOnlyQueryValues();
+            if (ids != null) {
+                for (Object id : ids) {
+                    Object object = getObjectFromCache(id, query);
+                    if (object != null) {
+                        return (T) object;
+                    }
+                }
+                return null;
+            }
+        }
+
+        return selectFirstWithOptions(buildSelectStatement(query), query);
+    }
+
+
     /**
      * Selects the first object that matches the given {@code sqlQuery}
      * with options from the given {@code query}.
      */
     public <T> T selectFirstWithOptions(String sqlQuery, Query<T> query) {
+
         sqlQuery = vendor.rewriteQueryWithLimitClause(sqlQuery, 1, 0);
 
         ConnectionRef extraConnectionRef = new ConnectionRef();
@@ -1076,6 +1219,26 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      */
     public Object selectFirst(String sqlQuery) {
         return selectFirstWithOptions(sqlQuery, null);
+    }
+
+    public <T> List<T> selectListWithOptions(Query<T> query) {
+
+        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache() && !isDisableBinLogCacheInCms(query)) {
+            List<Object> ids = query.findIdOnlyQueryValues();
+            if (ids != null) {
+                List<T> objects = new ArrayList<T>();
+                for (Object id : ids) {
+                    Object object = getObjectFromCache(id, query);
+                    if (object != null) {
+                        objects.add((T) object);
+                    }
+
+                }
+                return objects;
+            }
+        }
+
+        return selectListWithOptions(buildSelectStatement(query), query);
     }
 
     /**
@@ -1176,6 +1339,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
+        @Override
         public void close() {
             hasNext = false;
             closeResources(query, connection, statement, result);
@@ -1471,6 +1635,36 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
+
+        setSettingsKeyPrefix(settingsKey);
+        if (vendor instanceof SqlVendor.MySQL) {
+            if (!isMySQLBinLogReaderThreadRunning()) {
+                spawnMySQLBinaryLogReaderThread();
+            }
+        }
+        LOGGER.debug("SQLDATABASE INITIALIZED");
+    }
+
+    private boolean isMySQLBinLogReaderThreadRunning() {
+        return binLogReaderThreadExecutor != null && !binLogReaderThreadExecutor.isShutdown();
+    }
+
+    private void spawnMySQLBinaryLogReaderThread() {
+        MySQLBinaryLogReader mySQLBinaryLogReader = MySQLBinaryLogReader.getInstance(binLogCache, readDataSource != null ? readDataSource : dataSource);
+        if (mySQLBinaryLogReader == null) {
+            setDisableBinLogCache(true);
+            LOGGER.error("Failed to spawn binlog reader thread.");
+            return;
+        }
+        binLogReaderThreadExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
+
+                @Override
+                public Thread newThread(Runnable r) {
+                    return new Thread(r, "bin-log-reader");
+                }
+            });
+        binLogReaderThreadExecutor.submit(mySQLBinaryLogReader);
     }
 
     private static final Map<String, String> DRIVER_CLASS_NAMES; static {
@@ -1608,7 +1802,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public <T> List<T> readAll(Query<T> query) {
-        return selectListWithOptions(buildSelectStatement(query), query);
+        return selectListWithOptions(query);
     }
 
     @Override
@@ -1665,7 +1859,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        return selectFirstWithOptions(buildSelectStatement(query), query);
+        return selectFirstWithOptions(query);
     }
 
     @Override
