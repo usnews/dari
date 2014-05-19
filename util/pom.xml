@@ -149,6 +149,14 @@
             <artifactId>slf4j-jdk14</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- ImageIO Tiff Support -->
+        <dependency>
+            <groupId>com.sun.media</groupId>
+            <artifactId>jai_imageio</artifactId>
+            <version>1.1</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <build>

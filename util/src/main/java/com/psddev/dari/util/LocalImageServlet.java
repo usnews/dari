@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 @RoutingFilter.Path(application = "", value = "/dims4")
 public class LocalImageServlet extends HttpServlet {
     private static final String QUALITY_OPTION = "quality";
-    private static final String ROTATE_OPTION = "rotate";
     protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
     public static final String LEGACY_PATH = "/dims4/";
 
@@ -40,7 +39,17 @@ public class LocalImageServlet extends HttpServlet {
         if (!StringUtils.isBlank(imageUrl)) {
             String[] parameters = urlAttributes[0].substring(LEGACY_PATH.length()).split("/");
 
-            BufferedImage bufferedImage = ImageIO.read(new URL(imageUrl));
+            BufferedImage bufferedImage;
+            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(LocalImageEditor.TIFF_READER_CLASS) != null) {
+                bufferedImage = LocalImageTiffReader.readTiff(imageUrl);
+            } else {
+                bufferedImage = ImageIO.read(new URL(imageUrl));
+            }
+
+            if (bufferedImage == null) {
+                throw new IOException(String.format("Unable to process image %s", imageUrl));
+            }
+
             LocalImageEditor localImageEditor = ObjectUtils.to(LocalImageEditor.class, ImageEditor.Static.getInstance("local"));
 
             Scalr.Method quality = null;
@@ -59,7 +68,7 @@ public class LocalImageServlet extends HttpServlet {
 
             for (int i = 0; i < parameters.length; i = i + 2) {
                 String command = parameters[i];
-                String value = parameters[i + 1];
+                String value = i + 1 < parameters.length ? parameters[i + 1] : null;
 
                 if (command.equals(ImageEditor.RESIZE_COMMAND)) {
                     String option = null;

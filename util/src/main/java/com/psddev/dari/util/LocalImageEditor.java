@@ -24,6 +24,7 @@ public class LocalImageEditor extends AbstractImageEditor {
     /** Setting key for quality to use for the output images. */
     private static final String QUALITY_SETTING = "quality";
 
+    protected static final String TIFF_READER_CLASS = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageReaderSpi";
     protected static final String THUMBNAIL_COMMAND = "thumbnail";
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
 
@@ -64,8 +65,8 @@ public class LocalImageEditor extends AbstractImageEditor {
 
             }
 
-            if (storageItem.getPublicUrl().endsWith("tif") || storageItem.getPublicUrl().endsWith("tiff")) {
-                //TODO add support for tif
+            if ((storageItem.getPublicUrl().endsWith("tif") || storageItem.getPublicUrl().endsWith("tiff")) && ObjectUtils.getClassByName(TIFF_READER_CLASS) != null) {
+                bufferedImage = LocalImageTiffReader.readTiff(imageUrl.toString());
             } else {
                 bufferedImage = ImageIO.read(new URL(imageUrl.toString()));
             }
