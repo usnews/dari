@@ -1354,11 +1354,14 @@ class MetricAccess {
             private final Long minEventDate;
             private final Long maxEventDate;
             private final int fetchSize;
-            private long offset = 0L;
             private List<List<UUID>> items;
             private boolean done = false;
 
             private int index = 0;
+
+            private UUID lastTypeId = null;
+            private UUID lastId = null;
+            private UUID lastDimensionId = null;
 
             public DistinctIdsIterator(SqlDatabase database, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, int fetchSize) {
                 this.database = database;
@@ -1395,7 +1398,6 @@ class MetricAccess {
                     } catch (SQLException e) {
                         throw new DatabaseException(this.database, e);
                     }
-                    offset += new Long(fetchSize);
                     index = 0;
                     if (items.size() < 1) {
                         return false;
@@ -1424,9 +1426,12 @@ class MetricAccess {
                             SqlVendor vendor = database.getVendor();
                             while (result.next()) {
                                 List<UUID> row = new ArrayList<UUID>();
-                                row.add(vendor.getUuid(result, 1));
-                                row.add(vendor.getUuid(result, 2));
-                                row.add(vendor.getUuid(result, 3));
+                                lastId = vendor.getUuid(result, 1);
+                                lastDimensionId = vendor.getUuid(result, 2);
+                                lastTypeId = vendor.getUuid(result, 3);
+                                row.add(lastId);
+                                row.add(lastDimensionId);
+                                row.add(lastTypeId);
                                 items.add(row);
                             }
                         } finally {
@@ -1473,13 +1478,24 @@ class MetricAccess {
                     sql.append(" >= ");
                     vendor.appendMetricEncodeTimestampSql(sql, null, minEventDate, '0');
                 }
+
+                if (lastId != null && lastTypeId != null && lastDimensionId != null) {
+                    sql.append(" AND ("); vendor.appendIdentifier(sql, MetricAccess.METRIC_TYPE_FIELD); sql.append(" > "); vendor.appendValue(sql, lastTypeId);  sql.append(" OR ("); // AND (typeId > lastTypeId OR (
+                    vendor.appendIdentifier(sql, MetricAccess.METRIC_TYPE_FIELD); sql.append(" = "); vendor.appendValue(sql, lastTypeId); sql.append(" AND (");                       //     typeId = lastTypeId AND (
+                    vendor.appendIdentifier(sql, MetricAccess.METRIC_ID_FIELD); sql.append(" > "); vendor.appendValue(sql, lastId); sql.append(" OR (");                              //         id > lastId OR (
+                    vendor.appendIdentifier(sql, MetricAccess.METRIC_ID_FIELD); sql.append(" = "); vendor.appendValue(sql, lastId); sql.append(" AND (");                             //             id = lastId AND (
+                    vendor.appendIdentifier(sql, MetricAccess.METRIC_DIMENSION_FIELD); sql.append(" > "); vendor.appendValue(sql, lastDimensionId);                                   //                 dimensionId > lastDimensionId
+                    sql.append(")))))");                                                                                                                                              //             )))))
+                }
+
                 sql.append(" ORDER BY ");
                 vendor.appendIdentifier(sql, MetricAccess.METRIC_TYPE_FIELD);
                 sql.append(",");
                 vendor.appendIdentifier(sql, MetricAccess.METRIC_ID_FIELD);
                 sql.append(",");
                 vendor.appendIdentifier(sql, MetricAccess.METRIC_DIMENSION_FIELD);
-                return vendor.rewriteQueryWithLimitClause(sql.toString(), fetchSize, offset);
+
+                return vendor.rewriteQueryWithLimitClause(sql.toString(), fetchSize, 0);
             }
         }
 
