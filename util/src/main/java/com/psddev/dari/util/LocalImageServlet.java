@@ -3,27 +3,41 @@ package com.psddev.dari.util;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 import javax.imageio.ImageIO;
-import javax.servlet.ServletException;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RoutingFilter.Path(application = "", value = "/dims4")
-public class LocalImageServlet extends HttpServlet {
+public class LocalImageServlet extends AbstractFilter implements AbstractFilter.Auto {
     private static final String QUALITY_OPTION = "quality";
+    private static final String LEGACY_PATH = "/dims4/";
     protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
-    public static final String LEGACY_PATH = "/dims4/";
+
+    private static String servletPath = "/_image/";
+
+    public static String getServletPath() {
+        return servletPath;
+    }
+
+    public static void setServletPath(String servletPath) {
+        LocalImageServlet.servletPath = servletPath;
+    }
+
 
     @Override
-    protected void doGet(
-            HttpServletRequest request,
-            HttpServletResponse response)
-            throws IOException, ServletException {
+    protected void doRequest(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws Exception {
+
+        if (!request.getServletPath().startsWith(servletPath) &&
+               !request.getServletPath().startsWith(LEGACY_PATH)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         String[] urlAttributes = request.getServletPath().split("/http");
         String imageUrl = "";
@@ -75,7 +89,11 @@ public class LocalImageServlet extends HttpServlet {
                     }
                 }
             } else {
-                parameters = urlAttributes[0].substring(LEGACY_PATH.length()).split("/");
+                if (request.getServletPath().startsWith(servletPath)) {
+                    parameters = urlAttributes[0].substring(servletPath.length()).split("/");
+                } else {
+                    parameters = urlAttributes[0].substring(LEGACY_PATH.length()).split("/");
+                }
             }
 
             BufferedImage bufferedImage;
@@ -247,6 +265,18 @@ public class LocalImageServlet extends HttpServlet {
             return null;
         } else {
             return Integer.parseInt(integer);
+        }
+    }
+
+    @Override
+    protected Iterable<Class<? extends Filter>> dependencies() {
+        return null;
+    }
+
+    @Override
+    public void updateDependencies(Class<? extends AbstractFilter> filterClass, List<Class<? extends Filter>> dependencies) {
+        if (RoutingFilter.class.isAssignableFrom(filterClass)) {
+            dependencies.add(getClass());
         }
     }
 }

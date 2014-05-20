@@ -214,6 +214,10 @@ public class LocalImageEditor extends AbstractImageEditor {
             }
         }
 
+        if (!ObjectUtils.isBlank(settings.get("servletPath"))) {
+            LocalImageServlet.setServletPath(ObjectUtils.to(String.class, settings.get("servletPath")));
+        }
+
         if (!ObjectUtils.isBlank(settings.get("baseUrl"))) {
             setBaseUrl(ObjectUtils.to(String.class, settings.get("baseUrl")));
         }
@@ -241,7 +245,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                     .append(request.getServerPort());
         }
 
-        baseUrlBuilder.append(LocalImageServlet.LEGACY_PATH);
+        baseUrlBuilder.append(LocalImageServlet.getServletPath());
         setBaseUrl(baseUrlBuilder.toString());
     }
 
