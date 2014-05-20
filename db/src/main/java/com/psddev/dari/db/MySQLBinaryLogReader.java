@@ -93,6 +93,10 @@ public final class MySQLBinaryLogReader implements Runnable {
                         jdbcUrl = ((org.apache.tomcat.dbcp.dbcp.BasicDataSource) dataSource).getUrl();
                         username = ((org.apache.tomcat.dbcp.dbcp.BasicDataSource) dataSource).getUsername();
                         password = ((org.apache.tomcat.dbcp.dbcp.BasicDataSource) dataSource).getPassword();
+                    } else if (dataSource instanceof org.apache.commons.dbcp2.BasicDataSource) {
+                        jdbcUrl = ((org.apache.commons.dbcp2.BasicDataSource) dataSource).getUrl();
+                        username = ((org.apache.commons.dbcp2.BasicDataSource) dataSource).getUsername();
+                        password = ((org.apache.commons.dbcp2.BasicDataSource) dataSource).getPassword();
                     } else if (dataSource instanceof com.jolbox.bonecp.BoneCPDataSource) {
                         jdbcUrl = ((com.jolbox.bonecp.BoneCPDataSource) dataSource).getJdbcUrl();
                         username = ((com.jolbox.bonecp.BoneCPDataSource) dataSource).getUsername();
