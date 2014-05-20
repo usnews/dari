@@ -805,12 +805,6 @@ public class SqlVendor {
         public String convertRawToStringSql(String field) {
             return "UTF8TOSTRING(" + field + ")";
         }
-
-        @Override
-        public String getSelectTimestampMillisSql() {
-            return "SELECT CURRENT_TIMESTAMP()";
-        }
-
     }
 
     public static class MySQL extends SqlVendor {
