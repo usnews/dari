@@ -130,6 +130,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private static final String UPDATE_STATS_OPERATION = "Update";
     private static final String QUERY_PROFILER_EVENT = SHORT_NAME + " " + QUERY_STATS_OPERATION;
     private static final String UPDATE_PROFILER_EVENT = SHORT_NAME + " " + UPDATE_STATS_OPERATION;
+    private static final String BINARY_LOG_CACHE_PROFILER_EVENT = "Cache Operation";
+    private static final String BINARY_LOG_CACHE_UPDATE_PROFILER_EVENT = "Populating Cache";
     private static final long NOW_EXPIRATION_SECONDS = 300;
 
     private static final List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
@@ -1101,72 +1103,80 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             return null;
         }
 
-        UUID uuid = UUID.fromString(id.toString());
-        byte[] key = UuidUtils.toBytes(uuid);
-        List<byte[]> value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
-        if (value == null) {
-            SqlVendor vendor = getVendor();
-            StringBuilder sqlQuery = new StringBuilder();
+        Profiler.Static.startThreadEvent(BINARY_LOG_CACHE_PROFILER_EVENT);
+        T object = null;
 
-            sqlQuery.append("SELECT ");
-            vendor.appendIdentifier(sqlQuery, TYPE_ID_COLUMN);
-            sqlQuery.append(", ");
-            vendor.appendIdentifier(sqlQuery, DATA_COLUMN);
-            sqlQuery.append(" FROM ");
-            vendor.appendIdentifier(sqlQuery, RECORD_TABLE);
-            sqlQuery.append(" WHERE ");
-            vendor.appendIdentifier(sqlQuery, ID_COLUMN);
-            sqlQuery.append(" = ");
-            vendor.appendUuid(sqlQuery, uuid);
+        try {
+            UUID uuid = UUID.fromString(id.toString());
+            byte[] key = UuidUtils.toBytes(uuid);
+            List<byte[]> value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
+            if (value == null) {
+                Profiler.Static.startThreadEvent(BINARY_LOG_CACHE_UPDATE_PROFILER_EVENT);
 
-            Connection connection = null;
-            ConnectionRef extraConnectionRef = new ConnectionRef();
-            Statement statement = null;
-            ResultSet result = null;
+                SqlVendor vendor = getVendor();
+                StringBuilder sqlQuery = new StringBuilder();
 
-            try {
-                connection = extraConnectionRef.getOrOpen(query);
-                statement = connection.createStatement();
-                result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
-                if (result.next()) {
-                    byte[] typeId = result.getBytes(1);
-                    value = new ArrayList<byte[]>();
-                    value.add(typeId);
-                    value.add(result.getBytes(2));
-                    // Skip null type.
-                    if (!Arrays.equals(typeId, NULL_ID)) {
-                        binLogCache.put(ByteBuffer.wrap(key), value);
-                        LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(key));
+                sqlQuery.append("SELECT ");
+                vendor.appendIdentifier(sqlQuery, TYPE_ID_COLUMN);
+                sqlQuery.append(", ");
+                vendor.appendIdentifier(sqlQuery, DATA_COLUMN);
+                sqlQuery.append(" FROM ");
+                vendor.appendIdentifier(sqlQuery, RECORD_TABLE);
+                sqlQuery.append(" WHERE ");
+                vendor.appendIdentifier(sqlQuery, ID_COLUMN);
+                sqlQuery.append(" = ");
+                vendor.appendUuid(sqlQuery, uuid);
+
+                Connection connection = null;
+                ConnectionRef extraConnectionRef = new ConnectionRef();
+                Statement statement = null;
+                ResultSet result = null;
+
+                try {
+                    connection = extraConnectionRef.getOrOpen(query);
+                    statement = connection.createStatement();
+                    result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
+                    if (result.next()) {
+                        byte[] typeId = result.getBytes(1);
+                        value = new ArrayList<byte[]>();
+                        value.add(typeId);
+                        value.add(result.getBytes(2));
+                        // Skip null type.
+                        if (!Arrays.equals(typeId, NULL_ID)) {
+                            binLogCache.put(ByteBuffer.wrap(key), value);
+                            LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(key));
+                        }
+                    } else {
+                        return null;
                     }
-                } else {
-                    return null;
+
+                } catch (SQLException error) {
+                    throw createQueryException(error, sqlQuery.toString(), query);
+
+                } finally {
+                    closeResources(query, connection, statement, result);
+                    extraConnectionRef.close();
+                    Profiler.Static.stopThreadEvent(id);
                 }
-
-            } catch (SQLException error) {
-                throw createQueryException(error, sqlQuery.toString(), query);
-
-            } finally {
-                closeResources(query, connection, statement, result);
-                extraConnectionRef.close();
+            } else {
+                LOGGER.debug("READING CACHE [{}]", StringUtils.hex(key));
             }
 
-        } else {
-            LOGGER.debug("READING CACHE [{}]", StringUtils.hex(key));
-        }
+            object = createSavedObject(value.get(0), id, query);
+            State objectState = State.getInstance(object);
 
-        T object = createSavedObject(value.get(0), id, query);
-        State objectState = State.getInstance(object);
-
-        objectState.setValues(unserializeData(value.get(1)));
-        Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
-        if (returnOriginal == null) {
-            returnOriginal = Boolean.FALSE;
+            objectState.setValues(unserializeData(value.get(1)));
+            Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
+            if (returnOriginal == null) {
+                returnOriginal = Boolean.FALSE;
+            }
+            if (returnOriginal) {
+                objectState.getExtras().put(ORIGINAL_DATA_EXTRA, value.get(1));
+            }
+            return object;
+        } finally {
+            Profiler.Static.stopThreadEvent(object);
         }
-        if (returnOriginal) {
-            objectState.getExtras().put(ORIGINAL_DATA_EXTRA, value.get(1));
-        }
-        return object;
-
     }
 
     /**
@@ -1652,10 +1662,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         // Use binary log cache if the vendor is MySQL.
         // Bin log reader thread will be running regardless of initial settings
         // as cache can be turned on through CMS later.
-        if (vendor instanceof SqlVendor.MySQL) {
-            if (!isMySQLBinLogReaderThreadRunning()) {
-                spawnMySQLBinaryLogReaderThread();
-            }
+        if (vendor instanceof SqlVendor.MySQL && !isMySQLBinLogReaderThreadRunning()) {
+            spawnMySQLBinaryLogReaderThread();
         }
         LOGGER.debug("SQLDATABASE INITIALIZED");
     }
