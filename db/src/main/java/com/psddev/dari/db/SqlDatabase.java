@@ -370,8 +370,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /** Returns {@code true} if the binary log cache is disabled. */
-    public boolean isDisableBinLogCache() {
-        return disableBinLogCache || Settings.getOrDefault(boolean.class, getSettingsKeyPrefix() + "/" + DISABLE_BIN_LOG_CACHE_SETTING, false);
+    public <T> boolean isDisableBinLogCache(Query<T> query) {
+        return disableBinLogCache || Settings.getOrDefault(boolean.class, getSettingsKeyPrefix() + "/" + DISABLE_BIN_LOG_CACHE_SETTING, false) || !query.isCache();
     }
 
     /** Sets if the binary log cache is disabled. */
@@ -1185,7 +1185,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      */
     public <T> T selectFirstWithOptions(Query<T> query) {
 
-        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache() && !isDisableBinLogCacheInCms(query)) {
+        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache(query) && !isDisableBinLogCacheInCms(query)) {
             List<Object> ids = query.findIdOnlyQueryValues();
             if (ids != null) {
                 for (Object id : ids) {
@@ -1244,7 +1244,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      */
     public <T> List<T> selectListWithOptions(Query<T> query) {
 
-        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache() && !isDisableBinLogCacheInCms(query)) {
+        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache(query) && !isDisableBinLogCacheInCms(query)) {
             List<Object> ids = query.findIdOnlyQueryValues();
             if (ids != null) {
                 List<T> objects = new ArrayList<T>();
