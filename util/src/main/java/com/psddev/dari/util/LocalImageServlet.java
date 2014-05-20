@@ -27,7 +27,7 @@ public class LocalImageServlet extends HttpServlet {
 
         String[] urlAttributes = request.getServletPath().split("/http");
         String imageUrl = "";
-        if (urlAttributes.length == 1  & request.getParameter("url") != null) {
+        if (urlAttributes.length == 1 && request.getParameter("url") != null) {
             imageUrl = request.getParameter("url");
         } else if (urlAttributes.length == 2) {
             imageUrl = "http" + urlAttributes[1];
@@ -37,7 +37,46 @@ public class LocalImageServlet extends HttpServlet {
         }
 
         if (!StringUtils.isBlank(imageUrl)) {
-            String[] parameters = urlAttributes[0].substring(LEGACY_PATH.length()).split("/");
+
+            String imageType = "png";
+            if (imageUrl.endsWith(".jpg") || imageUrl.endsWith(".jpeg")) {
+                imageType = "jpg";
+            } else if (imageUrl.endsWith(".gif")) {
+                imageType = "gif";
+            }
+
+            LocalImageEditor localImageEditor = ObjectUtils.to(LocalImageEditor.class, ImageEditor.Static.getInstance("local"));
+
+            String[] parameters = null;
+            if (!StringUtils.isBlank(localImageEditor.getBaseUrl())) {
+                if (!urlAttributes[0].contains(localImageEditor.getBasePath())) {
+                    response.sendError(404);
+                    return;
+                }
+                parameters = urlAttributes[0].substring(localImageEditor.getBasePath().length() + 1).split("/");
+
+                //Verify key
+                if (!StringUtils.isBlank(localImageEditor.getSharedSecret())) {
+                    StringBuilder commandsBuilder = new StringBuilder();
+                    for (int i = 2; i < parameters.length; i++) {
+                        commandsBuilder.append(StringUtils.encodeUri(parameters[i]))
+                                       .append('/');
+                    }
+
+                    Long expireTs = (long) Integer.MAX_VALUE;
+                    String signature = expireTs + localImageEditor.getSharedSecret() + StringUtils.decodeUri("/" + commandsBuilder.toString()) + imageUrl;
+
+                    String md5Hex = StringUtils.hex(StringUtils.md5(signature));
+                    String requestSig = md5Hex.substring(0, 7);
+
+                    if (!parameters[0].equals(requestSig) || !parameters[1].equals(expireTs.toString())) {
+                        response.sendError(404);
+                        return;
+                    }
+                }
+            } else {
+                parameters = urlAttributes[0].substring(LEGACY_PATH.length()).split("/");
+            }
 
             BufferedImage bufferedImage;
             if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(LocalImageEditor.TIFF_READER_CLASS) != null) {
@@ -49,8 +88,6 @@ public class LocalImageServlet extends HttpServlet {
             if (bufferedImage == null) {
                 throw new IOException(String.format("Unable to process image %s", imageUrl));
             }
-
-            LocalImageEditor localImageEditor = ObjectUtils.to(LocalImageEditor.class, ImageEditor.Static.getInstance("local"));
 
             Scalr.Method quality = null;
             for (int i = 0; i < parameters.length; i = i + 2) {
@@ -190,14 +227,9 @@ public class LocalImageServlet extends HttpServlet {
                     bufferedImage = LocalImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
                 } else if (command.equals("sepia")) {
                     bufferedImage = LocalImageEditor.sepia(bufferedImage);
+                } else if (command.equals("format")) {
+                    imageType = value;
                 }
-            }
-
-            String imageType = "png";
-            if (imageUrl.endsWith(".jpg") || imageUrl.endsWith(".jpeg")) {
-                imageType = "jpg";
-            } else if (imageUrl.endsWith(".gif")) {
-                imageType = "gif";
             }
 
             response.setContentType("image/" + imageType);
@@ -206,7 +238,7 @@ public class LocalImageServlet extends HttpServlet {
 
             out.close();
         } else {
-            response.getWriter().write("error");
+            throw new IOException("No source image provided");
         }
     }
 

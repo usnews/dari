@@ -4,14 +4,10 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
 import org.imgscalr.Scalr;
 import org.slf4j.Logger;
@@ -21,6 +17,7 @@ public class LocalImageEditor extends AbstractImageEditor {
 
     private static final String DEFAULT_IMAGE_FORMAT = "png";
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/" + DEFAULT_IMAGE_FORMAT;
+    private static final String DEFAULT_SECRET = "secret!";
     /** Setting key for quality to use for the output images. */
     private static final String QUALITY_SETTING = "quality";
 
@@ -29,6 +26,10 @@ public class LocalImageEditor extends AbstractImageEditor {
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
 
     private Scalr.Method quality = Scalr.Method.AUTOMATIC;
+    private String baseUrl;
+    private String basePath;
+    private String sharedSecret;
+
 
     public Scalr.Method getQuality() {
         return quality;
@@ -38,166 +39,163 @@ public class LocalImageEditor extends AbstractImageEditor {
         this.quality = quality;
     }
 
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public String getBasePath() {
+        if (StringUtils.isBlank(basePath) && !(StringUtils.isBlank(baseUrl))) {
+            basePath = baseUrl.substring(baseUrl.indexOf("//") + 2);
+            basePath = basePath.substring(basePath.indexOf("/") + 1);
+            if (!basePath.endsWith("/")) {
+                basePath += "/";
+            }
+        }
+        return basePath;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    public String getSharedSecret() {
+        return sharedSecret;
+    }
+
+    public void setSharedSecret(String sharedSecret) {
+        this.sharedSecret = sharedSecret;
+    }
+
     @Override
     public StorageItem edit(StorageItem storageItem, String command, Map<String, Object> options, Object... arguments) {
-        BufferedImage bufferedImage = null;
-        ByteArrayOutputStream ouputStream = new ByteArrayOutputStream();
 
-        try {
-            StringBuilder imageUrl = new StringBuilder();
-            if (storageItem.getPublicUrl().startsWith("http") || PageContextFilter.Static.getRequest() == null) {
-                imageUrl.append(storageItem.getPublicUrl());
-            } else {
-                HttpServletRequest request = PageContextFilter.Static.getRequest();
-
-                imageUrl.append("http");
-                if (request.isSecure()) {
-                    imageUrl.append("s");
-                }
-                imageUrl.append("://");
-                imageUrl.append(request.getServerName());
-
-                if (request.getServerPort() != 80 && request.getServerPort() != 443) {
-                    imageUrl.append(":")
-                            .append(request.getServerPort());
-                }
-                imageUrl.append(storageItem.getPublicUrl());
-
-            }
-
-            if ((storageItem.getPublicUrl().endsWith("tif") || storageItem.getPublicUrl().endsWith("tiff")) && ObjectUtils.getClassByName(TIFF_READER_CLASS) != null) {
-                bufferedImage = LocalImageTiffReader.readTiff(imageUrl.toString());
-            } else {
-                bufferedImage = ImageIO.read(new URL(imageUrl.toString()));
-            }
-
-            if (bufferedImage == null) {
-                 LOGGER.error("can't read image " + imageUrl.toString());
-            }
-
-            if (bufferedImage != null) {
-                Object cropOption = options != null ? options.get(ImageEditor.CROP_OPTION) : null;
-
-                if (ImageEditor.CROP_COMMAND.equals(command) &&
-                        options != null &&
-                        options.containsKey(ImageEditor.CROP_OPTION) &&
-                        options.get(ImageEditor.CROP_OPTION).equals(ImageEditor.CROP_OPTION_NONE)) {
-                    return storageItem;
-                }
-
-                Integer width = null;
-                Integer height = null;
-
-                String url = storageItem.getPublicUrl();
-
-                if (url.contains("/" + THUMBNAIL_COMMAND + "/")) {
-                    return storageItem;
-                }
-
-                boolean newLocalImage = !url.contains(LocalImageServlet.LEGACY_PATH);
-
-                StringBuilder path = new StringBuilder();
-                if (newLocalImage) {
-                    path.append(LocalImageServlet.LEGACY_PATH);
-                } else {
-                    path.append("/");
-                }
-
-                if (ImageEditor.CROP_COMMAND.equals(command) &&
-                        ObjectUtils.to(Integer.class, arguments[0]) == null  &&
-                        ObjectUtils.to(Integer.class, arguments[1]) == null) {
-                    path.append(THUMBNAIL_COMMAND);
-                    command = RESIZE_COMMAND;
-                    arguments[0] = arguments[2];
-                    arguments[1] = arguments[3];
-                } else {
-                    path.append(command);
-                }
-                path.append("/");
-
-                if (ImageEditor.CROP_COMMAND.equals(command)) {
-                    Integer x = ObjectUtils.to(Integer.class, arguments[0]);
-                    Integer y = ObjectUtils.to(Integer.class, arguments[1]);
-                    width = ObjectUtils.to(Integer.class, arguments[2]);
-                    height = ObjectUtils.to(Integer.class, arguments[3]);
-                    bufferedImage = crop(bufferedImage, x, y, width, height);
-
-                    path.append(x)
-                        .append("x")
-                        .append(y)
-                        .append("x")
-                        .append(width)
-                        .append("x")
-                        .append(height);
-
-                } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
-                    width = ObjectUtils.to(Integer.class, arguments[0]);
-                    height = ObjectUtils.to(Integer.class, arguments[1]);
-                    bufferedImage = reSize(bufferedImage, width, height, null, null);
-
-                    if (width != null) {
-                        path.append(width);
-                    }
-                    path.append("x");
-                    if (height != null) {
-                        path.append(height);
-                    }
-                    Object resizeOption = options != null ? options.get(ImageEditor.RESIZE_OPTION) : null;
-
-                    if (resizeOption != null &&
-                            (cropOption == null || !cropOption.equals(ImageEditor.CROP_OPTION_AUTOMATIC))) {
-                        if (resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
-                            path.append("!");
-                        } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
-                            path.append(">");
-                        } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
-                            path.append("<");
-                        } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
-                            path.append("^");
-                        }
-                    }
-
-                }
-
-                if (newLocalImage) {
-                    path.append("?url=").append(storageItem.getPublicUrl());
-                } else {
-                    String[] imageParameters = storageItem.getPublicUrl().split("\\?");
-                    path.insert(0, imageParameters[0])
-                        .append("?")
-                        .append(imageParameters[1]);
-                }
-
-                UrlStorageItem newStorageItem = StorageItem.Static.createUrl("");
-
-                String format = DEFAULT_IMAGE_FORMAT;
-                String contentType = DEFAULT_IMAGE_CONTENT_TYPE;
-                if (storageItem.getContentType() != null && storageItem.getContentType().contains("/")) {
-                    contentType = storageItem.getContentType();
-                    format = storageItem.getContentType().split("/")[1];
-                }
-                ImageIO.write(bufferedImage, format, ouputStream);
-                newStorageItem.setData(new ByteArrayInputStream(ouputStream.toByteArray()));
-                newStorageItem.setContentType(contentType);
-
-                Map<String, Object> metaData = storageItem.getMetadata();
-                if (metaData == null) {
-                    metaData = new HashMap<String, Object>();
-                }
-                metaData.put("height", height);
-                metaData.put("width", width);
-                newStorageItem.setMetadata(metaData);
-                newStorageItem.setStorage("");
-                newStorageItem.setPath(path.toString());
-                return newStorageItem;
-            }
-        } catch (MalformedURLException ex) {
-            LOGGER.error(ex.getMessage(), ex);
-        } catch (IOException ex) {
-            LOGGER.error(ex.getMessage(), ex);
+        if (StringUtils.isBlank(this.getBasePath()) && PageContextFilter.Static.getRequest() != null) {
+            setBaseUrlFromRequest(PageContextFilter.Static.getRequest());
+            setSharedSecret(DEFAULT_SECRET);
         }
 
-        return storageItem;
+        if (ImageEditor.CROP_COMMAND.equals(command) &&
+                options != null &&
+                options.containsKey(ImageEditor.CROP_OPTION) &&
+                options.get(ImageEditor.CROP_OPTION).equals(ImageEditor.CROP_OPTION_NONE)) {
+            return storageItem;
+        }
+
+        String imageUrl = storageItem.getPublicUrl();
+        List<String> commands = new ArrayList<String>();
+
+        if (imageUrl.startsWith(this.getBaseUrl()) && imageUrl.contains("?url=")) {
+            String[] imageComponents = imageUrl.split("\\?url=");
+            imageUrl = imageComponents[1];
+
+            String path = imageComponents[0].substring(this.getBaseUrl().length() + 1);
+            for (String parameter : path.split("/")) {
+                commands.add(parameter);
+            }
+
+            if (!StringUtils.isBlank(this.getSharedSecret())) {
+                commands = commands.subList(2, commands.size());
+            }
+        }
+
+        Object cropOption = options != null ? options.get(ImageEditor.CROP_OPTION) : null;
+
+        //TODO: calculate  outputDimension
+        if (ImageEditor.CROP_COMMAND.equals(command) &&
+                        ObjectUtils.to(Integer.class, arguments[0]) == null  &&
+                        ObjectUtils.to(Integer.class, arguments[1]) == null) {
+            commands.add(THUMBNAIL_COMMAND);
+            command = RESIZE_COMMAND;
+            arguments[0] = arguments[2];
+            arguments[1] = arguments[3];
+        } else {
+            commands.add(command);
+        }
+
+        if (ImageEditor.CROP_COMMAND.equals(command)) {
+            commands.add(arguments[0] + "x" + arguments[1] + "x" + arguments[2] + "x" + arguments[3]);
+
+        } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
+            Integer width = ObjectUtils.to(Integer.class, arguments[0]);
+            Integer height = ObjectUtils.to(Integer.class, arguments[1]);
+
+            StringBuilder resizeBuilder = new StringBuilder();
+            if (width != null) {
+                resizeBuilder.append(width);
+            }
+            resizeBuilder.append("x");
+            if (height != null) {
+                resizeBuilder.append(height);
+            }
+            Object resizeOption = options != null ? options.get(ImageEditor.RESIZE_OPTION) : null;
+
+            if (resizeOption != null &&
+                    (cropOption == null || !cropOption.equals(ImageEditor.CROP_OPTION_AUTOMATIC))) {
+                if (resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO)) {
+                    resizeBuilder.append("!");
+                } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
+                    resizeBuilder.append(">");
+                } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
+                    resizeBuilder.append("<");
+                } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
+                    resizeBuilder.append("^");
+                }
+            }
+            commands.add(resizeBuilder.toString());
+
+        }
+
+        StringBuilder storageItemUrlBuilder = new StringBuilder();
+        storageItemUrlBuilder.append(this.getBaseUrl());
+        if (!StringUtils.isBlank(this.getSharedSecret())) {
+            StringBuilder commandsBuilder = new StringBuilder();
+
+            for (String parameter : commands) {
+                commandsBuilder.append(StringUtils.encodeUri(parameter))
+                               .append('/');
+            }
+
+            Long expireTs = (long) Integer.MAX_VALUE;
+            String signature = expireTs + this.getSharedSecret() + StringUtils.decodeUri("/" + commandsBuilder.toString()) + imageUrl;
+
+            String md5Hex = StringUtils.hex(StringUtils.md5(signature));
+            String requestSig = md5Hex.substring(0, 7);
+
+            storageItemUrlBuilder.append(requestSig)
+                .append("/")
+                .append(expireTs.toString())
+                .append("/");
+        }
+
+        for (String parameter : commands) {
+            storageItemUrlBuilder.append(parameter)
+                .append("/");
+        }
+
+        storageItemUrlBuilder.append("?url=")
+                .append(imageUrl);
+
+        UrlStorageItem newStorageItem = StorageItem.Static.createUrl(storageItemUrlBuilder.toString());
+        String format = DEFAULT_IMAGE_FORMAT;
+        String contentType = DEFAULT_IMAGE_CONTENT_TYPE;
+        if (storageItem.getContentType() != null && storageItem.getContentType().contains("/")) {
+            contentType = storageItem.getContentType();
+            format = storageItem.getContentType().split("/")[1];
+        }
+
+        newStorageItem.setContentType(contentType);
+
+        Map<String, Object> metaData = storageItem.getMetadata();
+        if (metaData == null) {
+            metaData = new HashMap<String, Object>();
+        }
+
+        //TODO: calculate  outputDimension and store orignal height/width
+        //metaData.put("height", height);
+        //metaData.put("width", width);
+        newStorageItem.setMetadata(metaData);
+
+        return newStorageItem;
     }
 
     @Override
@@ -215,6 +213,36 @@ public class LocalImageEditor extends AbstractImageEditor {
                 quality = Scalr.Method.valueOf(ObjectUtils.to(String.class, qualitySetting));
             }
         }
+
+        if (!ObjectUtils.isBlank(settings.get("baseUrl"))) {
+            setBaseUrl(ObjectUtils.to(String.class, settings.get("baseUrl")));
+        }
+
+        if (!ObjectUtils.isBlank(settings.get("sharedSecret"))) {
+            setSharedSecret(ObjectUtils.to(String.class, settings.get("sharedSecret")));
+        } else {
+            setSharedSecret(DEFAULT_SECRET);
+        }
+    }
+
+    protected void setBaseUrlFromRequest(HttpServletRequest request) {
+
+        StringBuilder baseUrlBuilder = new StringBuilder();
+        baseUrlBuilder.append("http");
+        if (request.isSecure()) {
+            baseUrlBuilder.append("s");
+        }
+
+        baseUrlBuilder.append("://")
+                .append(request.getServerName());
+
+        if (request.getServerPort() != 80 && request.getServerPort() != 443) {
+            baseUrlBuilder.append(":")
+                    .append(request.getServerPort());
+        }
+
+        baseUrlBuilder.append(LocalImageServlet.LEGACY_PATH);
+        setBaseUrl(baseUrlBuilder.toString());
     }
 
     protected static Scalr.Method findQualityByInteger(Integer quality) {
