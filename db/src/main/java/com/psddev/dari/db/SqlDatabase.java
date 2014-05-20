@@ -1109,13 +1109,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             StringBuilder sqlQuery = new StringBuilder();
 
             sqlQuery.append("SELECT ");
-            vendor.appendIdentifier(sqlQuery, "typeId");
+            vendor.appendIdentifier(sqlQuery, TYPE_ID_COLUMN);
             sqlQuery.append(", ");
-            vendor.appendIdentifier(sqlQuery, "data");
+            vendor.appendIdentifier(sqlQuery, DATA_COLUMN);
             sqlQuery.append(" FROM ");
-            vendor.appendIdentifier(sqlQuery, "Record");
+            vendor.appendIdentifier(sqlQuery, RECORD_TABLE);
             sqlQuery.append(" WHERE ");
-            vendor.appendIdentifier(sqlQuery, "id");
+            vendor.appendIdentifier(sqlQuery, ID_COLUMN);
             sqlQuery.append(" = ");
             vendor.appendUuid(sqlQuery, uuid);
 
