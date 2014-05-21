@@ -188,6 +188,8 @@ public class LocalImageEditor extends AbstractImageEditor {
             }
             commands.add(resizeBuilder.toString());
 
+        } else if (!ObjectUtils.isBlank(arguments)) {
+            commands.add(ObjectUtils.to(String.class, arguments[0]));
         }
 
         StringBuilder storageItemUrlBuilder = new StringBuilder();

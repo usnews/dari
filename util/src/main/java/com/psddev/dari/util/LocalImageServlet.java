@@ -16,7 +16,7 @@ import org.imgscalr.Scalr;
 public class LocalImageServlet extends AbstractFilter implements AbstractFilter.Auto {
     private static final String QUALITY_OPTION = "quality";
     private static final String LEGACY_PATH = "/dims4/";
-    private static final List<String> BASIC_COMMANDS = Arrays.asList("grayscale", "invert", "rotate", "sepia", "circle", "star", "starburst"); //Commands that don't require a value
+    private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV"); //Commands that don't require a value
     private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
 
     private static String servletPath = "/_image/";
@@ -251,6 +251,10 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     } else if (value.equals("vertical")) {
                         bufferedImage = localImageEditor.flipVertical(bufferedImage);
                     }
+                } else if (command.equals("flipH")) {
+                    bufferedImage = localImageEditor.flipHorizontal(bufferedImage);
+                } else if (command.equals("flipV")) {
+                    bufferedImage = localImageEditor.flipVertical(bufferedImage);
                 } else if (command.equals("invert")) {
                     bufferedImage = localImageEditor.invert(bufferedImage);
 
