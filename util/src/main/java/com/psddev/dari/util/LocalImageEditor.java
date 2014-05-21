@@ -17,7 +17,6 @@ public class LocalImageEditor extends AbstractImageEditor {
 
     private static final String DEFAULT_IMAGE_FORMAT = "png";
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/" + DEFAULT_IMAGE_FORMAT;
-    private static final String DEFAULT_SECRET = "secret!";
     private static final String ORIGINAL_WIDTH_METADATA_PATH = "image/originalWidth";
     private static final String ORIGINAL_HEIGHT_METADATA_PATH = "image/originalHeight";
 
@@ -74,7 +73,6 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         if (StringUtils.isBlank(this.getBasePath()) && PageContextFilter.Static.getRequest() != null) {
             setBaseUrlFromRequest(PageContextFilter.Static.getRequest());
-            setSharedSecret(DEFAULT_SECRET);
         }
 
         if (ImageEditor.CROP_COMMAND.equals(command) &&
@@ -283,8 +281,6 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         if (!ObjectUtils.isBlank(settings.get("sharedSecret"))) {
             setSharedSecret(ObjectUtils.to(String.class, settings.get("sharedSecret")));
-        } else {
-            setSharedSecret(DEFAULT_SECRET);
         }
     }
 
