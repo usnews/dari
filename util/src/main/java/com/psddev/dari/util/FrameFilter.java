@@ -39,7 +39,7 @@ public class FrameFilter extends AbstractFilter {
         } else {
             String name = request.getParameter(NAME_PARAMETER);
 
-            DiscardingResponse discarding = new DiscardingResponse(response, path + (name != null ? name : ""));
+            DiscardingResponse discarding = new DiscardingResponse(response, path + (name != null ? "_" + name : ""));
 
             request.setAttribute(DISCARDING_RESPONSE_ATTRIBUTE, discarding);
             chain.doFilter(request, discarding);
