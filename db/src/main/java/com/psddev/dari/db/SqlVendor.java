@@ -713,7 +713,7 @@ public class SqlVendor {
 
     public String getSelectTimestampMillisSql() {
         // This should return the entire select statement, including the SELECT and FROM clauses, if necessary.
-        throw new DatabaseException(this.getDatabase(), "getTimestampSelectSql is not implemented for this vendor.");
+        return null;
     }
 
     /* ******************* METRICS ******************* */
@@ -808,6 +808,7 @@ public class SqlVendor {
         public String convertRawToStringSql(String field) {
             return "UTF8TOSTRING(" + field + ")";
         }
+
     }
 
     public static class MySQL extends SqlVendor {

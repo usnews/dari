@@ -538,23 +538,25 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             ResultSet result = null;
             Long nowOffsetMillis = 0L;
 
-            try {
-                connection = openConnection();
-            } catch (DatabaseException error) {
-                LOGGER.debug("Can't read timestamp from the writable server!", error);
-                connection = openReadConnection();
-            }
-
-            try {
-                statement = connection.createStatement();
-                result = statement.executeQuery(selectSql);
-                if (result.next()) {
-                    nowOffsetMillis = System.currentTimeMillis() - result.getLong(1);
+            if (selectSql != null) {
+                try {
+                    connection = openConnection();
+                } catch (DatabaseException error) {
+                    LOGGER.debug("Can't read timestamp from the writable server!", error);
+                    connection = openReadConnection();
                 }
-            } catch (SQLException ex) {
-                throw createQueryException(ex, selectSql, null);
-            } finally {
-                closeResources(null, connection, statement, result);
+
+                try {
+                    statement = connection.createStatement();
+                    result = statement.executeQuery(selectSql);
+                    if (result.next()) {
+                        nowOffsetMillis = System.currentTimeMillis() - result.getLong(1);
+                    }
+                } catch (SQLException ex) {
+                    throw createQueryException(ex, selectSql, null);
+                } finally {
+                    closeResources(null, connection, statement, result);
+                }
             }
 
             return nowOffsetMillis;
