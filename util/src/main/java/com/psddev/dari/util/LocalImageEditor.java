@@ -18,6 +18,9 @@ public class LocalImageEditor extends AbstractImageEditor {
     private static final String DEFAULT_IMAGE_FORMAT = "png";
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/" + DEFAULT_IMAGE_FORMAT;
     private static final String DEFAULT_SECRET = "secret!";
+    private static final String ORIGINAL_WIDTH_METADATA_PATH = "image/originalWidth";
+    private static final String ORIGINAL_HEIGHT_METADATA_PATH = "image/originalHeight";
+
     /** Setting key for quality to use for the output images. */
     private static final String QUALITY_SETTING = "quality";
 
@@ -100,7 +103,28 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         Object cropOption = options != null ? options.get(ImageEditor.CROP_OPTION) : null;
 
-        //TODO: calculate  outputDimension
+        Dimension originalDimension = null;
+        Dimension outputDimension = null;
+
+        Map<String, Object> oldMetadata = storageItem.getMetadata();
+        if (oldMetadata != null) {
+            Integer originalWidth = null;
+            Integer originalHeight = null;
+            // grab the original width and height of the image
+            originalWidth = ObjectUtils.to(Integer.class,
+                    CollectionUtils.getByPath(oldMetadata, ORIGINAL_WIDTH_METADATA_PATH));
+            if (originalWidth == null) {
+                originalWidth = ObjectUtils.to(Integer.class, oldMetadata.get("width"));
+            }
+
+            originalHeight = ObjectUtils.to(Integer.class,
+                    CollectionUtils.getByPath(oldMetadata, ORIGINAL_HEIGHT_METADATA_PATH));
+            if (originalHeight == null) {
+                originalHeight = ObjectUtils.to(Integer.class, oldMetadata.get("height"));
+            }
+            originalDimension = new Dimension(originalWidth, originalHeight);
+        }
+
         if (ImageEditor.CROP_COMMAND.equals(command) &&
                         ObjectUtils.to(Integer.class, arguments[0]) == null  &&
                         ObjectUtils.to(Integer.class, arguments[1]) == null) {
@@ -113,7 +137,14 @@ public class LocalImageEditor extends AbstractImageEditor {
         }
 
         if (ImageEditor.CROP_COMMAND.equals(command)) {
-            commands.add(arguments[0] + "x" + arguments[1] + "x" + arguments[2] + "x" + arguments[3]);
+            Integer width = ObjectUtils.to(Integer.class, arguments[2]);
+            Integer height = ObjectUtils.to(Integer.class, arguments[3]);
+
+            commands.add(arguments[0] + "x" + arguments[1] + "x" + width + "x" + height);
+            if (originalDimension != null) {
+                outputDimension = new Dimension(Math.min(originalDimension.width, width),
+                                                Math.min(originalDimension.height, height));
+            }
 
         } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
             Integer width = ObjectUtils.to(Integer.class, arguments[0]);
@@ -135,11 +166,26 @@ public class LocalImageEditor extends AbstractImageEditor {
                     resizeBuilder.append("!");
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
                     resizeBuilder.append(">");
+                    if (originalDimension != null && width != null && height != null) {
+                        outputDimension = new Dimension(Math.min(originalDimension.width, width),
+                                                        Math.min(originalDimension.height, height));
+                    }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
                     resizeBuilder.append("<");
+                    if (originalDimension != null && width != null && height != null) {
+                        outputDimension = new Dimension(Math.max(originalDimension.width, width),
+                                                        Math.max(originalDimension.height, height));
+                    }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
                     resizeBuilder.append("^");
                 }
+            }
+
+            if (originalDimension != null && width != null && height != null && (resizeOption == null ||
+                    resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO) ||
+                    resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA))) {
+                outputDimension = new Dimension(Math.min(originalDimension.width, width),
+                                                Math.min(originalDimension.height, height));
             }
             commands.add(resizeBuilder.toString());
 
@@ -185,15 +231,28 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         newStorageItem.setContentType(contentType);
 
-        Map<String, Object> metaData = storageItem.getMetadata();
-        if (metaData == null) {
-            metaData = new HashMap<String, Object>();
+        Map<String, Object> metadata = storageItem.getMetadata();
+        if (metadata == null) {
+            metadata = new HashMap<String, Object>();
         }
 
-        //TODO: calculate  outputDimension and store orignal height/width
-        //metaData.put("height", height);
-        //metaData.put("width", width);
-        newStorageItem.setMetadata(metaData);
+        // store the new width and height in the metadata map
+        if (outputDimension != null && outputDimension.width != null) {
+            metadata.put("width", outputDimension.width);
+        }
+        if (outputDimension != null && outputDimension.height != null) {
+            metadata.put("height", outputDimension.height);
+        }
+
+        // store the original width and height in the map for use with future image edits.
+        if (originalDimension != null && originalDimension.width != null) {
+            CollectionUtils.putByPath(metadata, ORIGINAL_WIDTH_METADATA_PATH, originalDimension.width);
+        }
+        if (originalDimension != null && originalDimension.height != null) {
+            CollectionUtils.putByPath(metadata, ORIGINAL_HEIGHT_METADATA_PATH, originalDimension.height);
+        }
+
+        newStorageItem.setMetadata(metadata);
 
         return newStorageItem;
     }
