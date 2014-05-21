@@ -11,13 +11,10 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class LocalImageServlet extends AbstractFilter implements AbstractFilter.Auto {
     private static final String QUALITY_OPTION = "quality";
     private static final String LEGACY_PATH = "/dims4/";
-    protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
 
     private static String servletPath = "/_image/";
 

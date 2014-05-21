@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import org.imgscalr.Scalr;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class LocalImageEditor extends AbstractImageEditor {
 
@@ -25,7 +23,6 @@ public class LocalImageEditor extends AbstractImageEditor {
 
     protected static final String TIFF_READER_CLASS = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageReaderSpi";
     protected static final String THUMBNAIL_COMMAND = "thumbnail";
-    private static final Logger LOGGER = LoggerFactory.getLogger(LocalImageEditor.class);
 
     private Scalr.Method quality = Scalr.Method.AUTOMATIC;
     private String baseUrl;
