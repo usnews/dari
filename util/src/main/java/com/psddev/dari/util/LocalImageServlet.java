@@ -16,7 +16,7 @@ import org.imgscalr.Scalr;
 public class LocalImageServlet extends AbstractFilter implements AbstractFilter.Auto {
     private static final String QUALITY_OPTION = "quality";
     private static final String LEGACY_PATH = "/dims4/";
-    private static final List<String> BASIC_COMMMANDS = Arrays.asList("grayscale", "invert", "rotate", "sepia"); //Commands that don't require a value
+    private static final List<String> BASIC_COMMMANDS = Arrays.asList("grayscale", "invert", "rotate", "sepia", "circle", "star", "starburst"); //Commands that don't require a value
 
     private static String servletPath = "/_image/";
 
@@ -251,7 +251,17 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     bufferedImage = LocalImageEditor.sepia(bufferedImage);
                 } else if (command.equals("format")) {
                     imageType = value;
+                } else if (command.equals("circle")) {
+                    bufferedImage = LocalImageEditor.circle(bufferedImage);
+                    imageType = "png";
+                } else if (command.equals("star")) {
+                    bufferedImage = LocalImageEditor.star(bufferedImage);
+                    imageType = "png";
+                } else if (command.equals("starburst")) {
+                    bufferedImage = LocalImageEditor.starburst(bufferedImage);
+                    imageType = "png";
                 }
+
 
                 //shift offset if basic command has no value
                 if (BASIC_COMMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true")) {

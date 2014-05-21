@@ -1,8 +1,12 @@
 package com.psddev.dari.util;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Polygon;
+import java.awt.RenderingHints;
+import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -535,6 +539,233 @@ public class LocalImageEditor extends AbstractImageEditor {
         }
 
         return resultImage;
+    }
+
+    public static BufferedImage circle(BufferedImage sourceImage) {
+        return roundCorners(sourceImage, 20);
+    }
+
+    public static BufferedImage roundCorners(BufferedImage sourceImage, int cornerRadius) {
+        int w = sourceImage.getWidth();
+        int h = sourceImage.getHeight();
+        int cropX = 0;
+        int cropY = 0;
+
+        if (h > w) {
+            h = w;
+            cropY = ((sourceImage.getHeight() - h) / 2);
+        } else if (w > h) {
+            w = h;
+            cropX = ((sourceImage.getWidth() - w) / 2);
+        }
+
+        sourceImage = sourceImage.getSubimage(cropX, cropY, w, h);
+
+        BufferedImage resultImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        Graphics2D g2 = resultImage.createGraphics();
+        g2.setComposite(AlphaComposite.Src);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(Color.WHITE);
+        g2.fill(new Ellipse2D.Float(0, 0, w , h));
+
+        // using the white shape from above as alpha source
+        g2.setComposite(AlphaComposite.SrcAtop);
+        g2.drawImage(sourceImage, 0, 0, null);
+
+        g2.dispose();
+
+        return resultImage;
+    }
+
+    public static BufferedImage star(BufferedImage sourceImage) {
+        int w = sourceImage.getWidth();
+        int h = sourceImage.getHeight();
+        int cropX = 0;
+        int cropY = 0;
+
+        if (h > w) {
+            h = w;
+            cropY = ((sourceImage.getHeight() - h) / 2);
+        } else if (w > h) {
+            w = h;
+            cropX = ((sourceImage.getWidth() - w) / 2);
+        }
+
+        sourceImage = sourceImage.getSubimage(cropX, cropY, w, h);
+
+        BufferedImage output = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        Graphics2D g2 = output.createGraphics();
+        g2.setComposite(AlphaComposite.Src);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(Color.BLUE);
+
+        Polygon starPolygon = new Polygon();
+        addPoint(starPolygon, h, 50, 0);
+        addPoint(starPolygon, h, 65, 34);
+        addPoint(starPolygon, h, 97, 39);
+        addPoint(starPolygon, h, 73, 60);
+        addPoint(starPolygon, h, 79, 93);
+
+        addPoint(starPolygon, h, 50, 78);
+
+        addPoint(starPolygon, h, 21, 93);
+        addPoint(starPolygon, h, 22, 60);
+        addPoint(starPolygon, h, 3 , 39);
+        addPoint(starPolygon, h, 35, 34);
+        addPoint(starPolygon, h, 50, 0);
+
+        g2.fillPolygon(starPolygon);
+
+        // using the white shape from above as alpha source
+        g2.setComposite(AlphaComposite.SrcAtop);
+        g2.drawImage(sourceImage, 0, 0, null);
+
+        g2.dispose();
+
+        return output;
+    }
+
+    public static BufferedImage starburst(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int cropX = 0;
+        int cropY = 0;
+
+        if (h > w) {
+            h = w;
+            cropY = ((image.getHeight() - h) / 2);
+        } else if (w > h) {
+            w = h;
+            cropX = ((image.getWidth() - w) / 2);
+        }
+
+        image = image.getSubimage(cropX, cropY, w, h);
+
+        BufferedImage output = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        Graphics2D g2 = output.createGraphics();
+        g2.setComposite(AlphaComposite.Src);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(Color.BLUE);
+
+        Polygon starPolygon = new Polygon();
+
+        addPoint(starPolygon, h, 50, 0);
+        addPoint(starPolygon, h, 53, 5);
+        addPoint(starPolygon, h, 58, 1);
+        addPoint(starPolygon, h, 60, 5);
+        addPoint(starPolygon, h, 65, 2);
+        addPoint(starPolygon, h, 66, 7);
+        addPoint(starPolygon, h, 72, 5);
+        addPoint(starPolygon, h, 72, 10);
+        addPoint(starPolygon, h, 78, 8);
+        addPoint(starPolygon, h, 78, 13);
+        addPoint(starPolygon, h, 83, 12);
+        addPoint(starPolygon, h, 83, 17);
+        addPoint(starPolygon, h, 88, 17);
+        addPoint(starPolygon, h, 88, 23);
+        addPoint(starPolygon, h, 92, 24);
+        addPoint(starPolygon, h, 91, 29);
+        addPoint(starPolygon, h, 96, 30);
+        addPoint(starPolygon, h, 94, 35);
+        addPoint(starPolygon, h, 99, 37);
+        addPoint(starPolygon, h, 94, 42);
+        addPoint(starPolygon, h, 99, 45);
+
+        addPoint(starPolygon, h, 96, 48);
+        addPoint(starPolygon, h, 100, 52);
+        addPoint(starPolygon, h, 95, 54);
+        addPoint(starPolygon, h, 99, 59);
+        addPoint(starPolygon, h, 94, 61);
+        addPoint(starPolygon, h, 97, 66);
+        addPoint(starPolygon, h, 93, 67);
+        addPoint(starPolygon, h, 94, 72);
+        addPoint(starPolygon, h, 90, 73);
+        addPoint(starPolygon, h, 90, 79);
+        addPoint(starPolygon, h, 85, 79);
+        addPoint(starPolygon, h, 86, 84);
+        addPoint(starPolygon, h, 80, 83);
+        addPoint(starPolygon, h, 81, 89);
+        addPoint(starPolygon, h, 76, 88);
+        addPoint(starPolygon, h, 75, 93);
+        addPoint(starPolygon, h, 70, 91);
+        addPoint(starPolygon, h, 68, 96);
+        addPoint(starPolygon, h, 64, 93);
+        addPoint(starPolygon, h, 61, 98);
+        addPoint(starPolygon, h, 57, 95);
+        addPoint(starPolygon, h, 54, 99);
+
+        addPoint(starPolygon, h, 50, 95);
+        addPoint(starPolygon, h, 46, 99);
+        addPoint(starPolygon, h, 43, 94);
+        addPoint(starPolygon, h, 39, 98);
+        addPoint(starPolygon, h, 37, 93);
+        addPoint(starPolygon, h, 32, 95);
+        addPoint(starPolygon, h, 31, 91);
+        addPoint(starPolygon, h, 26, 92);
+        addPoint(starPolygon, h, 25, 87);
+        addPoint(starPolygon, h, 20, 89);
+        addPoint(starPolygon, h, 20, 83);
+        addPoint(starPolygon, h, 14, 84);
+        addPoint(starPolygon, h, 15, 78);
+        addPoint(starPolygon, h, 9, 78);
+        addPoint(starPolygon, h, 11, 74);
+        addPoint(starPolygon, h, 6, 72);
+        addPoint(starPolygon, h, 8, 67);
+        addPoint(starPolygon, h, 3, 65);
+        addPoint(starPolygon, h, 6, 60);
+        addPoint(starPolygon, h, 1, 58);
+        addPoint(starPolygon, h, 5, 55);
+        addPoint(starPolygon, h, 0, 51);
+
+        addPoint(starPolygon, h, 5, 48);
+        addPoint(starPolygon, h, 0, 44);
+        addPoint(starPolygon, h, 6, 41);
+        addPoint(starPolygon, h, 2, 37);
+        addPoint(starPolygon, h, 7, 35);
+        addPoint(starPolygon, h, 5, 30);
+        addPoint(starPolygon, h, 9, 28);
+        addPoint(starPolygon, h, 7, 23);
+        addPoint(starPolygon, h, 13, 23);
+        addPoint(starPolygon, h, 12, 18);
+        addPoint(starPolygon, h, 17, 18);
+        addPoint(starPolygon, h, 17, 12);
+        addPoint(starPolygon, h, 22, 13);
+        addPoint(starPolygon, h, 23, 8);
+        addPoint(starPolygon, h, 28, 10);
+        addPoint(starPolygon, h, 29, 4);
+        addPoint(starPolygon, h, 34, 7);
+        addPoint(starPolygon, h, 35, 2);
+        addPoint(starPolygon, h, 40, 5);
+        addPoint(starPolygon, h, 43, 0);
+        addPoint(starPolygon, h, 47, 4);
+
+        addPoint(starPolygon, h, 50, 0);
+
+        g2.fillPolygon(starPolygon);
+
+        // using the white shape from above as alpha source
+        g2.setComposite(AlphaComposite.SrcAtop);
+        g2.drawImage(image, 0, 0, null);
+
+        g2.dispose();
+
+        return output;
+    }
+
+    private static void addPoint(Polygon polygon, int h, int x, int y) {
+        if (x > 0) {
+            Double size = h * (x / 100.0);
+            x = size.intValue();
+        }
+
+        if (y > 0) {
+            Double size = h * (y / 100.0);
+            y = size.intValue();
+        }
+        polygon.addPoint(x, y);
     }
 
     private static int adjustColor(int color, int multiply, int add) {
