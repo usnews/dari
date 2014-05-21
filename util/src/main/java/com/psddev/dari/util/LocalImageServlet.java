@@ -16,7 +16,8 @@ import org.imgscalr.Scalr;
 public class LocalImageServlet extends AbstractFilter implements AbstractFilter.Auto {
     private static final String QUALITY_OPTION = "quality";
     private static final String LEGACY_PATH = "/dims4/";
-    private static final List<String> BASIC_COMMMANDS = Arrays.asList("grayscale", "invert", "rotate", "sepia", "circle", "star", "starburst"); //Commands that don't require a value
+    private static final List<String> BASIC_COMMANDS = Arrays.asList("grayscale", "invert", "rotate", "sepia", "circle", "star", "starburst"); //Commands that don't require a value
+    private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
 
     private static String servletPath = "/_image/";
 
@@ -125,7 +126,11 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
 
             for (int i = 0; i < parameters.length; i = i + 2) {
                 String command = parameters[i];
-                String value = i + 1 < parameters.length ? parameters[i + 1] : null;
+                String value = i + 1 < parameters.length ? parameters[i + 1] : "";
+
+                if (!BASIC_COMMANDS.contains(command) && StringUtils.isBlank(value)) {
+                    throw new IOException(String.format("No value for %s command", command));
+                }
 
                 if (command.equals(ImageEditor.RESIZE_COMMAND)) {
                     String option = null;
@@ -230,13 +235,16 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                             bufferedImage = localImageEditor.crop(bufferedImage, 0, 0, width, height);
                         }
                     }
+
                 } else if (command.equals("grayscale")) {
                     bufferedImage = localImageEditor.grayscale(bufferedImage);
+
                 } else if (command.equals("brightness")) {
                     String[] wh = value.split("x");
                     Integer brightness = Integer.valueOf(wh[0]);
                     Integer contrast = Integer.valueOf(wh[1]);
                     bufferedImage = localImageEditor.brightness(bufferedImage, brightness, contrast);
+
                 } else if (command.equals("flipflop")) {
                     if (value.equals("horizontal")) {
                         bufferedImage = localImageEditor.flipHorizontal(bufferedImage);
@@ -245,26 +253,33 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     }
                 } else if (command.equals("invert")) {
                     bufferedImage = localImageEditor.invert(bufferedImage);
+
                 } else if (command.equals("rotate")) {
                     bufferedImage = localImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
+
                 } else if (command.equals("sepia")) {
                     bufferedImage = localImageEditor.sepia(bufferedImage);
+
                 } else if (command.equals("format")) {
                     imageType = value;
+
                 } else if (command.equals("circle")) {
                     bufferedImage = localImageEditor.circle(bufferedImage);
-                    imageType = "png";
+
                 } else if (command.equals("star")) {
                     bufferedImage = localImageEditor.star(bufferedImage);
-                    imageType = "png";
+
                 } else if (command.equals("starburst")) {
                     bufferedImage = localImageEditor.starburst(bufferedImage);
+
+                }
+
+                if (PNG_COMMANDS.contains(command)) {
                     imageType = "png";
                 }
 
-
                 //shift offset if basic command has no value
-                if (BASIC_COMMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true")) {
+                if (BASIC_COMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true")) {
                     i = i - 1;
                 }
             }
