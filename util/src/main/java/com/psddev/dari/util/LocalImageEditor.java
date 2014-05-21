@@ -305,7 +305,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         setBaseUrl(baseUrlBuilder.toString());
     }
 
-    protected static Scalr.Method findQualityByInteger(Integer quality) {
+    protected Scalr.Method findQualityByInteger(Integer quality) {
         if (quality >= 80) {
             return Scalr.Method.ULTRA_QUALITY;
         } else if (quality >= 60) {
@@ -376,7 +376,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         return null;
     }
 
-    public static BufferedImage crop(BufferedImage bufferedImage, Integer x, Integer y, Integer width, Integer height) {
+    public BufferedImage crop(BufferedImage bufferedImage, Integer x, Integer y, Integer width, Integer height) {
 
         if (width != null || height != null) {
             if (height == null) {
@@ -407,7 +407,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         return null;
     }
 
-    public static BufferedImage grayscale(BufferedImage sourceImage) {
+    public BufferedImage grayscale(BufferedImage sourceImage) {
         BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         Graphics g = resultImage.getGraphics();
         g.drawImage(sourceImage, 0, 0, null);
@@ -415,7 +415,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
-    public static BufferedImage brightness(BufferedImage sourceImage, int brightness, int contrast) {
+    public BufferedImage brightness(BufferedImage sourceImage, int brightness, int contrast) {
         BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
 
         int multiply = 100;
@@ -456,15 +456,15 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
-    public static BufferedImage flipHorizontal(BufferedImage sourceImage) {
+    public BufferedImage flipHorizontal(BufferedImage sourceImage) {
         return Scalr.rotate(sourceImage, Scalr.Rotation.FLIP_HORZ);
     }
 
-    public static BufferedImage flipVertical(BufferedImage sourceImage) {
+    public BufferedImage flipVertical(BufferedImage sourceImage) {
         return Scalr.rotate(sourceImage, Scalr.Rotation.FLIP_VERT);
     }
 
-    public static BufferedImage invert(BufferedImage sourceImage) {
+    public BufferedImage invert(BufferedImage sourceImage) {
         BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
 
         for (int x = 0; x < sourceImage.getWidth(); x++) {
@@ -484,7 +484,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
-    public static BufferedImage rotate(BufferedImage sourceImage, int degrees) {
+    public BufferedImage rotate(BufferedImage sourceImage, int degrees) {
         Scalr.Rotation rotation;
         if (degrees == 90) {
             rotation = Scalr.Rotation.CW_90;
@@ -513,7 +513,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         return Scalr.rotate(sourceImage, rotation);
     }
 
-    public static BufferedImage sepia(BufferedImage sourceImage) {
+    public BufferedImage sepia(BufferedImage sourceImage) {
         BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
 
         for (int x = 0; x < sourceImage.getWidth(); x++) {
@@ -541,11 +541,11 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
-    public static BufferedImage circle(BufferedImage sourceImage) {
+    public BufferedImage circle(BufferedImage sourceImage) {
         return roundCorners(sourceImage, 20);
     }
 
-    public static BufferedImage roundCorners(BufferedImage sourceImage, int cornerRadius) {
+    public BufferedImage roundCorners(BufferedImage sourceImage, int cornerRadius) {
         int w = sourceImage.getWidth();
         int h = sourceImage.getHeight();
         int cropX = 0;
@@ -578,7 +578,7 @@ public class LocalImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
-    public static BufferedImage star(BufferedImage sourceImage) {
+    public BufferedImage star(BufferedImage sourceImage) {
         int w = sourceImage.getWidth();
         int h = sourceImage.getHeight();
         int cropX = 0;
@@ -594,9 +594,9 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         sourceImage = sourceImage.getSubimage(cropX, cropY, w, h);
 
-        BufferedImage output = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage resultImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
 
-        Graphics2D g2 = output.createGraphics();
+        Graphics2D g2 = resultImage.createGraphics();
         g2.setComposite(AlphaComposite.Src);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setColor(Color.BLUE);
@@ -624,10 +624,10 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         g2.dispose();
 
-        return output;
+        return resultImage;
     }
 
-    public static BufferedImage starburst(BufferedImage image) {
+    public BufferedImage starburst(BufferedImage image) {
         int w = image.getWidth();
         int h = image.getHeight();
         int cropX = 0;
@@ -643,9 +643,9 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         image = image.getSubimage(cropX, cropY, w, h);
 
-        BufferedImage output = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage resultImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
 
-        Graphics2D g2 = output.createGraphics();
+        Graphics2D g2 = resultImage.createGraphics();
         g2.setComposite(AlphaComposite.Src);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setColor(Color.BLUE);
@@ -752,7 +752,7 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         g2.dispose();
 
-        return output;
+        return resultImage;
     }
 
     private static void addPoint(Polygon polygon, int h, int x, int y) {

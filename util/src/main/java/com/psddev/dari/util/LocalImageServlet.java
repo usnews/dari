@@ -99,7 +99,7 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
             }
 
             BufferedImage bufferedImage;
-            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(LocalImageEditor.TIFF_READER_CLASS) != null) {
+            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(localImageEditor.TIFF_READER_CLASS) != null) {
                 bufferedImage = LocalImageTiffReader.readTiff(imageUrl);
             } else {
                 bufferedImage = ImageIO.read(new URL(imageUrl));
@@ -118,7 +118,7 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     try {
                         quality = Scalr.Method.valueOf(Scalr.Method.class, value.toUpperCase());
                     } catch (IllegalArgumentException ex) {
-                        quality = LocalImageEditor.findQualityByInteger(Integer.parseInt(value));
+                        quality = localImageEditor.findQualityByInteger(Integer.parseInt(value));
                     }
                 }
             }
@@ -184,9 +184,9 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                         height = parseInteger(size[1]);
                     }
 
-                    bufferedImage = LocalImageEditor.crop(bufferedImage, x, y, width, height);
+                    bufferedImage = localImageEditor.crop(bufferedImage, x, y, width, height);
 
-                } else if (command.equals(LocalImageEditor.THUMBNAIL_COMMAND)) {
+                } else if (command.equals(localImageEditor.THUMBNAIL_COMMAND)) {
                     String option = null;
 
                     if (value.endsWith("!")) {
@@ -227,38 +227,38 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                         }
 
                         if (width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
-                            bufferedImage = LocalImageEditor.crop(bufferedImage, 0, 0, width, height);
+                            bufferedImage = localImageEditor.crop(bufferedImage, 0, 0, width, height);
                         }
                     }
                 } else if (command.equals("grayscale")) {
-                    bufferedImage = LocalImageEditor.grayscale(bufferedImage);
+                    bufferedImage = localImageEditor.grayscale(bufferedImage);
                 } else if (command.equals("brightness")) {
                     String[] wh = value.split("x");
                     Integer brightness = Integer.valueOf(wh[0]);
                     Integer contrast = Integer.valueOf(wh[1]);
-                    bufferedImage = LocalImageEditor.brightness(bufferedImage, brightness, contrast);
+                    bufferedImage = localImageEditor.brightness(bufferedImage, brightness, contrast);
                 } else if (command.equals("flipflop")) {
                     if (value.equals("horizontal")) {
-                        bufferedImage = LocalImageEditor.flipHorizontal(bufferedImage);
+                        bufferedImage = localImageEditor.flipHorizontal(bufferedImage);
                     } else if (value.equals("vertical")) {
-                        bufferedImage = LocalImageEditor.flipVertical(bufferedImage);
+                        bufferedImage = localImageEditor.flipVertical(bufferedImage);
                     }
                 } else if (command.equals("invert")) {
-                    bufferedImage = LocalImageEditor.invert(bufferedImage);
+                    bufferedImage = localImageEditor.invert(bufferedImage);
                 } else if (command.equals("rotate")) {
-                    bufferedImage = LocalImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
+                    bufferedImage = localImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
                 } else if (command.equals("sepia")) {
-                    bufferedImage = LocalImageEditor.sepia(bufferedImage);
+                    bufferedImage = localImageEditor.sepia(bufferedImage);
                 } else if (command.equals("format")) {
                     imageType = value;
                 } else if (command.equals("circle")) {
-                    bufferedImage = LocalImageEditor.circle(bufferedImage);
+                    bufferedImage = localImageEditor.circle(bufferedImage);
                     imageType = "png";
                 } else if (command.equals("star")) {
-                    bufferedImage = LocalImageEditor.star(bufferedImage);
+                    bufferedImage = localImageEditor.star(bufferedImage);
                     imageType = "png";
                 } else if (command.equals("starburst")) {
-                    bufferedImage = LocalImageEditor.starburst(bufferedImage);
+                    bufferedImage = localImageEditor.starburst(bufferedImage);
                     imageType = "png";
                 }
 
