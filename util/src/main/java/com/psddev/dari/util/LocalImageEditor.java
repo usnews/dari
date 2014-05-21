@@ -86,7 +86,7 @@ public class LocalImageEditor extends AbstractImageEditor {
             String[] imageComponents = imageUrl.split("\\?url=");
             imageUrl = imageComponents[1];
 
-            String path = imageComponents[0].substring(this.getBaseUrl().length() + 1);
+            String path = imageComponents[0].substring(this.getBaseUrl().length());
             for (String parameter : path.split("/")) {
                 commands.add(parameter);
             }

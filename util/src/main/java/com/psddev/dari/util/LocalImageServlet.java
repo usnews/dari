@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
 import javax.imageio.ImageIO;
 import javax.servlet.Filter;
@@ -15,6 +16,7 @@ import org.imgscalr.Scalr;
 public class LocalImageServlet extends AbstractFilter implements AbstractFilter.Auto {
     private static final String QUALITY_OPTION = "quality";
     private static final String LEGACY_PATH = "/dims4/";
+    private static final List<String> BASIC_COMMMANDS = Arrays.asList("grayscale", "invert", "rotate", "sepia"); //Commands that don't require a value
 
     private static String servletPath = "/_image/";
 
@@ -37,6 +39,7 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
         }
 
         String[] urlAttributes = request.getServletPath().split("/http");
+        String basePath = urlAttributes[0];
         String imageUrl = "";
         if (urlAttributes.length == 1 && request.getParameter("url") != null) {
             imageUrl = request.getParameter("url");
@@ -60,11 +63,13 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
 
             String[] parameters = null;
             if (!StringUtils.isBlank(localImageEditor.getBaseUrl())) {
-                if (!urlAttributes[0].contains(localImageEditor.getBasePath())) {
-                    response.sendError(404);
-                    return;
+                Integer parameterIndex = null;
+                if (request.getServletPath().startsWith(servletPath)) {
+                    parameterIndex = basePath.indexOf(servletPath) + servletPath.length();
+                } else {
+                    parameterIndex = basePath.indexOf(LEGACY_PATH) + LEGACY_PATH.length();
                 }
-                parameters = urlAttributes[0].substring(localImageEditor.getBasePath().length() + 1).split("/");
+                parameters = basePath.substring(parameterIndex).split("/");
 
                 //Verify key
                 if (!StringUtils.isBlank(localImageEditor.getSharedSecret())) {
@@ -87,9 +92,9 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                 }
             } else {
                 if (request.getServletPath().startsWith(servletPath)) {
-                    parameters = urlAttributes[0].substring(servletPath.length()).split("/");
+                    parameters = basePath.substring(servletPath.length()).split("/");
                 } else {
-                    parameters = urlAttributes[0].substring(LEGACY_PATH.length()).split("/");
+                    parameters = basePath.substring(LEGACY_PATH.length()).split("/");
                 }
             }
 
@@ -167,8 +172,10 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     } else {
                         size = value.split("x");
                         if (size.length > 3) {
-                            x = parseInteger(size[2]) != null ? parseInteger(size[2]) : 0;
-                            y = parseInteger(size[3]) != null ? parseInteger(size[3]) : 0;
+                            x = parseInteger(size[0]) != null ? parseInteger(size[0]) : 0;
+                            y = parseInteger(size[1]) != null ? parseInteger(size[1]) : 0;
+                            size[0] = size[2];
+                            size[1] = size[3];
                         }
                     }
 
@@ -244,6 +251,11 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     bufferedImage = LocalImageEditor.sepia(bufferedImage);
                 } else if (command.equals("format")) {
                     imageType = value;
+                }
+
+                //shift offset if basic command has no value
+                if (BASIC_COMMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true")) {
+                    i = i - 1;
                 }
             }
 
