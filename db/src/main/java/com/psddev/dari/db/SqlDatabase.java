@@ -39,7 +39,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
+import java.util.regex.Matcher;
 import javax.sql.DataSource;
 
 import org.iq80.snappy.Snappy;
@@ -538,23 +538,25 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             ResultSet result = null;
             Long nowOffsetMillis = 0L;
 
-            try {
-                connection = openConnection();
-            } catch (DatabaseException error) {
-                LOGGER.debug("Can't read timestamp from the writable server!", error);
-                connection = openReadConnection();
-            }
-
-            try {
-                statement = connection.createStatement();
-                result = statement.executeQuery(selectSql);
-                if (result.next()) {
-                    nowOffsetMillis = System.currentTimeMillis() - result.getLong(1);
+            if (selectSql != null) {
+                try {
+                    connection = openConnection();
+                } catch (DatabaseException error) {
+                    LOGGER.debug("Can't read timestamp from the writable server!", error);
+                    connection = openReadConnection();
                 }
-            } catch (SQLException ex) {
-                throw createQueryException(ex, selectSql, null);
-            } finally {
-                closeResources(null, connection, statement, result);
+
+                try {
+                    statement = connection.createStatement();
+                    result = statement.executeQuery(selectSql);
+                    if (result.next()) {
+                        nowOffsetMillis = System.currentTimeMillis() - result.getLong(1);
+                    }
+                } catch (SQLException ex) {
+                    throw createQueryException(ex, selectSql, null);
+                } finally {
+                    closeResources(null, connection, statement, result);
+                }
             }
 
             return nowOffsetMillis;
@@ -1835,6 +1837,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public <T> PaginatedResult<Grouping<T>> readPartialGrouped(Query<T> query, long offset, int limit, String... fields) {
+        for (String field : fields) {
+            Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(field);
+            if (groupingMatcher.find()) {
+                throw new UnsupportedOperationException("SqlDatabase does not support group by numeric range");
+            }
+        }
+
         List<Grouping<T>> groupings = new ArrayList<Grouping<T>>();
         String sqlQuery = buildGroupStatement(query, fields);
         Connection connection = null;

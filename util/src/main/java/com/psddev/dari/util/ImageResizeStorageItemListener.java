@@ -26,7 +26,7 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
 
         List<Object> items = (List<Object>) metadata.get("resizes");
 
-        if (items == null) {
+        if (items == null || Settings.get(boolean.class, "dari/disableIntermediateImageSizes")) {
             return false;
         }
 

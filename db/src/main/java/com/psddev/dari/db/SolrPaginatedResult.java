@@ -15,6 +15,7 @@ import com.psddev.dari.util.HtmlWriter;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.StringUtils;
+import org.apache.solr.client.solrj.response.RangeFacet;
 
 /**
  * Paginated result for Solr that provides access to
@@ -26,6 +27,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
     final Class<?> klass;
     final List<FacetField> facetedFields;
+    final List<RangeFacet> rangeFacets;
 
     public SolrPaginatedResult(
             long offset, int limit, long count, List<E> items, List<FacetField> facetedFields,
@@ -34,6 +36,7 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
         this.klass = klass;
         this.facetedFields = facetedFields;
+        this.rangeFacets = null;
     }
 
     public SolrPaginatedResult(
@@ -43,6 +46,18 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
 
         this.klass = klass;
         this.facetedFields = facetedFields;
+        this.rangeFacets = null;
+        this.solrQuery = solrQuery;
+    }
+
+    public SolrPaginatedResult(
+            long offset, int limit, long count, List<E> items, List<FacetField> facetedFields, List<RangeFacet> rangeFacets,
+            Class<?> klass, SolrQuery solrQuery) {
+        super(offset, limit, count, items);
+
+        this.klass = klass;
+        this.facetedFields = facetedFields;
+        this.rangeFacets = rangeFacets;
         this.solrQuery = solrQuery;
     }
 
@@ -55,6 +70,17 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
         }
 
         return fields;
+    }
+
+    public List<DariRangeFacet> getRangeFacets() {
+        List<DariRangeFacet> ranges = new ArrayList<DariRangeFacet>();
+        if (this.rangeFacets != null) {
+            for (RangeFacet rangeFacet : this.rangeFacets) {
+                ranges.add(new DariRangeFacet(this.klass, rangeFacet));
+            }
+        }
+
+        return ranges;
     }
 
     private transient SolrQuery solrQuery;
@@ -162,6 +188,25 @@ public class SolrPaginatedResult<E> extends PaginatedResult<E> implements HtmlOb
             }
 
             return objects;
+        }
+    }
+
+    public static class DariRangeFacet {
+
+        private final Class<?> klass;
+        private final RangeFacet rangeFacet;
+
+        public DariRangeFacet(Class<?> klass, RangeFacet rangeFacet) {
+            this.klass = klass;
+            this.rangeFacet = rangeFacet;
+        }
+
+        public String getName() {
+            return rangeFacet.getName();
+        }
+
+        public RangeFacet getRangeFacet() {
+            return rangeFacet;
         }
     }
 }

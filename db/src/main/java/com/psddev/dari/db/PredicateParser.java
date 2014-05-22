@@ -444,10 +444,15 @@ public class PredicateParser {
      * Returns {@code true} if the given {@code predicate} matches
      * the given {@code object}.
      *
+     * @param predicate If {@code null}, returns {@code true}.
      * @throws UnsupportedOperationException If the given {@code predicate}
      * operator isn't supported.
      */
     public boolean evaluate(Object object, Predicate predicate) {
+        if (predicate == null) {
+            return true;
+        }
+
         String operator = predicate.getOperator();
         Evaluator evaluator = evaluators.get(operator);
 
