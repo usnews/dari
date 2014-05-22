@@ -165,7 +165,7 @@ public class LocalImageEditor extends AbstractImageEditor {
 
         } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
             Integer width =  !ObjectUtils.isBlank(arguments) && arguments.length > 0 ? ObjectUtils.to(Integer.class, arguments[0]) : null;
-            Integer height = ObjectUtils.isBlank(arguments) && arguments.length > 1 ? ObjectUtils.to(Integer.class, arguments[1]) : null;
+            Integer height = !ObjectUtils.isBlank(arguments) && arguments.length > 1 ? ObjectUtils.to(Integer.class, arguments[1]) : null;
 
             StringBuilder resizeBuilder = new StringBuilder();
             if (width != null) {
