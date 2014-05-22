@@ -51,28 +51,33 @@ public class LocalImageServlet extends HttpServlet {
                 Integer parameterIndex = null;
                 parameterIndex = basePath.indexOf(SERVLET_PATH) + SERVLET_PATH.length();
                 parameters = basePath.substring(parameterIndex).split("/");
+            } else {
+                parameters = basePath.substring(SERVLET_PATH.length()).split("/");
+            }
 
-                //Verify key
-                if (!StringUtils.isBlank(localImageEditor.getSharedSecret())) {
-                    StringBuilder commandsBuilder = new StringBuilder();
-                    for (int i = 2; i < parameters.length; i++) {
-                        commandsBuilder.append(StringUtils.encodeUri(parameters[i]))
-                                       .append('/');
-                    }
+            //Verify key
+            if (!StringUtils.isBlank(localImageEditor.getSharedSecret())) {
+                StringBuilder commandsBuilder = new StringBuilder();
+                for (int i = 2; i < parameters.length; i++) {
+                    commandsBuilder.append(StringUtils.encodeUri(parameters[i]))
+                                   .append('/');
+                }
 
-                    Long expireTs = (long) Integer.MAX_VALUE;
-                    String signature = expireTs + localImageEditor.getSharedSecret() + StringUtils.decodeUri("/" + commandsBuilder.toString()) + imageUrl;
+                Long expireTs = (long) Integer.MAX_VALUE;
+                String signature = expireTs + localImageEditor.getSharedSecret() + StringUtils.decodeUri("/" + commandsBuilder.toString()) + imageUrl;
 
-                    String md5Hex = StringUtils.hex(StringUtils.md5(signature));
-                    String requestSig = md5Hex.substring(0, 7);
+                String md5Hex = StringUtils.hex(StringUtils.md5(signature));
+                String requestSig = md5Hex.substring(0, 7);
 
-                    if (!parameters[0].equals(requestSig) || !parameters[1].equals(expireTs.toString())) {
+                if (!parameters[0].equals(requestSig) || !parameters[1].equals(expireTs.toString())) {
+                    if (!StringUtils.isBlank(localImageEditor.getErrorImage())) {
+                        imageUrl = localImageEditor.getErrorImage();
+                        response.setStatus(500);
+                    } else {
                         response.sendError(404);
                         return;
                     }
                 }
-            } else {
-                parameters = basePath.substring(SERVLET_PATH.length()).split("/");
             }
 
             BufferedImage bufferedImage;

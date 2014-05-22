@@ -32,6 +32,7 @@ public class LocalImageEditor extends AbstractImageEditor {
     private String baseUrl;
     private String basePath;
     private String sharedSecret;
+    private String errorImage;
 
 
     public Scalr.Method getQuality() {
@@ -67,6 +68,14 @@ public class LocalImageEditor extends AbstractImageEditor {
 
     public void setSharedSecret(String sharedSecret) {
         this.sharedSecret = sharedSecret;
+    }
+
+    public String getErrorImage() {
+        return errorImage;
+    }
+
+    public void setErrorImage(String errorImage) {
+        this.errorImage = errorImage;
     }
 
     @Override
@@ -288,6 +297,11 @@ public class LocalImageEditor extends AbstractImageEditor {
         if (!ObjectUtils.isBlank(settings.get("sharedSecret"))) {
             setSharedSecret(ObjectUtils.to(String.class, settings.get("sharedSecret")));
         }
+
+        if (!ObjectUtils.isBlank(settings.get("errorImage"))) {
+            setErrorImage(ObjectUtils.to(String.class, settings.get("errorImage")));
+        }
+
     }
 
     protected void setBaseUrlFromRequest(HttpServletRequest request) {
