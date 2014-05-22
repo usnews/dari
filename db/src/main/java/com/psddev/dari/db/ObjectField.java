@@ -536,7 +536,7 @@ public class ObjectField extends Record {
                 for (ObjectIndex index : indexes) {
                     if (index.isVisibility()) {
                         FindVisibilityValuesTrigger visibilityValues = new FindVisibilityValuesTrigger(index);
-                        getState().fireTrigger(visibilityValues);
+                        state.fireTrigger(visibilityValues);
 
                         for (Object value : visibilityValues.getValues()) {
                             predicate = CompoundPredicate.combine(
