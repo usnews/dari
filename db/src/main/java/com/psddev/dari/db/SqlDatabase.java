@@ -1107,7 +1107,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         T object = null;
 
         try {
-            UUID uuid = UUID.fromString(id.toString());
+            UUID uuid = UuidUtils.fromString(id.toString());
             byte[] key = UuidUtils.toBytes(uuid);
             List<byte[]> value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
             if (value == null) {
