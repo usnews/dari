@@ -9,6 +9,7 @@ import java.awt.RenderingHints;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,7 @@ public class LocalImageEditor extends AbstractImageEditor {
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/" + DEFAULT_IMAGE_FORMAT;
     private static final String ORIGINAL_WIDTH_METADATA_PATH = "image/originalWidth";
     private static final String ORIGINAL_HEIGHT_METADATA_PATH = "image/originalHeight";
+    private static final List<String> EXTRA_CROPS = Arrays.asList(CROP_OPTION_CIRCLE, CROP_OPTION_STAR, CROP_OPTION_STARBURST);
 
     /** Setting key for quality to use for the output images. */
     private static final String QUALITY_SETTING = "quality";
@@ -228,6 +230,12 @@ public class LocalImageEditor extends AbstractImageEditor {
                 .append("/")
                 .append(expireTs.toString())
                 .append("/");
+        }
+
+        if (ImageEditor.CROP_COMMAND.equals(command) &&
+                cropOption != null &&
+                EXTRA_CROPS.contains(cropOption)) {
+            commands.add(ObjectUtils.to(String.class, cropOption));
         }
 
         for (String parameter : commands) {

@@ -27,6 +27,9 @@ public interface ImageEditor extends SettingsBackedObject {
     public static final String CROP_OPTION = "crop";
     public static final String CROP_OPTION_NONE = "none";
     public static final String CROP_OPTION_AUTOMATIC = "automatic";
+    public static final String CROP_OPTION_CIRCLE = "circle";
+    public static final String CROP_OPTION_STAR = "star";
+    public static final String CROP_OPTION_STARBURST = "starburst";
 
     /** Common command string for resizing an image. */
     public static final String RESIZE_COMMAND = "resize";
