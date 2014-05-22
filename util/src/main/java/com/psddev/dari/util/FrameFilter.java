@@ -37,13 +37,14 @@ public class FrameFilter extends AbstractFilter {
             chain.doFilter(request, response);
 
         } else {
-            DiscardingResponse discarding = new DiscardingResponse(response, path);
+            String name = request.getParameter(NAME_PARAMETER);
+
+            DiscardingResponse discarding = new DiscardingResponse(response, path + (name != null ? "_" + name : ""));
 
             request.setAttribute(DISCARDING_RESPONSE_ATTRIBUTE, discarding);
             chain.doFilter(request, discarding);
 
             ServletResponse headerResponse = JspUtils.getHeaderResponse(request, response);
-            String name = request.getParameter(NAME_PARAMETER);
 
             if (headerResponse instanceof HeaderResponse) {
                 String location = ((HeaderResponse) headerResponse).getHeader("Location");
