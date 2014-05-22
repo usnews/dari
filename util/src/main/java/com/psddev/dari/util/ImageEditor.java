@@ -18,8 +18,8 @@ public interface ImageEditor extends SettingsBackedObject {
     /** Setting key for all image editor configuration. */
     public static final String SETTING_PREFIX = "dari/imageEditor";
 
-    /** Setting key for default image editor name. */
-    public static final String LOCAL_IMAGE_EDITOR = "local";
+    /** Setting key for default local image editor name. */
+    public static final String LOCAL_IMAGE_EDITOR_NAME = "_local";
 
     /** Common command string for cropping an image. */
     public static final String CROP_COMMAND = "crop";
@@ -78,7 +78,7 @@ public interface ImageEditor extends SettingsBackedObject {
                 ImageEditor instance = null;
                 if (Settings.get(settingsName) != null) {
                     instance = Settings.newInstance(ImageEditor.class, settingsName);
-                } else if (name.equals(LOCAL_IMAGE_EDITOR)) {
+                } else if (name.equals(LOCAL_IMAGE_EDITOR_NAME)) {
                     instance = new LocalImageEditor();
                 }
 
@@ -94,7 +94,7 @@ public interface ImageEditor extends SettingsBackedObject {
 
         /** Returns the default image editor. */
         public static ImageEditor getDefault() {
-            return getInstance(Settings.getOrDefault(String.class, DEFAULT_IMAGE_EDITOR_SETTING, LOCAL_IMAGE_EDITOR));
+            return getInstance(Settings.getOrDefault(String.class, DEFAULT_IMAGE_EDITOR_SETTING, LOCAL_IMAGE_EDITOR_NAME));
         }
 
         /**

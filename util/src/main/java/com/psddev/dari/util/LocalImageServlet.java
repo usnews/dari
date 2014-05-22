@@ -44,7 +44,7 @@ public class LocalImageServlet extends HttpServlet {
                 imageType = "gif";
             }
 
-            LocalImageEditor localImageEditor = ObjectUtils.to(LocalImageEditor.class, ImageEditor.Static.getInstance("local"));
+            LocalImageEditor localImageEditor = ObjectUtils.to(LocalImageEditor.class, ImageEditor.Static.getInstance(ImageEditor.LOCAL_IMAGE_EDITOR_NAME));
 
             String[] parameters = null;
             if (!StringUtils.isBlank(localImageEditor.getBaseUrl())) {
