@@ -125,13 +125,19 @@ public class LocalImageEditor extends AbstractImageEditor {
         }
 
         if (ImageEditor.CROP_COMMAND.equals(command) &&
-                        (cropOption != null && cropOption.equals(CROP_OPTION_AUTOMATIC)) ||
+                        (cropOption != null && cropOption.equals(CROP_OPTION_AUTOMATIC) ||
+                        (ObjectUtils.isBlank(arguments) || arguments.length < 2) ||
                         (ObjectUtils.to(Integer.class, arguments[0]) == null  &&
-                        ObjectUtils.to(Integer.class, arguments[1]) == null)) {
+                        ObjectUtils.to(Integer.class, arguments[1]) == null))) {
             commands.add(THUMBNAIL_COMMAND);
             command = RESIZE_COMMAND;
-            arguments[0] = arguments[2];
-            arguments[1] = arguments[3];
+            if (arguments.length > 3) {
+                arguments[0] = arguments[2];
+                arguments[1] = arguments[3];
+            } else if (arguments.length > 2) {
+                arguments[0] = arguments[2];
+                arguments[1] = null;
+            }
         } else {
             commands.add(command);
         }
@@ -147,8 +153,8 @@ public class LocalImageEditor extends AbstractImageEditor {
             }
 
         } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
-            Integer width = ObjectUtils.to(Integer.class, arguments[0]);
-            Integer height = ObjectUtils.to(Integer.class, arguments[1]);
+            Integer width =  !ObjectUtils.isBlank(arguments) && arguments.length > 0 ? ObjectUtils.to(Integer.class, arguments[0]) : null;
+            Integer height = ObjectUtils.isBlank(arguments) && arguments.length > 1 ? ObjectUtils.to(Integer.class, arguments[1]) : null;
 
             StringBuilder resizeBuilder = new StringBuilder();
             if (width != null) {

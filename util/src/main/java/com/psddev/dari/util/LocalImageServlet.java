@@ -204,6 +204,9 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     }
 
                     String[] wh = value.split("x");
+                    if (ObjectUtils.isBlank(wh) || wh.length < 2) {
+                        continue;
+                    }
                     Integer width = ObjectUtils.to(Integer.class, wh[0]);
                     Integer height = ObjectUtils.to(Integer.class, wh[1]);
 
@@ -248,9 +251,26 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
 
                 } else if (command.equals("brightness")) {
                     String[] wh = value.split("x");
-                    Integer brightness = Integer.valueOf(wh[0]);
-                    Integer contrast = Integer.valueOf(wh[1]);
-                    bufferedImage = localImageEditor.brightness(bufferedImage, brightness, contrast);
+                    Double brightness = Double.valueOf(wh[0]);
+                    Double contrast = wh.length > 1 ? Double.valueOf(wh[1]) : 0.0d;
+
+                    if (Math.abs(brightness) < 0) {
+                        brightness *= 100;
+                    }
+
+                    if (Math.abs(contrast) < 0) {
+                        contrast *= 100;
+                    }
+
+                    bufferedImage = localImageEditor.brightness(bufferedImage, brightness.intValue(), contrast.intValue());
+
+                } else if (command.equals("contrast")) {
+                    Double contrast = Double.valueOf(value);
+                    if (Math.abs(contrast) < 0) {
+                        contrast *= 100;
+                    }
+
+                    bufferedImage = localImageEditor.brightness(bufferedImage, 0, contrast.intValue());
 
                 } else if (command.equals("flipflop")) {
                     if (value.equals("horizontal")) {
