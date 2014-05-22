@@ -1,5 +1,13 @@
 package com.psddev.dari.db;
 
+import com.psddev.dari.util.CompactMap;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.TypeReference;
+
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -23,14 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import com.psddev.dari.util.CompactMap;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.StorageItem;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-import com.psddev.dari.util.TypeReference;
 
 /** Description of how field values can be stored in a state. */
 @ObjectField.Embedded
@@ -525,25 +525,41 @@ public class ObjectField extends Record {
             Query<Object> query = Query.
                     fromType(type).
                     where(getJunctionField() + " = ?", state.getId());
+            Predicate predicate = null;
 
             if (state.isResolveInvisible()) {
-                Set<String> comparisonKeys = new HashSet<String>();
                 DatabaseEnvironment environment = Database.Static.getDefault().getEnvironment();
 
-                addVisibilityFields(comparisonKeys, environment);
-                addVisibilityFields(comparisonKeys, type);
+                List<ObjectIndex> indexes = environment.getIndexes();
+                indexes.addAll(type.getIndexes());
 
-                for (String key : comparisonKeys) {
-                    query.and(key + " = missing or " + key + " = true");
+                for (ObjectIndex index : indexes) {
+                    if (index.isVisibility()) {
+                        FindVisibilityValuesTrigger visibilityValues = new FindVisibilityValuesTrigger(index);
+                        getState().fireTrigger(visibilityValues);
+
+                        for (Object value : visibilityValues.getValues()) {
+                            predicate = CompoundPredicate.combine(
+                                             PredicateParser.OR_OPERATOR,
+                                             predicate,
+                                             PredicateParser.Static.parse(index.getUniqueName() + " = ?", value));
+                        }
+                        predicate = CompoundPredicate.combine(
+                                             PredicateParser.OR_OPERATOR,
+                                             predicate,
+                                             PredicateParser.Static.parse(index.getUniqueName() + " = missing or " + index.getUniqueName() + " = true"));
+                    }
                 }
             }
 
+            if (predicate != null) {
+                query.setPredicate(CompoundPredicate.combine(PredicateParser.AND_OPERATOR, query.getPredicate(), predicate));
+            }
             String junctionPositionField = getJunctionPositionField();
 
             if (!ObjectUtils.isBlank(junctionPositionField)) {
                 query.sortAscending(junctionPositionField);
             }
-
             return query.selectAll();
         }
     }
@@ -1215,6 +1231,53 @@ public class ObjectField extends Record {
                 definitions.add(instance.toDefinition());
             }
             return definitions;
+        }
+    }
+
+    private static class FindVisibilityValuesTrigger implements Trigger {
+
+        ObjectIndex index;
+        Set<Object> values;
+
+        public FindVisibilityValuesTrigger() {}
+
+        public FindVisibilityValuesTrigger(ObjectIndex index) {
+            this.index = index;
+        }
+
+        public ObjectIndex getIndex() {
+            return index;
+        }
+
+        public void setIndex(ObjectIndex index) {
+            this.index = index;
+        }
+
+        public Set<Object> getValues() {
+            if (!ObjectUtils.isBlank(values)) {
+                return values;
+            }
+            return new HashSet<Object>();
+        }
+
+        public void setValues(Set<Object> values) {
+            this.values = values;
+        }
+
+        @Override
+        public void execute(Object object) {
+            if (!(object instanceof VisibilityValues)) {
+                return;
+            }
+
+            for (Object o : ((VisibilityValues) object).findVisibilityValues(index)) {
+                if (o != null) {
+                    if (values == null) {
+                        values = new HashSet<Object>();
+                    }
+                    values.add(o);
+                }
+            }
         }
     }
 }
