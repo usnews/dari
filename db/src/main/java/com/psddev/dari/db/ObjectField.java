@@ -1254,10 +1254,10 @@ public class ObjectField extends Record {
         }
 
         public Set<Object> getValues() {
-            if (!ObjectUtils.isBlank(values)) {
-                return values;
+            if (values == null) {
+                values = new HashSet<Object>();
             }
-            return new HashSet<Object>();
+            return values;
         }
 
         public void setValues(Set<Object> values) {
@@ -1272,10 +1272,7 @@ public class ObjectField extends Record {
 
             for (Object o : ((VisibilityValues) object).findVisibilityValues(index)) {
                 if (o != null) {
-                    if (values == null) {
-                        values = new HashSet<Object>();
-                    }
-                    values.add(o);
+                    getValues().add(o);
                 }
             }
         }
