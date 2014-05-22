@@ -128,10 +128,6 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                 String command = parameters[i];
                 String value = i + 1 < parameters.length ? parameters[i + 1] : "";
 
-                if (!BASIC_COMMANDS.contains(command) && StringUtils.isBlank(value)) {
-                    throw new IOException(String.format("No value for %s command", command));
-                }
-
                 if (command.equals(ImageEditor.RESIZE_COMMAND)) {
                     String option = null;
                     Integer width = null;
@@ -231,8 +227,19 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                             height = bufferedImage.getHeight();
                         }
 
+                        int x = 0;
+                        int y = 0;
+
+                        //center automatic crop
+                        if (bufferedImage.getWidth() > width) {
+                            x = (bufferedImage.getWidth() - width) / 2;
+                        }
+                        if (bufferedImage.getHeight() > height) {
+                            y = (bufferedImage.getHeight() - height) / 2;
+                        }
+
                         if (width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
-                            bufferedImage = localImageEditor.crop(bufferedImage, 0, 0, width, height);
+                            bufferedImage = localImageEditor.crop(bufferedImage, x, y, width, height);
                         }
                     }
 

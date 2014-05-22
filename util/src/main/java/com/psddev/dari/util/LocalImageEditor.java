@@ -125,8 +125,9 @@ public class LocalImageEditor extends AbstractImageEditor {
         }
 
         if (ImageEditor.CROP_COMMAND.equals(command) &&
-                        ObjectUtils.to(Integer.class, arguments[0]) == null  &&
-                        ObjectUtils.to(Integer.class, arguments[1]) == null) {
+                        (cropOption != null && cropOption.equals(CROP_OPTION_AUTOMATIC)) ||
+                        (ObjectUtils.to(Integer.class, arguments[0]) == null  &&
+                        ObjectUtils.to(Integer.class, arguments[1]) == null)) {
             commands.add(THUMBNAIL_COMMAND);
             command = RESIZE_COMMAND;
             arguments[0] = arguments[2];
@@ -139,7 +140,7 @@ public class LocalImageEditor extends AbstractImageEditor {
             Integer width = ObjectUtils.to(Integer.class, arguments[2]);
             Integer height = ObjectUtils.to(Integer.class, arguments[3]);
 
-            commands.add(arguments[0] + "x" + arguments[1] + "x" + width + "x" + height);
+                commands.add(arguments[0] + "x" + arguments[1] + "x" + width + "x" + height);
             if (originalDimension != null) {
                 outputDimension = new Dimension(Math.min(originalDimension.width, width),
                                                 Math.min(originalDimension.height, height));
