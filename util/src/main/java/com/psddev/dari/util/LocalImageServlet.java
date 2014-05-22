@@ -6,38 +6,22 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import javax.imageio.ImageIO;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
 
-public class LocalImageServlet extends AbstractFilter implements AbstractFilter.Auto {
-    private static final String QUALITY_OPTION = "quality";
-    private static final String LEGACY_PATH = "/dims4/";
+@RoutingFilter.Path(application = "", value = "/_image")
+public class LocalImageServlet extends HttpServlet {
     private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV"); //Commands that don't require a value
     private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
-
-    private static String servletPath = "/_image/";
-
-    public static String getServletPath() {
-        return servletPath;
-    }
-
-    public static void setServletPath(String servletPath) {
-        LocalImageServlet.servletPath = servletPath;
-    }
-
+    private static final String QUALITY_OPTION = "quality";
+    protected static final String SERVLET_PATH = "/_image/";
 
     @Override
-    protected void doRequest(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws Exception {
-
-        if (!request.getServletPath().startsWith(servletPath) &&
-               !request.getServletPath().startsWith(LEGACY_PATH)) {
-            chain.doFilter(request, response);
-            return;
-        }
+    public void service(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
 
         String[] urlAttributes = request.getServletPath().split("/http");
         String basePath = urlAttributes[0];
@@ -65,11 +49,7 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
             String[] parameters = null;
             if (!StringUtils.isBlank(localImageEditor.getBaseUrl())) {
                 Integer parameterIndex = null;
-                if (request.getServletPath().startsWith(servletPath)) {
-                    parameterIndex = basePath.indexOf(servletPath) + servletPath.length();
-                } else {
-                    parameterIndex = basePath.indexOf(LEGACY_PATH) + LEGACY_PATH.length();
-                }
+                parameterIndex = basePath.indexOf(SERVLET_PATH) + SERVLET_PATH.length();
                 parameters = basePath.substring(parameterIndex).split("/");
 
                 //Verify key
@@ -92,11 +72,7 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
                     }
                 }
             } else {
-                if (request.getServletPath().startsWith(servletPath)) {
-                    parameters = basePath.substring(servletPath.length()).split("/");
-                } else {
-                    parameters = basePath.substring(LEGACY_PATH.length()).split("/");
-                }
+                parameters = basePath.substring(SERVLET_PATH.length()).split("/");
             }
 
             BufferedImage bufferedImage;
@@ -330,18 +306,6 @@ public class LocalImageServlet extends AbstractFilter implements AbstractFilter.
             return null;
         } else {
             return Integer.parseInt(integer);
-        }
-    }
-
-    @Override
-    protected Iterable<Class<? extends Filter>> dependencies() {
-        return null;
-    }
-
-    @Override
-    public void updateDependencies(Class<? extends AbstractFilter> filterClass, List<Class<? extends Filter>> dependencies) {
-        if (RoutingFilter.class.isAssignableFrom(filterClass)) {
-            dependencies.add(getClass());
         }
     }
 }
