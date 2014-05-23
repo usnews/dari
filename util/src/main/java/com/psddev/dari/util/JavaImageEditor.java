@@ -16,7 +16,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import org.imgscalr.Scalr;
 
-public class LocalImageEditor extends AbstractImageEditor {
+public class JavaImageEditor extends AbstractImageEditor {
 
     private static final String DEFAULT_IMAGE_FORMAT = "png";
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/" + DEFAULT_IMAGE_FORMAT;
@@ -328,7 +328,7 @@ public class LocalImageEditor extends AbstractImageEditor {
                     .append(request.getServerPort());
         }
 
-        baseUrlBuilder.append(LocalImageServlet.SERVLET_PATH);
+        baseUrlBuilder.append(JavaImageServlet.SERVLET_PATH);
         setBaseUrl(baseUrlBuilder.toString());
     }
 

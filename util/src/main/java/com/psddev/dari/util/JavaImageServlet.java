@@ -14,7 +14,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
 
 @RoutingFilter.Path(application = "", value = "/_image")
-public class LocalImageServlet extends HttpServlet {
+public class JavaImageServlet extends HttpServlet {
     private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV"); //Commands that don't require a value
     private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
     private static final String QUALITY_OPTION = "quality";
@@ -44,10 +44,10 @@ public class LocalImageServlet extends HttpServlet {
                 imageType = "gif";
             }
 
-            LocalImageEditor localImageEditor = ObjectUtils.to(LocalImageEditor.class, ImageEditor.Static.getInstance(ImageEditor.LOCAL_IMAGE_EDITOR_NAME));
+            JavaImageEditor javaImageEditor = ObjectUtils.to(JavaImageEditor.class, ImageEditor.Static.getInstance(ImageEditor.JAVA_IMAGE_EDITOR_NAME));
 
             String[] parameters = null;
-            if (!StringUtils.isBlank(localImageEditor.getBaseUrl())) {
+            if (!StringUtils.isBlank(javaImageEditor.getBaseUrl())) {
                 Integer parameterIndex = null;
                 parameterIndex = basePath.indexOf(SERVLET_PATH) + SERVLET_PATH.length();
                 parameters = basePath.substring(parameterIndex).split("/");
@@ -56,7 +56,7 @@ public class LocalImageServlet extends HttpServlet {
             }
 
             //Verify key
-            if (!StringUtils.isBlank(localImageEditor.getSharedSecret())) {
+            if (!StringUtils.isBlank(javaImageEditor.getSharedSecret())) {
                 StringBuilder commandsBuilder = new StringBuilder();
                 for (int i = 2; i < parameters.length; i++) {
                     commandsBuilder.append(StringUtils.encodeUri(parameters[i]))
@@ -64,14 +64,14 @@ public class LocalImageServlet extends HttpServlet {
                 }
 
                 Long expireTs = (long) Integer.MAX_VALUE;
-                String signature = expireTs + localImageEditor.getSharedSecret() + StringUtils.decodeUri("/" + commandsBuilder.toString()) + imageUrl;
+                String signature = expireTs + javaImageEditor.getSharedSecret() + StringUtils.decodeUri("/" + commandsBuilder.toString()) + imageUrl;
 
                 String md5Hex = StringUtils.hex(StringUtils.md5(signature));
                 String requestSig = md5Hex.substring(0, 7);
 
                 if (!parameters[0].equals(requestSig) || !parameters[1].equals(expireTs.toString())) {
-                    if (!StringUtils.isBlank(localImageEditor.getErrorImage())) {
-                        imageUrl = localImageEditor.getErrorImage();
+                    if (!StringUtils.isBlank(javaImageEditor.getErrorImage())) {
+                        imageUrl = javaImageEditor.getErrorImage();
                         response.setStatus(500);
                     } else {
                         response.sendError(404);
@@ -81,8 +81,8 @@ public class LocalImageServlet extends HttpServlet {
             }
 
             BufferedImage bufferedImage;
-            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(localImageEditor.TIFF_READER_CLASS) != null) {
-                bufferedImage = LocalImageTiffReader.readTiff(imageUrl);
+            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
+                bufferedImage = JavaImageTiffReader.readTiff(imageUrl);
             } else {
                 bufferedImage = ImageIO.read(new URL(imageUrl));
             }
@@ -100,7 +100,7 @@ public class LocalImageServlet extends HttpServlet {
                     try {
                         quality = Scalr.Method.valueOf(Scalr.Method.class, value.toUpperCase());
                     } catch (IllegalArgumentException ex) {
-                        quality = localImageEditor.findQualityByInteger(Integer.parseInt(value));
+                        quality = javaImageEditor.findQualityByInteger(Integer.parseInt(value));
                     }
                 }
             }
@@ -133,7 +133,7 @@ public class LocalImageServlet extends HttpServlet {
                         height = parseInteger(wh[1]);
                     }
 
-                    bufferedImage = localImageEditor.reSize(bufferedImage, width, height, option, quality);
+                    bufferedImage = javaImageEditor.reSize(bufferedImage, width, height, option, quality);
 
                 } else if (command.equals(ImageEditor.CROP_COMMAND)) {
                     Integer x = 0;
@@ -166,9 +166,9 @@ public class LocalImageServlet extends HttpServlet {
                         height = parseInteger(size[1]);
                     }
 
-                    bufferedImage = localImageEditor.crop(bufferedImage, x, y, width, height);
+                    bufferedImage = javaImageEditor.crop(bufferedImage, x, y, width, height);
 
-                } else if (command.equals(localImageEditor.THUMBNAIL_COMMAND)) {
+                } else if (command.equals(JavaImageEditor.THUMBNAIL_COMMAND)) {
                     String option = null;
 
                     if (value.endsWith("!")) {
@@ -199,7 +199,7 @@ public class LocalImageServlet extends HttpServlet {
                         resizeWidth  = (int) ((double) bufferedImage.getWidth() / (double) bufferedImage.getHeight() * (double) height);
                     }
 
-                    bufferedImage = localImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option, quality);
+                    bufferedImage = javaImageEditor.reSize(bufferedImage, resizeWidth, resizeHeight, option, quality);
                     if ((width != bufferedImage.getWidth() || height != bufferedImage.getHeight())) {
 
                         //Allows for crop when reSized size is slightly off
@@ -223,12 +223,12 @@ public class LocalImageServlet extends HttpServlet {
                         }
 
                         if (width <= bufferedImage.getWidth() && height <= bufferedImage.getHeight()) {
-                            bufferedImage = localImageEditor.crop(bufferedImage, x, y, width, height);
+                            bufferedImage = javaImageEditor.crop(bufferedImage, x, y, width, height);
                         }
                     }
 
                 } else if (command.equals("grayscale")) {
-                    bufferedImage = localImageEditor.grayscale(bufferedImage);
+                    bufferedImage = javaImageEditor.grayscale(bufferedImage);
 
                 } else if (command.equals("brightness")) {
                     String[] wh = value.split("x");
@@ -243,7 +243,7 @@ public class LocalImageServlet extends HttpServlet {
                         contrast *= 100;
                     }
 
-                    bufferedImage = localImageEditor.brightness(bufferedImage, brightness.intValue(), contrast.intValue());
+                    bufferedImage = javaImageEditor.brightness(bufferedImage, brightness.intValue(), contrast.intValue());
 
                 } else if (command.equals("contrast")) {
                     Double contrast = Double.valueOf(value);
@@ -251,38 +251,38 @@ public class LocalImageServlet extends HttpServlet {
                         contrast *= 100;
                     }
 
-                    bufferedImage = localImageEditor.brightness(bufferedImage, 0, contrast.intValue());
+                    bufferedImage = javaImageEditor.brightness(bufferedImage, 0, contrast.intValue());
 
                 } else if (command.equals("flipflop")) {
                     if (value.equals("horizontal")) {
-                        bufferedImage = localImageEditor.flipHorizontal(bufferedImage);
+                        bufferedImage = javaImageEditor.flipHorizontal(bufferedImage);
                     } else if (value.equals("vertical")) {
-                        bufferedImage = localImageEditor.flipVertical(bufferedImage);
+                        bufferedImage = javaImageEditor.flipVertical(bufferedImage);
                     }
                 } else if (command.equals("flipH")) {
-                    bufferedImage = localImageEditor.flipHorizontal(bufferedImage);
+                    bufferedImage = javaImageEditor.flipHorizontal(bufferedImage);
                 } else if (command.equals("flipV")) {
-                    bufferedImage = localImageEditor.flipVertical(bufferedImage);
+                    bufferedImage = javaImageEditor.flipVertical(bufferedImage);
                 } else if (command.equals("invert")) {
-                    bufferedImage = localImageEditor.invert(bufferedImage);
+                    bufferedImage = javaImageEditor.invert(bufferedImage);
 
                 } else if (command.equals("rotate")) {
-                    bufferedImage = localImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
+                    bufferedImage = javaImageEditor.rotate(bufferedImage, Integer.valueOf(parameters[i + 1]));
 
                 } else if (command.equals("sepia")) {
-                    bufferedImage = localImageEditor.sepia(bufferedImage);
+                    bufferedImage = javaImageEditor.sepia(bufferedImage);
 
                 } else if (command.equals("format")) {
                     imageType = value;
 
                 } else if (command.equals("circle")) {
-                    bufferedImage = localImageEditor.circle(bufferedImage);
+                    bufferedImage = javaImageEditor.circle(bufferedImage);
 
                 } else if (command.equals("star")) {
-                    bufferedImage = localImageEditor.star(bufferedImage);
+                    bufferedImage = javaImageEditor.star(bufferedImage);
 
                 } else if (command.equals("starburst")) {
-                    bufferedImage = localImageEditor.starburst(bufferedImage);
+                    bufferedImage = javaImageEditor.starburst(bufferedImage);
 
                 }
 

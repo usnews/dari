@@ -8,16 +8,16 @@ import javax.imageio.spi.IIORegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LocalImageTiffReader {
+public class JavaImageTiffReader {
 
-    protected static final Logger LOGGER = LoggerFactory.getLogger(LocalImageTiffReader.class);
+    protected static final Logger LOGGER = LoggerFactory.getLogger(JavaImageTiffReader.class);
 
     public static BufferedImage readTiff(String url) throws IOException {
 
         try {
-            if (!IIORegistry.lookupProviders(Class.forName(LocalImageEditor.TIFF_READER_CLASS)).hasNext()) {
+            if (!IIORegistry.lookupProviders(Class.forName(JavaImageEditor.TIFF_READER_CLASS)).hasNext()) {
                 //Register TIFF support
-                IIORegistry.getDefaultInstance().registerServiceProvider(Class.forName(LocalImageEditor.TIFF_READER_CLASS).newInstance());
+                IIORegistry.getDefaultInstance().registerServiceProvider(Class.forName(JavaImageEditor.TIFF_READER_CLASS).newInstance());
             }
 
             BufferedImage tiffImage = ImageIO.read(new URL(url));
@@ -33,13 +33,13 @@ public class LocalImageTiffReader {
             return bufferedImage;
 
         } catch (ClassNotFoundException ex) {
-            LOGGER.error(LocalImageEditor.TIFF_READER_CLASS + " class not found");
+            LOGGER.error(JavaImageEditor.TIFF_READER_CLASS + " class not found");
             return null;
         } catch (InstantiationException ex) {
-            LOGGER.error("Unable to instantiate an instance of " + LocalImageEditor.TIFF_READER_CLASS);
+            LOGGER.error("Unable to instantiate an instance of " + JavaImageEditor.TIFF_READER_CLASS);
             return null;
         } catch (IllegalAccessException ex) {
-            LOGGER.error("Unable to instantiate an instance of " + LocalImageEditor.TIFF_READER_CLASS);
+            LOGGER.error("Unable to instantiate an instance of " + JavaImageEditor.TIFF_READER_CLASS);
             return null;
         }
     }
