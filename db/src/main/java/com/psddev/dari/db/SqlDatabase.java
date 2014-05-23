@@ -66,7 +66,6 @@ import com.psddev.dari.util.SettingsException;
 import com.psddev.dari.util.Stats;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
-import com.psddev.dari.util.UuidUtils;
 
 /** Database backed by a SQL engine. */
 public class SqlDatabase extends AbstractDatabase<Connection> {
@@ -1123,30 +1122,24 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             return objects;
         }
 
-        List<byte[]> missingKeys = new ArrayList<byte[]>();
-        // list of typeId, data, id
-        List<byte[][]> objectValues = new ArrayList<byte[][]>();
-
         Profiler.Static.startThreadEvent(BINARY_LOG_CACHE_PROFILER_EVENT);
         try {
+            List<byte[]> missingKeys = new ArrayList<byte[]>();
             for (Object id : ids) {
                 if (id == null) {
                     continue;
                 }
-                UUID uuid = UuidUtils.fromString(id.toString());
-                byte[] key = UuidUtils.toBytes(uuid);
+                byte[] key = StringUtils.hexToBytes(id.toString().replaceAll("-", ""));
                 byte[][] value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
                 if (value == null) {
                     missingKeys.add(key);
-                } else {
-                    // typeId, data, id
-                    byte[][] objectValue = new byte[3][];
-                    objectValue[0] = value[0];
-                    objectValue[1] = value[1];
-                    objectValue[2] = key;
-                    objectValues.add(objectValue);
-                    LOGGER.debug("READING CACHE [{}]", StringUtils.hex(key));
+                    continue;
                 }
+                T object = constructObject(value[0], key, value[1], query);
+                if (object != null) {
+                    objects.add(object);
+                }
+                LOGGER.debug("READING CACHE [{}]", StringUtils.hex(key));
             }
 
             if (!missingKeys.isEmpty()) {
@@ -1165,12 +1158,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 sqlQuery.append(" WHERE ");
                 vendor.appendIdentifier(sqlQuery, ID_COLUMN);
                 sqlQuery.append(" IN (");
+                int missingKeySize = missingKeys.size();
+                int cnt = 1;
                 for (byte[] missingKey : missingKeys) {
                     vendor.appendBytes(sqlQuery, missingKey);
-                    sqlQuery.append(", ");
+                    if (cnt++ < missingKeySize) {
+                        sqlQuery.append(", ");
+                    }
                 }
-                int queryStringLength = sqlQuery.length();
-                sqlQuery.delete(queryStringLength - 2, queryStringLength);
                 sqlQuery.append(")");
 
                 Connection connection = null;
@@ -1195,12 +1190,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             binLogCache.put(ByteBuffer.wrap(id), value);
                             LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(id));
                         }
-                        // typeId, data, id
-                        byte[][] objectValue = new byte[3][];
-                        objectValue[0] = typeId;
-                        objectValue[1] = data;
-                        objectValue[2] = id;
-                        objectValues.add(objectValue);
+                        T object = constructObject(typeId, id, data, query);
+                        if (object != null) {
+                            objects.add(object);
+                        }
                     }
 
                 } catch (SQLException error) {
@@ -1210,13 +1203,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     closeResources(query, connection, statement, result);
                     extraConnectionRef.close();
                     Profiler.Static.stopThreadEvent(missingKeys.size() + " Record(s)");
-                }
-            }
-
-            for (byte[][] objectValue : objectValues) {
-                T object = constructObject(objectValue[0], objectValue[2], objectValue[1], query);
-                if (object != null) {
-                    objects.add(object);
                 }
             }
 
