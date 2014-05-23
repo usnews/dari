@@ -417,6 +417,7 @@ public final class StringUtils {
         return new String(hex);
     }
 
+    // TODO: refactor for better performance.
     /** Converts the given {@code hex} into a byte array. */
     public static byte[] hexToBytes(String hex) {
         int len = hex.length();
