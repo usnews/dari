@@ -1,28 +1,31 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.AbstractFilter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.StringUtils;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Map;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.*;
-import java.util.Map;
 
+import com.psddev.dari.util.AbstractFilter;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.Settings;
+import com.psddev.dari.util.StringUtils;
 
-/** Returns <code>StorageItem</code> from disk. */
+/**
+ * Filter that exposes {@link LocalStorageItem} on the web.
+ */
 public class LocalStorageFilter extends AbstractFilter {
 
-    private final static String DARI_STORAGE_SETTING = "dari/storage";
-
-    private final static String ROOT_PATH_SETTING = "rootPath";
+    private static final String DARI_STORAGE_SETTING = "dari/storage";
+    private static final String ROOT_PATH_SETTING = "rootPath";
 
     private String localStorageRootPath;
-
 
     protected void doInit() {
         Map<String, Object> settings = Settings.asMap();
@@ -38,10 +41,11 @@ public class LocalStorageFilter extends AbstractFilter {
     // --- AbstractFilter support ---
 
     protected void doRequest(
-                       HttpServletRequest request,
-                       HttpServletResponse response,
-                       FilterChain chain)
-                       throws IOException, ServletException {
+               HttpServletRequest request,
+               HttpServletResponse response,
+               FilterChain chain)
+               throws IOException,
+               ServletException {
 
         if (!StringUtils.isBlank(localStorageRootPath)) {
             // parse request path and see if on disk, return or carry on
@@ -53,12 +57,12 @@ public class LocalStorageFilter extends AbstractFilter {
                 String mimeType = ObjectUtils.getContentType(f.getName());
 
                 response.setHeader("Content-Type", mimeType);
-                response.setContentLength((int)f.length());
+                response.setContentLength((int) f.length());
 
                 BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(f));
 
                 int b;
-                while ((b = inputStream.read()) != -1 ) {
+                while ((b = inputStream.read()) != -1) {
                     out.write(b);
                 }
 
