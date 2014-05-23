@@ -35,6 +35,8 @@ public class JavaImageEditor extends AbstractImageEditor {
     private String basePath;
     private String sharedSecret;
     private String errorImage;
+    private boolean disableCache;
+    private String cachePath;
 
     public Scalr.Method getQuality() {
         return quality;
@@ -77,6 +79,22 @@ public class JavaImageEditor extends AbstractImageEditor {
 
     public void setErrorImage(String errorImage) {
         this.errorImage = errorImage;
+    }
+
+    public boolean isDisableCache() {
+        return disableCache;
+    }
+
+    public void setDisableCache(boolean disableCache) {
+        this.disableCache = disableCache;
+    }
+
+    public String getCachePath() {
+        return cachePath;
+    }
+
+    public void setCachePath(String cachePath) {
+        this.cachePath = cachePath;
     }
 
     @Override
@@ -308,6 +326,22 @@ public class JavaImageEditor extends AbstractImageEditor {
 
         if (!ObjectUtils.isBlank(settings.get("errorImage"))) {
             setErrorImage(ObjectUtils.to(String.class, settings.get("errorImage")));
+        }
+
+        if (!ObjectUtils.isBlank(settings.get("disableCache"))) {
+            setDisableCache(ObjectUtils.to(Boolean.class, settings.get("disableCache")));
+        }
+
+        if (!disableCache) {
+            if (!ObjectUtils.isBlank(settings.get("cachePath"))) {
+                setCachePath(ObjectUtils.to(String.class, settings.get("cachePath")));
+            } else {
+                String property = "java.io.tmpdir";
+                String tempDir = System.getProperty(property);
+                if (!StringUtils.isBlank(tempDir)) {
+                    setCachePath(tempDir);
+                }
+            }
         }
 
     }
