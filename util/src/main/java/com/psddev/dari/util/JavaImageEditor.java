@@ -102,7 +102,9 @@ public class JavaImageEditor extends AbstractImageEditor {
 
             String path = imageComponents[0].substring(this.getBaseUrl().length());
             for (String parameter : path.split("/")) {
-                commands.add(parameter);
+                if (!EXTRA_CROPS.contains(parameter)) {
+                    commands.add(parameter);
+                }
             }
 
             if (!StringUtils.isBlank(this.getSharedSecret())) {
@@ -209,6 +211,11 @@ public class JavaImageEditor extends AbstractImageEditor {
             commands.add(ObjectUtils.to(String.class, arguments[0]));
         }
 
+        if (cropOption != null &&
+                EXTRA_CROPS.contains(cropOption)) {
+            commands.add(ObjectUtils.to(String.class, cropOption));
+        }
+
         StringBuilder storageItemUrlBuilder = new StringBuilder();
         storageItemUrlBuilder.append(this.getBaseUrl());
         if (!StringUtils.isBlank(this.getSharedSecret())) {
@@ -229,12 +236,6 @@ public class JavaImageEditor extends AbstractImageEditor {
                 .append("/")
                 .append(expireTs.toString())
                 .append("/");
-        }
-
-        if (ImageEditor.CROP_COMMAND.equals(command) &&
-                cropOption != null &&
-                EXTRA_CROPS.contains(cropOption)) {
-            commands.add(ObjectUtils.to(String.class, cropOption));
         }
 
         for (String parameter : commands) {
