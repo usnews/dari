@@ -8,7 +8,6 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -61,7 +60,7 @@ public final class MySQLBinaryLogReader implements Runnable {
 
     private static MySQLBinaryLogReader instance;
 
-    private volatile Cache<ByteBuffer, List<byte[]>> binLogCache;
+    private volatile Cache<ByteBuffer, byte[][]> binLogCache;
 
     private BinaryLogClient binaryLogClient;
 
@@ -79,7 +78,7 @@ public final class MySQLBinaryLogReader implements Runnable {
     private MySQLBinaryLogReader() { }
 
 
-    public static MySQLBinaryLogReader getInstance(Cache<ByteBuffer, List<byte[]>> binLogCache, DataSource dataSource) {
+    public static MySQLBinaryLogReader getInstance(Cache<ByteBuffer, byte[][]> binLogCache, DataSource dataSource) {
 
         synchronized (MySQLBinaryLogReader.class) {
             if (instance == null) {
@@ -182,7 +181,7 @@ public final class MySQLBinaryLogReader implements Runnable {
         return binaryLogClient;
     }
 
-    private void setBinLogCache(Cache<ByteBuffer, List<byte[]>> binLogCache) {
+    private void setBinLogCache(Cache<ByteBuffer, byte[][]> binLogCache) {
         this.binLogCache = binLogCache;
     }
 
@@ -257,11 +256,13 @@ public final class MySQLBinaryLogReader implements Runnable {
             id = confirm16Bytes(id);
             if (id != null) {
                 ByteBuffer bid = ByteBuffer.wrap(id);
-                List<byte[]> cachedValue = binLogCache.getIfPresent(bid);
+                byte[][] cachedValue = binLogCache.getIfPresent(bid);
                 if (cachedValue != null) {
                     // populate cache
-                    typeId = typeId == null || typeId.length == 0 ? cachedValue.get(0) : confirm16Bytes(typeId);
-                    binLogCache.put(bid, Arrays.asList(typeId, data));
+                    byte[][] value = new byte[2][];
+                    value[0] = typeId == null || typeId.length == 0 ? cachedValue[0] : confirm16Bytes(typeId);
+                    value[1] = data;
+                    binLogCache.put(bid, value);
                     LOGGER.info("[BINLOG] UPDATING CACHE: ID [{}]", StringUtils.hex(id));
                 }
             }

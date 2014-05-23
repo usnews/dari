@@ -153,9 +153,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private String settingsKeyPrefix;
     private static final byte[] NULL_ID = new byte[16];
     private volatile ThreadPoolExecutor binLogReaderThreadExecutor;
-    private volatile Cache<ByteBuffer, List<byte[]>> binLogCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    private volatile Cache<ByteBuffer, byte[][]> binLogCache = CacheBuilder.newBuilder().maximumSize(10000).build();
 
-    public Cache<ByteBuffer, List<byte[]>> getBinLogCache() {
+    public Cache<ByteBuffer, byte[][]> getBinLogCache() {
         return binLogCache;
     }
 
@@ -1094,24 +1094,62 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /**
-     * Returns an object of the given {@code id} from the MySQL binary log cache if present.
-     * If not, execute the given {@code query} and populate the cache before returning it.
+     * Constructs an object from the given {@code typeId}, {@code id}, {@code data}, and {@code query}
      */
-    private <T> T getObjectFromCache(Object id, Query<T> query) {
+    private <T> T constructObject(byte[] typeId, byte[] id, byte[] data, Query<T> query) {
 
-        if (id == null) {
-            return null;
+        T object = createSavedObject(typeId, id, query);
+        State objectState = State.getInstance(object);
+
+        objectState.setValues(unserializeData(data));
+        Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
+        if (returnOriginal == null) {
+            returnOriginal = Boolean.FALSE;
+        }
+        if (returnOriginal) {
+            objectState.getExtras().put(ORIGINAL_DATA_EXTRA, data);
+        }
+        return object;
+    }
+
+    /**
+     * Finds objects by the given {@code ids} from the MySQL binary log cache if present.
+     * If not, execute the given {@code query} and populate the cache before returning them.
+     */
+    private <T> List<T> findObjectsFromCache(List<Object> ids, Query<T> query) {
+        List<T> objects = new ArrayList<T>();
+
+        if (ids == null || ids.isEmpty()) {
+            return objects;
         }
 
-        Profiler.Static.startThreadEvent(BINARY_LOG_CACHE_PROFILER_EVENT);
-        T object = null;
+        List<byte[]> missingKeys = new ArrayList<byte[]>();
+        // list of typeId, data, id
+        List<byte[][]> objectValues = new ArrayList<byte[][]>();
 
+        Profiler.Static.startThreadEvent(BINARY_LOG_CACHE_PROFILER_EVENT);
         try {
-            UUID uuid = UuidUtils.fromString(id.toString());
-            byte[] key = UuidUtils.toBytes(uuid);
-            List<byte[]> value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
-            if (value == null) {
-                Profiler.Static.startThreadEvent(BINARY_LOG_CACHE_UPDATE_PROFILER_EVENT);
+            for (Object id : ids) {
+                if (id == null) {
+                    continue;
+                }
+                UUID uuid = UuidUtils.fromString(id.toString());
+                byte[] key = UuidUtils.toBytes(uuid);
+                byte[][] value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
+                if (value == null) {
+                    missingKeys.add(key);
+                } else {
+                    // typeId, data, id
+                    byte[][] objectValue = new byte[3][];
+                    objectValue[0] = value[0];
+                    objectValue[1] = value[1];
+                    objectValue[2] = key;
+                    objectValues.add(objectValue);
+                    LOGGER.debug("READING CACHE [{}]", StringUtils.hex(key));
+                }
+            }
+
+            if (!missingKeys.isEmpty()) {
 
                 SqlVendor vendor = getVendor();
                 StringBuilder sqlQuery = new StringBuilder();
@@ -1120,34 +1158,49 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 vendor.appendIdentifier(sqlQuery, TYPE_ID_COLUMN);
                 sqlQuery.append(", ");
                 vendor.appendIdentifier(sqlQuery, DATA_COLUMN);
+                sqlQuery.append(", ");
+                vendor.appendIdentifier(sqlQuery, ID_COLUMN);
                 sqlQuery.append(" FROM ");
                 vendor.appendIdentifier(sqlQuery, RECORD_TABLE);
                 sqlQuery.append(" WHERE ");
                 vendor.appendIdentifier(sqlQuery, ID_COLUMN);
-                sqlQuery.append(" = ");
-                vendor.appendUuid(sqlQuery, uuid);
+                sqlQuery.append(" IN (");
+                for (byte[] missingKey : missingKeys) {
+                    vendor.appendBytes(sqlQuery, missingKey);
+                    sqlQuery.append(", ");
+                }
+                int queryStringLength = sqlQuery.length();
+                sqlQuery.delete(queryStringLength - 2, queryStringLength);
+                sqlQuery.append(")");
 
                 Connection connection = null;
                 ConnectionRef extraConnectionRef = new ConnectionRef();
                 Statement statement = null;
                 ResultSet result = null;
 
+                Profiler.Static.startThreadEvent(BINARY_LOG_CACHE_UPDATE_PROFILER_EVENT);
                 try {
                     connection = extraConnectionRef.getOrOpen(query);
                     statement = connection.createStatement();
                     result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
-                    if (result.next()) {
+                    while (result.next()) {
                         byte[] typeId = result.getBytes(1);
-                        value = new ArrayList<byte[]>();
-                        value.add(typeId);
-                        value.add(result.getBytes(2));
+                        byte[] id = result.getBytes(3);
+                        byte[] data = result.getBytes(2);
                         // Skip null type.
                         if (!Arrays.equals(typeId, NULL_ID)) {
-                            binLogCache.put(ByteBuffer.wrap(key), value);
-                            LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(key));
+                            byte[][] value = new byte[2][];
+                            value[0] = typeId;
+                            value[1] = data;
+                            binLogCache.put(ByteBuffer.wrap(id), value);
+                            LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(id));
                         }
-                    } else {
-                        return null;
+                        // typeId, data, id
+                        byte[][] objectValue = new byte[3][];
+                        objectValue[0] = typeId;
+                        objectValue[1] = data;
+                        objectValue[2] = id;
+                        objectValues.add(objectValue);
                     }
 
                 } catch (SQLException error) {
@@ -1156,27 +1209,21 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 } finally {
                     closeResources(query, connection, statement, result);
                     extraConnectionRef.close();
-                    Profiler.Static.stopThreadEvent(id);
+                    Profiler.Static.stopThreadEvent(missingKeys.size() + " Record(s)");
                 }
-            } else {
-                LOGGER.debug("READING CACHE [{}]", StringUtils.hex(key));
             }
 
-            object = createSavedObject(value.get(0), id, query);
-            State objectState = State.getInstance(object);
+            for (byte[][] objectValue : objectValues) {
+                T object = constructObject(objectValue[0], objectValue[2], objectValue[1], query);
+                if (object != null) {
+                    objects.add(object);
+                }
+            }
 
-            objectState.setValues(unserializeData(value.get(1)));
-            Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
-            if (returnOriginal == null) {
-                returnOriginal = Boolean.FALSE;
-            }
-            if (returnOriginal) {
-                objectState.getExtras().put(ORIGINAL_DATA_EXTRA, value.get(1));
-            }
-            return object;
         } finally {
-            Profiler.Static.stopThreadEvent(object);
+            Profiler.Static.stopThreadEvent(objects);
         }
+        return objects;
     }
 
     /**
@@ -1187,20 +1234,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache(query) && !isDisableBinLogCacheInCms(query)) {
             List<Object> ids = query.findIdOnlyQueryValues();
-            if (ids != null) {
-                for (Object id : ids) {
-                    Object object = getObjectFromCache(id, query);
-                    if (object != null) {
-                        return (T) object;
-                    }
-                }
-                return null;
+            if (ids != null && !ids.isEmpty()) {
+                List<T> objects = findObjectsFromCache(ids, query);
+                return objects.isEmpty() ? null : objects.get(0);
             }
         }
 
         return selectFirstWithOptions(buildSelectStatement(query), query);
     }
-
 
     /**
      * Selects the first object that matches the given {@code sqlQuery}
@@ -1246,16 +1287,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache(query) && !isDisableBinLogCacheInCms(query)) {
             List<Object> ids = query.findIdOnlyQueryValues();
-            if (ids != null) {
-                List<T> objects = new ArrayList<T>();
-                for (Object id : ids) {
-                    Object object = getObjectFromCache(id, query);
-                    if (object != null) {
-                        objects.add((T) object);
-                    }
-
-                }
-                return objects;
+            if (ids != null && !ids.isEmpty()) {
+                return findObjectsFromCache(ids, query);
             }
         }
 
