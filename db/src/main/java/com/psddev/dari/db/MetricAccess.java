@@ -678,7 +678,6 @@ class MetricAccess {
             updateBuilder.append(" <= ");
             vendor.appendMetricEncodeTimestampSql(updateBuilder, null, eventDate, 'F');
 
-
             return updateBuilder.toString();
         }
 

@@ -467,7 +467,6 @@ class SqlQuery {
 
         this.whereClause = whereBuilder.toString();
 
-
         StringBuilder havingBuilder = new StringBuilder();
         if (hasDeferredHavingPredicates()) {
             StringBuilder childBuilder = new StringBuilder();
@@ -1163,7 +1162,6 @@ class SqlQuery {
             groupBy.append(", ");
         }
 
-
         if (groupBy.length() > 0) {
             groupBy.setLength(groupBy.length() - 2);
             groupBy.insert(0, " GROUP BY ");
@@ -1802,7 +1800,6 @@ class SqlQuery {
         sql.append('.');
         vendor.appendIdentifier(sql, columnName);
     }
-
 
     private class Join {
 

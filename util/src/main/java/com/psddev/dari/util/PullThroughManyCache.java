@@ -265,7 +265,6 @@ public abstract class PullThroughManyCache<K, V> extends AbstractMap<K, V> {
         return getMany(Collections.singleton(key)).get(key);
     }
 
-
     /** Returns a set view of all the values produced so far. */
     @Override
     public Set<Map.Entry<K, V>> entrySet() {

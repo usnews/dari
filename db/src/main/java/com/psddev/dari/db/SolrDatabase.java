@@ -1072,7 +1072,6 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 Settings.isDebug() ? solrQuery : null);
     }
 
-
     /**
      * Queries the underlying Solr server for a partial list of objects
      * that match the given {@code solrQuery}.

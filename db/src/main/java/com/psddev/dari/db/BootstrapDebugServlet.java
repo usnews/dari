@@ -411,7 +411,6 @@ public class BootstrapDebugServlet extends HttpServlet {
                             writeEnd();
                         writeEnd();
 
-
                         writeStart("div", "class", "form-actions");
                             writeElement("input", "id", "importBtn", "type", "submit", "name", "action", "class", "btn btn-primary", "value", IMPORT_BUTTON_TEXT);
                         writeEnd();

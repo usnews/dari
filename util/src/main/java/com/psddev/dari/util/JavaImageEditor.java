@@ -36,7 +36,6 @@ public class JavaImageEditor extends AbstractImageEditor {
     private String sharedSecret;
     private String errorImage;
 
-
     public Scalr.Method getQuality() {
         return quality;
     }

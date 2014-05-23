@@ -171,7 +171,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
                         "name", ID_PARAMETER,
                         "value", formId);
 
-
                 // If process() was already called by FormFilter
                 String bufferedOutput = FormFilter.Static.getBufferedOutput(formId, request);
                 if (bufferedOutput != null) {

@@ -872,7 +872,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-
         ResultSetMetaData meta = resultSet.getMetaData();
         Object subId = null, subTypeId = null;
         byte[] subData;
