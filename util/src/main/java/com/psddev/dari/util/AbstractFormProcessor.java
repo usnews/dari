@@ -27,7 +27,10 @@ import com.google.common.base.Throwables;
  * <ul>
  * <li>{@link #doProcess}</li>
  * </ul>
+ *
+ * @deprecated No replacement.
  */
+@Deprecated
 public abstract class AbstractFormProcessor implements FormProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFormProcessor.class);

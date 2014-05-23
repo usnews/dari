@@ -12,6 +12,10 @@ import org.slf4j.LoggerFactory;
 import com.psddev.dari.util.FormFilter;
 import com.psddev.dari.util.FormProcessor;
 
+/**
+ * @deprecated No replacement.
+ */
+@Deprecated
 public abstract class AbstractForm extends FormWriter implements FormProcessor {
 
     protected static final Logger LOGGER = LoggerFactory.getLogger(AbstractForm.class);
