@@ -3071,6 +3071,19 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             return (byte[]) State.getInstance(object).getExtra(ORIGINAL_DATA_EXTRA);
         }
 
+        /**
+         * Invalidates MySQL Binary Log Cache.
+         */
+        public static void invalidateBinLogCache() {
+            Database defaultOriginal = Database.Static.getDefaultOriginal();
+            if (defaultOriginal instanceof AggregateDatabase) {
+                Database defaultDelegate = ((AggregateDatabase) defaultOriginal).getDefaultDelegate();
+                if (defaultDelegate instanceof SqlDatabase) {
+                    ((SqlDatabase) defaultDelegate).getBinLogCache().invalidateAll();
+                }
+            }
+        }
+
         // --- Deprecated ---
 
         /** @deprecated Use {@link #executeUpdateWithArray} instead. */
