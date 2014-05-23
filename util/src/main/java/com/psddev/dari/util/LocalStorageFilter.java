@@ -1,4 +1,4 @@
-package com.psddev.dari.db;
+package com.psddev.dari.util;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -11,11 +11,6 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import com.psddev.dari.util.AbstractFilter;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.Settings;
-import com.psddev.dari.util.StringUtils;
 
 /**
  * Filter that exposes {@link LocalStorageItem} on the web.
