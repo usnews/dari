@@ -15,7 +15,9 @@ import com.psddev.dari.util.HtmlWriter;
  * <li>{@link FormInputProcessor#update update}</li>
  * </ul>
  *
+ * @deprecated No replacement.
  */
+@Deprecated
 public abstract class AbstractFormInputProcessor implements FormInputProcessor {
 
     @Override

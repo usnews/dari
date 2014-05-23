@@ -1414,6 +1414,30 @@ public class State implements Map<String, Object> {
             return;
         }
 
+        if (field != null) {
+            Object value = rawValues.get(field);
+
+            if (value == null) {
+                ObjectField f = getField(field);
+
+                if (f != null && f.isMetric()) {
+                    put(f.getInternalName(), new Metric(this, f));
+                }
+
+            } else if (!linkedObjects.isEmpty()) {
+                UUID id = StateValueUtils.toIdIfReference(value);
+
+                if (id != null) {
+                    Object object = linkedObjects.values().iterator().next();
+                    Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, Collections.singleton(value), field);
+
+                    put(field, references.get(id));
+                }
+            }
+
+            return;
+        }
+
         synchronized (this) {
             if ((flags & ALL_RESOLVED_FLAG) != 0) {
                 return;

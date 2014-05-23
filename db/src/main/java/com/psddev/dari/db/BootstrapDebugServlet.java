@@ -120,7 +120,7 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 InputStream input = file.getInputStream();
                                 InputStream fileInput = input;
 
-                                if (contentType != null && ("application/x-gzip".equals(contentType) || "application/gzip".equals(contentType))) {
+                                if ((contentType != null && ("application/x-gzip".equals(contentType) || "application/gzip".equals(contentType))) || (fileName != null && fileName.endsWith(".gz"))) {
                                     fileInput = new GZIPInputStream(input);
                                 }
                                 boolean deleteFirst = false;
@@ -410,7 +410,6 @@ public class BootstrapDebugServlet extends HttpServlet {
                                 writeElement("input", "name", "commitSize", "type", "text", "value", 50);
                             writeEnd();
                         writeEnd();
-
 
                         writeStart("div", "class", "form-actions");
                             writeElement("input", "id", "importBtn", "type", "submit", "name", "action", "class", "btn btn-primary", "value", IMPORT_BUTTON_TEXT);

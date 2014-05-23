@@ -343,6 +343,11 @@ try {
                                                <property name="minimum" value="0"/>
                                             </module>
 
+                                            <module name="RegexpMultiline">
+                                                <property name="format" value="[^\n]+\n{3,}" />
+                                                <property name="message" value="Two or more consecutive empty lines." />
+                                            </module>
+
                                             <module name="SuppressionCommentFilter"/>
                                             <module name="Translation"/>
 

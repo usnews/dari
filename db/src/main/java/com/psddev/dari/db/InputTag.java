@@ -17,6 +17,10 @@ import com.psddev.dari.util.FormTag;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeDefinition;
 
+/**
+ * @deprecated No replacement.
+ */
+@Deprecated
 @SuppressWarnings("serial")
 public class InputTag extends TagSupport {
 
@@ -147,6 +151,10 @@ public class InputTag extends TagSupport {
         return null;
     }
 
+    /**
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public static final class Static {
 
         /**

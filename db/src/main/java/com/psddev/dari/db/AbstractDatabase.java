@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -571,10 +572,31 @@ public abstract class AbstractDatabase<C> implements Database {
             List<Object> keys = new ArrayList<Object>();
             if (fields != null) {
                 for (String field : fields) {
-                    keys.add(itemState.getByPath(field));
+                    Matcher groupingMatcher = Query.RANGE_PATTERN.matcher(field);
+                    if (groupingMatcher.find()) {
+                        Double bucket = null;
+                        String fieldName = groupingMatcher.group(1);
+
+                        if (itemState.getByPath(fieldName) != null) {
+                            Double start = ObjectUtils.to(Double.class, groupingMatcher.group(2).trim());
+                            Double end   = ObjectUtils.to(Double.class, groupingMatcher.group(3).trim());
+                            Double gap   = ObjectUtils.to(Double.class, groupingMatcher.group(4).trim());
+                            Double value = ObjectUtils.to(Double.class, itemState.getByPath(fieldName));
+
+                            for (double window = start; window <= end; window += gap) {
+                                if (value < window) {
+                                    bucket = window - gap;
+                                    break;
+                                }
+                            }
+                        }
+                        keys.add(bucket);
+
+                    } else {
+                        keys.add(itemState.getByPath(field));
+                    }
                 }
             }
-
             BasicGrouping<T> grouping = groupingsMap.get(keys);
             if (grouping == null) {
                 grouping = new BasicGrouping<T>(keys, query, fields);

@@ -8,6 +8,7 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
@@ -22,11 +23,14 @@ import javax.naming.NamingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-/** Global map of settings. */
+/**
+ * Global map of settings.
+ */
 public final class Settings {
 
     /**
@@ -35,21 +39,30 @@ public final class Settings {
      */
     public static final String CLASS_SUB_SETTING = "class";
 
-    /** Key used to toggle debug mode. */
+    /**
+     * Key used to toggle debug mode.
+     */
     public static final String DEBUG_SETTING = "DEBUG";
 
-    /** Key used to indicate when running in a production environment. */
+    /**
+     * Key used to indicate when running in a production environment.
+     */
     public static final String PRODUCTION_SETTING = "PRODUCTION";
 
-    /** Key used to specify a shared secret. */
+    /**
+     * Key used to specify a shared secret.
+     */
     public static final String SECRET_SETTING = "SECRET";
 
-    /** Default properties file that contains all settings. */
+    /**
+     * Default properties file that contains all settings.
+     */
     public static final String SETTINGS_FILE = "/settings.properties";
 
     private static final String JNDI_PREFIX = "java:comp/env";
     private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
-    private static final ThreadLocal<Map<String, Object>> OVERRIDES = new ThreadLocal<Map<String, Object>>();
+    private static final Map<String, Map<String, Object>> PERMANENT_OVERRIDES_MAP = new LinkedHashMap<String, Map<String, Object>>();
+    private static final ThreadLocal<Map<String, Object>> THREAD_OVERRIDES = new ThreadLocal<Map<String, Object>>();
     private static final String RANDOM_SECRET = UUID.randomUUID().toString();
 
     private static final LoadingCache<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = CacheBuilder.
@@ -65,11 +78,13 @@ public final class Settings {
                 }
             });
 
-    private static final Lazy<Map<String, Object>> SETTINGS = new Lazy<Map<String, Object>>() {
+    private static final Lazy<PeriodicCache<String, Object>> SETTINGS = new Lazy<PeriodicCache<String, Object>>() {
 
         @Override
-        public Map<String, Object> create() {
+        public PeriodicCache<String, Object> create() {
             return new PeriodicCache<String, Object>(0.0, 10.0) {
+
+                private boolean jndiErrorLogged;
 
                 @Override
                 protected Map<String, Object> update() {
@@ -77,31 +92,50 @@ public final class Settings {
                     // Optional file.
                     Map<String, Object> settings = new TreeMap<String, Object>();
                     InputStream input = Settings.class.getResourceAsStream(SETTINGS_FILE);
+
                     if (input != null) {
                         try {
                             try {
                                 Properties properties = new Properties();
+
                                 properties.load(input);
                                 putAllMap(settings, properties);
+
                             } finally {
                                 input.close();
                             }
-                        } catch (IOException ex) {
-                            LOGGER.warn(String.format("Cannot read [%s] file!", SETTINGS_FILE), ex);
+
+                        } catch (IOException error) {
+                            LOGGER.warn(String.format(
+                                    "Can't read from [%s]!", SETTINGS_FILE),
+                                    error);
                         }
                     }
 
+                    // Environment.
                     putAllMap(settings, System.getenv());
                     putAllMap(settings, System.getProperties());
 
                     // JNDI.
                     try {
                         putAllContext(settings, new InitialContext(), JNDI_PREFIX);
+
                     } catch (Throwable error) {
-                        LOGGER.info(
-                                "Can't read from JNDI! [{}: {}]",
-                                error.getClass().getName(),
-                                error.getMessage());
+                        if (!jndiErrorLogged) {
+                            jndiErrorLogged = true;
+
+                            LOGGER.info(
+                                    "Can't read from JNDI! [{}: {}]",
+                                    error.getClass().getName(),
+                                    error.getMessage());
+                        }
+                    }
+
+                    // Permanent overrides.
+                    synchronized (PERMANENT_OVERRIDES_MAP) {
+                        for (Map<String, Object> overrides : PERMANENT_OVERRIDES_MAP.values()) {
+                            CollectionUtils.putAllRecursively(settings, overrides);
+                        }
                     }
 
                     return Collections.unmodifiableMap(settings);
@@ -110,6 +144,7 @@ public final class Settings {
                 private void putAllMap(Map<String, Object> map, Map<?, ?> other) {
                     for (Map.Entry<?, ?> entry : other.entrySet()) {
                         Object key = entry.getKey();
+
                         if (key != null) {
                             CollectionUtils.putByPath(map, key.toString(), entry.getValue());
                         }
@@ -117,19 +152,20 @@ public final class Settings {
                 }
 
                 private void putAllContext(Map<String, Object> map, Context context, String path) throws NamingException {
-
                     String pathWithSlash;
+
                     if (path.endsWith("/")) {
                         pathWithSlash = path;
                         path = path.substring(0, path.length() - 1);
+
                     } else {
                         pathWithSlash = path + "/";
                     }
 
                     for (Enumeration<Binding> e = context.listBindings(path); e.hasMoreElements();) {
                         Binding binding = e.nextElement();
-
                         String name = binding.getName();
+
                         if (name.startsWith(pathWithSlash)) {
                             name = name.substring(pathWithSlash.length());
                         }
@@ -137,8 +173,10 @@ public final class Settings {
                         if (!ObjectUtils.isBlank(name)) {
                             String fullName = pathWithSlash + name;
                             Object value = binding.getObject();
+
                             if (value instanceof Context) {
                                 putAllContext(map, context, fullName);
+
                             } else {
                                 CollectionUtils.putByPath(map, fullName.substring(JNDI_PREFIX.length() + 1), value);
                             }
@@ -158,7 +196,7 @@ public final class Settings {
      */
     public static Object getOrDefault(String key, Object defaultValue) {
         Object value = null;
-        Map<String, Object> overrides = OVERRIDES.get();
+        Map<String, Object> overrides = THREAD_OVERRIDES.get();
 
         if (overrides != null) {
             value = CollectionUtils.getByPath(overrides, key);
@@ -263,6 +301,7 @@ public final class Settings {
     private static <T> T checkValue(T value, String key, String message) {
         if (ObjectUtils.isBlank(value)) {
             throw new SettingsException(key, message != null ? message : "[" + key + "] can't be blank!");
+
         } else {
             return value;
         }
@@ -329,17 +368,55 @@ public final class Settings {
     }
 
     /**
+     * Puts all entries from the given {@code overrides} permanently to the
+     * global settings and associates them with the given {@code name}.
+     * They can be later removed with {@link #removePermanentOverrides}
+     * using the given {@code name}. Any subsequent changes in the given
+     * {@code overrides} will be automatically synchronized to the global
+     * settings.
+     *
+     * @param name Can't be {@code null}.
+     * @param overrides Does nothing if {@code null}.
+     */
+    public static void putPermanentOverrides(String name, Map<String, Object> overrides) {
+        Preconditions.checkNotNull(name);
+
+        if (overrides != null) {
+            synchronized (PERMANENT_OVERRIDES_MAP) {
+                PERMANENT_OVERRIDES_MAP.put(name, overrides);
+                SETTINGS.get().refresh();
+            }
+        }
+    }
+
+    /**
+     * Removes the permanent overrides previously associated with the given
+     * {@code name} using {@link #putPermanentOverrides}.
+     *
+     * @param name Can't be {@code null}.
+     */
+    public static void removePermanentOverrides(String name) {
+        Preconditions.checkNotNull(name);
+
+        synchronized (PERMANENT_OVERRIDES_MAP) {
+            PERMANENT_OVERRIDES_MAP.remove(name);
+            SETTINGS.get().refresh();
+        }
+    }
+
+    /**
      * Temporarily overrides the value associated with the given
      * {@code key} in the current thread.
      */
     public static void setOverride(String key, Object value) {
-        Map<String, Object> overrides = OVERRIDES.get();
+        Map<String, Object> overrides = THREAD_OVERRIDES.get();
 
         if (value != null) {
             if (overrides == null) {
                 overrides = new HashMap<String, Object>();
-                OVERRIDES.set(overrides);
+                THREAD_OVERRIDES.set(overrides);
             }
+
             CollectionUtils.putByPath(overrides, key, value);
 
         } else {
@@ -349,17 +426,23 @@ public final class Settings {
         }
     }
 
-    /** Returns {@code true} if running in debug mode. */
+    /**
+     * Returns {@code true} if running in debug mode.
+     */
     public static boolean isDebug() {
         return get(boolean.class, DEBUG_SETTING);
     }
 
-    /** Returns {@code true} if running in a production environment. */
+    /**
+     * Returns {@code true} if running in a production environment.
+     */
     public static boolean isProduction() {
         return get(boolean.class, PRODUCTION_SETTING);
     }
 
-    /** Returns a shared secret. */
+    /**
+     * Returns a shared secret.
+     */
     public static String getSecret() {
         String secret = get(String.class, SECRET_SETTING);
 
@@ -455,6 +538,7 @@ public final class Settings {
 
         } catch (InvocationTargetException ex) {
             Throwable cause = ex.getCause();
+
             throw cause instanceof RuntimeException ?
                     (RuntimeException) cause :
                     new RuntimeException(String.format(
@@ -463,31 +547,36 @@ public final class Settings {
         }
 
         object.initialize(key, (Map<String, Object>) instanceSettings);
-
         return object;
     }
 
-    // --- Deprecated ---
-
-    /** @deprecated Use {@link #getOrDefault(String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(String, Object)} instead.
+     */
     @Deprecated
     public static Object get(String key, Object defaultValue) {
         return getOrDefault(key, defaultValue);
     }
 
-    /** @deprecated Use {@link #getOrDefault(Type, String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(Type, String, Object)} instead.
+     */
     @Deprecated
     public static Object get(Type returnType, String key, Object defaultValue) {
         return getOrDefault(returnType, key, defaultValue);
     }
 
-    /** @deprecated Use {@link #getOrDefault(Class, String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(Class, String, Object)} instead.
+     */
     @Deprecated
     public static <T> T get(Class<T> returnClass, String key, T defaultValue) {
         return getOrDefault(returnClass, key, defaultValue);
     }
 
-    /** @deprecated Use {@link #getOrDefault(TypeReference, String, Object)} instead. */
+    /**
+     * @deprecated Use {@link #getOrDefault(TypeReference, String, Object)} instead.
+     */
     @Deprecated
     public static <T> T get(TypeReference<T> returnTypeReference, String key, T defaultValue) {
         return getOrDefault(returnTypeReference, key, defaultValue);
