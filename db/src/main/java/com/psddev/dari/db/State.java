@@ -1232,13 +1232,25 @@ public class State implements Map<String, Object> {
     }
 
     /**
-     * Fires the given trigger on all objects (the original and the
-     * modifications) associated with this state.
+     * Fires the given {@code trigger} on all objects (the original, the
+     * modifications, and the embedded) associated with this state.
      *
      * @param trigger Can't be {@code null}.
      */
-    @SuppressWarnings("unchecked")
     public void fireTrigger(Trigger trigger) {
+        fireTrigger(trigger, true);
+    }
+
+    /**
+     * Fires the given {@code trigger} on all objects (the original and the
+     * modifications) associated with this state.
+     *
+     * @param trigger Can't be {@code null}.
+     * @param recursive If {@code true}, fires the given {@code trigger}
+     * recursively on all embedded objects.
+     */
+    @SuppressWarnings("unchecked")
+    public void fireTrigger(Trigger trigger, boolean recursive) {
 
         // Global modifications.
         for (ObjectType modType : getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
@@ -1283,8 +1295,10 @@ public class State implements Map<String, Object> {
         }
 
         // Embedded objects.
-        for (ObjectField field : type.getFields()) {
-            fireValueTrigger(trigger, get(field.getInternalName()), field.isEmbedded());
+        if (recursive) {
+            for (ObjectField field : type.getFields()) {
+                fireValueTrigger(trigger, get(field.getInternalName()), field.isEmbedded());
+            }
         }
     }
 
