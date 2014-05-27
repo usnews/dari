@@ -203,7 +203,7 @@ public class JavaImageEditor extends AbstractImageEditor {
                     resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO) ||
                     resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA))) {
                 outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
-                                                originalDimension.width != null ? Math.min(originalDimension.height, height) : height);
+                                                originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
             }
             commands.add(resizeBuilder.toString());
 
