@@ -160,8 +160,8 @@ public class JavaImageEditor extends AbstractImageEditor {
 
                 commands.add(arguments[0] + "x" + arguments[1] + "x" + width + "x" + height);
             if (originalDimension != null) {
-                outputDimension = new Dimension(Math.min(originalDimension.width, width),
-                                                Math.min(originalDimension.height, height));
+                outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
+                                                originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
             }
 
         } else if (ImageEditor.RESIZE_COMMAND.equals(command)) {
@@ -185,14 +185,14 @@ public class JavaImageEditor extends AbstractImageEditor {
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
                     resizeBuilder.append(">");
                     if (originalDimension != null && width != null && height != null) {
-                        outputDimension = new Dimension(Math.min(originalDimension.width, width),
-                                                        Math.min(originalDimension.height, height));
+                        outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
+                                                        originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
                     }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
                     resizeBuilder.append("<");
                     if (originalDimension != null && width != null && height != null) {
-                        outputDimension = new Dimension(Math.max(originalDimension.width, width),
-                                                        Math.max(originalDimension.height, height));
+                        outputDimension = new Dimension(originalDimension.width != null ? Math.max(originalDimension.width, width) : width,
+                                                        originalDimension.height != null ? Math.max(originalDimension.height, height) : height);
                     }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
                     resizeBuilder.append("^");
@@ -202,8 +202,8 @@ public class JavaImageEditor extends AbstractImageEditor {
             if (originalDimension != null && width != null && height != null && (resizeOption == null ||
                     resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO) ||
                     resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA))) {
-                outputDimension = new Dimension(Math.min(originalDimension.width, width),
-                                                Math.min(originalDimension.height, height));
+                outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
+                                                originalDimension.width != null ? Math.min(originalDimension.height, height) : height);
             }
             commands.add(resizeBuilder.toString());
 
