@@ -1,13 +1,5 @@
 package com.psddev.dari.db;
 
-import com.psddev.dari.util.CompactMap;
-import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.PullThroughCache;
-import com.psddev.dari.util.StorageItem;
-import com.psddev.dari.util.StringUtils;
-import com.psddev.dari.util.TypeDefinition;
-import com.psddev.dari.util.TypeReference;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -31,6 +23,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.psddev.dari.util.CompactMap;
+import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.PullThroughCache;
+import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.TypeDefinition;
+import com.psddev.dari.util.TypeReference;
 
 /** Description of how field values can be stored in a state. */
 @ObjectField.Embedded
@@ -522,63 +522,49 @@ public class ObjectField extends Record {
 
         } else {
             ObjectType type = types.iterator().next();
+            Predicate resolveInvisiblePredicate = null;
             Query<Object> query = Query.
                     fromType(type).
                     where(getJunctionField() + " = ?", state.getId());
-            Predicate predicate = null;
 
             if (state.isResolveInvisible()) {
                 DatabaseEnvironment environment = Database.Static.getDefault().getEnvironment();
-
                 List<ObjectIndex> indexes = environment.getIndexes();
+
                 indexes.addAll(type.getIndexes());
 
                 for (ObjectIndex index : indexes) {
                     if (index.isVisibility()) {
-                        FindVisibilityValuesTrigger visibilityValues = new FindVisibilityValuesTrigger(index);
-                        state.fireTrigger(visibilityValues);
+                        FindVisibilityValuesTrigger trigger = new FindVisibilityValuesTrigger(index);
+                        String indexName = index.getUniqueName();
 
-                        for (Object value : visibilityValues.getValues()) {
-                            predicate = CompoundPredicate.combine(
+                        state.fireTrigger(trigger, false);
+
+                        for (Object value : trigger.getValues()) {
+                            resolveInvisiblePredicate = CompoundPredicate.combine(
                                              PredicateParser.OR_OPERATOR,
-                                             predicate,
-                                             PredicateParser.Static.parse(index.getUniqueName() + " = ?", value));
+                                             resolveInvisiblePredicate,
+                                             PredicateParser.Static.parse(indexName + " = ?", value));
                         }
-                        predicate = CompoundPredicate.combine(
+
+                        resolveInvisiblePredicate = CompoundPredicate.combine(
                                              PredicateParser.OR_OPERATOR,
-                                             predicate,
-                                             PredicateParser.Static.parse(index.getUniqueName() + " = missing or " + index.getUniqueName() + " = true"));
+                                             resolveInvisiblePredicate,
+                                             PredicateParser.Static.parse(indexName + " = missing or " + indexName + " = true"));
                     }
                 }
             }
 
-            if (predicate != null) {
-                query.setPredicate(CompoundPredicate.combine(PredicateParser.AND_OPERATOR, query.getPredicate(), predicate));
+            if (resolveInvisiblePredicate != null) {
+                query.and(resolveInvisiblePredicate);
             }
+
             String junctionPositionField = getJunctionPositionField();
 
             if (!ObjectUtils.isBlank(junctionPositionField)) {
                 query.sortAscending(junctionPositionField);
             }
             return query.selectAll();
-        }
-    }
-
-    private void addVisibilityFields(Set<String> comparisonKeys, ObjectStruct struct) {
-        if (struct == null) {
-            return;
-        }
-
-        for (ObjectIndex index : struct.getIndexes()) {
-            if (index.isVisibility()) {
-                for (String fieldName : index.getFields()) {
-                    ObjectField field = struct.getField(fieldName);
-
-                    if (field != null) {
-                        comparisonKeys.add(field.getUniqueName());
-                    }
-                }
-            }
         }
     }
 
@@ -1236,32 +1222,15 @@ public class ObjectField extends Record {
 
     private static class FindVisibilityValuesTrigger implements Trigger {
 
-        ObjectIndex index;
-        Set<Object> values;
-
-        public FindVisibilityValuesTrigger() {}
+        private final ObjectIndex index;
+        private final Set<Object> values = new HashSet<Object>();
 
         public FindVisibilityValuesTrigger(ObjectIndex index) {
             this.index = index;
         }
 
-        public ObjectIndex getIndex() {
-            return index;
-        }
-
-        public void setIndex(ObjectIndex index) {
-            this.index = index;
-        }
-
         public Set<Object> getValues() {
-            if (values == null) {
-                values = new HashSet<Object>();
-            }
             return values;
-        }
-
-        public void setValues(Set<Object> values) {
-            this.values = values;
         }
 
         @Override
