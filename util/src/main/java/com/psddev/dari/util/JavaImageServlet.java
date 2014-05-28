@@ -113,7 +113,13 @@ public class JavaImageServlet extends HttpServlet {
                     }
                 }
 
-                String filePath = imageFolder + "/" + StringUtils.encodeUri(requestUrl);
+                String filePath = StringUtils.encodeUri(requestUrl);
+                if (filePath.length() > 255) {
+                    String hashCode = StringUtils.hex(StringUtils.md5(filePath));
+                    filePath = hashCode + filePath.substring(filePath.length() - 255 + hashCode.length());
+                }
+
+                filePath = imageFolder + "/" + filePath;
                 file = new File(filePath);
                 if (file.exists() && !file.isDirectory()) {
                     ServletOutputStream out = response.getOutputStream();
