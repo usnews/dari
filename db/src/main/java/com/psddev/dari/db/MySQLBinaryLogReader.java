@@ -3,8 +3,6 @@ package com.psddev.dari.db;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -109,29 +107,28 @@ public final class MySQLBinaryLogReader implements Runnable {
                     return null;
                 }
 
-                if (!jdbcUrl.startsWith("jdbc:mysql")) {
+                // Parse jdbc url
+                String[] jdbcUrlParts = jdbcUrl.split("://", 2);
+                if (!jdbcUrlParts[0].startsWith("jdbc:mysql") || jdbcUrlParts.length < 2) {
                     LOGGER.error("Cannot recognize jdbc url. [{}]", jdbcUrl);
                     return null;
                 }
-
-                try {
-                    URI uri = new URI(jdbcUrl.substring(5));
-                    int port = uri.getPort();
-                    if (port == 0) {
-                        port = 3306;
-                    }
-                    MySQLBinaryLogReader newInstance = new MySQLBinaryLogReader();
-                    newInstance.setHost(uri.getHost());
-                    newInstance.setPort(port);
-                    newInstance.setCatalog(uri.getPath().substring(1));
-                    newInstance.setUsername(username);
-                    newInstance.setPassword(password);
-                    newInstance.setBinLogCache(binLogCache);
-                    instance = newInstance;
-                } catch (URISyntaxException e) {
-                    LOGGER.error("Failed to parse jdbc url. [{}]", jdbcUrl);
+                String[] urlParts = jdbcUrlParts[1].split("/", 2);
+                if (urlParts.length < 2) {
+                    LOGGER.error("Cannot recognize jdbc url. [{}]", jdbcUrl);
                     return null;
                 }
+                String[] hostParts = urlParts[0].split(":", 2);
+                String catalog = urlParts[1].split("\\?", 2)[0];
+
+                MySQLBinaryLogReader newInstance = new MySQLBinaryLogReader();
+                newInstance.setHost(hostParts[0]);
+                newInstance.setPort(hostParts.length > 1 ? Integer.valueOf(hostParts[1]) : 3306);
+                newInstance.setCatalog(catalog);
+                newInstance.setUsername(username);
+                newInstance.setPassword(password);
+                newInstance.setBinLogCache(binLogCache);
+                instance = newInstance;
             }
             return instance;
         }
@@ -464,12 +461,12 @@ public final class MySQLBinaryLogReader implements Runnable {
                     if (tableMapEventData != null) {
                         // TODO: check column metadata to get length.
                         try {
-                            if (eventType == EventType.WRITE_ROWS || eventType == EventType.EXT_WRITE_ROWS) {
-                                // Do nothing
-                            } else if (eventType == EventType.UPDATE_ROWS || eventType == EventType.EXT_UPDATE_ROWS) {
+                            if (EventType.isUpdate(eventType)) {
                                 tableId = ((UpdateRowsEventData) eventData).getTableId();
-                            } else if (eventType == EventType.DELETE_ROWS || eventType == EventType.EXT_DELETE_ROWS) {
+                            } else if (EventType.isDelete(eventType)) {
                                 tableId = ((DeleteRowsEventData) eventData).getTableId();
+                            } else if (EventType.isWrite(eventType)) {
+                                // Do nothing
                             } else {
                                 LOGGER.error("NOT RECOGNIZED TYPE: {}", eventType);
                             }
