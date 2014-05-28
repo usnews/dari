@@ -157,7 +157,7 @@ public class StringUtilsTest {
 	public void splitString_spaces() {
 		assertEquals(Arrays.asList("a","string","with","spaces"), StringUtils.splitString("a string with spaces"));
 	}
-	
+
 	@Test
 	public void splitString_caps() {
 		assertEquals(Arrays.asList("a","string","with","caps"), StringUtils.splitString("aStringWithCaps"));
@@ -204,7 +204,7 @@ public class StringUtilsTest {
 	public void toDelimited_dashes() {
 		assertEquals("a-string-with-words", StringUtils.toDelimited("a string with words", "-"));
 	}
-	
+
 	/**
 	 * public static String toHyphenated(String string)
 	 */
@@ -269,7 +269,7 @@ public class StringUtilsTest {
 		assertEquals(null, StringUtils.toLabel(null));
 	}
 
-    
+
 	/**
 	 * public static String toNormalized(CharSequence string)
 	 */
@@ -308,7 +308,7 @@ public class StringUtilsTest {
 		assertEquals("a-string-with-multiple-things-to-replace-in-a-row", StringUtils.toNormalized("A String With multiple . things to replace in a row"));
 	}
 
-	
+
 	/**
 	 * public static String[] fromCsv(String string)
 	 * Tests per: http://tools.ietf.org/html/rfc4180
@@ -348,7 +348,7 @@ public class StringUtilsTest {
 		assertArrayEquals(new String[]{"a\nb","c"}, StringUtils.fromCsv("\"a\nb\",c"));
 	}
 
-	
+
 	/**
 	 * public static String toCsv(String... strings)
 	 * Tests per: http://tools.ietf.org/html/rfc4180
@@ -387,7 +387,7 @@ public class StringUtilsTest {
 		assertEquals("a',b,c", StringUtils.toCsv("a'","b","c"));
 	}
 
-	
+
 	/**
 	 * CSV round trip
 	 */
@@ -396,7 +396,7 @@ public class StringUtilsTest {
 		String toCsv = StringUtils.toCsv(input);
 		String[] fromCsv = StringUtils.fromCsv(toCsv);
 		String toCsvR = StringUtils.toCsv(fromCsv);
-		
+
 		assertArrayEquals(input, fromCsv); // round trip array -> csv -> array
 		assertEquals(toCsv, toCsvR);       // round trip csv -> array -> csv
 	}
@@ -406,7 +406,7 @@ public class StringUtilsTest {
 		String toCsv = StringUtils.toCsv(input);
 		String[] fromCsv = StringUtils.fromCsv(toCsv);
 		String toCsvR = StringUtils.toCsv(fromCsv);
-		
+
 		assertArrayEquals(input, fromCsv); // round trip array -> csv -> array
 		assertEquals(toCsv, toCsvR);       // round trip csv -> array -> csv
 	}
@@ -416,7 +416,7 @@ public class StringUtilsTest {
 		String toCsv = StringUtils.toCsv(input);
 		String[] fromCsv = StringUtils.fromCsv(toCsv);
 		String toCsvR = StringUtils.toCsv(fromCsv);
-		
+
 		assertArrayEquals(input, fromCsv); // round trip array -> csv -> array
 		assertEquals(toCsv, toCsvR);       // round trip csv -> array -> csv
 	}
@@ -426,7 +426,7 @@ public class StringUtilsTest {
 		String toCsv = StringUtils.toCsv(input);
 		String[] fromCsv = StringUtils.fromCsv(toCsv);
 		String toCsvR = StringUtils.toCsv(fromCsv);
-		
+
 		assertArrayEquals(input, fromCsv); // round trip array -> csv -> array
 		assertEquals(toCsv, toCsvR);       // round trip csv -> array -> csv
 	}
@@ -436,7 +436,7 @@ public class StringUtilsTest {
 		String toCsv = StringUtils.toCsv(input);
 		String[] fromCsv = StringUtils.fromCsv(toCsv);
 		String toCsvR = StringUtils.toCsv(fromCsv);
-		
+
 		assertArrayEquals(input, fromCsv); // round trip array -> csv -> array
 		assertEquals(toCsv, toCsvR);       // round trip csv -> array -> csv
 	}
@@ -446,7 +446,7 @@ public class StringUtilsTest {
 		String toCsv = StringUtils.toCsv(input);
 		String[] fromCsv = StringUtils.fromCsv(toCsv);
 		String toCsvR = StringUtils.toCsv(fromCsv);
-		
+
 		assertArrayEquals(input, fromCsv); // round trip array -> csv -> array
 		assertEquals(toCsv, toCsvR);       // round trip csv -> array -> csv
 	}
@@ -457,12 +457,12 @@ public class StringUtilsTest {
 		String toCsv = StringUtils.toCsv(input);
 		String[] fromCsv = StringUtils.fromCsv(toCsv);
 		String toCsvR = StringUtils.toCsv(fromCsv);
-		
+
 		assertArrayEquals(input, fromCsv); // round trip array -> csv -> array
 		assertEquals(toCsv, toCsvR);       // round trip csv -> array -> csv
 	}
 
-	
+
 	/**
 	 * public static String escapeJavaScript(String string)
 	 */
@@ -511,7 +511,7 @@ public class StringUtilsTest {
 		String message = "\" onmouseover=alert(1) ";
 		assertEquals("\\x22\\x20onmouseover\\x3dalert\\x281\\x29\\x20", StringUtils.escapeJavaScript(message));
 	}
-	
+
 	/**
 	 * public static String addQueryParameters(String uri, Object... parameters)
 	 */
@@ -571,6 +571,4 @@ public class StringUtilsTest {
 		assertEquals("http://test.com/a?b=", StringUtils.addQueryParameters("http://test.com/a", "b", ""));
 		assertEquals("http://test.com/a?b=&c=2", StringUtils.addQueryParameters("http://test.com/a", "b", "", "c", "2"));
 	}
-
-
 }
