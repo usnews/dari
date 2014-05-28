@@ -282,7 +282,18 @@ public class JavaImageServlet extends HttpServlet {
                     bufferedImage = javaImageEditor.star(bufferedImage);
 
                 } else if (command.equals("starburst")) {
-                    bufferedImage = javaImageEditor.starburst(bufferedImage);
+                    int size = 5;
+                    int count = 30;
+                    if (value.contains("x")) {
+                        String[] sc = value.split("x");
+                        if (!StringUtils.isBlank(sc[0])) {
+                            size = Integer.parseInt(sc[0]);
+                        }
+                        if (sc.length > 1 && !StringUtils.isBlank(sc[1])) {
+                            count = Integer.parseInt(sc[1]);
+                        }
+                    }
+                    bufferedImage = javaImageEditor.starburst(bufferedImage, size, count);
 
                 }
 

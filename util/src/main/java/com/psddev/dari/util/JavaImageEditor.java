@@ -654,7 +654,7 @@ public class JavaImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
-    public BufferedImage starburst(BufferedImage image) {
+    public BufferedImage starburst(BufferedImage image, int size, int count) {
         int w = image.getWidth();
         int h = image.getHeight();
         int cropX = 0;
@@ -682,15 +682,16 @@ public class JavaImageEditor extends AbstractImageEditor {
         int x = 0;
         int y = 0;
 
-        int interiorWidth = 45;
         int exteriorWidth = 50;
-        for (double i = 0.0; i < 6.28; i += 0.157) {
+        int interiorWidth = exteriorWidth - size;
+        double interval = 6.28 / count;
+        for (double i = 0.0; i < 6.28; i += interval) {
             x = ((Double) (50 + interiorWidth * Math.cos(i))).intValue();
             y = ((Double) (50 + interiorWidth * Math.sin(i))).intValue();
             addPoint(starburstPolygon, h, x, y);
 
-            x = ((Double) (50 + exteriorWidth * Math.cos(i + 0.0785))).intValue();
-            y = ((Double) (50 + exteriorWidth * Math.sin(i + 0.0785))).intValue();
+            x = ((Double) (50 + exteriorWidth * Math.cos(i + interval / 2))).intValue();
+            y = ((Double) (50 + exteriorWidth * Math.sin(i + interval / 2))).intValue();
             addPoint(starburstPolygon, h, x, y);
         }
 
