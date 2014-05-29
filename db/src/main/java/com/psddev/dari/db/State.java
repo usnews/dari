@@ -405,11 +405,15 @@ public class State implements Map<String, Object> {
     }
 
     public Map<String, Object> getSimpleValues(boolean withTypeNames) {
+        Set<String> names = getValues().keySet();
         Map<String, Object> values = new CompactMap<String, Object>();
 
-        for (Map.Entry<String, Object> entry : getValues().entrySet()) {
-            String name = entry.getKey();
-            Object value = entry.getValue();
+        for (String name : names.toArray(new String[names.size()])) {
+            if (name == null) {
+                continue;
+            }
+
+            Object value = get(name);
             ObjectField field = getField(name);
 
             if (field == null) {
