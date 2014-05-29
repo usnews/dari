@@ -397,7 +397,8 @@ public class ReferentialText extends AbstractList<Object> {
                 Element childElement = (Element) child;
 
                 if (P_TAG.equals(childElement.tag()) &&
-                        !childElement.hasText()) {
+                        !childElement.hasText() &&
+                        childElement.children().isEmpty()) {
                     continue;
                 }
             }
