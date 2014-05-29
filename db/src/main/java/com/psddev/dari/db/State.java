@@ -409,9 +409,16 @@ public class State implements Map<String, Object> {
     }
 
     public Map<String, Object> getSimpleValues(boolean withTypeNames) {
+        Set<Map.Entry<String, Object>> entries = getValues().entrySet();
         Map<String, Object> values = new CompactMap<String, Object>();
 
-        for (Map.Entry<String, Object> entry : getValues().entrySet()) {
+        for (Object entryObject : entries.toArray()) {
+            if (entryObject == null) {
+                continue;
+            }
+
+            @SuppressWarnings("unchecked")
+            Map.Entry<String, Object> entry = (Map.Entry<String, Object>) entryObject;
             String name = entry.getKey();
             Object value = entry.getValue();
             ObjectField field = getField(name);
