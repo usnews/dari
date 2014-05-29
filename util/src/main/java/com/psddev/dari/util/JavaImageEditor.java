@@ -37,6 +37,8 @@ public class JavaImageEditor extends AbstractImageEditor {
     private String errorImage;
     private boolean disableCache;
     private String cachePath;
+    private Long cacheLimit = 500L;
+    private Integer cacheManagementInterval = 300;
 
     public Scalr.Method getQuality() {
         return quality;
@@ -90,11 +92,34 @@ public class JavaImageEditor extends AbstractImageEditor {
     }
 
     public String getCachePath() {
+        if (StringUtils.isBlank(cachePath)) {
+            String property = "java.io.tmpdir";
+            String tempDir = System.getProperty(property);
+            if (!StringUtils.isBlank(tempDir)) {
+                cachePath = tempDir;
+            }
+        }
         return cachePath;
     }
 
     public void setCachePath(String cachePath) {
         this.cachePath = cachePath;
+    }
+
+    public Long getCacheLimit() {
+        return cacheLimit;
+    }
+
+    public void setCacheLimit(Long cacheLimit) {
+        this.cacheLimit = cacheLimit;
+    }
+
+    public Integer getCacheManagementInterval() {
+        return cacheManagementInterval;
+    }
+
+    public void setCacheManagementInterval(Integer cacheManagementInterval) {
+        this.cacheManagementInterval = cacheManagementInterval;
     }
 
     @Override
@@ -335,15 +360,24 @@ public class JavaImageEditor extends AbstractImageEditor {
         if (!disableCache) {
             if (!ObjectUtils.isBlank(settings.get("cachePath"))) {
                 setCachePath(ObjectUtils.to(String.class, settings.get("cachePath")));
-            } else {
-                String property = "java.io.tmpdir";
-                String tempDir = System.getProperty(property);
-                if (!StringUtils.isBlank(tempDir)) {
-                    setCachePath(tempDir);
-                }
             }
+
+            if (!ObjectUtils.isBlank(settings.get("cacheLimit"))) {
+                setCacheLimit(ObjectUtils.to(Long.class, settings.get("cacheLimit")));
+            }
+
+            if (!ObjectUtils.isBlank(settings.get("cacheManagementInterval"))) {
+                setCacheManagementInterval(ObjectUtils.to(Integer.class, settings.get("cacheManagementInterval")));
+            }
+
+            this.startImageCacheManagementTask();
         }
 
+    }
+
+    protected void startImageCacheManagementTask() {
+        JavaImageCacheManagementTask javaImageCacheManagementTask = new JavaImageCacheManagementTask(this.getCachePath(), this.getCacheLimit() * JavaImageCacheManagementTask.MEGA_BYTE);
+        javaImageCacheManagementTask.scheduleAtFixedRate(30, this.getCacheManagementInterval());
     }
 
     protected void setBaseUrlFromRequest(HttpServletRequest request) {
