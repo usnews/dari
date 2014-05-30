@@ -1655,7 +1655,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 }
 
                 State lastState = State.getInstance(items.get(size - 1));
-                lastTypeId = lastState.getTypeId();
+                lastTypeId = lastState.getVisibilityAwareTypeId();
                 lastId = lastState.getId();
                 index = 0;
             }
