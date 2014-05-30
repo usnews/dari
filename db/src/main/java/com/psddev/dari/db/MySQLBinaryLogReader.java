@@ -237,12 +237,17 @@ public final class MySQLBinaryLogReader implements Runnable {
 
         private boolean isFlushCache = false;
 
-
+        /**
+         * Makes sure length of the given {@code in} is 16.
+         */
         private byte[] confirm16Bytes(byte[] in) {
+            if (in == null) {
+                return null;
+            }
+            byte[] bytes16 = new byte[16];
             if (in.length == 16) {
                 return in;
             }
-            byte[] bytes16 = new byte[16];
             for (int i = 0; i < bytes16.length && i < in.length; i++) {
                 bytes16[i] |= in[i];
             }
@@ -260,7 +265,9 @@ public final class MySQLBinaryLogReader implements Runnable {
                     value[0] = typeId == null || typeId.length == 0 ? cachedValue[0] : confirm16Bytes(typeId);
                     value[1] = data;
                     binLogCache.put(bid, value);
-                    LOGGER.info("[BINLOG] UPDATING CACHE: ID [{}]", StringUtils.hex(id));
+                    if (LOGGER.isInfoEnabled()) {
+                        LOGGER.info("[BINLOG] UPDATING CACHE: ID [{}]", StringUtils.hex(id));
+                    }
                 }
             }
         }
@@ -269,10 +276,10 @@ public final class MySQLBinaryLogReader implements Runnable {
             id = confirm16Bytes(id);
             if (id != null) {
                 ByteBuffer bid = ByteBuffer.wrap(id);
-                if (binLogCache.getIfPresent(bid) != null) {
-                    binLogCache.invalidate(bid);
+                if (LOGGER.isInfoEnabled() && binLogCache.getIfPresent(bid) != null) {
                     LOGGER.info("[BINLOG] DELETING CACHE: ID [{}]", StringUtils.hex(id));
                 }
+                binLogCache.invalidate(bid);
             }
         }
 
