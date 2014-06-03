@@ -66,6 +66,16 @@ public class PageContextFilter extends AbstractFilter {
         }
     }
 
+    @Override
+    protected void doError(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain chain)
+            throws IOException, ServletException {
+
+        doRequest(request, response, chain);
+    }
+
     /**
      * {@link PageContextFilter} utility methods.
      */
