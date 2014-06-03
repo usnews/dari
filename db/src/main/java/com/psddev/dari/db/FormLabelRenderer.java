@@ -4,13 +4,23 @@ import java.io.IOException;
 
 import com.psddev.dari.util.HtmlWriter;
 
-/** Writes input labels for {@link FormWriter}. */
+/**
+ * Writes input labels for {@link FormWriter}.
+ *
+ * @deprecated No replacement.
+ */
+@Deprecated
 public interface FormLabelRenderer {
 
     /** Returns an HTML string for displaying an input label. */
     public String display(String inputId, String inputName, ObjectField field);
 
-    /** Default {@link FormLabelRenderer}. */
+    /**
+     * Default {@link FormLabelRenderer}.
+     *
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public static class Default extends AbstractFormLabelRenderer {
 
         @Override

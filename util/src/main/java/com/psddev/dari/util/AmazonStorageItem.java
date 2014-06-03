@@ -166,7 +166,6 @@ public class AmazonStorageItem extends AbstractStorageItem {
                 object.setAcl(AccessControlList.REST_CANNED_PUBLIC_READ);
                 service.putObject(getBucket(), object);
 
-
             } finally {
                 if (service != null) {
                     service.shutdown();

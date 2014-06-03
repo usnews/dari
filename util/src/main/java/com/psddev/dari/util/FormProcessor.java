@@ -9,7 +9,9 @@ import javax.servlet.http.HttpServletResponse;
  * Processes a form.
  *
  * @see FormTag
+ * @deprecated No replacement.
  */
+@Deprecated
 public interface FormProcessor {
 
     /**

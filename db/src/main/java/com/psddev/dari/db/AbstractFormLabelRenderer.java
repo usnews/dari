@@ -13,7 +13,10 @@ import com.psddev.dari.util.HtmlWriter;
  * <ul>
  * <li>{@link #doDisplay}</li>
  * </ul>
+ *
+ * @deprecated No replacement.
  */
+@Deprecated
 public abstract class AbstractFormLabelRenderer implements FormLabelRenderer {
 
     @Override

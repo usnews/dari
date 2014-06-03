@@ -217,6 +217,7 @@ public class WebDatabase extends AbstractDatabase<Void> {
                 map.get(StateValueUtils.ID_KEY),
                 query);
         State.getInstance(object).putAll(map);
+        State.getInstance(object).put("dari.webDatabase.rawValues", map);
         return swapObjectType(query, object);
     }
 

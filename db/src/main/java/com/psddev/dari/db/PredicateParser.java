@@ -444,10 +444,15 @@ public class PredicateParser {
      * Returns {@code true} if the given {@code predicate} matches
      * the given {@code object}.
      *
+     * @param predicate If {@code null}, returns {@code true}.
      * @throws UnsupportedOperationException If the given {@code predicate}
      * operator isn't supported.
      */
     public boolean evaluate(Object object, Predicate predicate) {
+        if (predicate == null) {
+            return true;
+        }
+
         String operator = predicate.getOperator();
         Evaluator evaluator = evaluators.get(operator);
 
@@ -504,7 +509,24 @@ public class PredicateParser {
         public final boolean evaluate(PredicateParser parser, Object object, Predicate predicate) {
             State state = State.getInstance(object);
             ComparisonPredicate comparison = (ComparisonPredicate) predicate;
-            Object keyValue = state.getByPath(comparison.getKey());
+            Object keyValue;
+
+            if (Query.ANY_KEY.equals(comparison.getKey())) {
+                if (Collections.singletonList("*").equals(comparison.getValues())) {
+                    return true;
+                }
+                List<Object> values = new ArrayList<Object>();
+                for (ObjectIndex index : state.getIndexes()) {
+                    for (String field : index.getFields()) {
+                        values.add(state.getByPath(field));
+                    }
+                }
+                keyValue = values;
+
+            } else {
+                keyValue = state.getByPath(comparison.getKey());
+            }
+
             List<Object> values = comparison.resolveValues(state.getDatabase());
 
             if (keyValue == null) {

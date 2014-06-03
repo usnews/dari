@@ -767,7 +767,6 @@ public final class StringUtils {
         matcher.find();
         final MatchResult result = matcher.toMatchResult();
 
-
         return new MatchResult() {
             @Override
             public int start() {
@@ -851,7 +850,6 @@ public final class StringUtils {
 
         return count;
     }
-
 
     /**
      * Replaces each substring of the given string that matches the given regular expression pattern with the given replacement.

@@ -18,12 +18,18 @@ public interface ImageEditor extends SettingsBackedObject {
     /** Setting key for all image editor configuration. */
     public static final String SETTING_PREFIX = "dari/imageEditor";
 
+    /** Setting key for default Java image editor name. */
+    public static final String JAVA_IMAGE_EDITOR_NAME = "_java";
+
     /** Common command string for cropping an image. */
     public static final String CROP_COMMAND = "crop";
 
     public static final String CROP_OPTION = "crop";
     public static final String CROP_OPTION_NONE = "none";
     public static final String CROP_OPTION_AUTOMATIC = "automatic";
+    public static final String CROP_OPTION_CIRCLE = "circle";
+    public static final String CROP_OPTION_STAR = "star";
+    public static final String CROP_OPTION_STARBURST = "starburst";
 
     /** Common command string for resizing an image. */
     public static final String RESIZE_COMMAND = "resize";
@@ -68,7 +74,13 @@ public interface ImageEditor extends SettingsBackedObject {
 
             @Override
             public ImageEditor load(String name) {
-                ImageEditor instance = Settings.newInstance(ImageEditor.class, SETTING_PREFIX + "/" + name);
+                String settingsName = SETTING_PREFIX + "/" + name;
+                ImageEditor instance = null;
+                if (Settings.get(settingsName) != null) {
+                    instance = Settings.newInstance(ImageEditor.class, settingsName);
+                } else if (name.equals(JAVA_IMAGE_EDITOR_NAME)) {
+                    instance = new JavaImageEditor();
+                }
 
                 instance.setName(name);
                 return instance;
@@ -82,7 +94,7 @@ public interface ImageEditor extends SettingsBackedObject {
 
         /** Returns the default image editor. */
         public static ImageEditor getDefault() {
-            return getInstance(Settings.get(String.class, DEFAULT_IMAGE_EDITOR_SETTING));
+            return getInstance(Settings.getOrDefault(String.class, DEFAULT_IMAGE_EDITOR_SETTING, JAVA_IMAGE_EDITOR_NAME));
         }
 
         /**

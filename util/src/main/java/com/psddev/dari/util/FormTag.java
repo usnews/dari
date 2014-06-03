@@ -13,6 +13,10 @@ import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.DynamicAttributes;
 import javax.servlet.jsp.tagext.TagSupport;
 
+/**
+ * @deprecated No replacement.
+ */
+@Deprecated
 @SuppressWarnings("serial")
 public class FormTag extends TagSupport implements DynamicAttributes {
 
@@ -171,7 +175,6 @@ public class FormTag extends TagSupport implements DynamicAttributes {
                         "name", ID_PARAMETER,
                         "value", formId);
 
-
                 // If process() was already called by FormFilter
                 String bufferedOutput = FormFilter.Static.getBufferedOutput(formId, request);
                 if (bufferedOutput != null) {
@@ -251,6 +254,10 @@ public class FormTag extends TagSupport implements DynamicAttributes {
         attributes.put(localName, value != null ? value.toString() : null);
     }
 
+    /**
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public static final class Static {
 
         public static FormProcessor getProcessorById(String id, HttpServletRequest request) {

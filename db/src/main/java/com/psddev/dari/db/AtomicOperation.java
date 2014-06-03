@@ -141,7 +141,6 @@ public abstract class AtomicOperation {
         }
     }
 
-
     /** Atomic put operation. */
     public static class Put extends AtomicOperation {
 

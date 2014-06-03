@@ -525,20 +525,41 @@ public class ObjectField extends Record {
 
         } else {
             ObjectType type = types.iterator().next();
+            Predicate resolveInvisiblePredicate = null;
             Query<Object> query = Query.
                     fromType(type).
                     where(getJunctionField() + " = ?", state.getId());
 
             if (state.isResolveInvisible()) {
-                Set<String> comparisonKeys = new HashSet<String>();
                 DatabaseEnvironment environment = Database.Static.getDefault().getEnvironment();
+                List<ObjectIndex> indexes = environment.getIndexes();
 
-                addVisibilityFields(comparisonKeys, environment);
-                addVisibilityFields(comparisonKeys, type);
+                indexes.addAll(type.getIndexes());
 
-                for (String key : comparisonKeys) {
-                    query.and(key + " = missing or " + key + " = true");
+                for (ObjectIndex index : indexes) {
+                    if (index.isVisibility()) {
+                        FindVisibilityValuesTrigger trigger = new FindVisibilityValuesTrigger(index);
+                        String indexName = index.getUniqueName();
+
+                        state.fireTrigger(trigger, false);
+
+                        for (Object value : trigger.getValues()) {
+                            resolveInvisiblePredicate = CompoundPredicate.combine(
+                                             PredicateParser.OR_OPERATOR,
+                                             resolveInvisiblePredicate,
+                                             PredicateParser.Static.parse(indexName + " = ?", value));
+                        }
+
+                        resolveInvisiblePredicate = CompoundPredicate.combine(
+                                             PredicateParser.OR_OPERATOR,
+                                             resolveInvisiblePredicate,
+                                             PredicateParser.Static.parse(indexName + " = missing or " + indexName + " = true"));
+                    }
                 }
+            }
+
+            if (resolveInvisiblePredicate != null) {
+                query.and(resolveInvisiblePredicate);
             }
 
             String junctionPositionField = getJunctionPositionField();
@@ -546,26 +567,7 @@ public class ObjectField extends Record {
             if (!ObjectUtils.isBlank(junctionPositionField)) {
                 query.sortAscending(junctionPositionField);
             }
-
             return query.selectAll();
-        }
-    }
-
-    private void addVisibilityFields(Set<String> comparisonKeys, ObjectStruct struct) {
-        if (struct == null) {
-            return;
-        }
-
-        for (ObjectIndex index : struct.getIndexes()) {
-            if (index.isVisibility()) {
-                for (String fieldName : index.getFields()) {
-                    ObjectField field = struct.getField(fieldName);
-
-                    if (field != null) {
-                        comparisonKeys.add(field.getUniqueName());
-                    }
-                }
-            }
         }
     }
 
@@ -1238,6 +1240,33 @@ public class ObjectField extends Record {
                 definitions.add(instance.toDefinition());
             }
             return definitions;
+        }
+    }
+
+    private static class FindVisibilityValuesTrigger implements Trigger {
+
+        private final ObjectIndex index;
+        private final Set<Object> values = new HashSet<Object>();
+
+        public FindVisibilityValuesTrigger(ObjectIndex index) {
+            this.index = index;
+        }
+
+        public Set<Object> getValues() {
+            return values;
+        }
+
+        @Override
+        public void execute(Object object) {
+            if (!(object instanceof VisibilityValues)) {
+                return;
+            }
+
+            for (Object o : ((VisibilityValues) object).findVisibilityValues(index)) {
+                if (o != null) {
+                    getValues().add(o);
+                }
+            }
         }
     }
 }

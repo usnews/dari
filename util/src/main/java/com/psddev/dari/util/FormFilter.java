@@ -14,8 +14,9 @@ import javax.servlet.http.HttpServletResponseWrapper;
  * Filter that processes forms written by {@link FormTag}.
  *
  * @see FormTag
- *
+ * @deprecated No replacement.
  */
+@Deprecated
 public class FormFilter extends AbstractFilter {
 
     private static final String ATTRIBUTE_PREFIX = FormFilter.class.getName() + ".";
@@ -91,6 +92,10 @@ public class FormFilter extends AbstractFilter {
         }
     }
 
+    /**
+     * @deprecated No replacement.
+     */
+    @Deprecated
     public static final class Static {
 
         /**
