@@ -48,7 +48,6 @@ import com.google.common.base.Charsets;
 import com.google.common.cache.Cache;
 import com.psddev.dari.util.StringUtils;
 
-
 /*
  * NOT Thread-safe. This should always run in a single thread.
  */
@@ -72,9 +71,7 @@ public final class MySQLBinaryLogReader implements Runnable {
 
     private String password;
 
-
     private MySQLBinaryLogReader() { }
-
 
     public static MySQLBinaryLogReader getInstance(Cache<ByteBuffer, byte[][]> binLogCache, DataSource dataSource) {
 
@@ -221,7 +218,6 @@ public final class MySQLBinaryLogReader implements Runnable {
             }
         }
     }
-
 
     public class CacheEventListener implements EventListener {
 
@@ -851,7 +847,6 @@ public final class MySQLBinaryLogReader implements Runnable {
 
     }
 
-
     public static class DariUpdateRowsEventDataDeserializer extends AbstractDariRowsEventDataDeserializer<UpdateRowsEventData> {
 
         private boolean mayContainExtraInformation;
@@ -899,7 +894,6 @@ public final class MySQLBinaryLogReader implements Runnable {
 
     }
 
-
     public static class DariDeleteRowsEventDataDeserializer extends AbstractDariRowsEventDataDeserializer<DeleteRowsEventData> {
 
         private boolean mayContainExtraInformation;
@@ -938,7 +932,6 @@ public final class MySQLBinaryLogReader implements Runnable {
         }
 
     }
-
 
     public static class DariWriteRowsEventDataDeserializer extends AbstractDariRowsEventDataDeserializer<WriteRowsEventData> {
 
