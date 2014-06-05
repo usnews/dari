@@ -173,25 +173,25 @@ class MetricDatabase {
     }
 
     public Double getMetricSum() throws SQLException {
-        return Static.getMetricSumById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return Static.getMetricSumById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), false);
     }
 
     public Map<String, Double> getMetricValues() throws SQLException {
-        return Static.getMetricDimensionsById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp());
+        return Static.getMetricDimensionsById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), false);
     }
 
     public Map<DateTime, Double> getMetricTimeline(String dimensionValue, MetricInterval metricInterval) throws SQLException {
         if (metricInterval == null) {
             metricInterval = getEventDateProcessor();
         }
-        return Static.getMetricTimelineByIdAndDimension(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
+        return Static.getMetricTimelineByIdAndDimension(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getDimensionId(dimensionValue), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval, false);
     }
 
     public Map<DateTime, Double> getMetricSumTimeline(MetricInterval metricInterval) throws SQLException {
         if (metricInterval == null) {
             metricInterval = getEventDateProcessor();
         }
-        return Static.getMetricSumTimelineById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval);
+        return Static.getMetricSumTimelineById(getDatabase(), getId(), getTypeId(), getQuery().getSymbolId(), getQuery().getStartTimestamp(), getQuery().getEndTimestamp(), metricInterval, false);
     }
 
     public void incrementMetric(String dimensionValue, Double amount) throws SQLException {
@@ -228,7 +228,7 @@ class MetricDatabase {
         if (dimensionId == null) {
             try {
                 SqlDatabase db = Database.Static.getFirst(SqlDatabase.class);
-                dimensionId = Static.getDimensionIdByValue(db, dimensionValue);
+                dimensionId = Static.getDimensionIdByValue(db, dimensionValue, false);
                 if (dimensionId == null) {
                     dimensionId = UuidUtils.createSequentialUuid();
                     Static.doInsertDimensionValue(db, dimensionId, dimensionValue);
@@ -247,7 +247,7 @@ class MetricDatabase {
         }
         UUID dimensionId = dimensionCache.getIfPresent(dimensionValue);
         if (dimensionId == null) {
-            dimensionId = Static.getDimensionIdByValue(db, dimensionValue);
+            dimensionId = Static.getDimensionIdByValue(db, dimensionValue, false);
             if (dimensionId == null) {
                 dimensionId = UuidUtils.createSequentialUuid();
                 Static.doInsertDimensionValue(db, dimensionId, dimensionValue);
@@ -842,7 +842,7 @@ class MetricDatabase {
                     if (0 == rowsAffected) {
                         // There is no data for the current date. Now we have to read
                         // the previous cumulative amount so we can insert a new row.
-                        byte[] data = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, null, null);
+                        byte[] data = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, null, null, true);
                         double previousCumulativeAmount = 0.0d;
                         if (data != null) {
                             previousCumulativeAmount = amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
@@ -856,7 +856,7 @@ class MetricDatabase {
                 } else {
 
                     // First, find the max eventDate. Under normal circumstances, this will either be null (INSERT), before our eventDate (INSERT) or equal to our eventDate (UPDATE).
-                    byte[] data = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, null, null);
+                    byte[] data = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, null, null, true);
 
                     if (data == null || timestampFromBytes(data) < eventDate) {
                         // No data for this eventDate; insert.
@@ -883,7 +883,7 @@ class MetricDatabase {
                         // or if not, INSERT. Either way we will be updating future
                         // data, so just INSERT with a value of 0 if necessary, then
                         // UPDATE all rows.
-                        byte[] oldData = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, null, eventDate);
+                        byte[] oldData = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, null, eventDate, true);
                         if (oldData == null || timestampFromBytes(oldData) < eventDate) {
                             double previousCumulativeAmount = 0.0d;
                             if (oldData != null) {
@@ -1040,10 +1040,10 @@ class MetricDatabase {
         }
 
         // METRIC SELECT
-        private static Double getMetricSumById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static Double getMetricSumById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, boolean master) throws SQLException {
             String sql = getSumSql(db, id, typeId, symbolId, minEventDate, maxEventDate);
             Double amount = null;
-            Connection connection = db.openReadConnection();
+            Connection connection = master ? db.openConnection() : db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
@@ -1056,10 +1056,10 @@ class MetricDatabase {
             return amount;
         }
 
-        private static Map<String, Double> getMetricDimensionsById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static Map<String, Double> getMetricDimensionsById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, boolean master) throws SQLException {
             String sql = getDimensionsSql(db, id, typeId, symbolId, minEventDate, maxEventDate);
             Map<String, Double> values = new HashMap<String, Double>();
-            Connection connection = db.openReadConnection();
+            Connection connection = master ? db.openConnection() : db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
@@ -1074,11 +1074,11 @@ class MetricDatabase {
 
         private static Double getMetricByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate) throws SQLException {
             if (minEventDate == null) {
-                byte[] data = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate);
+                byte[] data = getDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, false);
                 if (data == null) return null;
                 return amountFromBytes(data, CUMULATIVEAMOUNT_POSITION);
             } else {
-                List<byte[]> datas = getMinMaxDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate);
+                List<byte[]> datas = getMinMaxDataByIdAndDimension(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, false);
                 if (datas.size() == 0) return null;
                 if (datas.get(0) == null) return null;
                 double maxCumulativeAmount = amountFromBytes(datas.get(0), CUMULATIVEAMOUNT_POSITION);
@@ -1088,10 +1088,10 @@ class MetricDatabase {
             }
         }
 
-        private static Map<DateTime, Double> getMetricTimelineByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) throws SQLException {
+        private static Map<DateTime, Double> getMetricTimelineByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval, boolean master) throws SQLException {
             String sql = getTimelineSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, metricInterval, true);
             Map<DateTime, Double> values = new LinkedHashMap<DateTime, Double>();
-            Connection connection = db.openReadConnection();
+            Connection connection = master ? db.openConnection() : db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
@@ -1112,10 +1112,10 @@ class MetricDatabase {
             return values;
         }
 
-        private static Map<DateTime, Double> getMetricSumTimelineById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval) throws SQLException {
+        private static Map<DateTime, Double> getMetricSumTimelineById(SqlDatabase db, UUID id, UUID typeId, int symbolId, Long minEventDate, Long maxEventDate, MetricInterval metricInterval, boolean master) throws SQLException {
             String sql = getSumTimelineSql(db, id, typeId, symbolId, minEventDate, maxEventDate, metricInterval);
             Map<DateTime, Double> values = new LinkedHashMap<DateTime, Double>();
-            Connection connection = db.openReadConnection();
+            Connection connection = master ? db.openConnection() : db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
@@ -1139,10 +1139,10 @@ class MetricDatabase {
         }
         */
 
-        private static byte[] getDataByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static byte[] getDataByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean master) throws SQLException {
             String sql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, false, true, null, null);
             byte[] data = null;
-            Connection connection = db.openReadConnection();
+            Connection connection = master ? db.openConnection() : db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
@@ -1155,10 +1155,10 @@ class MetricDatabase {
             return data;
         }
 
-        private static List<byte[]> getMinMaxDataByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate) throws SQLException {
+        private static List<byte[]> getMinMaxDataByIdAndDimension(SqlDatabase db, UUID id, UUID typeId, int symbolId, UUID dimensionId, Long minEventDate, Long maxEventDate, boolean master) throws SQLException {
             List<byte[]> datas = new ArrayList<byte[]>();
             String sql = getDataSql(db, id, typeId, symbolId, dimensionId, minEventDate, maxEventDate, true, true, null, null);
-            Connection connection = db.openReadConnection();
+            Connection connection = master ? db.openConnection() : db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
@@ -1172,9 +1172,9 @@ class MetricDatabase {
             return datas;
         }
 
-        private static UUID getDimensionIdByValue(SqlDatabase db, String dimensionValue) throws SQLException {
+        private static UUID getDimensionIdByValue(SqlDatabase db, String dimensionValue, boolean master) throws SQLException {
             String sql = getDimensionIdByValueSql(db, dimensionValue);
-            Connection connection = db.openReadConnection();
+            Connection connection = master ? db.openConnection() : db.openReadConnection();
             try {
                 Statement statement = connection.createStatement();
                 ResultSet result = db.executeQueryBeforeTimeout(statement, sql, QUERY_TIMEOUT);
