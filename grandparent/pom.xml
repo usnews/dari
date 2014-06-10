@@ -369,7 +369,6 @@ try {
                                                 <module name="GenericWhitespace"/>
                                                 <module name="IllegalImport"/>
                                                 <module name="IllegalInstantiation"/>
-                                                <module name="InterfaceIsType"/>
                                                 <module name="LeftCurly"/>
                                                 <module name="LocalFinalVariableName"/>
                                                 <module name="LocalVariableName"/>
