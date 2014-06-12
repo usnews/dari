@@ -36,6 +36,7 @@ public abstract class Task implements Comparable<Task>, Runnable {
     private final AtomicBoolean isRunning = new AtomicBoolean();
     private final AtomicBoolean isPauseRequested = new AtomicBoolean();
     private final AtomicBoolean isStopRequested = new AtomicBoolean();
+    private final ThreadLocal<Boolean> isRunCounted = new ThreadLocal<Boolean>();
     private volatile Thread thread;
     private volatile long lastRunBegin = -1;
     private volatile long lastRunEnd = -1;
@@ -206,6 +207,17 @@ public abstract class Task implements Comparable<Task>, Runnable {
      */
     public boolean isPauseRequested() {
         return isPauseRequested.get();
+    }
+
+    /** Returns {@code true} if this execution will be included in the Run Count. */
+    protected boolean isRunCounted() {
+        return isRunCounted.get();
+    }
+
+    /** Do not include this run in the Run Count or Last Run Begin/End dates. */
+    protected void skipRunCount() {
+        LOGGER.debug("Not counting [{}]", getName());
+        isRunCounted.set(false);
     }
 
     /** Tries to pause this task. */
@@ -443,9 +455,17 @@ public abstract class Task implements Comparable<Task>, Runnable {
             }
         }
 
+        long previousLastRunBegin = lastRunBegin;
+        long previousLastRunEnd = lastRunEnd;
+        String previousProgress = progress;
+        long previousProgressIndex = progressIndex;
+        long previousProgressTotal = progressTotal;
+        Throwable previousLastException = lastException;
+
         try {
             LOGGER.debug("Begin running [{}]", getName());
 
+            isRunCounted.set(true);
             thread = Thread.currentThread();
             lastRunBegin = System.currentTimeMillis();
             lastRunEnd = -1;
@@ -467,10 +487,20 @@ public abstract class Task implements Comparable<Task>, Runnable {
 
             thread = null;
             lastRunEnd = System.currentTimeMillis();
-            runCount.incrementAndGet();
             isRunning.set(false);
             isPauseRequested.set(false);
             isStopRequested.set(false);
+
+            if (isRunCounted()) {
+                runCount.incrementAndGet();
+            } else {
+                lastRunBegin = previousLastRunBegin;
+                lastRunEnd = previousLastRunEnd;
+                progress = previousProgress;
+                progressIndex = previousProgressIndex;
+                progressTotal = previousProgressTotal;
+                lastException = previousLastException;
+            }
         }
     }
 
