@@ -12,6 +12,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.joda.time.DateTime;
+
 /** Debug servlet for inspecting all active {@linkplain Task tasks}. */
 @DebugFilter.Path("task")
 @SuppressWarnings("serial")
@@ -89,6 +91,7 @@ public class TaskDebugServlet extends HttpServlet {
                                     writeStart("th", "colspan", 2).writeHtml("Progress").writeEnd();
                                     writeStart("th").writeHtml("Last Exception").writeEnd();
                                     writeStart("th").writeHtml("Run Count").writeEnd();
+                                    writeStart("th").writeHtml("Last Run Time").writeEnd();
                                 writeEnd();
                             writeEnd();
 
@@ -185,6 +188,7 @@ public class TaskDebugServlet extends HttpServlet {
 
                                         writeStart("td").writeHtmlOrDefault(task.getLastException(), "N/A").writeEnd();
                                         writeStart("td").writeObject(task.getRunCount()).writeEnd();
+                                        writeStart("td").writeObject(task.getLastRunBegin() > -1 ? new DateTime(task.getLastRunBegin()).toString("YYYY-MM-DD hh:mm:ss a z") : "").writeEnd();
                                     writeEnd();
                                 }
                             writeEnd();
