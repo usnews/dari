@@ -268,8 +268,30 @@ public class ReferentialText extends AbstractList<Object> {
             previousBr.remove();
         }
 
-        // Convert inline text after <p>s into paragraphs.
-        for (Element paragraph : body.getElementsByTag(P_TAG.getName())) {
+        // Convert inline text first in body and after block elements into
+        // paragraphs.
+        if (body.childNodeSize() > 0) {
+            Node next = body.childNode(0);
+
+            do {
+                if (!(next instanceof TextNode &&
+                        ((TextNode) next).isBlank())) {
+                    break;
+                }
+            } while ((next = next.nextSibling()) != null);
+
+            Element lastParagraph = inlineTextToParagraph(next);
+
+            if (lastParagraph != null) {
+                body.prependChild(lastParagraph);
+            }
+        }
+
+        for (Element paragraph : body.getAllElements()) {
+            if (!paragraph.isBlock()) {
+                continue;
+            }
+
             Node next = paragraph;
 
             while ((next = next.nextSibling()) != null) {
@@ -279,29 +301,10 @@ public class ReferentialText extends AbstractList<Object> {
                 }
             }
 
-            if (next != null) {
-                List<Node> paragraphChildren = new ArrayList<Node>();
+            Element lastParagraph = inlineTextToParagraph(next);
 
-                do {
-                    if (next instanceof Element &&
-                            ((Element) next).isBlock()) {
-                        break;
-
-                    } else {
-                        paragraphChildren.add(next);
-                    }
-                } while ((next = next.nextSibling()) != null);
-
-                if (!paragraphChildren.isEmpty()) {
-                    Element lastParagraph = new Element(P_TAG, "");
-
-                    for (Node child : paragraphChildren) {
-                        child.remove();
-                        lastParagraph.appendChild(child.clone());
-                    }
-
-                    paragraph.after(lastParagraph);
-                }
+            if (lastParagraph != null) {
+                paragraph.after(lastParagraph);
             }
         }
 
@@ -435,6 +438,37 @@ public class ReferentialText extends AbstractList<Object> {
         }
 
         return nextTag;
+    }
+
+    private Element inlineTextToParagraph(Node next) {
+        if (next == null) {
+            return null;
+        }
+
+        List<Node> paragraphChildren = new ArrayList<Node>();
+
+        do {
+            if (next instanceof Element &&
+                    ((Element) next).isBlock()) {
+                break;
+
+            } else {
+                paragraphChildren.add(next);
+            }
+        } while ((next = next.nextSibling()) != null);
+
+        if (paragraphChildren.isEmpty()) {
+            return null;
+        }
+
+        Element lastParagraph = new Element(P_TAG, "");
+
+        for (Node child : paragraphChildren) {
+            child.remove();
+            lastParagraph.appendChild(child.clone());
+        }
+
+        return lastParagraph;
     }
 
     // --- AbstractList support ---
