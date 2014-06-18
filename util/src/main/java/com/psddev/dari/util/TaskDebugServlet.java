@@ -188,7 +188,7 @@ public class TaskDebugServlet extends HttpServlet {
 
                                         writeStart("td").writeHtmlOrDefault(task.getLastException(), "N/A").writeEnd();
                                         writeStart("td").writeObject(task.getRunCount()).writeEnd();
-                                        writeStart("td").writeObject(task.getLastRunBegin() > -1 ? new DateTime(task.getLastRunBegin()).toString("YYYY-MM-DD hh:mm:ss a z") : "").writeEnd();
+                                        writeStart("td").writeObject(task.getLastRunBegin() > -1 ? new DateTime(task.getLastRunBegin()).toString("YYYY-MM-dd hh:mm:ss a z") : "").writeEnd();
                                     writeEnd();
                                 }
                             writeEnd();
