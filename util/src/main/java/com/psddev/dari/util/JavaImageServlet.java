@@ -124,7 +124,7 @@ public class JavaImageServlet extends HttpServlet {
                 if (file.exists() && !file.isDirectory()) {
                     ServletOutputStream out = response.getOutputStream();
 
-                    response.setHeader("Content-Type", imageType);
+                    response.setHeader("Content-Type", "image/" + imageType);
                     response.setContentLength((int) file.length());
 
                     BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(file));
