@@ -170,7 +170,7 @@ public class ReferentialText extends AbstractList<Object> {
      * @return Never {@code null}.
      */
     public List<Object> toPublishables() {
-        return toPublishables(null);
+        return toPublishables(false, null);
     }
 
     /**
@@ -181,6 +181,18 @@ public class ReferentialText extends AbstractList<Object> {
      * @return Never {@code null}.
      */
     public List<Object> toPublishables(Cleaner cleaner) {
+        return toPublishables(false, cleaner);
+    }
+
+    /**
+     * Returns a mixed list of well-formed HTML strings and object references
+     * that have been converted to publishable forms.
+     *
+     * @param inline If {@code true}, doesn't try to add {@code <p>} elements.
+     * @param cleaner May be {@code null}.
+     * @return Never {@code null}.
+     */
+    public List<Object> toPublishables(boolean inline, Cleaner cleaner) {
 
         // Concatenate the items so that it can be fed into an HTML parser.
         StringBuilder html = new StringBuilder();
@@ -216,175 +228,177 @@ public class ReferentialText extends AbstractList<Object> {
         body.select("code[data-annotations]").remove();
 
         // Convert 'text<br><br>' to '<p>text</p>'.
-        for (Element br : body.getElementsByTag("br")) {
-            Element previousBr = null;
+        if (!inline) {
+            for (Element br : body.getElementsByTag("br")) {
+                Element previousBr = null;
 
-            // Find the closest previous <br> without any intervening content.
-            for (Node previousNode = br;
-                    (previousNode = previousNode.previousSibling()) != null;
-                    ) {
-                if (previousNode instanceof Element) {
-                    Element previousElement = (Element) previousNode;
+                // Find the closest previous <br> without any intervening content.
+                for (Node previousNode = br;
+                        (previousNode = previousNode.previousSibling()) != null;
+                        ) {
+                    if (previousNode instanceof Element) {
+                        Element previousElement = (Element) previousNode;
 
-                    if (BR_TAG.equals(previousElement.tag())) {
-                        previousBr = previousElement;
+                        if (BR_TAG.equals(previousElement.tag())) {
+                            previousBr = previousElement;
+                        }
+
+                        break;
+
+                    } else if (previousNode instanceof TextNode &&
+                            !((TextNode) previousNode).isBlank()) {
+                        break;
                     }
-
-                    break;
-
-                } if (previousNode instanceof TextNode &&
-                        !((TextNode) previousNode).isBlank()) {
-                    break;
                 }
-            }
 
-            if (previousBr == null) {
-                continue;
-            }
-
-            List<Node> paragraphChildren = new ArrayList<Node>();
-
-            for (Node previous = previousBr;
-                    (previous = previous.previousSibling()) != null;
-                    ) {
-                if (previous instanceof Element &&
-                        ((Element) previous).isBlock()) {
-                    break;
-
-                } else {
-                    paragraphChildren.add(previous);
+                if (previousBr == null) {
+                    continue;
                 }
-            }
 
-            Element paragraph = new Element(P_TAG, "");
+                List<Node> paragraphChildren = new ArrayList<Node>();
 
-            for (Node child : paragraphChildren) {
-                child.remove();
-                paragraph.prependChild(child.clone());
-            }
-
-            br.before(paragraph);
-            br.remove();
-            previousBr.remove();
-        }
-
-        // Convert inline text first in body and after block elements into
-        // paragraphs.
-        if (body.childNodeSize() > 0) {
-            Node next = body.childNode(0);
-
-            do {
-                if (!(next instanceof TextNode &&
-                        ((TextNode) next).isBlank())) {
-                    break;
-                }
-            } while ((next = next.nextSibling()) != null);
-
-            Element lastParagraph = inlineTextToParagraph(next);
-
-            if (lastParagraph != null) {
-                body.prependChild(lastParagraph);
-            }
-        }
-
-        for (Element paragraph : body.getAllElements()) {
-            if (!paragraph.isBlock()) {
-                continue;
-            }
-
-            Node next = paragraph;
-
-            while ((next = next.nextSibling()) != null) {
-                if (!(next instanceof TextNode &&
-                        ((TextNode) next).isBlank())) {
-                    break;
-                }
-            }
-
-            Element lastParagraph = inlineTextToParagraph(next);
-
-            if (lastParagraph != null) {
-                paragraph.after(lastParagraph);
-            }
-        }
-
-        // Convert '<div>text<div><div><br></div>' to '<p>text</p>'
-        List<Element> divs = new ArrayList<Element>();
-
-        DIV: for (Element div : body.getElementsByTag("div")) {
-            Element brDiv = nextTag(DIV_TAG, div);
-
-            if (brDiv == null) {
-                continue;
-            }
-
-            // '<div><br></div>'?
-            boolean sawBr = false;
-
-            for (Node child : brDiv.childNodes()) {
-                if (child instanceof TextNode) {
-                    if (!((TextNode) child).isBlank()) {
-                        continue DIV;
-                    }
-
-                } else if (child instanceof Element &&
-                        BR_TAG.equals(((Element) child).tag())) {
-                    if (sawBr) {
-                        continue DIV;
+                for (Node previous = previousBr;
+                        (previous = previous.previousSibling()) != null;
+                        ) {
+                    if (previous instanceof Element &&
+                            ((Element) previous).isBlock()) {
+                        break;
 
                     } else {
-                        sawBr = true;
+                        paragraphChildren.add(previous);
+                    }
+                }
+
+                Element paragraph = new Element(P_TAG, "");
+
+                for (Node child : paragraphChildren) {
+                    child.remove();
+                    paragraph.prependChild(child.clone());
+                }
+
+                br.before(paragraph);
+                br.remove();
+                previousBr.remove();
+            }
+
+            // Convert inline text first in body and after block elements into
+            // paragraphs.
+            if (body.childNodeSize() > 0) {
+                Node next = body.childNode(0);
+
+                do {
+                    if (!(next instanceof TextNode &&
+                            ((TextNode) next).isBlank())) {
+                        break;
+                    }
+                } while ((next = next.nextSibling()) != null);
+
+                Element lastParagraph = inlineTextToParagraph(next);
+
+                if (lastParagraph != null) {
+                    body.prependChild(lastParagraph);
+                }
+            }
+
+            for (Element paragraph : body.getAllElements()) {
+                if (!paragraph.isBlock()) {
+                    continue;
+                }
+
+                Node next = paragraph;
+
+                while ((next = next.nextSibling()) != null) {
+                    if (!(next instanceof TextNode &&
+                            ((TextNode) next).isBlank())) {
+                        break;
+                    }
+                }
+
+                Element lastParagraph = inlineTextToParagraph(next);
+
+                if (lastParagraph != null) {
+                    paragraph.after(lastParagraph);
+                }
+            }
+
+            // Convert '<div>text<div><div><br></div>' to '<p>text</p>'
+            List<Element> divs = new ArrayList<Element>();
+
+            DIV: for (Element div : body.getElementsByTag("div")) {
+                Element brDiv = nextTag(DIV_TAG, div);
+
+                if (brDiv == null) {
+                    continue;
+                }
+
+                // '<div><br></div>'?
+                boolean sawBr = false;
+
+                for (Node child : brDiv.childNodes()) {
+                    if (child instanceof TextNode) {
+                        if (!((TextNode) child).isBlank()) {
+                            continue DIV;
+                        }
+
+                    } else if (child instanceof Element &&
+                            BR_TAG.equals(((Element) child).tag())) {
+                        if (sawBr) {
+                            continue DIV;
+
+                        } else {
+                            sawBr = true;
+                        }
+
+                    } else {
+                        continue DIV;
+                    }
+                }
+
+                divs.add(div);
+                div.tagName("p");
+                brDiv.remove();
+            }
+
+            for (Element div : divs) {
+                div = nextTag(DIV_TAG, div);
+
+                if (div != null) {
+                    div.tagName("p");
+                }
+            }
+
+            // Unwrap nested '<p>'s.
+            for (Element paragraph : body.getElementsByTag(P_TAG.getName())) {
+                if (paragraph.getElementsByTag(P_TAG.getName()).size() > 1) {
+                    paragraph.unwrap();
+                }
+            }
+
+            // <p>before [enh] after</p> -> <p>before</p> [enh] <p>after</p>
+            for (Element enhancement : body.getElementsByClass(enhancementClass)) {
+                Element paragraph = enhancement.parent();
+
+                if (P_TAG.equals(paragraph.tag())) {
+                    Element before = new Element(P_TAG, "");
+                    List<Node> beforeChildren = new ArrayList<Node>();
+
+                    for (Node previous = enhancement.previousSibling();
+                            previous != null;
+                            previous = previous.previousSibling()) {
+                        beforeChildren.add(previous);
                     }
 
-                } else {
-                    continue DIV;
+                    for (int i = beforeChildren.size() - 1; i >= 0; -- i) {
+                        before.appendChild(beforeChildren.get(i));
+                    }
+
+                    if (!before.childNodes().isEmpty()) {
+                        before.attributes().addAll(paragraph.attributes());
+                        paragraph.before(before);
+                    }
+
+                    paragraph.before(enhancement);
                 }
-            }
-
-            divs.add(div);
-            div.tagName("p");
-            brDiv.remove();
-        }
-
-        for (Element div : divs) {
-            div = nextTag(DIV_TAG, div);
-
-            if (div != null) {
-                div.tagName("p");
-            }
-        }
-
-        // Unwrap nested '<p>'s.
-        for (Element paragraph : body.getElementsByTag(P_TAG.getName())) {
-            if (paragraph.getElementsByTag(P_TAG.getName()).size() > 1) {
-                paragraph.unwrap();
-            }
-        }
-
-        // <p>before [enh] after</p> -> <p>before</p> [enh] <p>after</p>
-        for (Element enhancement : body.getElementsByClass(enhancementClass)) {
-            Element paragraph = enhancement.parent();
-
-            if (P_TAG.equals(paragraph.tag())) {
-                Element before = new Element(P_TAG, "");
-                List<Node> beforeChildren = new ArrayList<Node>();
-
-                for (Node previous = enhancement.previousSibling();
-                        previous != null;
-                        previous = previous.previousSibling()) {
-                    beforeChildren.add(previous);
-                }
-
-                for (int i = beforeChildren.size() - 1; i >= 0; -- i) {
-                    before.appendChild(beforeChildren.get(i));
-                }
-
-                if (!before.childNodes().isEmpty()) {
-                    before.attributes().addAll(paragraph.attributes());
-                    paragraph.before(before);
-                }
-
-                paragraph.before(enhancement);
             }
         }
 
