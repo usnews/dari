@@ -1,5 +1,15 @@
 package com.psddev.dari.util;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.entity.mime.content.StringBody;
+import org.apache.http.impl.client.DefaultHttpClient;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -11,16 +21,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.mime.MultipartEntity;
-import org.apache.http.entity.mime.content.FileBody;
-import org.apache.http.entity.mime.content.StringBody;
-import org.apache.http.impl.client.DefaultHttpClient;
 
 /**
  * {@link StorageItem} stored in
@@ -34,7 +34,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
  *<dependency>
  *    <groupId>org.apache.httpcomponents</groupId>
  *    <artifactId>httpmime</artifactId>
- *    <version>4.0.1</version>
+ *    <version>4.3</version>
  *</dependency>}</code></pre></blockquote>
  */
 public class BrightcoveStorageItem extends AbstractStorageItem {

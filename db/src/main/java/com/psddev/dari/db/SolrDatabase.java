@@ -7,7 +7,6 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,7 +25,7 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -1164,17 +1163,15 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         try {
-            setServer(new CommonsHttpSolrServer(url));
+            setServer(new HttpSolrServer(url));
 
             String readUrl = ObjectUtils.to(String.class, settings.get(READ_SERVER_URL_SUB_SETTING));
             if (!ObjectUtils.isBlank(readUrl)) {
-                setReadServer(new CommonsHttpSolrServer(readUrl));
+                setReadServer(new HttpSolrServer(readUrl));
             }
 
-        } catch (MalformedURLException ex) {
-            throw new SettingsException(
-                    settingsKey + "/" + SERVER_URL_SUB_SETTING,
-                    String.format("[%s] is not a valid URL!", url));
+        } catch (Exception ex) {
+            throw new SettingsException(settingsKey + "/" + SERVER_URL_SUB_SETTING, String.format("[%s] is not a valid URL!", url));
         }
 
         setTenant(ObjectUtils.to(String.class, settings.get(TENANT_SUB_SETTING)));
