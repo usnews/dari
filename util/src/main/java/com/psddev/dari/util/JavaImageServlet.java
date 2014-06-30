@@ -81,17 +81,10 @@ public class JavaImageServlet extends HttpServlet {
             }
 
             BufferedImage bufferedImage;
-            StringBuilder encodedImageUrl = new StringBuilder();
-            encodedImageUrl.append(imageUrl.substring(0, imageUrl.indexOf("://") + 2));
-            for (String pathElement : imageUrl.substring(imageUrl.indexOf("://") + 3).split("/")) {
-                encodedImageUrl.append("/")
-                               .append(StringUtils.encodeUri(pathElement));
-            }
-
             if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
-                bufferedImage = JavaImageTiffReader.readTiff(encodedImageUrl.toString());
+                bufferedImage = JavaImageTiffReader.readTiff(imageUrl);
             } else {
-                bufferedImage = ImageIO.read(new URL(encodedImageUrl.toString()));
+                bufferedImage = ImageIO.read(new URL(imageUrl));
             }
 
             if (bufferedImage == null) {
