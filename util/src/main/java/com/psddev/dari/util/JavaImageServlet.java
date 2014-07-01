@@ -2,6 +2,8 @@ package com.psddev.dari.util;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -81,19 +83,18 @@ public class JavaImageServlet extends HttpServlet {
             }
 
             BufferedImage bufferedImage;
-            StringBuilder encodedImageUrl = new StringBuilder();
-            String host = imageUrl.substring(imageUrl.indexOf("://") + 3);
-            host = imageUrl.substring(0, imageUrl.indexOf("://") + 3) + host.substring(0, host.indexOf("/"));
-            encodedImageUrl.append(host);
-            for (String pathElement : imageUrl.substring(host.length() + 1).split("/")) {
-                encodedImageUrl.append("/")
-                               .append(StringUtils.encodeUri(pathElement));
-            }
 
-            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
-                bufferedImage = JavaImageTiffReader.readTiff(encodedImageUrl.toString());
-            } else {
-                bufferedImage = ImageIO.read(new URL(encodedImageUrl.toString()));
+            try {
+                URL url = new URL(imageUrl);
+                URI uri = new URI(url.getProtocol(), url.getAuthority(), url.getPath(), url.getQuery(), url.getRef());
+
+                if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
+                    bufferedImage = JavaImageTiffReader.readTiff(uri.toString());
+                } else {
+                    bufferedImage = ImageIO.read(new URL(uri.toString()));
+                }
+            } catch (URISyntaxException ex) {
+                bufferedImage = null;
             }
 
             if (bufferedImage == null) {
