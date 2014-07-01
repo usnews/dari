@@ -82,8 +82,10 @@ public class JavaImageServlet extends HttpServlet {
 
             BufferedImage bufferedImage;
             StringBuilder encodedImageUrl = new StringBuilder();
-            encodedImageUrl.append(imageUrl.substring(0, imageUrl.indexOf("://") + 2));
-            for (String pathElement : imageUrl.substring(imageUrl.indexOf("://") + 3).split("/")) {
+            String host = imageUrl.substring(imageUrl.indexOf("://") + 3);
+            host = imageUrl.substring(0, imageUrl.indexOf("://") + 3) + host.substring(0, host.indexOf("/"));
+            encodedImageUrl.append(host);
+            for (String pathElement : imageUrl.substring(host.length() + 1).split("/")) {
                 encodedImageUrl.append("/")
                                .append(StringUtils.encodeUri(pathElement));
             }
