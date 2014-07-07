@@ -1,6 +1,10 @@
 package com.psddev.dari.util;
 
-/** Policy for {@link Password} creation. */
+/**
+ * Policy for {@link Password} creation.
+ * @deprecated Use {@link NewPasswordPolicy} instead.
+ */
+@Deprecated
 public interface PasswordPolicy extends SettingsBackedObject {
 
     /** Setting key for all password policy configurations. */
