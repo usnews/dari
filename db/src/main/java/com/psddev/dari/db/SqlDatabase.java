@@ -39,9 +39,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
@@ -149,12 +146,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile boolean enableReplicationCache;
 
     private static final byte[] NULL_ID = new byte[16];
-    private volatile ThreadPoolExecutor binLogReaderThreadExecutor;
-    private volatile Cache<ByteBuffer, byte[][]> binLogCache = CacheBuilder.newBuilder().maximumSize(10000).build();
-
-    public Cache<ByteBuffer, byte[][]> getBinLogCache() {
-        return binLogCache;
-    }
+    private transient volatile Cache<ByteBuffer, byte[][]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -666,10 +659,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         setDataSource(null);
         setReadDataSource(null);
 
-        // Shutdown bin log thread
-        if (isMySQLBinLogReaderThreadRunning()) {
-            LOGGER.info("Shutting down bin log thread [{}]", binLogReaderThreadExecutor.toString());
-            binLogReaderThreadExecutor.shutdownNow();
+        if (mysqlBinaryLogReader != null) {
+            LOGGER.info("Closing MySQL binary log reader");
+            mysqlBinaryLogReader.close();
+            mysqlBinaryLogReader = null;
         }
     }
 
@@ -1113,7 +1106,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
                 byte[] key = StringUtils.hexToBytes(id.toString().replaceAll("-", ""));
-                byte[][] value = binLogCache.getIfPresent(ByteBuffer.wrap(key));
+                byte[][] value = replicationCache.getIfPresent(ByteBuffer.wrap(key));
                 if (value == null) {
                     missingKeys.add(key);
                     continue;
@@ -1170,7 +1163,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             byte[][] value = new byte[2][];
                             value[0] = typeId;
                             value[1] = data;
-                            binLogCache.put(ByteBuffer.wrap(id), value);
+                            replicationCache.put(ByteBuffer.wrap(id), value);
                             LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(id));
                         }
                         T object = constructObject(typeId, id, data, query);
@@ -1661,41 +1654,19 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
         setEnableReplicationCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_REPLICATION_CACHE_SUB_SETTING)));
 
-        // Use binary log cache if the vendor is MySQL.
-        // Bin log reader thread will be running regardless of initial settings
-        // as cache can be turned on through CMS later.
-        if (vendor instanceof SqlVendor.MySQL && !isMySQLBinLogReaderThreadRunning()) {
-            spawnMySQLBinaryLogReaderThread();
+        if (vendor instanceof SqlVendor.MySQL &&
+                (mysqlBinaryLogReader == null ||
+                !mysqlBinaryLogReader.isAlive())) {
+            try {
+                LOGGER.info("Starting MySQL binary log reader");
+                mysqlBinaryLogReader = new MySQLBinaryLogReader(replicationCache, ObjectUtils.firstNonNull(getReadDataSource(), getDataSource()));
+                mysqlBinaryLogReader.start();
+
+            } catch (IllegalArgumentException error) {
+                setEnableReplicationCache(false);
+                LOGGER.warn("Can't start MySQL binary log reader!", error);
+            }
         }
-        LOGGER.debug("SQLDATABASE INITIALIZED");
-    }
-
-    /**
-     * Checks whether MySQL binary log reader thread is running.
-     */
-    private boolean isMySQLBinLogReaderThreadRunning() {
-        return binLogReaderThreadExecutor != null && !binLogReaderThreadExecutor.isShutdown();
-    }
-
-    /**
-     * Spawns up MySQL binary log reader thread.
-     */
-    private void spawnMySQLBinaryLogReaderThread() {
-        MySQLBinaryLogReader mySQLBinaryLogReader = MySQLBinaryLogReader.getInstance(binLogCache, readDataSource != null ? readDataSource : dataSource);
-        if (mySQLBinaryLogReader == null) {
-            setEnableReplicationCache(false);
-            LOGGER.error("Failed to spawn binlog reader thread.");
-            return;
-        }
-        binLogReaderThreadExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
-
-                @Override
-                public Thread newThread(Runnable r) {
-                    return new Thread(r, "bin-log-reader");
-                }
-            });
-        binLogReaderThreadExecutor.submit(mySQLBinaryLogReader);
     }
 
     private static final Map<String, String> DRIVER_CLASS_NAMES; static {
@@ -2276,6 +2247,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         public long getCount() {
             return count;
         }
+    }
+
+    /**
+     * Invalidates all entries in the replication cache.
+     */
+    public void invalidateReplicationCache() {
+        replicationCache.invalidateAll();
     }
 
     @Override
@@ -3038,19 +3016,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         public static byte[] getOriginalData(Object object) {
             return (byte[]) State.getInstance(object).getExtra(ORIGINAL_DATA_EXTRA);
-        }
-
-        /**
-         * Invalidates MySQL Binary Log Cache.
-         */
-        public static void invalidateBinLogCache() {
-            Database defaultOriginal = Database.Static.getDefaultOriginal();
-            if (defaultOriginal instanceof AggregateDatabase) {
-                Database defaultDelegate = ((AggregateDatabase) defaultOriginal).getDefaultDelegate();
-                if (defaultDelegate instanceof SqlDatabase) {
-                    ((SqlDatabase) defaultDelegate).getBinLogCache().invalidateAll();
-                }
-            }
         }
 
         // --- Deprecated ---
