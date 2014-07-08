@@ -57,7 +57,7 @@ public final class Password {
      * the given {@code policy} and hashes it using the given {@code algorithm}
      * and {@code salt}.
      *
-     * @deprecated Use {@link #validateAndCreateCustom(NewPasswordPolicy, Object, String, String, String)} instead.
+     * @deprecated Use {@link #validateAndCreateCustom(UserPasswordPolicy, Object, String, String, String)} instead.
      * @throws PasswordException If anything's wrong with the given {@code password}.
      */
     @Deprecated
@@ -87,7 +87,7 @@ public final class Password {
      * @throws PasswordException If anything's wrong with the given {@code password}.
      */
     public static Password validateAndCreateCustom(
-            NewPasswordPolicy policy,
+            UserPasswordPolicy policy,
             Object user,
             String algorithm,
             String salt,

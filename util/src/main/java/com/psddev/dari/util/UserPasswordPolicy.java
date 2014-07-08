@@ -1,10 +1,10 @@
 package com.psddev.dari.util;
 
 /** Policy for {@link Password} creation. */
-public interface NewPasswordPolicy extends SettingsBackedObject {
+public interface UserPasswordPolicy extends SettingsBackedObject {
 
     /** Setting key for all password policy configurations. */
-    public static final String SETTING_PREFIX = "dari/newPasswordPolicy";
+    public static final String SETTING_PREFIX = "dari/userPasswordPolicy";
 
     /**
      * Validates the given {@code password} for the given {@code user}.
@@ -17,19 +17,19 @@ public interface NewPasswordPolicy extends SettingsBackedObject {
     public void validate(Object user, String password) throws PasswordException;
 
     /**
-     * {@link NewPasswordPolicy} utility methods.
+     * {@link UserPasswordPolicy} utility methods.
      *
      * <p>The factory method, {@link #getInstance}, uses {@link Settings}
      * to construct instances.</p>
      */
     public static final class Static {
 
-        private static final PullThroughCache<String, NewPasswordPolicy>
-                INSTANCES = new PullThroughCache<String, NewPasswordPolicy>() {
+        private static final PullThroughCache<String, UserPasswordPolicy>
+                INSTANCES = new PullThroughCache<String, UserPasswordPolicy>() {
 
             @Override
-            public NewPasswordPolicy produce(String name) {
-                return Settings.newInstance(NewPasswordPolicy.class, SETTING_PREFIX + "/" + name);
+            public UserPasswordPolicy produce(String name) {
+                return Settings.newInstance(UserPasswordPolicy.class, SETTING_PREFIX + "/" + name);
             }
         };
 
@@ -40,7 +40,7 @@ public interface NewPasswordPolicy extends SettingsBackedObject {
          * @param name If blank, returns {@code null}.
          * @return May be {@code null}.
          */
-        public static NewPasswordPolicy getInstance(String name) {
+        public static UserPasswordPolicy getInstance(String name) {
             return ObjectUtils.isBlank(name) ? null : INSTANCES.get(name);
         }
     }
