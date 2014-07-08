@@ -889,7 +889,7 @@ public class JavaImageEditor extends AbstractImageEditor {
     *
     * @see <a href="http://www.java2s.com/Code/Java/Advanced-Graphics/GaussianBlurDemo.htm">Gaussian Blur Demo</a>
     */
-    public static ConvolveOp getGaussianBlurFilter(int radius, boolean horizontal) {
+    private static ConvolveOp getGaussianBlurFilter(int radius, boolean horizontal) {
         if (radius < 1) {
             throw new IllegalArgumentException("Radius must be >= 1");
         }
