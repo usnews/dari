@@ -2,6 +2,8 @@ package com.psddev.dari.util;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -81,10 +83,18 @@ public class JavaImageServlet extends HttpServlet {
             }
 
             BufferedImage bufferedImage;
-            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
-                bufferedImage = JavaImageTiffReader.readTiff(imageUrl);
-            } else {
-                bufferedImage = ImageIO.read(new URL(imageUrl));
+
+            try {
+                URL url = new URL(imageUrl);
+                URI uri = new URI(url.getProtocol(), url.getAuthority(), url.getPath(), url.getQuery(), url.getRef());
+
+                if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
+                    bufferedImage = JavaImageTiffReader.readTiff(uri.toString());
+                } else {
+                    bufferedImage = ImageIO.read(new URL(uri.toString()));
+                }
+            } catch (URISyntaxException ex) {
+                bufferedImage = null;
             }
 
             if (bufferedImage == null) {
