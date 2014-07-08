@@ -89,8 +89,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
-    public static final String DISABLE_BIN_LOG_CACHE_SETTING = "disableBinLogCache";
-    public static final String DISABLE_BIN_LOG_CACHE_IN_CMS_SETTING = "disableBinLogCacheInCMS";
+    public static final String ENABLE_REPLICATION_CACHE_SUB_SETTING = "enableReplicationCache";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -147,9 +146,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
-    private volatile boolean disableBinLogCache;
+    private volatile boolean enableReplicationCache;
 
-    private String settingsKeyPrefix;
     private static final byte[] NULL_ID = new byte[16];
     private volatile ThreadPoolExecutor binLogReaderThreadExecutor;
     private volatile Cache<ByteBuffer, byte[][]> binLogCache = CacheBuilder.newBuilder().maximumSize(10000).build();
@@ -368,28 +366,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         this.cacheData = cacheData;
     }
 
-    /** Returns {@code true} if the binary log cache is disabled. */
-    public <T> boolean isDisableBinLogCache(Query<T> query) {
-        return disableBinLogCache || Settings.getOrDefault(boolean.class, getSettingsKeyPrefix() + "/" + DISABLE_BIN_LOG_CACHE_SETTING, false) || !query.isCache();
+    public boolean isEnableReplicationCache() {
+        return enableReplicationCache;
     }
 
-    /** Sets if the binary log cache is disabled. */
-    public void setDisableBinLogCache(boolean disableBinLogCache) {
-        this.disableBinLogCache = disableBinLogCache;
-    }
-
-    /** Returns {@code true} if the binary log cache should not be use in CMS. */
-    public <T> boolean isDisableBinLogCacheInCms(Query<T> query) {
-        // TODO: isolate cms requests from regular requests.
-        return query.isMaster() && Settings.getOrDefault(boolean.class, getSettingsKeyPrefix() + "/" + DISABLE_BIN_LOG_CACHE_IN_CMS_SETTING, false);
-    }
-
-    private String getSettingsKeyPrefix() {
-        return settingsKeyPrefix;
-    }
-
-    private void setSettingsKeyPrefix(String settingsKeyPrefix) {
-        this.settingsKeyPrefix = settingsKeyPrefix;
+    public void setEnableReplicationCache(boolean enableReplicationCache) {
+        this.enableReplicationCache = enableReplicationCache;
     }
 
     /**
@@ -1218,11 +1200,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * from MySQL binary log cache if enabled.
      */
     public <T> T selectFirstWithOptions(Query<T> query) {
-
-        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache(query) && !isDisableBinLogCacheInCms(query)) {
+        if (!query.isCache() && vendor instanceof SqlVendor.MySQL && isEnableReplicationCache()) {
             List<Object> ids = query.findIdOnlyQueryValues();
+
             if (ids != null && !ids.isEmpty()) {
                 List<T> objects = findObjectsFromCache(ids, query);
+
                 return objects.isEmpty() ? null : objects.get(0);
             }
         }
@@ -1271,9 +1254,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * from MySQL binary log cache if enabled.
      */
     public <T> List<T> selectListWithOptions(Query<T> query) {
-
-        if (vendor instanceof SqlVendor.MySQL && !isDisableBinLogCache(query) && !isDisableBinLogCacheInCms(query)) {
+        if (!query.isCache() && vendor instanceof SqlVendor.MySQL && isEnableReplicationCache()) {
             List<Object> ids = query.findIdOnlyQueryValues();
+
             if (ids != null && !ids.isEmpty()) {
                 return findObjectsFromCache(ids, query);
             }
@@ -1676,8 +1659,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
-
-        setSettingsKeyPrefix(settingsKey);
+        setEnableReplicationCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_REPLICATION_CACHE_SUB_SETTING)));
 
         // Use binary log cache if the vendor is MySQL.
         // Bin log reader thread will be running regardless of initial settings
@@ -1701,7 +1683,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private void spawnMySQLBinaryLogReaderThread() {
         MySQLBinaryLogReader mySQLBinaryLogReader = MySQLBinaryLogReader.getInstance(binLogCache, readDataSource != null ? readDataSource : dataSource);
         if (mySQLBinaryLogReader == null) {
-            setDisableBinLogCache(true);
+            setEnableReplicationCache(false);
             LOGGER.error("Failed to spawn binlog reader thread.");
             return;
         }
