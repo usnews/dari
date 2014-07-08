@@ -8,6 +8,9 @@ import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.BufferedImageOp;
+import java.awt.image.ConvolveOp;
+import java.awt.image.Kernel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -184,29 +187,46 @@ public class JavaImageEditor extends AbstractImageEditor {
                     resizeBuilder.append("!");
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
                     resizeBuilder.append(">");
-                    if (originalDimension != null && width != null && height != null) {
-                        outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
-                                                        originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+                    if (originalDimension != null) {
+                        if (width != null && height != null) {
+                            outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
+                                                            originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+                        } else {
+                            outputDimension = getResizeDimension(originalDimension.width, originalDimension.height, width, height);
+                        }
                     }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
                     resizeBuilder.append("<");
-                    if (originalDimension != null && width != null && height != null) {
-                        outputDimension = new Dimension(originalDimension.width != null ? Math.max(originalDimension.width, width) : width,
-                                                        originalDimension.height != null ? Math.max(originalDimension.height, height) : height);
+                    if (originalDimension != null) {
+                        if (width != null && height != null) {
+                            outputDimension = new Dimension(originalDimension.width != null ? Math.max(originalDimension.width, width) : width,
+                                                            originalDimension.height != null ? Math.max(originalDimension.height, height) : height);
+                        } else {
+                            outputDimension = getResizeDimension(originalDimension.width, originalDimension.height, width, height);
+                        }
                     }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
                     resizeBuilder.append("^");
                 }
             }
 
-            if (originalDimension != null && width != null && height != null && (resizeOption == null ||
-                    resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO) ||
-                    resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA))) {
-                outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
-                                                originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+            if (originalDimension != null) {
+                if (width != null && height != null && (resizeOption == null ||
+                        resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO) ||
+                        resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA))) {
+                    outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
+                                                    originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+                } else if (resizeOption == null) {
+                    outputDimension = getResizeDimension(originalDimension.width, originalDimension.height, width, height);
+                }
             }
             commands.add(resizeBuilder.toString());
 
+        } else if (command.equals("blur") && arguments[0] instanceof List) {
+            for (Object blur : (List) arguments[0]) {
+                storageItem = this.edit(storageItem, "blur", null, blur);
+            }
+            return storageItem;
         } else if (!ObjectUtils.isBlank(arguments)) {
             commands.add(ObjectUtils.to(String.class, arguments[0]));
         }
@@ -483,6 +503,70 @@ public class JavaImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
+    /**
+     *
+     * @param sourceImage
+     * @param amount recommended amount is between 1 and 10
+     * @return
+     */
+    public BufferedImage sharpen(BufferedImage sourceImage, int amount) {
+        BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        float sharpenAmmount = amount * 0.2f;
+
+        float[] data = new float[]{
+                0.0f, -sharpenAmmount, 0.0f,
+                -sharpenAmmount, 4f * sharpenAmmount + 1f, -sharpenAmmount,
+                0.0f, -sharpenAmmount, 0.0f
+        };
+
+        Kernel kernel = new Kernel(3, 3, data);
+
+        BufferedImageOp bufferedImageOp = new ConvolveOp(kernel);
+        bufferedImageOp.filter(sourceImage, resultImage);
+
+        return resultImage;
+    }
+
+    /**
+     *
+     * @param sourceImage
+     * @param amount recommended amount is between 1 and 10
+     * @param x
+     * @param y
+     * @param width
+     * @param height
+     * @return
+     */
+    public BufferedImage blurArea(BufferedImage sourceImage, int amount, int x, int y, int width, int height) {
+        BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        Graphics2D graphics = resultImage.createGraphics();
+
+        graphics.drawImage(sourceImage, null, 0, 0);
+
+        BufferedImage blurArea = blur(sourceImage.getSubimage(x, y, width, height), amount);
+        graphics.drawImage(blurArea, null, x, y);
+        graphics.dispose();
+
+        return resultImage;
+    }
+
+    /**
+     *
+     * @param sourceImage
+     * @param amount recommended amount is between 1 and 10
+     * @return
+     */
+    public BufferedImage blur(BufferedImage sourceImage, int amount) {
+        BufferedImage horizontalBlur = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+
+        //A good blur is between 10 and 20
+        getGaussianBlurFilter(amount + 10, true).filter(sourceImage, horizontalBlur);
+        getGaussianBlurFilter(amount + 10, false).filter(horizontalBlur, resultImage);
+
+        return resultImage;
+    }
+
     public BufferedImage flipHorizontal(BufferedImage sourceImage) {
         return Scalr.rotate(sourceImage, Scalr.Rotation.FLIP_HORZ);
     }
@@ -654,7 +738,7 @@ public class JavaImageEditor extends AbstractImageEditor {
         return resultImage;
     }
 
-    public BufferedImage starburst(BufferedImage image) {
+    public BufferedImage starburst(BufferedImage image, int size, int count) {
         int w = image.getWidth();
         int h = image.getHeight();
         int cropX = 0;
@@ -677,101 +761,29 @@ public class JavaImageEditor extends AbstractImageEditor {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setColor(Color.BLUE);
 
-        Polygon starPolygon = new Polygon();
+        Polygon starburstPolygon = new Polygon();
 
-        addPoint(starPolygon, h, 50, 0);
-        addPoint(starPolygon, h, 53, 5);
-        addPoint(starPolygon, h, 58, 1);
-        addPoint(starPolygon, h, 60, 5);
-        addPoint(starPolygon, h, 65, 2);
-        addPoint(starPolygon, h, 66, 7);
-        addPoint(starPolygon, h, 72, 5);
-        addPoint(starPolygon, h, 72, 10);
-        addPoint(starPolygon, h, 78, 8);
-        addPoint(starPolygon, h, 78, 13);
-        addPoint(starPolygon, h, 83, 12);
-        addPoint(starPolygon, h, 83, 17);
-        addPoint(starPolygon, h, 88, 17);
-        addPoint(starPolygon, h, 88, 23);
-        addPoint(starPolygon, h, 92, 24);
-        addPoint(starPolygon, h, 91, 29);
-        addPoint(starPolygon, h, 96, 30);
-        addPoint(starPolygon, h, 94, 35);
-        addPoint(starPolygon, h, 99, 37);
-        addPoint(starPolygon, h, 94, 42);
-        addPoint(starPolygon, h, 99, 45);
+        int x = 0;
+        int y = 0;
 
-        addPoint(starPolygon, h, 96, 48);
-        addPoint(starPolygon, h, 100, 52);
-        addPoint(starPolygon, h, 95, 54);
-        addPoint(starPolygon, h, 99, 59);
-        addPoint(starPolygon, h, 94, 61);
-        addPoint(starPolygon, h, 97, 66);
-        addPoint(starPolygon, h, 93, 67);
-        addPoint(starPolygon, h, 94, 72);
-        addPoint(starPolygon, h, 90, 73);
-        addPoint(starPolygon, h, 90, 79);
-        addPoint(starPolygon, h, 85, 79);
-        addPoint(starPolygon, h, 86, 84);
-        addPoint(starPolygon, h, 80, 83);
-        addPoint(starPolygon, h, 81, 89);
-        addPoint(starPolygon, h, 76, 88);
-        addPoint(starPolygon, h, 75, 93);
-        addPoint(starPolygon, h, 70, 91);
-        addPoint(starPolygon, h, 68, 96);
-        addPoint(starPolygon, h, 64, 93);
-        addPoint(starPolygon, h, 61, 98);
-        addPoint(starPolygon, h, 57, 95);
-        addPoint(starPolygon, h, 54, 99);
+        int exteriorWidth = 50;
+        int interiorWidth = exteriorWidth - size;
+        double interval = 6.28 / count;
+        for (double i = 0.0; i < 6.28; i += interval) {
+            x = ((Double) (50 + interiorWidth * Math.cos(i))).intValue();
+            y = ((Double) (50 + interiorWidth * Math.sin(i))).intValue();
+            addPoint(starburstPolygon, h, x, y);
 
-        addPoint(starPolygon, h, 50, 95);
-        addPoint(starPolygon, h, 46, 99);
-        addPoint(starPolygon, h, 43, 94);
-        addPoint(starPolygon, h, 39, 98);
-        addPoint(starPolygon, h, 37, 93);
-        addPoint(starPolygon, h, 32, 95);
-        addPoint(starPolygon, h, 31, 91);
-        addPoint(starPolygon, h, 26, 92);
-        addPoint(starPolygon, h, 25, 87);
-        addPoint(starPolygon, h, 20, 89);
-        addPoint(starPolygon, h, 20, 83);
-        addPoint(starPolygon, h, 14, 84);
-        addPoint(starPolygon, h, 15, 78);
-        addPoint(starPolygon, h, 9, 78);
-        addPoint(starPolygon, h, 11, 74);
-        addPoint(starPolygon, h, 6, 72);
-        addPoint(starPolygon, h, 8, 67);
-        addPoint(starPolygon, h, 3, 65);
-        addPoint(starPolygon, h, 6, 60);
-        addPoint(starPolygon, h, 1, 58);
-        addPoint(starPolygon, h, 5, 55);
-        addPoint(starPolygon, h, 0, 51);
+            x = ((Double) (50 + exteriorWidth * Math.cos(i + interval / 2))).intValue();
+            y = ((Double) (50 + exteriorWidth * Math.sin(i + interval / 2))).intValue();
+            addPoint(starburstPolygon, h, x, y);
+        }
 
-        addPoint(starPolygon, h, 5, 48);
-        addPoint(starPolygon, h, 0, 44);
-        addPoint(starPolygon, h, 6, 41);
-        addPoint(starPolygon, h, 2, 37);
-        addPoint(starPolygon, h, 7, 35);
-        addPoint(starPolygon, h, 5, 30);
-        addPoint(starPolygon, h, 9, 28);
-        addPoint(starPolygon, h, 7, 23);
-        addPoint(starPolygon, h, 13, 23);
-        addPoint(starPolygon, h, 12, 18);
-        addPoint(starPolygon, h, 17, 18);
-        addPoint(starPolygon, h, 17, 12);
-        addPoint(starPolygon, h, 22, 13);
-        addPoint(starPolygon, h, 23, 8);
-        addPoint(starPolygon, h, 28, 10);
-        addPoint(starPolygon, h, 29, 4);
-        addPoint(starPolygon, h, 34, 7);
-        addPoint(starPolygon, h, 35, 2);
-        addPoint(starPolygon, h, 40, 5);
-        addPoint(starPolygon, h, 43, 0);
-        addPoint(starPolygon, h, 47, 4);
+        x = ((Double) (50 + interiorWidth * Math.cos(0))).intValue();
+        y = ((Double) (50 + interiorWidth * Math.sin(0))).intValue();
+        addPoint(starburstPolygon, h, x, y);
 
-        addPoint(starPolygon, h, 50, 0);
-
-        g2.fillPolygon(starPolygon);
+        g2.fillPolygon(starburstPolygon);
 
         // using the white shape from above as alpha source
         g2.setComposite(AlphaComposite.SrcAtop);
@@ -844,4 +856,102 @@ public class JavaImageEditor extends AbstractImageEditor {
         return new Dimension(actualWidth, actualHeight);
     }
 
+    /*
+    * Copyright (c) 2007, Romain Guy
+    * All rights reserved.
+    *
+    * Redistribution and use in source and binary forms, with or without
+    * modification, are permitted provided that the following conditions
+    * are met:
+    *
+    *   * Redistributions of source code must retain the above copyright
+    *     notice, this list of conditions and the following disclaimer.
+    *   * Redistributions in binary form must reproduce the above
+    *     copyright notice, this list of conditions and the following
+    *     disclaimer in the documentation and/or other materials provided
+    *     with the distribution.
+    *   * Neither the name of the TimingFramework project nor the names of its
+    *     contributors may be used to endorse or promote products derived
+    *     from this software without specific prior written permission.
+    *
+    * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    *
+    *
+    * @see <a href="http://www.java2s.com/Code/Java/Advanced-Graphics/GaussianBlurDemo.htm">Gaussian Blur Demo</a>
+    */
+    private static ConvolveOp getGaussianBlurFilter(int radius, boolean horizontal) {
+        if (radius < 1) {
+            throw new IllegalArgumentException("Radius must be >= 1");
+        }
+
+        int size = radius * 2 + 1;
+        float[] data = new float[size];
+
+        float sigma = radius / 3.0f;
+        float twoSigmaSquare = 2.0f * sigma * sigma;
+        float sigmaRoot = (float) Math.sqrt(twoSigmaSquare * Math.PI);
+        float total = 0.0f;
+
+        for (int i = -radius; i <= radius; i++) {
+            float distance = i * i;
+            int index = i + radius;
+            data[index] = (float) Math.exp(-distance / twoSigmaSquare) / sigmaRoot;
+            total += data[index];
+        }
+
+        for (int i = 0; i < data.length; i++) {
+            data[i] /= total;
+        }
+
+        Kernel kernel = null;
+        if (horizontal) {
+            kernel = new Kernel(size, 1, data);
+        } else {
+            kernel = new Kernel(1, size, data);
+        }
+        return new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);
+    }
+
+    private static Dimension getResizeDimension(Integer originalWidth, Integer originalHeight, Integer requestedWidth, Integer requestedHeight) {
+        Integer actualWidth = null;
+        Integer actualHeight = null;
+
+        if (originalWidth != null && originalHeight != null &&
+                (requestedWidth != null || requestedHeight != null)) {
+
+            float originalRatio = (float) originalWidth / (float) originalHeight;
+            if (requestedWidth != null && requestedHeight != null) {
+
+                float requestedRatio = (float) requestedWidth / (float) requestedHeight;
+                if (originalRatio > requestedRatio) {
+                    actualWidth = requestedWidth;
+                    actualHeight = (int) Math.round((float) requestedWidth * originalHeight / originalWidth);
+                } else if (originalRatio < requestedRatio) {
+                    actualWidth = (int) Math.round((float) requestedHeight * originalWidth / originalHeight);
+                    actualHeight = requestedHeight;
+                } else {
+                    actualWidth = requestedWidth;
+                    actualHeight = requestedHeight;
+                }
+            } else if (requestedWidth == null) {
+                actualHeight = requestedHeight;
+                actualWidth = Math.round((float) requestedHeight * originalRatio);
+            } else if (requestedHeight == null) {
+                actualWidth = requestedWidth;
+                actualHeight = Math.round((float) requestedWidth / originalRatio);
+            }
+        }
+
+        return new Dimension(actualWidth, actualHeight);
+    }
 }

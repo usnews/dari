@@ -49,6 +49,8 @@ public abstract class RepeatingTask extends Task {
                 oldPrevious.isBefore(newPrevious) &&
                 previousRunTime.compareAndSet(oldPrevious, newPrevious)) {
             doRepeatingTask(newPrevious);
+        } else {
+            skipRunCount();
         }
     }
 }

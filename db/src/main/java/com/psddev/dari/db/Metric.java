@@ -422,7 +422,7 @@ public class Metric extends Record {
                 return;
             }
             try {
-                MetricAccess.Static.preFetchMetricSums(id, dimensionId, startTimestamp, endTimestamp, metricAccesses);
+                MetricAccess.Static.preFetchMetricSums(id, dimensionId, startTimestamp, endTimestamp, metricAccesses, false);
             } catch (SQLException ex) {
                 LOGGER.warn("Exception when prefetching Metrics for object " + id + ": " + ex.getLocalizedMessage());
             }

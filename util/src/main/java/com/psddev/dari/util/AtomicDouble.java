@@ -5,7 +5,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * A {@code double} value that may be updated atomically.
  * This implementation uses {@link AtomicLong} internally.
+ *
+ * @deprecated Use {@link com.google.common.util.concurrent.AtomicDouble} instead.
  */
+@Deprecated
 @SuppressWarnings("serial")
 public class AtomicDouble extends Number {
 
