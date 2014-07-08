@@ -223,7 +223,7 @@ public class JavaImageEditor extends AbstractImageEditor {
             commands.add(resizeBuilder.toString());
 
         } else if (command.equals("blur") && arguments[0] instanceof List) {
-            for (Object blur : (List)arguments[0]) {
+            for (Object blur : (List) arguments[0]) {
                 storageItem = this.edit(storageItem, "blur", null, blur);
             }
             return storageItem;
