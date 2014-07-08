@@ -2,6 +2,8 @@ package com.psddev.dari.util;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.util.concurrent.AtomicDouble;
+
 /**
  * Exponential moving average.
  *
