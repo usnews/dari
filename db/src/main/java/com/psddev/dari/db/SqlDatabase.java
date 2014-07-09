@@ -1189,24 +1189,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /**
-     * Selects the first object that matches the given {@code query}
-     * from MySQL binary log cache if enabled.
-     */
-    public <T> T selectFirstWithOptions(Query<T> query) {
-        if (query.isCache() && isEnableReplicationCache()) {
-            List<Object> ids = query.findIdOnlyQueryValues();
-
-            if (ids != null && !ids.isEmpty()) {
-                List<T> objects = findObjectsFromCache(ids, query);
-
-                return objects.isEmpty() ? null : objects.get(0);
-            }
-        }
-
-        return selectFirstWithOptions(buildSelectStatement(query), query);
-    }
-
-    /**
      * Selects the first object that matches the given {@code sqlQuery}
      * with options from the given {@code query}.
      */
@@ -1240,22 +1222,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      */
     public Object selectFirst(String sqlQuery) {
         return selectFirstWithOptions(sqlQuery, null);
-    }
-
-    /**
-     * Selects a list of objects that match the given {@code query}
-     * from MySQL binary log cache if enabled.
-     */
-    public <T> List<T> selectListWithOptions(Query<T> query) {
-        if (query.isCache() && isEnableReplicationCache()) {
-            List<Object> ids = query.findIdOnlyQueryValues();
-
-            if (ids != null && !ids.isEmpty()) {
-                return findObjectsFromCache(ids, query);
-            }
-        }
-
-        return selectListWithOptions(buildSelectStatement(query), query);
     }
 
     /**
@@ -1805,7 +1771,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public <T> List<T> readAll(Query<T> query) {
-        return selectListWithOptions(query);
+        if (query.isCache() && isEnableReplicationCache()) {
+            List<Object> ids = query.findIdOnlyQueryValues();
+
+            if (ids != null && !ids.isEmpty()) {
+                return findObjectsFromCache(ids, query);
+            }
+        }
+
+        return selectListWithOptions(buildSelectStatement(query), query);
     }
 
     @Override
@@ -1862,7 +1836,17 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        return selectFirstWithOptions(query);
+        if (query.isCache() && isEnableReplicationCache()) {
+            List<Object> ids = query.findIdOnlyQueryValues();
+
+            if (ids != null && !ids.isEmpty()) {
+                List<T> objects = findObjectsFromCache(ids, query);
+
+                return objects.isEmpty() ? null : objects.get(0);
+            }
+        }
+
+        return selectFirstWithOptions(buildSelectStatement(query), query);
     }
 
     @Override
