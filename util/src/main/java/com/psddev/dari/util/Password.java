@@ -136,11 +136,13 @@ public final class Password {
     }
 
     public String getAlgorithm() {
-        return parseData()[0];
+        String[] parsedData = parseData();
+        return parsedData == null ? null : parsedData[0];
     }
 
     public String getSalt() {
-        return parseData()[1];
+        String[] parsedData = parseData();
+        return parsedData == null ? null : parsedData[1];
     }
 
     // --- Object support ---
