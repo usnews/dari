@@ -8,7 +8,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.ref.WeakReference;
-import java.nio.ByteBuffer;
 import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -146,7 +145,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile boolean enableReplicationCache;
 
     private static final byte[] NULL_ID = new byte[16];
-    private transient volatile Cache<ByteBuffer, byte[][]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    private transient volatile Cache<UUID, byte[][]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
     private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
 
     /**
@@ -1106,7 +1105,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
                 byte[] key = StringUtils.hexToBytes(id.toString().replaceAll("-", ""));
-                byte[][] value = replicationCache.getIfPresent(ByteBuffer.wrap(key));
+                byte[][] value = replicationCache.getIfPresent(ObjectUtils.to(UUID.class, key));
                 if (value == null) {
                     missingKeys.add(key);
                     continue;
@@ -1163,7 +1162,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                             byte[][] value = new byte[2][];
                             value[0] = typeId;
                             value[1] = data;
-                            replicationCache.put(ByteBuffer.wrap(id), value);
+                            replicationCache.put(ObjectUtils.to(UUID.class, id), value);
                             LOGGER.debug("UPDATING CACHE [{}]", StringUtils.hex(id));
                         }
                         T object = constructObject(typeId, id, data, query);

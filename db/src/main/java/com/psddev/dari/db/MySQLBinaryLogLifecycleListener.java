@@ -1,6 +1,6 @@
 package com.psddev.dari.db;
 
-import java.nio.ByteBuffer;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +13,9 @@ class MySQLBinaryLogLifecycleListener extends AbstractLifecycleListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLBinaryLogLifecycleListener.class);
 
-    private final Cache<ByteBuffer, byte[][]> cache;
+    private final Cache<UUID, byte[][]> cache;
 
-    public MySQLBinaryLogLifecycleListener(Cache<ByteBuffer, byte[][]> cache) {
+    public MySQLBinaryLogLifecycleListener(Cache<UUID, byte[][]> cache) {
         this.cache = cache;
     }
 

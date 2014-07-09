@@ -1,10 +1,10 @@
 package com.psddev.dari.db;
 
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,6 +21,7 @@ import com.github.shyiko.mysql.binlog.event.TableMapEventData;
 import com.github.shyiko.mysql.binlog.event.UpdateRowsEventData;
 import com.google.common.cache.Cache;
 import com.psddev.dari.db.shyiko.DariQueryEventData;
+import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
 
 class MySQLBinaryLogEventListener implements EventListener {
@@ -29,7 +30,7 @@ class MySQLBinaryLogEventListener implements EventListener {
     private static final Pattern DELETE_PATTERN = Pattern.compile("DELETE\\s+FROM\\s+`?(?<table>\\p{Alnum}+)`?\\s+WHERE\\s+`?id`?\\s*(?:(?:IN\\s*\\()|(?:=))\\s*(?<id>(?:(?:[^\']+'){2},?\\s*){1,})\\)?", Pattern.CASE_INSENSITIVE);
     private static final Pattern UPDATE_PATTERN = Pattern.compile("UPDATE\\s+`?(?<table>\\p{Alnum}+)`?\\s+SET\\s+`?typeId`?\\s*=\\s*(?<typeId>(?:[^\']+'){2})\\s*,\\s*`?data`?\\s*=\\s*(?<data>.+)\\s*WHERE\\s+`?id`?\\s*(?:(?:IN\\s*\\()|(?:=))\\s*(?<id>(?:[^\']+'){2}).*", Pattern.CASE_INSENSITIVE);
 
-    private final Cache<ByteBuffer, byte[][]> cache;
+    private final Cache<UUID, byte[][]> cache;
     private final String catalog;
 
     private boolean transactionBegin = false;
@@ -37,7 +38,7 @@ class MySQLBinaryLogEventListener implements EventListener {
     private final List<Event> events = new ArrayList<Event>();
     private boolean isFlushCache = false;
 
-    public MySQLBinaryLogEventListener(Cache<ByteBuffer, byte[][]> cache, String catalog) {
+    public MySQLBinaryLogEventListener(Cache<UUID, byte[][]> cache, String catalog) {
         this.cache = cache;
         this.catalog = catalog;
     }
@@ -62,7 +63,7 @@ class MySQLBinaryLogEventListener implements EventListener {
     private void updateCache(byte[] id, byte[] typeId, byte[] data) {
         id = confirm16Bytes(id);
         if (id != null) {
-            ByteBuffer bid = ByteBuffer.wrap(id);
+            UUID bid = ObjectUtils.to(UUID.class, id);
             byte[][] cachedValue = cache.getIfPresent(bid);
             if (cachedValue != null) {
                 // populate cache
@@ -80,7 +81,7 @@ class MySQLBinaryLogEventListener implements EventListener {
     private void invalidateCache(byte[] id) {
         id = confirm16Bytes(id);
         if (id != null) {
-            ByteBuffer bid = ByteBuffer.wrap(id);
+            UUID bid = ObjectUtils.to(UUID.class, id);
             if (LOGGER.isInfoEnabled() && cache.getIfPresent(bid) != null) {
                 LOGGER.info("[BINLOG] DELETING CACHE: ID [{}]", StringUtils.hex(id));
             }

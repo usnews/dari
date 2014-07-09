@@ -1,9 +1,9 @@
 package com.psddev.dari.db;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,7 +41,7 @@ class MySQLBinaryLogReader {
     private final BinaryLogClient client;
     private final AtomicBoolean running = new AtomicBoolean();
 
-    public MySQLBinaryLogReader(Cache<ByteBuffer, byte[][]> cache, DataSource dataSource) {
+    public MySQLBinaryLogReader(Cache<UUID, byte[][]> cache, DataSource dataSource) {
         String jdbcUrl = null;
         String username = null;
         String password = null;
