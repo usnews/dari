@@ -660,8 +660,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         setReadDataSource(null);
 
         if (mysqlBinaryLogReader != null) {
-            LOGGER.info("Closing MySQL binary log reader");
-            mysqlBinaryLogReader.close();
+            LOGGER.info("Stopping MySQL binary log reader");
+            mysqlBinaryLogReader.stop();
             mysqlBinaryLogReader = null;
         }
     }
@@ -1193,7 +1193,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * from MySQL binary log cache if enabled.
      */
     public <T> T selectFirstWithOptions(Query<T> query) {
-        if (!query.isCache() && vendor instanceof SqlVendor.MySQL && isEnableReplicationCache()) {
+        if (query.isCache() && isEnableReplicationCache()) {
             List<Object> ids = query.findIdOnlyQueryValues();
 
             if (ids != null && !ids.isEmpty()) {
@@ -1247,7 +1247,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * from MySQL binary log cache if enabled.
      */
     public <T> List<T> selectListWithOptions(Query<T> query) {
-        if (!query.isCache() && vendor instanceof SqlVendor.MySQL && isEnableReplicationCache()) {
+        if (query.isCache() && isEnableReplicationCache()) {
             List<Object> ids = query.findIdOnlyQueryValues();
 
             if (ids != null && !ids.isEmpty()) {
@@ -1510,8 +1510,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                         } finally {
                             timer.stop(CONNECTION_ERROR_STATS_OPERATION);
-                            continue;
                         }
+
+                        continue;
                     }
                 }
 
@@ -1656,7 +1657,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         if (vendor instanceof SqlVendor.MySQL &&
                 (mysqlBinaryLogReader == null ||
-                !mysqlBinaryLogReader.isAlive())) {
+                !mysqlBinaryLogReader.isRunning())) {
             try {
                 LOGGER.info("Starting MySQL binary log reader");
                 mysqlBinaryLogReader = new MySQLBinaryLogReader(replicationCache, ObjectUtils.firstNonNull(getReadDataSource(), getDataSource()));

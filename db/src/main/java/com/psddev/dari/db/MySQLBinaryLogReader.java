@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,12 +33,13 @@ import com.psddev.dari.db.shyiko.DariUpdateRowsEventDataDeserializer;
 import com.psddev.dari.db.shyiko.DariWriteRowsEventDataDeserializer;
 import com.psddev.dari.util.ObjectUtils;
 
-class MySQLBinaryLogReader extends Thread {
+class MySQLBinaryLogReader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLBinaryLogReader.class);
     private static final Pattern MYSQL_JDBC_URL_PATTERN = Pattern.compile("(?i)jdbc:mysql://([^:/]+)(?::(\\d+))?/([^?]+).*");
 
     private final BinaryLogClient client;
+    private final AtomicBoolean running = new AtomicBoolean();
 
     public MySQLBinaryLogReader(Cache<ByteBuffer, byte[][]> cache, DataSource dataSource) {
         String jdbcUrl = null;
@@ -85,17 +87,15 @@ class MySQLBinaryLogReader extends Thread {
         }
 
         String catalog = jdbcUrlMatcher.group(3);
-                System.out.println("host: " + jdbcUrlMatcher.group(1));
-                System.out.println("port: " + (ObjectUtils.firstNonNull(ObjectUtils.to(Integer.class, jdbcUrlMatcher.group(2)), 3306)));
-                System.out.println("catalog: " + catalog);
-                System.out.println("username: " + username);
-                System.out.println("password: " + password);
         this.client = new BinaryLogClient(
                 jdbcUrlMatcher.group(1),
                 ObjectUtils.firstNonNull(ObjectUtils.to(Integer.class, jdbcUrlMatcher.group(2)), 3306),
                 catalog,
                 username,
                 password);
+
+        client.registerLifecycleListener(new MySQLBinaryLogLifecycleListener(cache));
+        client.registerEventListener(new MySQLBinaryLogEventListener(cache, catalog));
 
         @SuppressWarnings("rawtypes")
         Map<EventType, EventDataDeserializer> eventDataDeserializers = new HashMap<EventType, EventDataDeserializer>();
@@ -121,27 +121,33 @@ class MySQLBinaryLogReader extends Thread {
                         new NullEventDataDeserializer(),
                         eventDataDeserializers,
                         tableMapEventByTableId));
-
-        client.registerEventListener(new MySQLBinaryLogEventListener(cache, catalog));
     }
 
-    @Override
-    public void run() {
-        try {
-            try {
-                client.connect();
+    public void start() {
+        if (running.compareAndSet(false, true)) {
+            Thread connectThread = new Thread() {
 
-            } finally {
-                client.disconnect();
-            }
+                @Override
+                public void run() {
+                    try {
+                        client.connect();
 
-        } catch (IOException error) {
-            LOGGER.warn("Can't connect to MySQL as a slave!", error);
+                    } catch (IOException error) {
+                        LOGGER.warn("Can't connect to MySQL as a slave!", error);
+                    }
+                }
+            };
+
+            connectThread.start();
         }
     }
 
-    public void close() {
-        if (client.isConnected()) {
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    public void stop() {
+        if (running.compareAndSet(true, false)) {
             try {
                 client.disconnect();
 
