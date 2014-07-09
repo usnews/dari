@@ -693,6 +693,12 @@ public class Query<E> extends Record {
         return typeIds;
     }
 
+    /**
+     * Returns a list of values to be matched against the ID if and only if
+     * the query contains a single predicate in the form of {@code _id = ?}.
+     *
+     * @return {@code null} if the query matches against anything other than ID.
+     */
     public List<Object> findIdOnlyQueryValues() {
         if (getSorters().isEmpty()) {
             Predicate predicate = getPredicate();
@@ -707,6 +713,7 @@ public class Query<E> extends Record {
                 }
             }
         }
+
         return null;
     }
 

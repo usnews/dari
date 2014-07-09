@@ -112,23 +112,6 @@ public class CachingDatabase extends ForwardingDatabase {
         }
     }
 
-    private List<Object> findIdOnlyQueryValues(Query<?> query) {
-        if (query.getSorters().isEmpty()) {
-            Predicate predicate = query.getPredicate();
-
-            if (predicate instanceof ComparisonPredicate) {
-                ComparisonPredicate comparison = (ComparisonPredicate) predicate;
-
-                if (Query.ID_KEY.equals(comparison.getKey()) &&
-                        PredicateParser.EQUALS_ANY_OPERATOR.equals(comparison.getOperator()) &&
-                        comparison.findValueQuery() == null) {
-                    return comparison.getValues();
-                }
-            }
-        }
-        return null;
-    }
-
     private Object findCachedObject(UUID id, Query<?> query) {
         Object object = objectCache.get(id);
 
@@ -167,7 +150,7 @@ public class CachingDatabase extends ForwardingDatabase {
         }
 
         List<Object> all = new ArrayList<Object>();
-        List<Object> values = findIdOnlyQueryValues(query);
+        List<Object> values = query.findIdOnlyQueryValues();
 
         if (values != null) {
             List<Object> newValues = null;
@@ -258,7 +241,7 @@ public class CachingDatabase extends ForwardingDatabase {
             return super.readFirst(query);
         }
 
-        List<Object> values = findIdOnlyQueryValues(query);
+        List<Object> values = query.findIdOnlyQueryValues();
 
         if (values != null) {
             for (Object value : values) {
