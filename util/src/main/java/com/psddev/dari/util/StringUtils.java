@@ -417,18 +417,6 @@ public final class StringUtils {
         return new String(hex);
     }
 
-    // TODO: refactor for better performance.
-    /** Converts the given {@code hex} into a byte array. */
-    public static byte[] hexToBytes(String hex) {
-        int len = hex.length();
-        byte[] bytes = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4) +
-                    Character.digit(hex.charAt(i + 1), 16));
-        }
-        return bytes;
-    }
-
     /** Hashes the given {@code string} using the given {@code algorithm}. */
     public static byte[] hash(String algorithm, String string) {
         MessageDigest digest;

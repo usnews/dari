@@ -177,7 +177,14 @@ class MySQLBinaryLogEventListener implements EventListener {
                 target[targetIndex++] = value;
             }
         } else if (strSource.startsWith("X")) {
-            target = StringUtils.hexToBytes(strSource.substring(2, strSource.length() - 1));
+            String hex = strSource.substring(2, strSource.length() - 1);
+            int len = hex.length();
+            target = new byte[len / 2];
+            for (int i = 0; i < len; i += 2) {
+                target[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4) +
+                        Character.digit(hex.charAt(i + 1), 16));
+            }
+
         } else {
             // TODO: error
         }

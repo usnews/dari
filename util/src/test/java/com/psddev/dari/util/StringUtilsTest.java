@@ -571,13 +571,4 @@ public class StringUtilsTest {
 		assertEquals("http://test.com/a?b=", StringUtils.addQueryParameters("http://test.com/a", "b", ""));
 		assertEquals("http://test.com/a?b=&c=2", StringUtils.addQueryParameters("http://test.com/a", "b", "", "c", "2"));
 	}
-
-    @Test
-    public void hexToBytes() {
-        // ASCII character A
-        byte[] byteA = {65};
-        assertArrayEquals(byteA, StringUtils.hexToBytes("41"));
-        byte[] bytes = {0, 0, 1, 65, 80, -88, -38, -36, -85, 93, 126, -65, 34, -104, 0, 74};
-        assertArrayEquals(bytes, StringUtils.hexToBytes("0000014150a8dadcab5d7ebf2298004a"));
-    }
 }
