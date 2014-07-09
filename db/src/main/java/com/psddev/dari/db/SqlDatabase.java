@@ -373,6 +373,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public boolean hasInRowIndex() {
         return hasInRowIndex;
     }
+
     /**
      * Returns {@code true} if all comparisons executed in this database
      * should ignore case by default.
