@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +38,7 @@ class MySQLBinaryLogReader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLBinaryLogReader.class);
     private static final Pattern MYSQL_JDBC_URL_PATTERN = Pattern.compile("(?i)jdbc:mysql://([^:/]+)(?::(\\d+))?/([^?]+).*");
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final BinaryLogClient client;
     private final AtomicBoolean running = new AtomicBoolean();
@@ -94,6 +96,7 @@ class MySQLBinaryLogReader {
                 username,
                 password);
 
+        client.setServerId(RANDOM.nextLong());
         client.registerLifecycleListener(new MySQLBinaryLogLifecycleListener(cache));
         client.registerEventListener(new MySQLBinaryLogEventListener(cache, catalog));
 
