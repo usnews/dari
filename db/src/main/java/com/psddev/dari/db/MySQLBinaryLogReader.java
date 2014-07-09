@@ -41,6 +41,7 @@ class MySQLBinaryLogReader {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final BinaryLogClient client;
+    private final MySQLBinaryLogLifecycleListener lifecycleListener;
     private final AtomicBoolean running = new AtomicBoolean();
 
     public MySQLBinaryLogReader(Cache<UUID, byte[][]> cache, DataSource dataSource) {
@@ -88,16 +89,14 @@ class MySQLBinaryLogReader {
                     jdbcUrl));
         }
 
+        String host = jdbcUrlMatcher.group(1);
+        int port = ObjectUtils.firstNonNull(ObjectUtils.to(Integer.class, jdbcUrlMatcher.group(2)), 3306);
         String catalog = jdbcUrlMatcher.group(3);
-        this.client = new BinaryLogClient(
-                jdbcUrlMatcher.group(1),
-                ObjectUtils.firstNonNull(ObjectUtils.to(Integer.class, jdbcUrlMatcher.group(2)), 3306),
-                catalog,
-                username,
-                password);
+        this.client = new BinaryLogClient(host, port, catalog, username, password);
+        this.lifecycleListener = new MySQLBinaryLogLifecycleListener(cache);
 
         client.setServerId(RANDOM.nextLong());
-        client.registerLifecycleListener(new MySQLBinaryLogLifecycleListener(cache));
+        client.registerLifecycleListener(lifecycleListener);
         client.registerEventListener(new MySQLBinaryLogEventListener(cache, catalog));
 
         @SuppressWarnings("rawtypes")
@@ -147,6 +146,10 @@ class MySQLBinaryLogReader {
 
     public boolean isRunning() {
         return running.get();
+    }
+
+    public boolean isConnected() {
+        return isRunning() && lifecycleListener.isConnected();
     }
 
     public void stop() {

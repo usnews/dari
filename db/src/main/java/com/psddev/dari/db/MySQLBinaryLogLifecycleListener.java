@@ -14,9 +14,20 @@ class MySQLBinaryLogLifecycleListener extends AbstractLifecycleListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLBinaryLogLifecycleListener.class);
 
     private final Cache<UUID, byte[][]> cache;
+    private volatile boolean connected;
 
     public MySQLBinaryLogLifecycleListener(Cache<UUID, byte[][]> cache) {
         this.cache = cache;
+    }
+
+    public boolean isConnected() {
+        return connected;
+    }
+
+    @Override
+    public void onConnect(BinaryLogClient client) {
+        LOGGER.info("Connected to MySQL as a slave");
+        connected = true;
     }
 
     @Override
@@ -26,7 +37,8 @@ class MySQLBinaryLogLifecycleListener extends AbstractLifecycleListener {
 
     @Override
     public void onDisconnect(BinaryLogClient client) {
-        LOGGER.warn("Disconnected from MySQL as a slave so invalidating cache");
+        LOGGER.info("Disconnected from MySQL as a slave");
+        connected = false;
         cache.invalidateAll();
     }
 }

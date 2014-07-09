@@ -1640,7 +1640,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
         setEnableReplicationCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_REPLICATION_CACHE_SUB_SETTING)));
 
-        if (vendor instanceof SqlVendor.MySQL &&
+        if (isEnableReplicationCache() &&
+                vendor instanceof SqlVendor.MySQL &&
                 (mysqlBinaryLogReader == null ||
                 !mysqlBinaryLogReader.isRunning())) {
             try {
@@ -1788,9 +1789,16 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return 0;
     }
 
+    private boolean checkReplicationCache(Query<?> query) {
+        return query.isCache() &&
+                isEnableReplicationCache() &&
+                mysqlBinaryLogReader != null &&
+                mysqlBinaryLogReader.isConnected();
+    }
+
     @Override
     public <T> List<T> readAll(Query<T> query) {
-        if (query.isCache() && isEnableReplicationCache()) {
+        if (checkReplicationCache(query)) {
             List<Object> ids = query.findIdOnlyQueryValues();
 
             if (ids != null && !ids.isEmpty()) {
@@ -1857,7 +1865,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        if (query.isCache() && isEnableReplicationCache()) {
+        if (checkReplicationCache(query)) {
             List<Object> ids = query.findIdOnlyQueryValues();
 
             if (ids != null && !ids.isEmpty()) {
