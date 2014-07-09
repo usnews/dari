@@ -72,7 +72,7 @@ class MySQLBinaryLogEventListener implements EventListener {
                 value[1] = data;
                 cache.put(bid, value);
                 if (LOGGER.isInfoEnabled()) {
-                    LOGGER.info("[BINLOG] UPDATING CACHE: ID [{}]", StringUtils.hex(id));
+                    LOGGER.debug("[BINLOG] UPDATING CACHE: ID [{}]", StringUtils.hex(id));
                 }
             }
         }
@@ -83,7 +83,7 @@ class MySQLBinaryLogEventListener implements EventListener {
         if (id != null) {
             UUID bid = ObjectUtils.to(UUID.class, id);
             if (LOGGER.isInfoEnabled() && cache.getIfPresent(bid) != null) {
-                LOGGER.info("[BINLOG] DELETING CACHE: ID [{}]", StringUtils.hex(id));
+                LOGGER.debug("[BINLOG] DELETING CACHE: ID [{}]", StringUtils.hex(id));
             }
             cache.invalidate(bid);
         }
@@ -228,7 +228,7 @@ class MySQLBinaryLogEventListener implements EventListener {
                         LOGGER.debug("[DEBUG] QUERY EVENT UPDATE [{}]", queryEventData);
                     } else {
                         isFlushCache = true;
-                        LOGGER.info("Bin log cache flushed due to [{}]", sql);
+                        LOGGER.debug("Bin log cache flushed due to [{}]", sql);
                     }
                 } else if (statementParts[0].equalsIgnoreCase("DELETE")) {
                     queryEventData.setActionl(DariQueryEventData.Action.DELETE);
@@ -239,13 +239,13 @@ class MySQLBinaryLogEventListener implements EventListener {
                         LOGGER.debug("[DEBUG] QUERY EVENT DELETE [{}]", queryEventData);
                     } else {
                         isFlushCache = true;
-                        LOGGER.info("Bin log cache flushed due to [{}]", sql);
+                        LOGGER.debug("Bin log cache flushed due to [{}]", sql);
                     }
                 } else if (statementParts[0].equalsIgnoreCase("INSERT")) {
                     // Do nothing
                 } else {
                     isFlushCache = true;
-                    LOGGER.info("Bin log cache flushed due to [{}]", sql);
+                    LOGGER.debug("Bin log cache flushed due to [{}]", sql);
                 }
             }
         }
