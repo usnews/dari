@@ -1697,8 +1697,8 @@ public class Query<E> extends Record {
     }
 
     /** @deprecated Use {@link #delete} instead. */
-    @Override
     @Deprecated
+    @Override
     public void delete() {
         deleteAll();
     }

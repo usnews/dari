@@ -77,7 +77,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- MySQL binary log reader -->
         <dependency>
             <groupId>com.github.shyiko</groupId>
             <artifactId>mysql-binlog-connector-java</artifactId>

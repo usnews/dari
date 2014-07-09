@@ -547,6 +547,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     private final Supplier<Long> nowOffset = Suppliers.memoizeWithExpiration(new Supplier<Long>() {
+
         @Override
         public Long get() {
             String selectSql = getVendor().getSelectTimestampMillisSql();
@@ -1212,7 +1213,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * with options from the given {@code query}.
      */
     public <T> T selectFirstWithOptions(String sqlQuery, Query<T> query) {
-
         sqlQuery = vendor.rewriteQueryWithLimitClause(sqlQuery, 1, 0);
 
         ConnectionRef extraConnectionRef = new ConnectionRef();
