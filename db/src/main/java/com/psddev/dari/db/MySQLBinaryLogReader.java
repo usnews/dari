@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,40 +46,40 @@ class MySQLBinaryLogReader {
     private final AtomicBoolean running = new AtomicBoolean();
 
     public MySQLBinaryLogReader(Cache<UUID, byte[][]> cache, DataSource dataSource) {
+        Class<?> dataSourceClass = dataSource.getClass();
+        String dataSourceClassName = dataSourceClass.getName();
         String jdbcUrl = null;
         String username = null;
         String password = null;
+        Throwable dataSourceError = null;
 
         try {
-            if (dataSource instanceof org.apache.tomcat.dbcp.dbcp.BasicDataSource) {
-                org.apache.tomcat.dbcp.dbcp.BasicDataSource nativeDataSource = (org.apache.tomcat.dbcp.dbcp.BasicDataSource) dataSource;
-                jdbcUrl = nativeDataSource.getUrl();
-                username = nativeDataSource.getUsername();
-                password = nativeDataSource.getPassword();
-
-            } else if (dataSource instanceof org.apache.commons.dbcp2.BasicDataSource) {
-                org.apache.commons.dbcp2.BasicDataSource nativeDataSource = (org.apache.commons.dbcp2.BasicDataSource) dataSource;
-                jdbcUrl = nativeDataSource.getUrl();
-                username = nativeDataSource.getUsername();
-                password = nativeDataSource.getPassword();
-
-            } else if (dataSource instanceof com.jolbox.bonecp.BoneCPDataSource) {
-                com.jolbox.bonecp.BoneCPDataSource nativeDataSource = (com.jolbox.bonecp.BoneCPDataSource) dataSource;
-                jdbcUrl = nativeDataSource.getJdbcUrl();
-                username = nativeDataSource.getUsername();
-                password = nativeDataSource.getPassword();
+            if (dataSourceClassName.equals("com.jolbox.bonecp.BoneCPDataSource")) {
+                jdbcUrl = (String) dataSourceClass.getMethod("getJdbcUrl").invoke(dataSource);
+                username = (String) dataSourceClass.getMethod("getUsername").invoke(dataSource);
+                password = (String) dataSourceClass.getMethod("getPassword").invoke(dataSource);
 
             } else {
-                throw new IllegalArgumentException(String.format(
-                        "Can't extract MySQL information from unknown data source [%s]!",
-                        dataSource.getClass().getName()));
+                jdbcUrl = (String) dataSourceClass.getMethod("getUrl").invoke(dataSource);
+                username = (String) dataSourceClass.getMethod("getUsername").invoke(dataSource);
+                password = (String) dataSourceClass.getMethod("getPassword").invoke(dataSource);
             }
 
-        } catch (NoClassDefFoundError error) {
+        } catch (IllegalAccessException error) {
+            dataSourceError = error;
+
+        } catch (InvocationTargetException error) {
+            dataSourceError = error.getCause();
+
+        } catch (NoSuchMethodException error) {
+            dataSourceError = error;
+        }
+
+        if (dataSourceError != null) {
             throw new IllegalArgumentException(String.format(
                     "Can't extract MySQL information from data source [%s]!",
                     dataSource.getClass().getName()),
-                    error);
+                    dataSourceError);
         }
 
         Matcher jdbcUrlMatcher = MYSQL_JDBC_URL_PATTERN.matcher(jdbcUrl);
