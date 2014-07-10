@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
@@ -59,6 +60,12 @@ class MySQLBinaryLogReader {
                 username = (String) dataSourceClass.getMethod("getUsername").invoke(dataSource);
                 password = (String) dataSourceClass.getMethod("getPassword").invoke(dataSource);
 
+            } else if (dataSourceClassName.equals("org.apache.tomcat.jdbc.pool.DataSource")) {
+                jdbcUrl = (String) dataSourceClass.getMethod("getUrl").invoke(dataSource);
+                Properties dbProperties = (Properties) dataSourceClass.getMethod("getDbProperties").invoke(dataSource);
+                username = dbProperties.getProperty("user");
+                password = dbProperties.getProperty("password");
+
             } else {
                 jdbcUrl = (String) dataSourceClass.getMethod("getUrl").invoke(dataSource);
                 username = (String) dataSourceClass.getMethod("getUsername").invoke(dataSource);
@@ -93,6 +100,8 @@ class MySQLBinaryLogReader {
         String host = jdbcUrlMatcher.group(1);
         int port = ObjectUtils.firstNonNull(ObjectUtils.to(Integer.class, jdbcUrlMatcher.group(2)), 3306);
         String catalog = jdbcUrlMatcher.group(3);
+        username = ObjectUtils.firstNonNull(username, "");
+        password = ObjectUtils.firstNonNull(password, "");
         this.client = new BinaryLogClient(host, port, catalog, username, password);
         this.lifecycleListener = new MySQLBinaryLogLifecycleListener(cache);
 
