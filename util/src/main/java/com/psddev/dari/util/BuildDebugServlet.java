@@ -300,8 +300,13 @@ public class BuildDebugServlet extends HttpServlet {
                     writeStart("td").writeEnd();
                     writeStart("td").writeEnd();
 
+                    List<String> subPaths = new ArrayList<String>();
+
                     @SuppressWarnings("unchecked")
-                    List<String> subPaths = new ArrayList<String>((Set<String>) getServletContext().getResourcePaths(path));
+                    Set<String> resourcePaths = (Set<String>) getServletContext().getResourcePaths(path);
+                    if (resourcePaths != null) {
+                        subPaths.addAll(resourcePaths);
+                    }
                     Collections.sort(subPaths);
 
                     int subDepth = depth + 1;
