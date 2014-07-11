@@ -53,24 +53,34 @@ public class ProfilingDatabase extends ForwardingDatabase {
 
     private void startQueryEvent(String event, Query<?> query) {
         StackTraceElement caller = null;
-        StackTraceElement[] elements = new Throwable().getStackTrace();
 
-        for (int i = 2, length = elements.length; i < length; ++ i) {
-            StackTraceElement element = elements[i];
-            String className = element.getClassName();
-            Class<?> c = ObjectUtils.getClassByName(className);
+        Profiler.Static.pauseThreadEvent();
 
-            if (c == null ||
-                    !(Database.class.isAssignableFrom(c) ||
-                    Query.class.isAssignableFrom(c))) {
-                caller = element;
-                break;
+        try {
+            StackTraceElement[] elements = new Throwable().getStackTrace();
+
+            for (int i = 2, length = elements.length; i < length; ++ i) {
+                StackTraceElement element = elements[i];
+                String className = element.getClassName();
+                Class<?> c = ObjectUtils.getClassByName(className);
+
+                if (c == null ||
+                        !(Database.class.isAssignableFrom(c) ||
+                        Query.class.isAssignableFrom(c))) {
+                    caller = element;
+                    break;
+                }
             }
+
+        } finally {
+            Profiler.Static.resumeThreadEvent();
         }
 
         Object resolving = query.getOptions().get(State.REFERENCE_RESOLVING_QUERY_OPTION);
+
         if (resolving != null) {
             Profiler.Static.startThreadEvent("Resolving Fields", resolving, query.getOptions().get(State.REFERENCE_FIELD_QUERY_OPTION), caller);
+
         } else {
             Profiler.Static.startThreadEvent(event, caller, query);
         }
