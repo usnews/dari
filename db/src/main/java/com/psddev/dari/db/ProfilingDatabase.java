@@ -11,43 +11,43 @@ import com.psddev.dari.util.Profiler;
 public class ProfilingDatabase extends ForwardingDatabase {
 
     /** Event name used to mark {@link Database#readAll} calls. */
-    public static final String READ_ALL_EVENT_NAME = "Read All";
+    public static final String READ_ALL_EVENT_NAME = "DB: Read All";
 
     /** Event name used to mark {@link Database#readAllGrouped} calls. */
-    public static final String READ_ALL_GROUPED_EVENT_NAME = "Read All Grouped";
+    public static final String READ_ALL_GROUPED_EVENT_NAME = "DB: Read All Grouped";
 
     /** Event name used to mark {@link Database#readCount} calls. */
-    public static final String READ_COUNT_EVENT_NAME = "Read Count";
+    public static final String READ_COUNT_EVENT_NAME = "DB: Read Count";
 
     /** Event name used to mark {@link Database#readFirst} calls. */
-    public static final String READ_FIRST_EVENT_NAME = "Read First";
+    public static final String READ_FIRST_EVENT_NAME = "DB: Read First";
 
     /** Event name used to mark {@link Database#readIterable} calls. */
-    public static final String READ_ITERABLE_EVENT_NAME = "Read Iterable";
+    public static final String READ_ITERABLE_EVENT_NAME = "DB: Read Iterable";
 
     /** Event name used to mark {@link Database#readLastUpdate} calls. */
-    public static final String READ_LAST_UPDATE_EVENT_NAME = "Read Last Update";
+    public static final String READ_LAST_UPDATE_EVENT_NAME = "DB: Read Last Update";
 
     /** Event name used to mark {@link Database#readPartial} calls. */
-    public static final String READ_PARTIAL_EVENT_NAME = "Read Partial";
+    public static final String READ_PARTIAL_EVENT_NAME = "DB: Read Partial";
 
     /** Event name used to mark {@link Database#readPartialGrouped} calls. */
-    public static final String READ_PARTIAL_GROUPED_EVENT_NAME = "Read Partial Grouped";
+    public static final String READ_PARTIAL_GROUPED_EVENT_NAME = "DB: Read Partial Grouped";
 
     /** Event name used to mark {@link Database#save} calls. */
-    public static final String SAVE_EVENT_NAME = "Save";
+    public static final String SAVE_EVENT_NAME = "DB: Save";
 
     /** Event name used to mark {@link Database#saveUnsafely} calls. */
-    public static final String SAVE_UNSAFELY_EVENT_NAME = "Save Unsafely";
+    public static final String SAVE_UNSAFELY_EVENT_NAME = "DB: Save Unsafely";
 
     /** Event name used to mark {@link Database#index} calls. */
-    public static final String INDEX_EVENT_NAME = "Index";
+    public static final String INDEX_EVENT_NAME = "DB: Index";
 
     /** Event name used to mark {@link Database#delete} calls. */
-    public static final String DELETE_EVENT_NAME = "Delete";
+    public static final String DELETE_EVENT_NAME = "DB: Delete";
 
     /** Event name used to mark {@link Database#deleteByQuery} calls. */
-    public static final String DELETE_BY_QUERY_EVENT_NAME = "Delete By Query";
+    public static final String DELETE_BY_QUERY_EVENT_NAME = "DB: Delete By Query";
 
     // --- ForwardingDatabase support ---
 
@@ -79,7 +79,7 @@ public class ProfilingDatabase extends ForwardingDatabase {
         Object resolving = query.getOptions().get(State.REFERENCE_RESOLVING_QUERY_OPTION);
 
         if (resolving != null) {
-            Profiler.Static.startThreadEvent("Resolving Fields", resolving, query.getOptions().get(State.REFERENCE_FIELD_QUERY_OPTION), caller);
+            Profiler.Static.startThreadEvent(event + " (Reference Resolving)", resolving, query.getOptions().get(State.REFERENCE_FIELD_QUERY_OPTION), caller);
 
         } else {
             Profiler.Static.startThreadEvent(event, caller, query);
