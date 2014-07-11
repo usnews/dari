@@ -110,7 +110,9 @@
             'height': 1,
             'margin': 0,
             'padding': 0,
-            'width': '100%'
+            'position': 'relative',
+            'width': '100%',
+            'z-index': 1000000
         });
 
         $profile.load(function() {
