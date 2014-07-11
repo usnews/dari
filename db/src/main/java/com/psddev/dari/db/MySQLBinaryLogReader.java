@@ -46,7 +46,7 @@ class MySQLBinaryLogReader {
     private final MySQLBinaryLogLifecycleListener lifecycleListener;
     private final AtomicBoolean running = new AtomicBoolean();
 
-    public MySQLBinaryLogReader(Cache<UUID, byte[][]> cache, DataSource dataSource) {
+    public MySQLBinaryLogReader(Cache<UUID, Object[]> cache, DataSource dataSource) {
         Class<?> dataSourceClass = dataSource.getClass();
         String dataSourceClassName = dataSourceClass.getName();
         String jdbcUrl = null;

@@ -13,10 +13,10 @@ class MySQLBinaryLogLifecycleListener extends AbstractLifecycleListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLBinaryLogLifecycleListener.class);
 
-    private final Cache<UUID, byte[][]> cache;
+    private final Cache<UUID, Object[]> cache;
     private volatile boolean connected;
 
-    public MySQLBinaryLogLifecycleListener(Cache<UUID, byte[][]> cache) {
+    public MySQLBinaryLogLifecycleListener(Cache<UUID, Object[]> cache) {
         this.cache = cache;
     }
 

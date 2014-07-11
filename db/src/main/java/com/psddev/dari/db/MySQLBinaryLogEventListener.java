@@ -30,7 +30,7 @@ class MySQLBinaryLogEventListener implements EventListener {
     private static final Pattern DELETE_PATTERN = Pattern.compile("DELETE\\s+FROM\\s+`?(?<table>\\p{Alnum}+)`?\\s+WHERE\\s+`?id`?\\s*(?:(?:IN\\s*\\()|(?:=))\\s*(?<id>(?:(?:[^\']+'){2},?\\s*){1,})\\)?", Pattern.CASE_INSENSITIVE);
     private static final Pattern UPDATE_PATTERN = Pattern.compile("UPDATE\\s+`?(?<table>\\p{Alnum}+)`?\\s+SET\\s+`?typeId`?\\s*=\\s*(?<typeId>(?:[^\']+'){2})\\s*,\\s*`?data`?\\s*=\\s*(?<data>.+)\\s*WHERE\\s+`?id`?\\s*(?:(?:IN\\s*\\()|(?:=))\\s*(?<id>(?:[^\']+'){2}).*", Pattern.CASE_INSENSITIVE);
 
-    private final Cache<UUID, byte[][]> cache;
+    private final Cache<UUID, Object[]> cache;
     private final String catalog;
 
     private boolean transactionBegin = false;
@@ -38,7 +38,7 @@ class MySQLBinaryLogEventListener implements EventListener {
     private final List<Event> events = new ArrayList<Event>();
     private boolean isFlushCache = false;
 
-    public MySQLBinaryLogEventListener(Cache<UUID, byte[][]> cache, String catalog) {
+    public MySQLBinaryLogEventListener(Cache<UUID, Object[]> cache, String catalog) {
         this.cache = cache;
         this.catalog = catalog;
     }
@@ -64,12 +64,13 @@ class MySQLBinaryLogEventListener implements EventListener {
         id = confirm16Bytes(id);
         if (id != null) {
             UUID bid = ObjectUtils.to(UUID.class, id);
-            byte[][] cachedValue = cache.getIfPresent(bid);
+            Object[] cachedValue = cache.getIfPresent(bid);
             if (cachedValue != null) {
                 // populate cache
-                byte[][] value = new byte[2][];
+                Object[] value = new Object[3];
                 value[0] = typeId == null || typeId.length == 0 ? cachedValue[0] : confirm16Bytes(typeId);
                 value[1] = data;
+                value[2] = SqlDatabase.unserializeData(data);
                 cache.put(bid, value);
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.debug("[BINLOG] UPDATING CACHE: ID [{}]", StringUtils.hex(id));

@@ -52,6 +52,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.jolbox.bonecp.BoneCPDataSource;
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -145,7 +146,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile boolean cacheData;
     private volatile boolean enableReplicationCache;
 
-    private transient volatile Cache<UUID, byte[][]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    private transient volatile Cache<UUID, Object[]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
     private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
 
     /**
@@ -774,7 +775,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> unserializeData(byte[] dataBytes) {
+    protected static Map<String, Object> unserializeData(byte[] dataBytes) {
         char format = '\0';
 
         while (true) {
@@ -1070,11 +1071,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     // Creates a previously saved object from the replication cache.
-    private <T> T createSavedObjectFromReplicationCache(byte[] typeId, UUID id, byte[] data, Query<T> query) {
+    private <T> T createSavedObjectFromReplicationCache(byte[] typeId, UUID id, byte[] data, Map<String, Object> dataJson, Query<T> query) {
         T object = createSavedObject(typeId, id, query);
         State objectState = State.getInstance(object);
 
-        objectState.setValues(unserializeData(data));
+        objectState.setValues(cloneDataJson(dataJson));
 
         Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
 
@@ -1087,6 +1088,40 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         return object;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> cloneDataJson(Map<String, Object> dataJson) {
+        return (Map<String, Object>) cloneDataJsonRecursively(dataJson);
+    }
+
+    private static Object cloneDataJsonRecursively(Object object) {
+        if (object instanceof Map) {
+            Map<?, ?> objectMap = (Map<?, ?>) object;
+            int objectMapSize = objectMap.size();
+            Map<String, Object> clone = objectMapSize <= 8 ?
+                    new CompactMap<String, Object>() :
+                    new LinkedHashMap<String, Object>(objectMapSize);
+
+            for (Map.Entry<?, ?> entry : objectMap.entrySet()) {
+                clone.put((String) entry.getKey(), cloneDataJsonRecursively(entry.getValue()));
+            }
+
+            return clone;
+
+        } else if (object instanceof List) {
+            List<?> objectList = (List<?>) object;
+            List<Object> clone = new ArrayList<Object>(objectList.size());
+
+            for (Object item : objectList) {
+                clone.add(cloneDataJsonRecursively(item));
+            }
+
+            return clone;
+
+        } else {
+            return object;
+        }
     }
 
     // Tries to find objects by the given ids from the replication cache.
@@ -1110,7 +1145,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
 
-                byte[][] value = replicationCache.getIfPresent(id);
+                Object[] value = replicationCache.getIfPresent(id);
 
                 if (value == null) {
                     if (missingIds == null) {
@@ -1121,7 +1156,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
 
-                T object = createSavedObjectFromReplicationCache(value[0], id, value[1], query);
+                @SuppressWarnings("unchecked")
+                T object = createSavedObjectFromReplicationCache((byte[]) value[0], id, (byte[]) value[1], (Map<String, Object>) value[2], query);
 
                 if (object != null) {
                     if (objects == null) {
@@ -1177,12 +1213,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         byte[] typeId = result.getBytes(1);
                         UUID id = ObjectUtils.to(UUID.class, result.getBytes(3));
                         byte[] data = result.getBytes(2);
+                        Map<String, Object> dataJson = unserializeData(data);
 
                         if (!Arrays.equals(typeId, UuidUtils.ZERO_BYTES) && id != null) {
-                            replicationCache.put(id, new byte[][] { typeId, data });
+                            replicationCache.put(id, new Object[] { typeId, data, dataJson });
                         }
 
-                        T object = createSavedObjectFromReplicationCache(typeId, id, data, query);
+                        T object = createSavedObjectFromReplicationCache(typeId, id, data, dataJson, query);
 
                         if (object != null) {
                             if (objects == null) {
