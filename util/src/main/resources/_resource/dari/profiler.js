@@ -249,6 +249,10 @@
                 var ratio = own / maxOwn;
                 var size = 40 + ratio * 160;
 
+                if (own < 1) {
+                    return;
+                }
+
                 // Find the closest parent that's visible so that
                 // the display shows in the correct position.
                 while ($eventStart.length > 0 && !$eventStart.is(':visible')) {
