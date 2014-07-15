@@ -514,7 +514,7 @@ public class SourceFilter extends AbstractFilter {
             if (!("Periodic Caches".equals(executorName) ||
                     "Miscellaneous Tasks".equals(executorName))) {
                 for (Object task : executor.getTasks()) {
-                    if (task instanceof Task && ((Task) task).isRunning()) {
+                    if (task instanceof Task && !((Task) task).isSafeToStop() && ((Task) task).isRunning()) {
                         return true;
                     }
                 }
