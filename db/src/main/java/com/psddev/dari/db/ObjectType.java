@@ -914,7 +914,8 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         try {
-            if (modificationClass.getDeclaredMethod("afterCreate") != null) {
+            if (!Modification.class.isAssignableFrom(getObjectClass()) &&
+                    modificationClass.getDeclaredMethod("afterCreate") != null) {
                 Static.HAS_AFTER_CREATE.put(getObjectClass(), Boolean.TRUE);
             }
 
