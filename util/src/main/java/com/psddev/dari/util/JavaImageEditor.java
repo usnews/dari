@@ -304,12 +304,10 @@ public class JavaImageEditor extends AbstractImageEditor {
 
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
-        Object qualitySetting = settings.get(QUALITY_SETTING);
-        if (qualitySetting == null) {
-            qualitySetting = Settings.get(QUALITY_SETTING);
-        }
 
-        if (qualitySetting != null) {
+        if (!ObjectUtils.isBlank(settings.get(QUALITY_SETTING))) {
+            Object qualitySetting = settings.get(QUALITY_SETTING);
+
             if (qualitySetting instanceof Integer) {
                 Integer qualityInteger = ObjectUtils.to(Integer.class, qualitySetting);
                 quality = findQualityByInteger(qualityInteger);
