@@ -330,7 +330,6 @@ public class CodeDebugServlet extends HttpServlet {
                         writeStart("script", "type", "text/javascript");
                             write("$('body').frame();");
                             write("var $codeForm = $('form.code');");
-                            write("setTimeout(function() { $codeForm.submit(); }, 0);");
 
                             write("var lineMarkers = [ ];");
                             write("var columnMarkers = [ ];");
