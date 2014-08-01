@@ -1,6 +1,7 @@
 package com.psddev.dari.util;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.DigestInputStream;
@@ -64,9 +65,12 @@ public class BuildDebugServlet extends HttpServlet {
                         JarEntry entry = null;
                         while ((entry = jarStream.getNextJarEntry()) != null) {
                             if (PROPERTIES_FILE_NAME.equals(entry.getName())) {
-                                byte[] bytes = new byte[(int) entry.getSize()];
-                                jarStream.read(bytes, 0, (int) entry.getSize());
-                                InputStream propertiesFileInputStream = new ByteArrayInputStream(bytes);
+                                byte[] buffer = new byte[4096];
+                                ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
+                                while (jarStream.read(buffer) != -1) {
+                                    outputBytes.write(buffer);
+                                }
+                                InputStream propertiesFileInputStream = new ByteArrayInputStream(outputBytes.toByteArray());
                                 if (propertiesFileInputStream != null) {
                                     try {
                                         build.load(propertiesFileInputStream);
