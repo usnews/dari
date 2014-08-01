@@ -1,5 +1,6 @@
 package com.psddev.dari.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.DigestInputStream;
@@ -12,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarInputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,7 +29,9 @@ import javax.servlet.http.HttpServletResponse;
 @SuppressWarnings("serial")
 public class BuildDebugServlet extends HttpServlet {
 
-    public static final String PROPERTIES_FILE = "/WEB-INF/classes/build.properties";
+    public static final String PROPERTIES_FILE_NAME = "build.properties";
+    public static final String PROPERTIES_FILE = "/WEB-INF/classes/" + PROPERTIES_FILE_NAME;
+    public static final String LIB_PATH = "/WEB-INF/lib";
 
     /** Returns all the properties in the build file. */
     public static Properties getProperties(ServletContext context) throws IOException {
@@ -42,6 +47,42 @@ public class BuildDebugServlet extends HttpServlet {
                 build.load(stream);
             } finally {
                 stream.close();
+            }
+        }
+        return build;
+    }
+
+    /** Returns all the properties in the build file of an embedded jar file. */
+    public static Properties getEmbeddedPropertiesInJar(ServletContext context, String jarResource) throws IOException {
+        Properties build = new Properties();
+        InputStream inputStream = context.getResourceAsStream(jarResource);
+        if (inputStream != null) {
+            try {
+                JarInputStream jarStream = new JarInputStream(inputStream);
+                if (jarStream != null) {
+                    try {
+                        JarEntry entry = null;
+                        while ((entry = jarStream.getNextJarEntry()) != null) {
+                            if (PROPERTIES_FILE_NAME.equals(entry.getName())) {
+                                byte[] bytes = new byte[(int) entry.getSize()];
+                                jarStream.read(bytes, 0, (int) entry.getSize());
+                                InputStream propertiesFileInputStream = new ByteArrayInputStream(bytes);
+                                if (propertiesFileInputStream != null) {
+                                    try {
+                                        build.load(propertiesFileInputStream);
+                                        break;
+                                    } finally {
+                                        propertiesFileInputStream.close();
+                                    }
+                                }
+                            }
+                        }
+                    } finally {
+                        jarStream.close();
+                    }
+                }
+            } finally {
+                inputStream.close();
             }
         }
         return build;
@@ -119,6 +160,15 @@ public class BuildDebugServlet extends HttpServlet {
                                 embeddedProperties.put(path.substring(1), properties);
                             }
                         }
+                    }
+                }
+
+                @SuppressWarnings("unchecked")
+                Set<String> libJars = (Set<String>) getServletContext().getResourcePaths(LIB_PATH);
+                for (Object jar : libJars) {
+                    Properties properties = getEmbeddedPropertiesInJar(getServletContext(), (String) jar);
+                    if (!properties.isEmpty()) {
+                        embeddedProperties.put((String) jar, properties);
                     }
                 }
 
@@ -373,10 +423,12 @@ public class BuildDebugServlet extends HttpServlet {
 
             String[] items = StringUtils.split(line, "(?m)\\s*~\\|~\\s*");
             hash = items[0];
-            author = items[1];
-            Long timestamp = ObjectUtils.to(Long.class, items[2]);
-            if (timestamp != null) {
-                date = new Date(timestamp * 1000);
+            author = items.length > 1 ? items[1] : null;
+            if (items.length > 2) {
+                Long timestamp = ObjectUtils.to(Long.class, items[2]);
+                if (timestamp != null) {
+                    date = new Date(timestamp * 1000);
+                }
             }
 
             refNames = items.length > 3 ? items[3] : null;
