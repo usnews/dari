@@ -67,8 +67,9 @@ public class BuildDebugServlet extends HttpServlet {
                             if (PROPERTIES_FILE_NAME.equals(entry.getName())) {
                                 byte[] buffer = new byte[4096];
                                 ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
-                                while (jarStream.read(buffer) != -1) {
-                                    outputBytes.write(buffer);
+                                int read = 0;
+                                while ((read = jarStream.read(buffer)) != -1) {
+                                    outputBytes.write(buffer, 0, read);
                                 }
                                 InputStream propertiesFileInputStream = new ByteArrayInputStream(outputBytes.toByteArray());
                                 if (propertiesFileInputStream != null) {
