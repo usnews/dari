@@ -738,6 +738,10 @@ public class Query<E> extends Record {
             for (ObjectIndex index : mapEmbeddedKey(environment, comparison.getKey()).getIndexes()) {
                 if (index.isVisibility()) {
                     for (Object value : comparison.resolveValues(database)) {
+                        if (value == null) {
+                            continue;
+                        }
+
                         if (MISSING_VALUE.equals(value)) {
                             typeIds.add(null);
 
