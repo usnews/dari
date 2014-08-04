@@ -355,7 +355,11 @@ try {
 
                                             <module name="TreeWalker">
                                                 <module name="ArrayTypeStyle"/>
-                                                <module name="AvoidNestedBlocks"/>
+
+                                                <module name="AvoidNestedBlocks">
+                                                    <property name="allowInSwitchCase" value="true"/>
+                                                </module>
+
                                                 <module name="AvoidStarImport"/>
                                                 <module name="ConstantName"/>
 
