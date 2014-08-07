@@ -1438,6 +1438,7 @@ public class State implements Map<String, Object> {
             return;
         }
 
+        /*
         if (field != null) {
             Object value = rawValues.get(field);
 
@@ -1475,6 +1476,7 @@ public class State implements Map<String, Object> {
 
             return;
         }
+        */
 
         synchronized (this) {
             if ((flags & ALL_RESOLVED_FLAG) != 0) {
