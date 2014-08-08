@@ -222,11 +222,49 @@ public class JavaImageEditor extends AbstractImageEditor {
             }
             commands.add(resizeBuilder.toString());
 
-        } else if (command.equals("blur") && arguments[0] instanceof List) {
-            for (Object blur : (List) arguments[0]) {
-                storageItem = this.edit(storageItem, "blur", null, blur);
+        } else if (command.equals("blur") &&  ObjectUtils.to(String.class, arguments[0]) != null) {
+            String[] blurs = ObjectUtils.to(String.class, arguments[0]).replace("[", "").replace("]", "").split(",");
+
+            if (originalDimension != null &&
+                    oldMetadata.containsKey("width") &&
+                    oldMetadata.containsKey("height") &&
+                    (!originalDimension.width.equals(ObjectUtils.to(Integer.class, oldMetadata.get("width"))) ||
+                        !originalDimension.height.equals(ObjectUtils.to(Integer.class, oldMetadata.get("height"))))
+                    ) {
+
+                Double horzScale = (double) originalDimension.width / ObjectUtils.to(Integer.class, oldMetadata.get("width"));
+                Double vertScale = (double) originalDimension.height / ObjectUtils.to(Integer.class, oldMetadata.get("height"));
+
+                boolean firstBlur = true;
+                for (String blur : blurs) {
+                    String[] blurBox = blur.trim().toLowerCase().split("x");
+                    if (blurBox.length == 4) {
+                        StringBuilder newBlurBox = new StringBuilder();
+                        newBlurBox.append(Integer.toString(((Double) (Integer.parseInt(blurBox[0]) / vertScale)).intValue()));
+                        newBlurBox.append("x").append(Integer.toString(((Double) (Integer.parseInt(blurBox[1]) / horzScale)).intValue()));
+                        newBlurBox.append("x").append(Integer.toString(((Double) (Integer.parseInt(blurBox[2]) / vertScale)).intValue()));
+                        newBlurBox.append("x").append(Integer.toString(((Double) (Integer.parseInt(blurBox[3]) / horzScale)).intValue()));
+
+                        if (firstBlur) {
+                            firstBlur = false;
+                        } else {
+                            commands.add("blur");
+                        }
+                        commands.add(newBlurBox.toString());
+                    }
+                }
+            } else {
+                boolean firstBlur = true;
+                for (String blur : blurs) {
+                    if (firstBlur) {
+                        firstBlur = false;
+                    } else {
+                        commands.add("blur");
+                    }
+                    commands.add(blur.trim());
+                }
             }
-            return storageItem;
+
         } else if (command.equals("rotate") &&
                 ObjectUtils.to(Integer.class, arguments[0]) != null &&
                 originalDimension != null &&
