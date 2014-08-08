@@ -227,6 +227,17 @@ public class JavaImageEditor extends AbstractImageEditor {
                 storageItem = this.edit(storageItem, "blur", null, blur);
             }
             return storageItem;
+        } else if (command.equals("rotate") &&
+                ObjectUtils.to(Integer.class, arguments[0]) != null &&
+                originalDimension != null &&
+                originalDimension.height != null &&
+                originalDimension.width != null) {
+            Integer angle = ObjectUtils.to(Integer.class, arguments[0]);
+            if (angle % 90 == 0 && angle % 180 != 0) {
+                outputDimension = new Dimension(outputDimension != null && outputDimension.height != null ? outputDimension.height : originalDimension.height,
+                                                    outputDimension != null && outputDimension.width != null ? outputDimension.width : originalDimension.width);
+            }
+            commands.add(ObjectUtils.to(String.class, arguments[0]));
         } else if (!ObjectUtils.isBlank(arguments)) {
             commands.add(ObjectUtils.to(String.class, arguments[0]));
         }
