@@ -272,8 +272,8 @@ public class JavaImageEditor extends AbstractImageEditor {
                 originalDimension.width != null) {
             Integer angle = ObjectUtils.to(Integer.class, arguments[0]);
             if (angle % 90 == 0 && angle % 180 != 0) {
-                outputDimension = new Dimension(outputDimension != null && outputDimension.height != null ? outputDimension.height : originalDimension.height,
-                                                    outputDimension != null && outputDimension.width != null ? outputDimension.width : originalDimension.width);
+                outputDimension = new Dimension(ObjectUtils.to(Integer.class, oldMetadata.get("height")),
+                                                    ObjectUtils.to(Integer.class, oldMetadata.get("width")));
             }
             commands.add(ObjectUtils.to(String.class, arguments[0]));
         } else if (!ObjectUtils.isBlank(arguments)) {
