@@ -1,5 +1,11 @@
 package com.psddev.dari.util;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,6 +22,12 @@ public class TaskFilter extends AbstractFilter {
     @Override
     protected void doInit() {
         for (Class<? extends RepeatingTask> taskClass : ClassFinder.Static.findClasses(RepeatingTask.class)) {
+            if (taskClass.isAnnotationPresent(Ignored.class) ||
+                    taskClass.isAnonymousClass() ||
+                    Modifier.isAbstract(taskClass.getModifiers())) {
+                continue;
+            }
+
             try {
                 RepeatingTask task = taskClass.newInstance();
 
@@ -43,4 +55,9 @@ public class TaskFilter extends AbstractFilter {
             executor.shutdownNow();
         }
     }
+
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public static @interface Ignored { }
 }
