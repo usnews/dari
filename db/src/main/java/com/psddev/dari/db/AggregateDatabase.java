@@ -106,6 +106,26 @@ public class AggregateDatabase implements Database, Iterable<Database> {
                 new CompactMap<String, Database>(delegates));
     }
 
+    /**
+     * Adds the given {@code delegate} and associates it with the given
+     * {@code group}.
+     *
+     * @param delegate Can't be {@code null}.
+     * @param groups Can't be {@code null}.
+     */
+    public void addDelegate(Database delegate, Set<String> groups) {
+        delegate.setEnvironment(getEnvironment());
+
+        Map<String, Database> newDelegates = delegates != null ?
+                new CompactMap<String, Database>(delegates) :
+                new CompactMap<String, Database>();
+
+        newDelegates.put(delegate.getName(), delegate);
+        delegateGroupsMap.put(delegate, groups);
+
+        delegates = Collections.unmodifiableMap(newDelegates);
+    }
+
     /** Returns the unmodifiable map of all delegate databases used for reading. */
     public Map<String, Database> getReadDelegates() {
         return readDelegates == null ?
