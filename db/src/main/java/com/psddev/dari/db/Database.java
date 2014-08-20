@@ -239,7 +239,16 @@ public interface Database extends SettingsBackedObject {
         public static Database overrideDefault(Database override) {
             ErrorUtils.errorIfNull(override, "override");
 
-            Database old = getDefault();
+            Database old = getDefaultOverride();
+
+            if (old == null) {
+                String name = Settings.get(String.class, DEFAULT_DATABASE_SETTING);
+
+                if (name != null) {
+                    old = getInstance(name);
+                }
+            }
+
             Deque<Database> overrides = DEFAULT_OVERRIDES.get();
 
             if (overrides == null) {
