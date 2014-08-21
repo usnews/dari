@@ -721,32 +721,32 @@ public class SqlVendor {
     public void appendMetricUpdateDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, double amount, long eventDate, boolean increment, boolean updateFuture) {
         // This DOES shift the decimal place and round to 6 places.
         // columnIdentifier is "`data`" - already quoted if it needs to be
-        throw new DatabaseException(this.getDatabase(), "appendMetricUpdateDataSql: Metrics is not fully implemented for this vendor.");
+        throw new UnsupportedOperationException("appendMetricUpdateDataSql: Metrics is not fully implemented for this vendor.");
     }
     public void appendMetricFixDataSql(StringBuilder sql, String columnIdentifier, List<Object> parameters, long eventDate, double cumulativeAmount, double amount) {
         // This DOES shift the decimal place and round to 6 places.
         // columnIdentifier is "`data`" - already quoted if it needs to be
-        throw new DatabaseException(this.getDatabase(), "appendMetricFixDataSql: Metrics is not fully implemented for this vendor.");
+        throw new UnsupportedOperationException("appendMetricFixDataSql: Metrics is not fully implemented for this vendor.");
     }
     public void appendMetricSelectAmountSql(StringBuilder str, String columnIdentifier, int position) {
         // This does NOT shift the decimal place or round to 6 places. Do it yourself AFTER any other arithmetic to avoid rounding errors.
         // position is 1 or 2 (use the MetricAccess.*_POSITION constants)
         // columnIdentifier is "`data`" or "MAX(`data`)" - already quoted if it needs to be
-        throw new DatabaseException(this.getDatabase(), "appendMetricSelectAmountSql: Metrics is not fully implemented for this vendor.");
+        throw new UnsupportedOperationException("appendMetricSelectAmountSql: Metrics is not fully implemented for this vendor.");
     }
     public void appendMetricSelectTimestampSql(StringBuilder str, String columnIdentifier) {
         // This does NOT shift the decimal place - the result will need to be multiplied
         // by MetricAccess.DATE_DECIMAL_SHIFT to get a timestamp in milliseconds.
         // columnIdentifier is "`data`" or "MAX(`data`)" - already escaped
-        throw new DatabaseException(this.getDatabase(), "appendMetricSelectTimestampSql: Metrics is not fully implemented for this vendor.");
+        throw new UnsupportedOperationException("appendMetricSelectTimestampSql: Metrics is not fully implemented for this vendor.");
     }
     public void appendMetricDateFormatTimestampSql(StringBuilder str, String columnIdentifier, MetricInterval metricInterval) {
         // This DOES apply MetricAccess.DATE_DECIMAL_SHIFT and returns SQL to provide a string formatted according to MetricInterval.getSqlTruncatedDateFormat(SqlVendor)
-        throw new DatabaseException(this.getDatabase(), "appendMetricDateFormatTimestampSql: Metrics is not fully implemented for this vendor.");
+        throw new UnsupportedOperationException("appendMetricDateFormatTimestampSql: Metrics is not fully implemented for this vendor.");
     }
     public void appendMetricEncodeTimestampSql(StringBuilder str, List<Object> parameters, long timestamp, Character rpadHexChar) {
         // This accepts a normal timestamp and DOES apply MetricAccess.DATE_DECIMAL_SHIFT
-        throw new DatabaseException(this.getDatabase(), "appendMetricEncodeTimestampSql: Metrics is not fully implemented for this vendor.");
+        throw new UnsupportedOperationException("appendMetricEncodeTimestampSql: Metrics is not fully implemented for this vendor.");
     }
     public void appendBindMetricBytes(StringBuilder str, byte[] bytes, List<Object> parameters) {
         appendBindValue(str, bytes, parameters);
