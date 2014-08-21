@@ -15,12 +15,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
 
-@RoutingFilter.Path(application = "", value = "/_image")
+@RoutingFilter.Path(application = "_image", value = "")
 public class JavaImageServlet extends HttpServlet {
     private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV", "sharpen", "blur"); //Commands that don't require a value
     private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
     private static final String QUALITY_OPTION = "quality";
-    protected static final String SERVLET_PATH = "/_image/";
+    protected static final String SERVLET_PATH = StringUtils.ensureEnd(RoutingFilter.Static.getApplicationPath("_image"), "/");
 
     @Override
     public void service(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
