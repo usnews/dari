@@ -77,7 +77,7 @@ public class QueryUsagesDebugServlet extends HttpServlet {
         }
 
         List<Class<?>> allClasses = new ArrayList<Class<?>>();
-        
+
         for (Class<?> c : ClassFinder.Static.findClasses(Object.class)) {
             String cn = c.getName();
 
@@ -435,6 +435,9 @@ public class QueryUsagesDebugServlet extends HttpServlet {
                 case Opcodes.DCMPL :
                 case Opcodes.DCMPG :
                     invocation.setCountCompare(true);
+                    break;
+
+                default :
                     break;
             }
         }

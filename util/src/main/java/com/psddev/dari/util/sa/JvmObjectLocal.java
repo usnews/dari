@@ -22,7 +22,10 @@ public class JvmObjectLocal extends JvmObject {
                     return objectClass.newInstance();
 
                 } catch (InstantiationException error) {
+                    return null;
+
                 } catch (IllegalAccessException error) {
+                    return null;
                 }
             }
         }

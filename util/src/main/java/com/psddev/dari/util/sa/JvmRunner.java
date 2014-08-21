@@ -258,7 +258,7 @@ class JvmRunner implements MethodVisitor {
                 {
                     JvmObject value1 = stack.pop();
                     JvmObject value2 = stack.pop();
-                    
+
                     if (value2.isWide()) {
                         stack.push(value1);
                         stack.push(value2);

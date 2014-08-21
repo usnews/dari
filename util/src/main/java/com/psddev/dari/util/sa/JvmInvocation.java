@@ -15,7 +15,7 @@ public class JvmInvocation {
     protected JvmInvocation(AccessibleObject constructorOrMethod, List<JvmObject> arguments) {
         this.constructorOrMethod = constructorOrMethod;
         this.arguments = new ArrayList<JvmObject>();
-        
+
         for (JvmObject argument : arguments) {
             this.arguments.add(argument.clone());
         }
@@ -40,9 +40,16 @@ public class JvmInvocation {
                 }
 
             } catch (IllegalAccessException error) {
+                return null;
+
             } catch (IllegalArgumentException error) {
+                return null;
+
             } catch (InstantiationException error) {
+                return null;
+
             } catch (InvocationTargetException error) {
+                return null;
             }
         }
 
