@@ -272,7 +272,7 @@ public class QueryUsagesDebugServlet extends HttpServlet {
                             if (!options.isEmpty()) {
                                 String field = options.get(0).toString();
 
-                                if (!findNotMissing(query.getPredicate(), field)) {
+                                if (!findComparison(query.getPredicate(), field)) {
                                     writer.writeStart("div", "class", "alert alert-warning");
                                         writer.writeHtml("For better performance, add ");
                                         writer.writeStart("code");
@@ -343,13 +343,13 @@ public class QueryUsagesDebugServlet extends HttpServlet {
             }
         }
 
-        private static boolean findNotMissing(Predicate predicate, String field) {
+        private static boolean findComparison(Predicate predicate, String field) {
             if (predicate instanceof CompoundPredicate) {
                 CompoundPredicate compound = (CompoundPredicate) predicate;
 
                 if (PredicateParser.AND_OPERATOR.equals(compound.getOperator())) {
                     for (Predicate child : compound.getChildren()) {
-                        if (findNotMissing(child, field)) {
+                        if (findComparison(child, field)) {
                             return true;
                         }
                     }
@@ -358,12 +358,8 @@ public class QueryUsagesDebugServlet extends HttpServlet {
             } else if (predicate instanceof ComparisonPredicate) {
                 ComparisonPredicate comparison = (ComparisonPredicate) predicate;
 
-                if (PredicateParser.NOT_EQUALS_ALL_OPERATOR.equals(comparison.getOperator())) {
-                    for (Object value : comparison.getValues()) {
-                        if (Query.MISSING_VALUE.equals(value)) {
-                            return true;
-                        }
-                    }
+                if (comparison.getKey().endsWith(field)) {
+                    return true;
                 }
             }
 

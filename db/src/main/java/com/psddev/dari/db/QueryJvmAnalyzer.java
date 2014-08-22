@@ -117,7 +117,7 @@ public class QueryJvmAnalyzer extends JvmAnalyzer {
                         if (!options.isEmpty()) {
                             String field = options.get(0).toString();
 
-                            if (!findNotMissing(query.getPredicate(), field)) {
+                            if (!findComparison(query.getPredicate(), field)) {
                                 logger.warn(callingMethod, callingLine, String.format(
                                         "Add [%s != missing] predicate when sorting by [%s] to improve performance.",
                                         field,
@@ -132,13 +132,13 @@ public class QueryJvmAnalyzer extends JvmAnalyzer {
             }
         }
 
-        private boolean findNotMissing(Predicate predicate, String field) {
+        private boolean findComparison(Predicate predicate, String field) {
             if (predicate instanceof CompoundPredicate) {
                 CompoundPredicate compound = (CompoundPredicate) predicate;
 
                 if (PredicateParser.AND_OPERATOR.equals(compound.getOperator())) {
                     for (Predicate child : compound.getChildren()) {
-                        if (findNotMissing(child, field)) {
+                        if (findComparison(child, field)) {
                             return true;
                         }
                     }
@@ -147,12 +147,8 @@ public class QueryJvmAnalyzer extends JvmAnalyzer {
             } else if (predicate instanceof ComparisonPredicate) {
                 ComparisonPredicate comparison = (ComparisonPredicate) predicate;
 
-                if (PredicateParser.NOT_EQUALS_ALL_OPERATOR.equals(comparison.getOperator())) {
-                    for (Object value : comparison.getValues()) {
-                        if (Query.MISSING_VALUE.equals(value)) {
-                            return true;
-                        }
-                    }
+                if (comparison.getKey().endsWith(field)) {
+                    return true;
                 }
             }
 
