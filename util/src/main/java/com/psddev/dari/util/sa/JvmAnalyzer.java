@@ -1,8 +1,10 @@
 package com.psddev.dari.util.sa;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import com.psddev.dari.util.ClassFinder;
@@ -43,14 +45,26 @@ public abstract class JvmAnalyzer {
     public static class Static {
 
         /**
-         * Analyzes all classes using all instances of {@link JvmAnalyzer}
-         * classes and logs using the given {@code logger}.
+         * Analyzes the given {@code classes} using all instances of
+         * {@link JvmAnalyzer} classes and logs using the given {@code logger}.
          *
          * @param logger If {@code null}, doesn't log anything.
+         * @param classes If {@code null}, analyzes all classes.
          */
-        public static void analyzeAll(JvmLogger logger) throws IOException {
+        public static void analyze(Iterable<Class<?>> classes, JvmLogger logger) throws IOException {
             Jvm jvm = new Jvm();
             Set<JvmAnalyzer> analyzers = new HashSet<JvmAnalyzer>();
+
+            if (classes == null) {
+                List<Class<?>> classesList = new ArrayList<Class<?>>();
+                classes = classesList;
+
+                for (Class<?> c : ClassFinder.Static.findClasses(Object.class)) {
+                    if (!c.getName().startsWith("com.psddev.")) {
+                        classesList.add(c);
+                    }
+                }
+            }
 
             if (logger == null) {
                 logger = new JvmLogger();
@@ -66,10 +80,8 @@ public abstract class JvmAnalyzer {
                     analyzers.add(analyzer);
                 }
 
-                for (Class<?> c : ClassFinder.Static.findClasses(Object.class)) {
-                    if (!c.getName().startsWith("com.psddev.")) {
-                        jvm.analyze(c);
-                    }
+                for (Class<?> c : classes) {
+                    jvm.analyze(c);
                 }
 
             } finally {
@@ -89,6 +101,16 @@ public abstract class JvmAnalyzer {
                     stopAnalyzers(analyzers);
                 }
             }
+        }
+
+        /**
+         * Analyzes all classes using all instances of {@link JvmAnalyzer}
+         * classes and logs using the given {@code logger}.
+         *
+         * @param logger If {@code null}, doesn't log anything.
+         */
+        public static void analyzeAll(JvmLogger logger) throws IOException {
+            analyze(null, logger);
         }
     }
 }
