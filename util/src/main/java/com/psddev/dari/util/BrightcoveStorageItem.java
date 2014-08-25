@@ -34,7 +34,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
  *<dependency>
  *    <groupId>org.apache.httpcomponents</groupId>
  *    <artifactId>httpmime</artifactId>
- *    <version>4.3</version>
+ *    <version>4.3.5</version>
  *</dependency>}</code></pre></blockquote>
  */
 public class BrightcoveStorageItem extends AbstractStorageItem {
