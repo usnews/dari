@@ -311,6 +311,9 @@ public class SourceFilter extends AbstractFilter {
                     installer.writeStart();
                 }
 
+            } else if ("clear".equals(action)) {
+                analysisResultsByClass.clear();
+
             } else {
                 throw new IllegalArgumentException(String.format(
                         "[%s] isn't a valid intercept action!", action));
@@ -389,29 +392,42 @@ public class SourceFilter extends AbstractFilter {
         noteWriter.putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
         noteWriter.putDefault(Throwable.class, HtmlFormatter.THROWABLE);
 
-        noteWriter.writeStart("div", "style", noteWriter.cssString(
-                "background", "#002b36",
-                "border-bottom-left-radius", "2px",
-                "box-sizing", "border-box",
-                "color", "#839496",
-                "font-family", "'Helvetica Neue', 'Arial', sans-serif",
-                "font-size", "13px",
-                "font-weight", "normal",
-                "line-height", "18px",
-                "margin", "0",
-                "max-height", "50%",
-                "max-width", "350px",
-                "overflow", "auto",
-                "padding", "0 35px 10px 10px",
-                "position", "fixed",
-                "right", "0",
-                "top", "0",
-                "word-break", "break-all",
-                "word-wrap", "break-word",
-                "z-index", "1000000"));
+        noteWriter.writeStart("div",
+                "class", "dari-sourceFilter-notification",
+                "style", noteWriter.cssString(
+                        "background", "#002b36",
+                        "border-bottom-left-radius", "2px",
+                        "box-sizing", "border-box",
+                        "color", "#839496",
+                        "font-family", "'Helvetica Neue', 'Arial', sans-serif",
+                        "font-size", "13px",
+                        "font-weight", "normal",
+                        "line-height", "18px",
+                        "margin", "0",
+                        "max-height", "50%",
+                        "max-width", "350px",
+                        "overflow", "auto",
+                        "padding", "0 35px 10px 10px",
+                        "position", "fixed",
+                        "right", "0",
+                        "top", "0",
+                        "word-break", "break-all",
+                        "word-wrap", "break-word",
+                        "z-index", "1000000"));
 
             noteWriter.writeStart("span",
-                    "onclick", "this.parentNode.parentNode.removeChild(this.parentNode); return false;",
+                    "onclick",
+                            "var notifications = document.querySelectorAll('.dari-sourceFilter-notification');" +
+                            "var notificationsIndex = 0;" +
+                            "var notificationsLength = notifications.length;" +
+                            "for (; notificationsIndex < notificationsLength; ++ notificationsIndex) {" +
+                                "var notification = notifications[notificationsIndex];" +
+                                "notification.parentNode.removeChild(notification);" +
+                            "}" +
+                            "var xhr = new XMLHttpRequest();" +
+                            "xhr.open('get', '" + StringUtils.escapeJavaScript(JspUtils.getAbsolutePath(request, getInterceptPath(), "action", "clear")) + "', true);" +
+                            "xhr.send('');" +
+                            "return false;",
                     "style", noteWriter.cssString(
                             "cursor", "pointer",
                             "font-size", "20px",
