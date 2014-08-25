@@ -2,6 +2,8 @@ package com.psddev.dari.util;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -13,12 +15,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
 
-@RoutingFilter.Path(application = "", value = "/_image")
+@RoutingFilter.Path(application = "_image", value = "")
 public class JavaImageServlet extends HttpServlet {
-    private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV"); //Commands that don't require a value
+    private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV", "sharpen", "blur"); //Commands that don't require a value
     private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
     private static final String QUALITY_OPTION = "quality";
-    protected static final String SERVLET_PATH = "/_image/";
+    protected static final String SERVLET_PATH = StringUtils.ensureEnd(RoutingFilter.Static.getApplicationPath("_image"), "/");
 
     @Override
     public void service(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -81,10 +83,18 @@ public class JavaImageServlet extends HttpServlet {
             }
 
             BufferedImage bufferedImage;
-            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
-                bufferedImage = JavaImageTiffReader.readTiff(imageUrl);
-            } else {
-                bufferedImage = ImageIO.read(new URL(imageUrl));
+
+            try {
+                URL url = new URL(imageUrl);
+                URI uri = new URI(url.getProtocol(), url.getAuthority(), url.getPath(), url.getQuery(), url.getRef());
+
+                if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
+                    bufferedImage = JavaImageTiffReader.readTiff(uri.toString());
+                } else {
+                    bufferedImage = ImageIO.read(new URL(uri.toString()));
+                }
+            } catch (URISyntaxException ex) {
+                bufferedImage = null;
             }
 
             if (bufferedImage == null) {
@@ -108,6 +118,7 @@ public class JavaImageServlet extends HttpServlet {
             for (int i = 0; i < parameters.length; i = i + 2) {
                 String command = parameters[i];
                 String value = i + 1 < parameters.length ? parameters[i + 1] : "";
+                boolean validComand = true;
 
                 if (command.equals(ImageEditor.RESIZE_COMMAND)) {
                     String option = null;
@@ -245,6 +256,42 @@ public class JavaImageServlet extends HttpServlet {
 
                     bufferedImage = javaImageEditor.brightness(bufferedImage, brightness.intValue(), contrast.intValue());
 
+                } else if (command.equals("sharpen")) {
+                    Integer ammount = null;
+                    try {
+                        ammount = Integer.parseInt(value);
+                    } catch (NumberFormatException ex) {
+                        ammount = 2;
+                    }
+                    bufferedImage = javaImageEditor.sharpen(bufferedImage, ammount);
+
+                } else if (command.equals("blur")) {
+                    int defaultBlur = 1;
+
+                    if (value.contains("x")) {
+                        String[] axywh = value.split("x");
+                        int ammount = defaultBlur;
+                        int sizeOffset = 0;
+                        if (axywh.length > 4) {
+                            ammount = Integer.parseInt(axywh[0]);
+                            sizeOffset = 1;
+                        }
+                        int x = Integer.parseInt(axywh[sizeOffset]);
+                        int y = Integer.parseInt(axywh[sizeOffset + 1]);
+                        int w = Integer.parseInt(axywh[sizeOffset + 2]);
+                        int h = Integer.parseInt(axywh[sizeOffset + 3]);
+
+                        bufferedImage = javaImageEditor.blurArea(bufferedImage, ammount, x, y, w, h);
+                    } else {
+                        Integer ammount = null;
+                        try {
+                            ammount = Integer.parseInt(value);
+                        } catch (NumberFormatException ex) {
+                            ammount = defaultBlur;
+                        }
+                        bufferedImage = javaImageEditor.blur(bufferedImage, ammount);
+                    }
+
                 } else if (command.equals("contrast")) {
                     Double contrast = Double.valueOf(value);
                     if (Math.abs(contrast) < 0) {
@@ -295,14 +342,16 @@ public class JavaImageServlet extends HttpServlet {
                     }
                     bufferedImage = javaImageEditor.starburst(bufferedImage, size, count);
 
+                } else {
+                    validComand = false;
                 }
 
                 if (PNG_COMMANDS.contains(command)) {
                     imageType = "png";
                 }
 
-                //shift offset if basic command has no value
-                if (BASIC_COMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true")) {
+                //shift offset if a command wasn't found or a basic command has no value
+                if (!validComand || (BASIC_COMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true"))) {
                     i = i - 1;
                 }
             }

@@ -403,7 +403,9 @@ public class PredicateParser {
                     value = index < parameters.size() ? parameters.get(index) : null;
 
                     if (value != null && path.length() > 0) {
-                        if (value instanceof Recordable) {
+                        if (value instanceof State) {
+                            value = ((State) value).getByPath(path);
+                        } else if (value instanceof Recordable) {
                             value = ((Recordable) value).getState().getByPath(path);
                         } else {
                             value = CollectionUtils.getByPath(value, path);

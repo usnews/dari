@@ -4,7 +4,11 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-/** Policy for {@link Password} creation. */
+/**
+ * Policy for {@link Password} creation.
+ * @deprecated Use {@link UserPasswordPolicy} instead.
+ */
+@Deprecated
 public interface PasswordPolicy extends SettingsBackedObject {
 
     /** Setting key for all password policy configurations. */

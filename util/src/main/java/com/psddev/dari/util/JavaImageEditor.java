@@ -8,6 +8,9 @@ import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.BufferedImageOp;
+import java.awt.image.ConvolveOp;
+import java.awt.image.Kernel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -184,29 +187,46 @@ public class JavaImageEditor extends AbstractImageEditor {
                     resizeBuilder.append("!");
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_SHRINK_LARGER)) {
                     resizeBuilder.append(">");
-                    if (originalDimension != null && width != null && height != null) {
-                        outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
-                                                        originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+                    if (originalDimension != null) {
+                        if (width != null && height != null) {
+                            outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
+                                                            originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+                        } else {
+                            outputDimension = getResizeDimension(originalDimension.width, originalDimension.height, width, height);
+                        }
                     }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_ONLY_ENLARGE_SMALLER)) {
                     resizeBuilder.append("<");
-                    if (originalDimension != null && width != null && height != null) {
-                        outputDimension = new Dimension(originalDimension.width != null ? Math.max(originalDimension.width, width) : width,
-                                                        originalDimension.height != null ? Math.max(originalDimension.height, height) : height);
+                    if (originalDimension != null) {
+                        if (width != null && height != null) {
+                            outputDimension = new Dimension(originalDimension.width != null ? Math.max(originalDimension.width, width) : width,
+                                                            originalDimension.height != null ? Math.max(originalDimension.height, height) : height);
+                        } else {
+                            outputDimension = getResizeDimension(originalDimension.width, originalDimension.height, width, height);
+                        }
                     }
                 } else if (resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA)) {
                     resizeBuilder.append("^");
                 }
             }
 
-            if (originalDimension != null && width != null && height != null && (resizeOption == null ||
-                    resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO) ||
-                    resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA))) {
-                outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
-                                                originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+            if (originalDimension != null) {
+                if (width != null && height != null && (resizeOption == null ||
+                        resizeOption.equals(ImageEditor.RESIZE_OPTION_IGNORE_ASPECT_RATIO) ||
+                        resizeOption.equals(ImageEditor.RESIZE_OPTION_FILL_AREA))) {
+                    outputDimension = new Dimension(originalDimension.width != null ? Math.min(originalDimension.width, width) : width,
+                                                    originalDimension.height != null ? Math.min(originalDimension.height, height) : height);
+                } else if (resizeOption == null) {
+                    outputDimension = getResizeDimension(originalDimension.width, originalDimension.height, width, height);
+                }
             }
             commands.add(resizeBuilder.toString());
 
+        } else if (command.equals("blur") && arguments[0] instanceof List) {
+            for (Object blur : (List) arguments[0]) {
+                storageItem = this.edit(storageItem, "blur", null, blur);
+            }
+            return storageItem;
         } else if (!ObjectUtils.isBlank(arguments)) {
             commands.add(ObjectUtils.to(String.class, arguments[0]));
         }
@@ -284,12 +304,10 @@ public class JavaImageEditor extends AbstractImageEditor {
 
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
-        Object qualitySetting = settings.get(QUALITY_SETTING);
-        if (qualitySetting == null) {
-            qualitySetting = Settings.get(QUALITY_SETTING);
-        }
 
-        if (qualitySetting != null) {
+        if (!ObjectUtils.isBlank(settings.get(QUALITY_SETTING))) {
+            Object qualitySetting = settings.get(QUALITY_SETTING);
+
             if (qualitySetting instanceof Integer) {
                 Integer qualityInteger = ObjectUtils.to(Integer.class, qualitySetting);
                 quality = findQualityByInteger(qualityInteger);
@@ -479,6 +497,70 @@ public class JavaImageEditor extends AbstractImageEditor {
                 resultImage.setRGB(x, y, newRgb);
             }
         }
+
+        return resultImage;
+    }
+
+    /**
+     *
+     * @param sourceImage
+     * @param amount recommended amount is between 1 and 10
+     * @return
+     */
+    public BufferedImage sharpen(BufferedImage sourceImage, int amount) {
+        BufferedImage resultImage =  new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        float sharpenAmmount = amount * 0.2f;
+
+        float[] data = new float[]{
+                0.0f, -sharpenAmmount, 0.0f,
+                -sharpenAmmount, 4f * sharpenAmmount + 1f, -sharpenAmmount,
+                0.0f, -sharpenAmmount, 0.0f
+        };
+
+        Kernel kernel = new Kernel(3, 3, data);
+
+        BufferedImageOp bufferedImageOp = new ConvolveOp(kernel);
+        bufferedImageOp.filter(sourceImage, resultImage);
+
+        return resultImage;
+    }
+
+    /**
+     *
+     * @param sourceImage
+     * @param amount recommended amount is between 1 and 10
+     * @param x
+     * @param y
+     * @param width
+     * @param height
+     * @return
+     */
+    public BufferedImage blurArea(BufferedImage sourceImage, int amount, int x, int y, int width, int height) {
+        BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        Graphics2D graphics = resultImage.createGraphics();
+
+        graphics.drawImage(sourceImage, null, 0, 0);
+
+        BufferedImage blurArea = blur(sourceImage.getSubimage(x, y, width, height), amount);
+        graphics.drawImage(blurArea, null, x, y);
+        graphics.dispose();
+
+        return resultImage;
+    }
+
+    /**
+     *
+     * @param sourceImage
+     * @param amount recommended amount is between 1 and 10
+     * @return
+     */
+    public BufferedImage blur(BufferedImage sourceImage, int amount) {
+        BufferedImage horizontalBlur = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+        BufferedImage resultImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), sourceImage.getType());
+
+        //A good blur is between 10 and 20
+        getGaussianBlurFilter(amount + 10, true).filter(sourceImage, horizontalBlur);
+        getGaussianBlurFilter(amount + 10, false).filter(horizontalBlur, resultImage);
 
         return resultImage;
     }
@@ -772,4 +854,102 @@ public class JavaImageEditor extends AbstractImageEditor {
         return new Dimension(actualWidth, actualHeight);
     }
 
+    /*
+    * Copyright (c) 2007, Romain Guy
+    * All rights reserved.
+    *
+    * Redistribution and use in source and binary forms, with or without
+    * modification, are permitted provided that the following conditions
+    * are met:
+    *
+    *   * Redistributions of source code must retain the above copyright
+    *     notice, this list of conditions and the following disclaimer.
+    *   * Redistributions in binary form must reproduce the above
+    *     copyright notice, this list of conditions and the following
+    *     disclaimer in the documentation and/or other materials provided
+    *     with the distribution.
+    *   * Neither the name of the TimingFramework project nor the names of its
+    *     contributors may be used to endorse or promote products derived
+    *     from this software without specific prior written permission.
+    *
+    * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    *
+    *
+    * @see <a href="http://www.java2s.com/Code/Java/Advanced-Graphics/GaussianBlurDemo.htm">Gaussian Blur Demo</a>
+    */
+    private static ConvolveOp getGaussianBlurFilter(int radius, boolean horizontal) {
+        if (radius < 1) {
+            throw new IllegalArgumentException("Radius must be >= 1");
+        }
+
+        int size = radius * 2 + 1;
+        float[] data = new float[size];
+
+        float sigma = radius / 3.0f;
+        float twoSigmaSquare = 2.0f * sigma * sigma;
+        float sigmaRoot = (float) Math.sqrt(twoSigmaSquare * Math.PI);
+        float total = 0.0f;
+
+        for (int i = -radius; i <= radius; i++) {
+            float distance = i * i;
+            int index = i + radius;
+            data[index] = (float) Math.exp(-distance / twoSigmaSquare) / sigmaRoot;
+            total += data[index];
+        }
+
+        for (int i = 0; i < data.length; i++) {
+            data[i] /= total;
+        }
+
+        Kernel kernel = null;
+        if (horizontal) {
+            kernel = new Kernel(size, 1, data);
+        } else {
+            kernel = new Kernel(1, size, data);
+        }
+        return new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);
+    }
+
+    private static Dimension getResizeDimension(Integer originalWidth, Integer originalHeight, Integer requestedWidth, Integer requestedHeight) {
+        Integer actualWidth = null;
+        Integer actualHeight = null;
+
+        if (originalWidth != null && originalHeight != null &&
+                (requestedWidth != null || requestedHeight != null)) {
+
+            float originalRatio = (float) originalWidth / (float) originalHeight;
+            if (requestedWidth != null && requestedHeight != null) {
+
+                float requestedRatio = (float) requestedWidth / (float) requestedHeight;
+                if (originalRatio > requestedRatio) {
+                    actualWidth = requestedWidth;
+                    actualHeight = (int) Math.round((float) requestedWidth * originalHeight / originalWidth);
+                } else if (originalRatio < requestedRatio) {
+                    actualWidth = (int) Math.round((float) requestedHeight * originalWidth / originalHeight);
+                    actualHeight = requestedHeight;
+                } else {
+                    actualWidth = requestedWidth;
+                    actualHeight = requestedHeight;
+                }
+            } else if (requestedWidth == null) {
+                actualHeight = requestedHeight;
+                actualWidth = Math.round((float) requestedHeight * originalRatio);
+            } else if (requestedHeight == null) {
+                actualWidth = requestedWidth;
+                actualHeight = Math.round((float) requestedWidth / originalRatio);
+            }
+        }
+
+        return new Dimension(actualWidth, actualHeight);
+    }
 }

@@ -14,10 +14,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.ObjectMap;
-import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StorageItem;
+import com.psddev.dari.util.StringUtils;
 
 /** State value utility methods. */
 abstract class StateValueUtils {

@@ -32,6 +32,7 @@ import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.LoadingCacheMap;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.Profiler;
 import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
@@ -45,6 +46,8 @@ public class State implements Map<String, Object> {
     public static final String LABEL_KEY = "_label";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
+    private static final String PROFILER_EVENT_PREFIX = "State: ";
+    private static final String RESOLVE_REFERENCE_PROFILER_EVENT = PROFILER_EVENT_PREFIX + "Resolve Reference";
 
     /**
      * {@linkplain Query#getOptions Query option} that contains the object
@@ -1435,6 +1438,7 @@ public class State implements Map<String, Object> {
             return;
         }
 
+        /*
         if (field != null) {
             Object value = rawValues.get(field);
 
@@ -1442,48 +1446,70 @@ public class State implements Map<String, Object> {
                 ObjectField f = getField(field);
 
                 if (f != null && f.isMetric()) {
-                    put(f.getInternalName(), new Metric(this, f));
+                    Profiler.Static.startThreadEvent(RESOLVE_REFERENCE_PROFILER_EVENT, this, field);
+
+                    try {
+                        put(f.getInternalName(), new Metric(this, f));
+
+                    } finally {
+                        Profiler.Static.stopThreadEvent();
+                    }
                 }
 
             } else if (!linkedObjects.isEmpty()) {
                 UUID id = StateValueUtils.toIdIfReference(value);
 
                 if (id != null) {
-                    Object object = linkedObjects.values().iterator().next();
-                    Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, Collections.singleton(value), field);
+                    Profiler.Static.startThreadEvent(RESOLVE_REFERENCE_PROFILER_EVENT, this, field);
 
-                    put(field, references.get(id));
+                    try {
+                        Object object = linkedObjects.values().iterator().next();
+                        Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, Collections.singleton(value), field);
+
+                        put(field, references.get(id));
+
+                    } finally {
+                        Profiler.Static.stopThreadEvent();
+                    }
                 }
             }
 
             return;
         }
+        */
 
         synchronized (this) {
             if ((flags & ALL_RESOLVED_FLAG) != 0) {
                 return;
             }
 
-            flags |= ALL_RESOLVED_FLAG;
+            Profiler.Static.startThreadEvent(RESOLVE_REFERENCE_PROFILER_EVENT, this);
 
-            if (linkedObjects.isEmpty()) {
-                return;
-            }
+            try {
+                flags |= ALL_RESOLVED_FLAG;
 
-            Object object = linkedObjects.values().iterator().next();
-            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
-            Map<String, Object> resolved = new HashMap<String, Object>();
-            resolveMetricReferences(resolved);
-
-            for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
-                UUID id = StateValueUtils.toIdIfReference(e.getValue());
-                if (id != null) {
-                    resolved.put(e.getKey(), references.get(id));
+                if (linkedObjects.isEmpty()) {
+                    return;
                 }
-            }
 
-            for (Map.Entry<String, Object> e : resolved.entrySet()) {
-                put(e.getKey(), e.getValue());
+                Object object = linkedObjects.values().iterator().next();
+                Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
+                Map<String, Object> resolved = new HashMap<String, Object>();
+                resolveMetricReferences(resolved);
+
+                for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
+                    UUID id = StateValueUtils.toIdIfReference(e.getValue());
+                    if (id != null) {
+                        resolved.put(e.getKey(), references.get(id));
+                    }
+                }
+
+                for (Map.Entry<String, Object> e : resolved.entrySet()) {
+                    put(e.getKey(), e.getValue());
+                }
+
+            } finally {
+                Profiler.Static.stopThreadEvent();
             }
         }
     }

@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.Instrumentation;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -17,6 +18,7 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,7 +42,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
-import javax.tools.FileObject;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
@@ -52,6 +53,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.psddev.dari.util.sa.JvmAnalyzer;
+import com.psddev.dari.util.sa.JvmLogger;
 
 /**
  * Enables rapid web application development by making source code changes
@@ -124,6 +127,14 @@ public class SourceFilter extends AbstractFilter {
     private final Map<String, File> webappSourcesMap = new HashMap<String, File>();
     private final Map<File, Long> webappSourceFileModifieds = new ConcurrentHashMap<File, Long>();
     private final Map<String, Date> changedClassTimes = new TreeMap<String, Date>();
+
+    private final Map<Class<?>, List<AnalysisResult>> analysisResultsByClass = new TreeMap<Class<?>, List<AnalysisResult>>(new Comparator<Class<?>>() {
+
+        @Override
+        public int compare(Class<?> x, Class<?> y) {
+            return x.getName().compareTo(y.getName());
+        }
+    });
 
     // --- AbstractFilter support ---
 
@@ -300,6 +311,9 @@ public class SourceFilter extends AbstractFilter {
                     installer.writeStart();
                 }
 
+            } else if ("clear".equals(action)) {
+                analysisResultsByClass.clear();
+
             } else {
                 throw new IllegalArgumentException(String.format(
                         "[%s] isn't a valid intercept action!", action));
@@ -316,11 +330,15 @@ public class SourceFilter extends AbstractFilter {
             return;
         }
 
-        final DiagnosticCollector<JavaFileObject> errors = compileJavaSourceFiles();
-        final boolean hasBackgroundTasks;
-        if (errors == null &&
+        List<Diagnostic<? extends JavaFileObject>> diagnostics = compileJavaSourceFiles();
+        boolean requiresReload;
+        boolean hasBackgroundTasks;
+
+        if (diagnostics == null &&
                 !changedClassTimes.isEmpty() &&
                 !JspUtils.isAjaxRequest(request)) {
+
+            requiresReload = true;
 
             if (hasBackgroundTasks()) {
                 hasBackgroundTasks = true;
@@ -339,6 +357,7 @@ public class SourceFilter extends AbstractFilter {
             }
 
         } else {
+            requiresReload = false;
             hasBackgroundTasks = false;
         }
 
@@ -352,8 +371,9 @@ public class SourceFilter extends AbstractFilter {
         }
 
         chain.doFilter(request, response);
-        if (errors == null && (
-                changedClassTimes.isEmpty() ||
+        if (diagnostics == null &&
+                analysisResultsByClass.isEmpty() &&
+                (changedClassTimes.isEmpty() ||
                 JspUtils.isAjaxRequest(request) ||
                 isolatingResponse != null)) {
             return;
@@ -367,87 +387,193 @@ public class SourceFilter extends AbstractFilter {
             return;
         }
 
-        new HtmlWriter(response.getWriter()) { {
-            putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
-            putDefault(Throwable.class, HtmlFormatter.THROWABLE);
+        HtmlWriter noteWriter = new HtmlWriter(response.getWriter());
 
-            write("<div style=\"" +
-                    "background: rgba(204, 0, 0, 0.8);" +
-                    "border-bottom-left-radius: 5px;" +
-                    "color: white;" +
-                    "font-family: 'Helvetica Neue', 'Arial', sans-serif;" +
-                    "font-size: 13px;" +
-                    "line-height: 18px;" +
-                    "margin: 0;" +
-                    "max-height: 50%;" +
-                    "max-width: 350px;" +
-                    "overflow: auto;" +
-                    "padding: 10px;" +
-                    "position: fixed;" +
-                    "right: 0;" +
-                    "top: 0;" +
-                    "word-break: break-all;" +
-                    "word-wrap: break-word;" +
-                    "z-index: 1000000;" +
-                    "\">");
+        noteWriter.putDefault(StackTraceElement.class, HtmlFormatter.STACK_TRACE_ELEMENT);
+        noteWriter.putDefault(Throwable.class, HtmlFormatter.THROWABLE);
 
-                if (errors == null) {
-                    if (hasBackgroundTasks) {
-                        writeHtml("The application wasn't reloaded automatically because there are background tasks running!");
+        noteWriter.writeStart("div",
+                "class", "dari-sourceFilter-notification",
+                "style", noteWriter.cssString(
+                        "background", "#002b36",
+                        "border-bottom-left-radius", "2px",
+                        "box-sizing", "border-box",
+                        "color", "#839496",
+                        "font-family", "'Helvetica Neue', 'Arial', sans-serif",
+                        "font-size", "13px",
+                        "font-weight", "normal",
+                        "line-height", "18px",
+                        "margin", "0",
+                        "max-height", "50%",
+                        "max-width", "350px",
+                        "overflow", "auto",
+                        "padding", "0 35px 10px 10px",
+                        "position", "fixed",
+                        "right", "0",
+                        "top", "0",
+                        "word-break", "break-all",
+                        "word-wrap", "break-word",
+                        "z-index", "1000000"));
 
-                    } else {
-                        writeHtml("The application must be reloaded before the changes to these classes become visible. ");
-                        writeStart("a",
-                                "href", JspUtils.getAbsolutePath(request, getInterceptPath(),
-                                        "action", "install",
-                                        "requestPath", JspUtils.getAbsolutePath(request, "")),
-                                "style", "color: white; text-decoration: underline;");
-                            writeHtml("Install the reloader");
-                        writeEnd();
-                        writeHtml(" to automate this process.");
-                        writeElement("br");
-                        writeElement("br");
+            noteWriter.writeStart("span",
+                    "onclick",
+                            "var notifications = document.querySelectorAll('.dari-sourceFilter-notification');" +
+                            "var notificationsIndex = 0;" +
+                            "var notificationsLength = notifications.length;" +
+                            "for (; notificationsIndex < notificationsLength; ++ notificationsIndex) {" +
+                                "var notification = notifications[notificationsIndex];" +
+                                "notification.parentNode.removeChild(notification);" +
+                            "}" +
+                            "var xhr = new XMLHttpRequest();" +
+                            "xhr.open('get', '" + StringUtils.escapeJavaScript(JspUtils.getAbsolutePath(request, getInterceptPath(), "action", "clear")) + "', true);" +
+                            "xhr.send('');" +
+                            "return false;",
+                    "style", noteWriter.cssString(
+                            "cursor", "pointer",
+                            "font-size", "20px",
+                            "height", "20px",
+                            "line-height", "20px",
+                            "position", "absolute",
+                            "right", "5px",
+                            "text-align", "center",
+                            "top", "5px",
+                            "width", "20px"));
+                noteWriter.writeHtml("\u00d7");
+            noteWriter.writeEnd();
 
-                        for (Map.Entry<String, Date> entry : changedClassTimes.entrySet()) {
-                            writeHtml(entry.getKey());
-                            writeHtml(" - ");
-                            writeObject(entry.getValue());
-                            writeElement("br");
-                        }
-                    }
+            if (requiresReload) {
+                if (hasBackgroundTasks) {
+                    noteWriter.writeHtml("The application wasn't reloaded automatically because there are background tasks running!");
 
                 } else {
-                    writeStart("div", "style", cssString(
-                            "font-size", "17px",
-                            "line-height", "24px"));
-                        writeHtml("Java syntax errors!");
-                    writeEnd();
+                    noteWriter.writeHtml("The application must be reloaded before the changes to these classes become visible. ");
+                    noteWriter.writeStart("a",
+                            "href", JspUtils.getAbsolutePath(request, getInterceptPath(),
+                                    "action", "install",
+                                    "requestPath", JspUtils.getAbsolutePath(request, "")),
+                            "style", "color: white; text-decoration: underline;");
+                        noteWriter.writeHtml("Install the reloader");
+                    noteWriter.writeEnd();
+                    noteWriter.writeHtml(" to automate this process.");
+                    noteWriter.writeElement("br");
+                    noteWriter.writeElement("br");
 
-                    for (Diagnostic<?> diagnostic : errors.getDiagnostics()) {
-                        if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
-                            Object source = diagnostic.getSource();
-
-                            writeStart("div", "style", cssString(
-                                    "margin-top", "10px"));
-                                writeHtml("File: ");
-                                writeHtml(source instanceof FileObject ? ((FileObject) source).getName() : source);
-                                writeElement("br");
-
-                                writeHtml("Line: ");
-                                writeHtml(diagnostic.getLineNumber());
-                                writeHtml(", Column: ");
-                                writeHtml(diagnostic.getColumnNumber());
-                                writeElement("br");
-
-                                writeHtml("Error: ");
-                                writeHtml(diagnostic.getMessage(null));
-                            writeEnd();
-                        }
+                    for (Map.Entry<String, Date> entry : changedClassTimes.entrySet()) {
+                        noteWriter.writeHtml(entry.getKey());
+                        noteWriter.writeHtml(" - ");
+                        noteWriter.writeObject(entry.getValue());
+                        noteWriter.writeElement("br");
                     }
                 }
+            }
 
-            write("</div>");
-        } };
+            if (diagnostics != null) {
+                for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics) {
+                    writeDiagnostic(
+                            noteWriter,
+                            diagnostic.getKind(),
+                            diagnostic.getSource().getName(),
+                            null,
+                            diagnostic.getLineNumber(),
+                            diagnostic.getColumnNumber(),
+                            diagnostic.getMessage(null));
+                }
+            }
+
+            for (Map.Entry<Class<?>, List<AnalysisResult>> entry : analysisResultsByClass.entrySet()) {
+                File source = CodeUtils.getSource(entry.getKey().getName());
+
+                if (source != null) {
+                    String sourceFileName = source.getPath();
+
+                    for (AnalysisResult ar : entry.getValue()) {
+                        writeDiagnostic(
+                                noteWriter,
+                                ar.getKind(),
+                                sourceFileName,
+                                ar.getMethod(),
+                                ar.getLine(),
+                                -1,
+                                ar.getMessage());
+                    }
+                }
+            }
+        noteWriter.writeEnd();
+    }
+
+    private void writeDiagnostic(
+            HtmlWriter writer,
+            Diagnostic.Kind kind,
+            String fileName,
+            Method method,
+            long lineNumber,
+            long columnNumber,
+            String message)
+            throws IOException {
+
+        String color;
+
+        switch (kind) {
+            case ERROR :
+                color = "#dc322f";
+                break;
+
+            case MANDATORY_WARNING :
+            case WARNING :
+                color = "#b58900";
+                break;
+
+            default :
+                color = "#839496";
+                break;
+        }
+
+        writer.writeStart("div", "style", writer.cssString(
+                "color", color,
+                "margin-top", "10px"));
+
+            writer.writeHtml('[');
+            writer.writeHtml(kind);
+            writer.writeHtml("] ");
+
+            writer.writeStart("a",
+                    "target", "_blank",
+                    "style", writer.cssString(
+                            "color", color,
+                            "text-decoration", "underline"),
+                    "href", StringUtils.addQueryParameters(
+                            "/_debug/code",
+                            "action", "edit",
+                            "file", fileName,
+                            "line", lineNumber));
+
+                if (method != null) {
+                    writer.writeHtml(method.getDeclaringClass().getName());
+                    writer.writeHtml('.');
+                    writer.writeHtml(method.getName());
+
+                } else {
+                    int separatorAt = fileName.lastIndexOf(File.separatorChar);
+
+                    writer.writeHtml(separatorAt > -1 ?
+                            fileName.substring(separatorAt + 1) :
+                            fileName);
+                }
+
+                if (lineNumber > 0) {
+                    writer.writeHtml(':');
+                    writer.writeHtml(lineNumber);
+                }
+
+                if (columnNumber > 0) {
+                    writer.writeHtml(':');
+                    writer.writeHtml(columnNumber);
+                }
+            writer.writeEnd();
+
+            writer.writeHtml(' ');
+            writer.writeHtml(message);
+        writer.writeEnd();
     }
 
     /**
@@ -514,7 +640,7 @@ public class SourceFilter extends AbstractFilter {
             if (!("Periodic Caches".equals(executorName) ||
                     "Miscellaneous Tasks".equals(executorName))) {
                 for (Object task : executor.getTasks()) {
-                    if (task instanceof Task && ((Task) task).isRunning()) {
+                    if (task instanceof Task && !((Task) task).isSafeToStop() && ((Task) task).isRunning()) {
                         return true;
                     }
                 }
@@ -567,7 +693,7 @@ public class SourceFilter extends AbstractFilter {
 
     // Compile any Java source files that's changed and redefine them
     // in place if possible.
-    private synchronized DiagnosticCollector<JavaFileObject> compileJavaSourceFiles() throws IOException {
+    private synchronized List<Diagnostic<? extends JavaFileObject>> compileJavaSourceFiles() throws IOException {
         if (javaSourcesSet.isEmpty()) {
             return null;
         }
@@ -587,6 +713,7 @@ public class SourceFilter extends AbstractFilter {
         Map<JavaFileObject, Long> newSourceFiles = new HashMap<JavaFileObject, Long>();
         Map<String, Date> newChangedClassTimes = new HashMap<String, Date>();
         List<ClassDefinition> toBeRedefined = new ArrayList<ClassDefinition>();
+        List<Diagnostic<? extends JavaFileObject>> diagnostics = null;
 
         try {
             fileManager.setLocation(StandardLocation.SOURCE_PATH, javaSourcesSet);
@@ -648,10 +775,12 @@ public class SourceFilter extends AbstractFilter {
                     outputFileModifieds.put(outputFile, outputFile.getLastModified());
                 }
 
-                DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
+                DiagnosticCollector<JavaFileObject> diagnosticsCollector = new DiagnosticCollector<JavaFileObject>();
 
-                if (!compiler.getTask(null, fileManager, diagnostics, Arrays.asList("-g"), null, newSourceFiles.keySet()).call()) {
-                    for (Diagnostic<?> d : diagnostics.getDiagnostics()) {
+                if (!compiler.getTask(null, fileManager, diagnosticsCollector, Arrays.asList("-g"), null, newSourceFiles.keySet()).call()) {
+                    diagnostics = diagnosticsCollector.getDiagnostics();
+
+                    for (Diagnostic<? extends JavaFileObject> d : diagnostics) {
                         LOGGER.warn("Failed to compile: {}", d.getSource());
                     }
 
@@ -713,11 +842,20 @@ public class SourceFilter extends AbstractFilter {
 
                     // Try to redefine the classes in place.
                     List<ClassDefinition> failures = CodeUtils.redefineClasses(toBeRedefined);
+                    List<Class<?>> toBeAnalyzed = new ArrayList<Class<?>>();
 
                     toBeRedefined.removeAll(failures);
 
                     for (ClassDefinition success : toBeRedefined) {
-                        newChangedClassTimes.remove(success.getDefinitionClass().getName());
+                        Class<?> c = success.getDefinitionClass();
+
+                        newChangedClassTimes.remove(c.getName());
+                        toBeAnalyzed.add(c);
+                        analysisResultsByClass.remove(c);
+                    }
+
+                    if (!toBeAnalyzed.isEmpty()) {
+                        JvmAnalyzer.Static.analyze(toBeAnalyzed, new AnalysisResultLogger());
                     }
 
                     if (!failures.isEmpty() && LOGGER.isInfoEnabled()) {
@@ -742,7 +880,7 @@ public class SourceFilter extends AbstractFilter {
 
         // Remember all classes that's changed but not yet redefined.
         changedClassTimes.putAll(newChangedClassTimes);
-        return null;
+        return diagnostics != null && !diagnostics.isEmpty() ? diagnostics : null;
     }
 
     // Copies the webapp source associated with the given request.
@@ -1026,6 +1164,64 @@ public class SourceFilter extends AbstractFilter {
 
         @Override
         public void write(int b) {
+        }
+    }
+
+    private class AnalysisResultLogger extends JvmLogger {
+
+        private List<AnalysisResult> getOrCreateAnalysisResults(Method method) {
+            Class<?> c = method.getDeclaringClass();
+            List<AnalysisResult> analysisResults = analysisResultsByClass.get(c);
+
+            if (analysisResults == null) {
+                analysisResults = new ArrayList<AnalysisResult>();
+                analysisResultsByClass.put(c, analysisResults);
+            }
+
+            return analysisResults;
+        }
+
+        @Override
+        public void warn(Method method, int line, String message) {
+            LOGGER.warn(format(method, line, message));
+            getOrCreateAnalysisResults(method).add(new AnalysisResult(Diagnostic.Kind.WARNING, method, line, message));
+        }
+
+        @Override
+        public void error(Method method, int line, String message) {
+            LOGGER.error(format(method, line, message));
+            getOrCreateAnalysisResults(method).add(new AnalysisResult(Diagnostic.Kind.ERROR, method, line, message));
+        }
+    }
+
+    private static class AnalysisResult {
+
+        private final Diagnostic.Kind kind;
+        private final Method method;
+        private final int line;
+        private final String message;
+
+        public AnalysisResult(Diagnostic.Kind kind, Method method, int line, String message) {
+            this.kind = kind;
+            this.method = method;
+            this.line = line;
+            this.message = message;
+        }
+
+        public Diagnostic.Kind getKind() {
+            return kind;
+        }
+
+        public Method getMethod() {
+            return method;
+        }
+
+        public int getLine() {
+            return line;
+        }
+
+        public String getMessage() {
+            return message;
         }
     }
 }

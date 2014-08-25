@@ -36,6 +36,7 @@ public abstract class Task implements Comparable<Task>, Runnable {
     private final AtomicBoolean isRunning = new AtomicBoolean();
     private final AtomicBoolean isPauseRequested = new AtomicBoolean();
     private final AtomicBoolean isStopRequested = new AtomicBoolean();
+    private final AtomicBoolean isSafeToStop = new AtomicBoolean();
     private final ThreadLocal<Boolean> isRunCounted = new ThreadLocal<Boolean>();
     private volatile Thread thread;
     private volatile long lastRunBegin = -1;
@@ -244,6 +245,20 @@ public abstract class Task implements Comparable<Task>, Runnable {
      */
     public boolean isStopRequested() {
         return isStopRequested.get();
+    }
+
+    /**
+     * Returns {@code true} if this task is unimportant and safe to stop at any time.
+     */
+    public boolean isSafeToStop() {
+        return isSafeToStop.get();
+    }
+
+    /**
+     * Sets a flag to indicate the task is unimportant and safe to stop at any time.
+     */
+    protected void setSafeToStop(boolean safeToStop) {
+        isSafeToStop.set(safeToStop);
     }
 
     /** Tries to stop this task. */

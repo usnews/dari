@@ -110,7 +110,9 @@
             'height': 1,
             'margin': 0,
             'padding': 0,
-            'width': '100%'
+            'position': 'relative',
+            'width': '100%',
+            'z-index': 1000000
         });
 
         $profile.load(function() {
@@ -248,6 +250,10 @@
                 var own = parseFloat($event.find('td:eq(3)').text());
                 var ratio = own / maxOwn;
                 var size = 40 + ratio * 160;
+
+                if (own < 1) {
+                    return;
+                }
 
                 // Find the closest parent that's visible so that
                 // the display shows in the correct position.

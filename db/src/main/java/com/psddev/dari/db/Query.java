@@ -693,6 +693,30 @@ public class Query<E> extends Record {
         return typeIds;
     }
 
+    /**
+     * Returns a list of values to be matched against the ID if and only if
+     * the query contains a single predicate in the form of {@code _id = ?}.
+     *
+     * @return {@code null} if the query matches against anything other than ID.
+     */
+    public List<Object> findIdOnlyQueryValues() {
+        if (getSorters().isEmpty()) {
+            Predicate predicate = getPredicate();
+
+            if (predicate instanceof ComparisonPredicate) {
+                ComparisonPredicate comparison = (ComparisonPredicate) predicate;
+
+                if (ID_KEY.equals(comparison.getKey()) &&
+                        PredicateParser.EQUALS_ANY_OPERATOR.equals(comparison.getOperator()) &&
+                        comparison.findValueQuery() == null) {
+                    return comparison.getValues();
+                }
+            }
+        }
+
+        return null;
+    }
+
     private void addVisibilityAwareTypeIds(
             Database database,
             DatabaseEnvironment environment,
@@ -714,6 +738,10 @@ public class Query<E> extends Record {
             for (ObjectIndex index : mapEmbeddedKey(environment, comparison.getKey()).getIndexes()) {
                 if (index.isVisibility()) {
                     for (Object value : comparison.resolveValues(database)) {
+                        if (value == null) {
+                            continue;
+                        }
+
                         if (MISSING_VALUE.equals(value)) {
                             typeIds.add(null);
 
@@ -949,6 +977,7 @@ public class Query<E> extends Record {
         private String subQueryKey;
         private String hashAttribute;
 
+        @Override
         public String getIndexKey(ObjectIndex index) {
             StringBuilder indexKeyBuilder = new StringBuilder();
 
@@ -1673,6 +1702,7 @@ public class Query<E> extends Record {
 
     /** @deprecated Use {@link #delete} instead. */
     @Deprecated
+    @Override
     public void delete() {
         deleteAll();
     }

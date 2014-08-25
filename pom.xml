@@ -33,6 +33,7 @@
         <module>app-archetype</module>
         <module>db</module>
         <module>grandparent</module>
+        <module>maven</module>
         <module>parent</module>
         <module>reloader/tomcat6</module>
         <module>util</module>
@@ -43,6 +44,12 @@
             <dependency>
                 <groupId>asm</groupId>
                 <artifactId>asm</artifactId>
+                <version>3.3.1</version>
+            </dependency>
+
+            <dependency>
+                <groupId>asm</groupId>
+                <artifactId>asm-tree</artifactId>
                 <version>3.3.1</version>
             </dependency>
 

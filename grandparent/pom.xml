@@ -281,6 +281,7 @@ try {
                         <executions>
                             <execution>
                                 <id>install-node-and-npm</id>
+                                <phase>generate-resources</phase>
                                 <goals>
                                     <goal>install-node-and-npm</goal>
                                 </goals>
@@ -299,6 +300,7 @@ try {
 
                             <execution>
                                 <id>grunt</id>
+                                <phase>generate-resources</phase>
                                 <goals>
                                     <goal>grunt</goal>
                                 </goals>
@@ -353,7 +355,11 @@ try {
 
                                             <module name="TreeWalker">
                                                 <module name="ArrayTypeStyle"/>
-                                                <module name="AvoidNestedBlocks"/>
+
+                                                <module name="AvoidNestedBlocks">
+                                                    <property name="allowInSwitchCase" value="true"/>
+                                                </module>
+
                                                 <module name="AvoidStarImport"/>
                                                 <module name="ConstantName"/>
 
@@ -429,7 +435,7 @@ try {
                                 <id>verify-api</id>
                                 <phase>verify</phase>
                                 <goals>
-                                    <goal>check</goal>
+                                    <goal>check-no-fork</goal>
                                 </goals>
                                 <configuration>
                                     <logResults>true</logResults>
