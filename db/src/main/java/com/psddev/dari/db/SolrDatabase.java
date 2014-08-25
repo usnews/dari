@@ -1171,7 +1171,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
         } catch (Exception ex) {
-            throw new SettingsException(settingsKey + "/" + SERVER_URL_SUB_SETTING, String.format("[%s] is not a valid URL!", url));
+            throw new SettingsException(
+                    settingsKey + "/" + SERVER_URL_SUB_SETTING,
+                    String.format("[%s] is not a valid URL!", url));
         }
 
         setTenant(ObjectUtils.to(String.class, settings.get(TENANT_SUB_SETTING)));

@@ -174,9 +174,9 @@
             </dependency>
 
             <dependency>
-            	<groupId>org.apache.solr</groupId>
-            	<artifactId>solr-core</artifactId>
-            	<version>4.8.1</version>
+                <groupId>org.apache.solr</groupId>
+                <artifactId>solr-core</artifactId>
+                <version>4.8.1</version>
             </dependency>
 
             <dependency>
