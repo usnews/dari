@@ -402,13 +402,28 @@ public class SourceFilter extends AbstractFilter {
                 "max-height", "50%",
                 "max-width", "350px",
                 "overflow", "auto",
-                "padding", "0 10px 10px 10px",
+                "padding", "0 35px 10px 10px",
                 "position", "fixed",
                 "right", "0",
                 "top", "0",
                 "word-break", "break-all",
                 "word-wrap", "break-word",
                 "z-index", "1000000"));
+
+            noteWriter.writeStart("span",
+                    "onclick", "this.parentNode.parentNode.removeChild(this.parentNode); return false;",
+                    "style", noteWriter.cssString(
+                            "cursor", "pointer",
+                            "font-size", "20px",
+                            "height", "20px",
+                            "line-height", "20px",
+                            "position", "absolute",
+                            "right", "5px",
+                            "text-align", "center",
+                            "top", "5px",
+                            "width", "20px"));
+                noteWriter.writeHtml("\u00d7");
+            noteWriter.writeEnd();
 
             if (requiresReload) {
                 if (hasBackgroundTasks) {
