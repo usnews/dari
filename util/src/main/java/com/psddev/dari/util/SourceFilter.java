@@ -390,10 +390,10 @@ public class SourceFilter extends AbstractFilter {
         noteWriter.putDefault(Throwable.class, HtmlFormatter.THROWABLE);
 
         noteWriter.writeStart("div", "style", noteWriter.cssString(
-                "background", "rgba(0, 0, 0, 0.8)",
+                "background", "#002b36",
                 "border-bottom-left-radius", "2px",
                 "box-sizing", "border-box",
-                "color", "white",
+                "color", "#839496",
                 "font-family", "'Helvetica Neue', 'Arial', sans-serif",
                 "font-size", "13px",
                 "font-weight", "normal",
@@ -484,16 +484,16 @@ public class SourceFilter extends AbstractFilter {
 
         switch (kind) {
             case ERROR :
-                color = "#f66";
+                color = "#dc322f";
                 break;
 
             case MANDATORY_WARNING :
             case WARNING :
-                color = "#ff3";
+                color = "#b58900";
                 break;
 
             default :
-                color = "#fff";
+                color = "#839496";
                 break;
         }
 
