@@ -33,6 +33,7 @@
         <module>app-archetype</module>
         <module>db</module>
         <module>grandparent</module>
+        <module>maven</module>
         <module>parent</module>
         <module>reloader/tomcat6</module>
         <module>util</module>
