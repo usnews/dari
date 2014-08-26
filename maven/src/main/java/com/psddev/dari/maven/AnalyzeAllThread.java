@@ -50,22 +50,7 @@ public class AnalyzeAllThread extends Thread {
 
         System.setProperty("solr.solr.home", "/Users/hyoolim/solrtest");
 
-        CoreContainer.Initializer coreContainerInitializer = new CoreContainer.Initializer();
-        CoreContainer coreContainer = null;
-
-        try {
-            coreContainer = coreContainerInitializer.initialize();
-
-        } catch (IOException error) {
-            throw new RuntimeException(error);
-
-        } catch (ParserConfigurationException error) {
-            throw new RuntimeException(error);
-
-        } catch (SAXException error) {
-            throw new RuntimeException(error);
-        }
-
+        CoreContainer coreContainer = new CoreContainer();
         EmbeddedSolrServer solrServer = new EmbeddedSolrServer(coreContainer, "");
 
         solr.setName("solr");
