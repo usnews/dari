@@ -1216,7 +1216,7 @@ public final class StringUtils {
         for (int i = 0, length = letters.length; i < length; ++ i) {
             letter = letters[i];
 
-            if (Character.isWhitespace(letter)) {
+            if (Character.isWhitespace(letter) || Character.isSpaceChar(letter)) {
                 letters[i] = Character.SPACE_SEPARATOR;
             }
         }
