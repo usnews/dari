@@ -79,6 +79,7 @@ public class AnalyzeAllMojo extends AbstractMojo {
                 thread.join();
 
             } catch (InterruptedException error) {
+                // Interrupted most likely by user so move on.
             }
 
             if (thread.getLogger().hasErrors()) {
