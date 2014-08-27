@@ -1210,7 +1210,6 @@ public final class StringUtils {
      * @param string Can't be {@code null}.
      */
     public static String trimAndCollapseWhitespaces(String string) {
-        string = string.trim().replaceAll("\\s+", " ");
         char[] letters = string.toCharArray();
         char letter;
 
@@ -1222,6 +1221,6 @@ public final class StringUtils {
             }
         }
 
-        return new String(letters);
+        return letters.toString().trim().replaceAll("\\s+", " ");
     }
 }
