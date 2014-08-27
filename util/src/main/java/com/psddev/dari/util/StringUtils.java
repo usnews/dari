@@ -1221,6 +1221,6 @@ public final class StringUtils {
             }
         }
 
-        return letters.toString().trim().replaceAll("\\s+", " ");
+        return new String(letters).trim().replaceAll("\\s+", " ");
     }
 }
