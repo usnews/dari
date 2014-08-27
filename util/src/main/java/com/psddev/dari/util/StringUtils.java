@@ -1205,4 +1205,23 @@ public final class StringUtils {
 
         return new String(letters);
     }
+
+    /**
+     * @param string Can't be {@code null}.
+     */
+    public static String trimAndCollapseWhitespaces(String string) {
+        string = string.trim().replaceAll("\\s+", " ");
+        char[] letters = string.toCharArray();
+        char letter;
+
+        for (int i = 0, length = letters.length; i < length; ++ i) {
+            letter = letters[i];
+
+            if (Character.isWhitespace(letter)) {
+                letters[i] = Character.SPACE_SEPARATOR;
+            }
+        }
+
+        return new String(letters);
+    }
 }
