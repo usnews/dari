@@ -28,6 +28,7 @@ import java.util.UUID;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.psddev.dari.util.CollectionUtils;
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StorageItem;
@@ -131,6 +132,8 @@ public class ObjectField extends Record {
     private static final String PREDICATE_KEY = "predicate";
     private static final String VALUES_KEY = "values";
     private static final String VALUE_TYPES_KEY = "valueTypes";
+    private static final String GENERIC_ARGUMENT_INDEX_KEY = "genericArgumentIndex";
+    private static final String GENERIC_ARGUMENTS_KEY = "genericArguments";
     private static final String JAVA_FIELD_NAME_KEY = "java.field";
     private static final String JAVA_DECLARING_CLASS_NAME_KEY = "java.declaringClass";
     private static final String JAVA_ENUM_CLASS_NAME_KEY = "java.enumClass";
@@ -167,6 +170,9 @@ public class ObjectField extends Record {
     @InternalName("valueTypes")
     private Set<ObjectType> types;
 
+    private Number genericArgumentIndex;
+    private List<ObjectType> genericArguments;
+
     @InternalName("java.field")
     private String javaFieldName;
 
@@ -198,6 +204,8 @@ public class ObjectField extends Record {
         defaultValue = field.defaultValue;
         predicate = field.predicate;
         types = field.types != null ? new LinkedHashSet<ObjectType>(field.types) : null;
+        genericArgumentIndex = field.genericArgumentIndex;
+        genericArguments = field.genericArguments != null ? new ArrayList<ObjectType>(field.genericArguments) : null;
         values = field.values != null ? new LinkedHashSet<Value>(field.values) : null;
         javaFieldName = field.javaFieldName;
         javaDeclaringClassName = field.javaDeclaringClassName;
@@ -257,6 +265,26 @@ public class ObjectField extends Record {
             }
         }
 
+        genericArgumentIndex = (Number) definition.remove(GENERIC_ARGUMENT_INDEX_KEY);
+
+        @SuppressWarnings("unchecked")
+        Collection<String> genericArgumentIds = (Collection<String>) definition.remove(GENERIC_ARGUMENTS_KEY);
+
+        if (genericArgumentIds == null) {
+            genericArguments = null;
+
+        } else {
+            genericArguments = new ArrayList<ObjectType>();
+
+            for (String idString : genericArgumentIds) {
+                ObjectType type = environment.getTypeById(ObjectUtils.to(UUID.class, idString));
+
+                if (type != null) {
+                    genericArguments.add(type);
+                }
+            }
+        }
+
         @SuppressWarnings("unchecked")
         List<Map<String, String>> valueMaps = (List<Map<String, String>>) definition.remove(VALUES_KEY);
         if (valueMaps == null) {
@@ -282,6 +310,14 @@ public class ObjectField extends Record {
         for (ObjectType type : getTypes()) {
             if (type != null) {
                 typeIds.add(type.getId().toString());
+            }
+        }
+
+        List<String> genericArgumentIds = new ArrayList<String>();
+
+        for (ObjectType type : getGenericArguments()) {
+            if (type != null) {
+                genericArgumentIds.add(type.getId().toString());
             }
         }
 
@@ -315,6 +351,8 @@ public class ObjectField extends Record {
         definition.put(PREDICATE_KEY, predicate);
         definition.put(VALUES_KEY, valueDefinitions.isEmpty() ? null : valueDefinitions);
         definition.put(VALUE_TYPES_KEY, typeIds.isEmpty() ? null : typeIds);
+        definition.put(GENERIC_ARGUMENT_INDEX_KEY, genericArgumentIndex);
+        definition.put(GENERIC_ARGUMENTS_KEY, genericArgumentIds.isEmpty() ? null : genericArgumentIds);
         definition.put(JAVA_FIELD_NAME_KEY, javaFieldName);
         definition.put(JAVA_DECLARING_CLASS_NAME_KEY, javaDeclaringClassName);
         definition.put(JAVA_ENUM_CLASS_NAME_KEY, javaEnumClassName);
@@ -634,6 +672,25 @@ public class ObjectField extends Record {
         this.types = types;
     }
 
+    public Number getGenericArgumentIndex() {
+        return genericArgumentIndex;
+    }
+
+    public void setGenericArgumentIndex(Number genericArgumentIndex) {
+        this.genericArgumentIndex = genericArgumentIndex;
+    }
+
+    public List<ObjectType> getGenericArguments() {
+        if (genericArguments == null) {
+            genericArguments = new ArrayList<ObjectType>();
+        }
+        return genericArguments;
+    }
+
+    public void setGenericArguments(List<ObjectType> genericArguments) {
+        this.genericArguments = genericArguments;
+    }
+
     /** Returns the valid field values. */
     public Set<Value> getValues() {
         return values;
@@ -873,8 +930,12 @@ public class ObjectField extends Record {
         setInternalType(translateType(environment, objectClass, javaType));
     }
 
-    // Translates Java type to field internal type.
     private String translateType(DatabaseEnvironment environment, Class<?> objectClass, Type javaType) {
+        return translateType(environment, objectClass, javaType, -1);
+    }
+
+    // Translates Java type to field internal type.
+    private String translateType(DatabaseEnvironment environment, Class<?> objectClass, Type javaType, int javaTypeIndex) {
 
         // Simple translation like String to text.
         if (javaType instanceof Class) {
@@ -888,9 +949,16 @@ public class ObjectField extends Record {
 
             } else if (Recordable.class.isAssignableFrom(javaTypeClass)) {
                 ObjectType type = environment.getTypeByClass(javaTypeClass);
+
                 if (type != null) {
-                    getTypes().add(type);
+                    if (javaTypeIndex < 0) {
+                        getTypes().add(type);
+
+                    } else {
+                        CollectionUtils.set(getGenericArguments(), javaTypeIndex, type);
+                    }
                 }
+
                 return RECORD_TYPE;
 
             } else if (Enum.class.isAssignableFrom(javaTypeClass)) {
@@ -949,14 +1017,19 @@ public class ObjectField extends Record {
         } else if (javaType instanceof ParameterizedType) {
             ParameterizedType javaTypeParamed = (ParameterizedType) javaType;
             Type[] javaTypeArgs = javaTypeParamed.getActualTypeArguments();
-            String firstType = translateType(environment, objectClass, javaTypeParamed.getRawType());
-            String secondType = translateType(environment, objectClass, javaTypeArgs[javaTypeArgs.length - 1]);
+            Type firstRawType = javaTypeParamed.getRawType();
+            String firstType = translateType(environment, objectClass, firstRawType);
 
             if (RECORD_TYPE.equals(firstType)) {
+                for (int i = 0, length = javaTypeArgs.length; i < length; ++ i) {
+                    translateType(environment, objectClass, javaTypeArgs[i], i);
+                }
+
                 return firstType;
 
+            // Assume List, Map, or Set.
             } else {
-                return firstType + "/" + secondType;
+                return firstType + "/" + translateType(environment, objectClass, javaTypeArgs[javaTypeArgs.length - 1]);
             }
 
         // Complex translation like List<T> to list/record.
@@ -982,8 +1055,10 @@ public class ObjectField extends Record {
 
                         if (index < length) {
                             Type[] currentArgs = currentParamed.getActualTypeArguments();
+
                             if (index < currentArgs.length) {
-                                return translateType(environment, objectClass, currentArgs[index]);
+                                setGenericArgumentIndex(index);
+                                return translateType(environment, objectClass, currentArgs[index], index);
                             }
                         }
 
@@ -998,6 +1073,18 @@ public class ObjectField extends Record {
 
                 } else {
                     break;
+                }
+            }
+
+            @SuppressWarnings("rawtypes")
+            TypeVariable[] typeParams = objectClass.getTypeParameters();
+
+            if (typeParams != null) {
+                for (int i = 0, length = typeParams.length; i < length; ++ i) {
+                    if (javaTypeVar.equals(typeParams[i])) {
+                        setGenericArgumentIndex(i);
+                        break;
+                    }
                 }
             }
 
