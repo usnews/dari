@@ -117,7 +117,7 @@ public enum SqlIndex {
         new TypeIdSymbolIdSingleValueTable(4, "RecordString4") {
             @Override
             protected Object convertValue(SqlDatabase database, ObjectIndex index, int fieldIndex, Object value) {
-                String valueString = value.toString().trim();
+                String valueString = StringUtils.trimAndCollapseWhitespaces(value.toString());
                 if (!index.isCaseSensitive()) {
                     valueString = valueString.toLowerCase(Locale.ENGLISH);
                 }
@@ -296,7 +296,7 @@ public enum SqlIndex {
                 return value;
 
             } else if (value instanceof String) {
-                String valueString = value.toString().trim();
+                String valueString = StringUtils.trimAndCollapseWhitespaces(value.toString());
                 if (!index.isCaseSensitive() && database.comparesIgnoreCase()) {
                     valueString = valueString.toLowerCase(Locale.ENGLISH);
                 }
