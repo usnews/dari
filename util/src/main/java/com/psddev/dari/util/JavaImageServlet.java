@@ -1,12 +1,17 @@
 package com.psddev.dari.util;
 
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.TimeZone;
 import javax.imageio.ImageIO;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
@@ -14,12 +19,14 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
+import org.joda.time.DateTime;
 
 @RoutingFilter.Path(application = "_image", value = "")
 public class JavaImageServlet extends HttpServlet {
     private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV", "sharpen", "blur"); //Commands that don't require a value
     private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
     private static final String QUALITY_OPTION = "quality";
+    private static SimpleDateFormat expiresDateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
     protected static final String SERVLET_PATH = StringUtils.ensureEnd(RoutingFilter.Static.getApplicationPath("_image"), "/");
 
     @Override
@@ -356,9 +363,35 @@ public class JavaImageServlet extends HttpServlet {
                 }
             }
 
+            Integer maxAge = Settings.getOrDefault(Integer.class, "dari/imageEditor/_java/max-age", 31536000);
             response.setContentType("image/" + imageType);
+            response.setHeader("Cache-Control", String.format("%s, public", maxAge.toString()));
+            response.setHeader("Edge-Control", String.format("downstream-ttl=%s", maxAge));
+            DateTime expires = new DateTime().plusSeconds(maxAge);
+            if (!expiresDateFormat.getTimeZone().equals(TimeZone.getTimeZone("GMT"))) {
+                expiresDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+            }
+            response.setHeader("Expires", expiresDateFormat.format(expires.toDate()));
             ServletOutputStream out = response.getOutputStream();
             ImageIO.write(bufferedImage, imageType, out);
+
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ImageIO.write(bufferedImage, "jpg", byteArrayOutputStream);
+            byteArrayOutputStream.flush();
+            byte[] data = byteArrayOutputStream.toByteArray();
+
+            try {
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                md.update(data);
+                byte[] hash = md.digest();
+                StringBuilder eTag = new StringBuilder();
+                for (int hashIndex = 0; hashIndex < hash.length; hashIndex++) {
+                    eTag.append(Integer.toString((hash[hashIndex] & 0xff) + 0x100, 16).substring(1));
+                }
+                response.setHeader("ETag", eTag.toString());
+            } catch (NoSuchAlgorithmException ex) {
+                //No Such Algorithm Exception don't write eTag
+            }
 
             out.close();
         } else {
