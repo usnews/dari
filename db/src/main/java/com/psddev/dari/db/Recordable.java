@@ -118,7 +118,7 @@ public interface Recordable {
     @ObjectField.AnnotationProcessorClass(DisplayNameProcessor.class)
     @ObjectType.AnnotationProcessorClass(DisplayNameProcessor.class)
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.FIELD, ElementType.TYPE })
+    @Target({ ElementType.FIELD, ElementType.TYPE, ElementType.METHOD })
     public @interface DisplayName {
         String value();
     }
@@ -151,7 +151,7 @@ public interface Recordable {
     /** Specifies whether the target field is ignored. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
     public @interface Ignored {
         boolean value() default true;
     }
@@ -159,7 +159,7 @@ public interface Recordable {
     /** Specifies whether the target field value is indexed. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
     public @interface Indexed {
         String[] extraFields() default { };
         boolean unique() default false;

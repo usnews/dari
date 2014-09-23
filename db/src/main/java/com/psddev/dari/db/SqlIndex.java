@@ -774,7 +774,8 @@ public enum SqlIndex {
                     }
 
                     Set<Object> values = new HashSet<Object>();
-                    collectFieldValues(state, indexValues, prefixes, struct, field, values, stateValues.get(field.getInternalName()));
+                    Object fieldValue = field instanceof ObjectMethod ? state.getByPath(field.getInternalName()) : stateValues.get(field.getInternalName());
+                    collectFieldValues(state, indexValues, prefixes, struct, field, values, fieldValue);
                     if (values.isEmpty()) {
                         continue INDEX;
                     }

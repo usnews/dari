@@ -145,7 +145,7 @@ public class ObjectField extends Record {
     private boolean deprecated;
 
     @InternalName("label")
-    private String displayName;
+    protected String displayName;
 
     @InternalName("name")
     private String internalName;
@@ -708,6 +708,9 @@ public class ObjectField extends Record {
 
     /** Returns the Java field. */
     public Field getJavaField(Class<?> objectClass) {
+        if (getJavaFieldName() == null) {
+            return null;
+        }
         Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
 
         return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
@@ -1309,7 +1312,13 @@ public class ObjectField extends Record {
             Map<String, ObjectField> instances = new CompactMap<String, ObjectField>();
             if (definitions != null) {
                 for (Map<String, Object> definition : definitions) {
-                    ObjectField instance = new ObjectField(parent, definition);
+                    ObjectField instance;
+                    if (definition.get(JAVA_FIELD_NAME_KEY) == null &&
+                            definition.get(ObjectMethod.JAVA_METHOD_NAME_KEY) != null) {
+                        instance = new ObjectMethod(parent, definition);
+                    } else {
+                        instance = new ObjectField(parent, definition);
+                    }
                     instance.getState().setDatabase(parent.getEnvironment().getDatabase());
                     instances.put(instance.getInternalName(), instance);
                 }
