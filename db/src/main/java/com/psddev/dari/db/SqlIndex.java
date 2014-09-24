@@ -198,7 +198,21 @@ public enum SqlIndex {
                 Connection connection,
                 ObjectIndex index) throws SQLException;
 
+        public String prepareUpdateStatement(
+                SqlDatabase database,
+                Connection connection,
+                ObjectIndex index) throws SQLException;
+
         public void bindInsertValues(
+                SqlDatabase database,
+                ObjectIndex index,
+                UUID id,
+                UUID typeId,
+                IndexValue indexValue,
+                Set<String> bindKeys,
+                List<List<Object>> parameters) throws SQLException;
+
+        public void bindUpdateValues(
                 SqlDatabase database,
                 ObjectIndex index,
                 UUID id,
@@ -373,6 +387,53 @@ public enum SqlIndex {
         }
 
         @Override
+        public String prepareUpdateStatement(
+                SqlDatabase database,
+                Connection connection,
+                ObjectIndex index) throws SQLException {
+
+            SqlVendor vendor = database.getVendor();
+            int fieldsSize = index.getFields().size();
+            StringBuilder updateBuilder = new StringBuilder();
+
+            updateBuilder.append("UPDATE ");
+            vendor.appendIdentifier(updateBuilder, getName(database, index));
+            updateBuilder.append(" SET ");
+
+            for (int i = 0; i < fieldsSize; ++ i) {
+                vendor.appendIdentifier(updateBuilder, getValueField(database, index, i));
+                updateBuilder.append(" = ");
+                if (SqlIndex.Static.getByIndex(index) == SqlIndex.LOCATION) {
+                    vendor.appendBindLocation(updateBuilder, null, null);
+                } else if (SqlIndex.Static.getByIndex(index) == SqlIndex.REGION) {
+                    vendor.appendBindRegion(updateBuilder, null, null);
+                } else {
+                    updateBuilder.append("?");
+                }
+                updateBuilder.append(", ");
+            }
+            if (fieldsSize > 0) {
+                updateBuilder.setLength(updateBuilder.length() - 2);
+            }
+
+            updateBuilder.append(" WHERE ");
+            vendor.appendIdentifier(updateBuilder, getIdField(database, index));
+            updateBuilder.append(" = ?");
+
+            if (getTypeIdField(database, index) != null) {
+                updateBuilder.append(" AND ");
+                vendor.appendIdentifier(updateBuilder, getTypeIdField(database, index));
+                updateBuilder.append(" = ?");
+            }
+
+            updateBuilder.append(" AND ");
+            vendor.appendIdentifier(updateBuilder, getKeyField(database, index));
+            updateBuilder.append(" = ?");
+
+            return updateBuilder.toString();
+        }
+
+        @Override
         public void bindInsertValues(
                 SqlDatabase database,
                 ObjectIndex index,
@@ -418,6 +479,59 @@ public enum SqlIndex {
                         Object parameter = convertValue(database, index, i, valuesArray[i]);
                         vendor.appendBindValue(insertBuilder, parameter, rowData);
                     }
+
+                    bindKeys.add(bindKey);
+                    parameters.add(rowData);
+                }
+            }
+        }
+
+        @Override
+        public void bindUpdateValues(
+                SqlDatabase database,
+                ObjectIndex index,
+                UUID id,
+                UUID typeId,
+                IndexValue indexValue,
+                Set<String> bindKeys,
+                List<List<Object>> parameters) throws SQLException {
+
+            SqlVendor vendor = database.getVendor();
+            Object indexKey = convertKey(database, index, indexValue.getUniqueName());
+            int fieldsSize = index.getFields().size();
+            StringBuilder updateBuilder = new StringBuilder();
+            boolean writeIndex = true;
+
+            for (Object[] valuesArray : indexValue.getValuesArray()) {
+                StringBuilder bindKeyBuilder = new StringBuilder();
+                bindKeyBuilder.append(id.toString());
+                bindKeyBuilder.append(indexKey);
+
+                for (int i = 0; i < fieldsSize; i++) {
+                    Object parameter = convertValue(database, index, i, valuesArray[i]);
+                    vendor.appendValue(bindKeyBuilder, parameter);
+
+                    if (ObjectUtils.isBlank(parameter)) {
+                        writeIndex = false;
+                        break;
+                    }
+                }
+
+                String bindKey = bindKeyBuilder.toString();
+
+                if (writeIndex && !bindKeys.contains(bindKey)) {
+                    List<Object> rowData = new ArrayList<Object>();
+
+                    for (int i = 0; i < fieldsSize; i++) {
+                        Object parameter = convertValue(database, index, i, valuesArray[i]);
+                        vendor.appendBindValue(updateBuilder, parameter, rowData);
+                    }
+
+                    vendor.appendBindValue(updateBuilder, id, rowData);
+                    if (getTypeIdField(database, index) != null) {
+                        vendor.appendBindValue(updateBuilder, typeId, rowData);
+                    }
+                    vendor.appendBindValue(updateBuilder, indexKey, rowData);
 
                     bindKeys.add(bindKey);
                     parameters.add(rowData);
@@ -647,6 +761,69 @@ public enum SqlIndex {
             }
         }
 
+        public static void updateByStates(
+                SqlDatabase database,
+                Connection connection,
+                ObjectIndex index,
+                List<State> states)
+                throws SQLException {
+
+            Map<String, String> updateQueries = new HashMap<String, String>();
+            Map<String, List<List<Object>>> updateParameters = new HashMap<String, List<List<Object>>>();
+            Map<String, Set<String>> updateBindKeys = new HashMap<String, Set<String>>();
+
+            for (State state : states) {
+                UUID id = state.getId();
+                UUID typeId = state.getVisibilityAwareTypeId();
+
+                List<IndexValue> indexValues = new ArrayList<IndexValue>();
+                Map<String, Object> stateValues = state.getValues();
+                collectIndexValues(state, indexValues, null, state.getDatabase().getEnvironment(), stateValues, index);
+                ObjectType type = state.getType();
+                if (type != null) {
+                    collectIndexValues(state, indexValues, null, type, stateValues, index);
+                }
+
+                for (IndexValue indexValue : indexValues) {
+                    for (SqlIndex.Table table : getByIndex(index).getWriteTables(database, index)) {
+
+                        String name = table.getName(database, index);
+                        String sqlQuery = updateQueries.get(name);
+                        List<List<Object>> parameters = updateParameters.get(name);
+                        Set<String> bindKeys = updateBindKeys.get(name);
+                        if (sqlQuery == null && parameters == null) {
+                            sqlQuery = table.prepareUpdateStatement(database, connection, index);
+                            updateQueries.put(name, sqlQuery);
+
+                            parameters = new ArrayList<List<Object>>();
+                            updateParameters.put(name, parameters);
+
+                            bindKeys = new HashSet<String>();
+                            updateBindKeys.put(name, bindKeys);
+                        }
+
+                        table.bindUpdateValues(database, index, id, typeId, indexValue, bindKeys, parameters);
+                    }
+                }
+
+            }
+
+            for (Map.Entry<String, String> entry : updateQueries.entrySet()) {
+                String name = entry.getKey();
+                String sqlQuery = entry.getValue();
+                List<List<Object>> parameters = updateParameters.get(name);
+                try {
+                    if (!parameters.isEmpty()) {
+                        SqlDatabase.Static.executeBatchUpdate(connection, sqlQuery, parameters);
+                    }
+                } catch (BatchUpdateException bue) {
+                    SqlDatabase.Static.logBatchUpdateException(bue, sqlQuery, parameters);
+                    throw bue;
+                }
+            }
+
+        }
+
         /**
          * Inserts all index rows associated with the given {@code states}.
          */
@@ -762,50 +939,62 @@ public enum SqlIndex {
                 List<IndexValue> indexValues,
                 ObjectField[] prefixes,
                 ObjectStruct struct,
-                Map<String, Object> stateValues) {
+                Map<String, Object> stateValues,
+                ObjectIndex index) {
 
-            INDEX: for (ObjectIndex index : struct.getIndexes()) {
-                List<Set<Object>> valuesList = new ArrayList<Set<Object>>();
+            List<Set<Object>> valuesList = new ArrayList<Set<Object>>();
 
-                for (String fieldName : index.getFields()) {
-                    ObjectField field = struct.getField(fieldName);
-                    if (field == null) {
-                        continue INDEX;
-                    }
-
-                    Set<Object> values = new HashSet<Object>();
-                    Object fieldValue = field instanceof ObjectMethod ? state.getByPath(field.getInternalName()) : stateValues.get(field.getInternalName());
-                    collectFieldValues(state, indexValues, prefixes, struct, field, values, fieldValue);
-                    if (values.isEmpty()) {
-                        continue INDEX;
-                    }
-
-                    valuesList.add(values);
+            for (String fieldName : index.getFields()) {
+                ObjectField field = struct.getField(fieldName);
+                if (field == null) {
+                    return;
                 }
 
-                int valuesListSize = valuesList.size();
-                int permutationSize = 1;
-                for (Set<Object> values : valuesList) {
-                    permutationSize *= values.size();
+                Set<Object> values = new HashSet<Object>();
+                Object fieldValue = field instanceof ObjectMethod ? state.getByPath(field.getInternalName()) : stateValues.get(field.getInternalName());
+                collectFieldValues(state, indexValues, prefixes, struct, field, values, fieldValue);
+                if (values.isEmpty()) {
+                    return;
                 }
 
-                // Calculate all permutations on multi-field indexes.
-                Object[][] permutations = new Object[permutationSize][valuesListSize];
-                int partitionSize = permutationSize;
-                for (int i = 0; i < valuesListSize; ++ i) {
-                    Set<Object> values = valuesList.get(i);
-                    int valuesSize = values.size();
-                    partitionSize /= valuesSize;
-                    for (int p = 0; p < permutationSize;) {
-                        for (Object value : values) {
-                            for (int k = 0; k < partitionSize; ++ k, ++ p) {
-                                permutations[p][i] = value;
-                            }
+                valuesList.add(values);
+            }
+
+            int valuesListSize = valuesList.size();
+            int permutationSize = 1;
+            for (Set<Object> values : valuesList) {
+                permutationSize *= values.size();
+            }
+
+            // Calculate all permutations on multi-field indexes.
+            Object[][] permutations = new Object[permutationSize][valuesListSize];
+            int partitionSize = permutationSize;
+            for (int i = 0; i < valuesListSize; ++ i) {
+                Set<Object> values = valuesList.get(i);
+                int valuesSize = values.size();
+                partitionSize /= valuesSize;
+                for (int p = 0; p < permutationSize;) {
+                    for (Object value : values) {
+                        for (int k = 0; k < partitionSize; ++ k, ++ p) {
+                            permutations[p][i] = value;
                         }
                     }
                 }
+            }
 
-                indexValues.add(new IndexValue(prefixes, index, permutations));
+            indexValues.add(new IndexValue(prefixes, index, permutations));
+
+        }
+
+        private static void collectIndexValues(
+                State state,
+                List<IndexValue> indexValues,
+                ObjectField[] prefixes,
+                ObjectStruct struct,
+                Map<String, Object> stateValues) {
+
+            for (ObjectIndex index : struct.getIndexes()) {
+                collectIndexValues(state, indexValues, prefixes, struct, stateValues, index);
             }
         }
 

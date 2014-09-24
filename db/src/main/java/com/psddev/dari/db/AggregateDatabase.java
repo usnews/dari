@@ -355,6 +355,21 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     }
 
     @Override
+    public void updateIndex(State state, ObjectIndex index) {
+        Database defaultDelegate = getDefaultDelegate();
+        defaultDelegate.updateIndex(state, index);
+        for (Database delegate : getDelegates().values()) {
+            if (!delegate.equals(defaultDelegate)) {
+                try {
+                    delegate.updateIndex(state, index);
+                } catch (Exception ex) {
+                    LOGGER.warn(String.format("Can't write to [%s]", delegate), ex);
+                }
+            }
+        }
+    }
+
+    @Override
     public void delete(State state) {
         DELETE.execute(this, state);
     }

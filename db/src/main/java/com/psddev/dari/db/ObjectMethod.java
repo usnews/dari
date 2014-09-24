@@ -104,4 +104,18 @@ public class ObjectMethod extends ObjectField {
         return name;
     }
 
+    public void updateIndex(State state) {
+        if (state == null) {
+            return;
+        }
+        Database db = state.getDatabase();
+
+        for (ObjectIndex idx : state.getType().getIndexes()) {
+            if (idx.getFields().contains(getInternalName())) {
+                db.updateIndex(state, idx);
+            }
+        }
+
+    }
+
 }
