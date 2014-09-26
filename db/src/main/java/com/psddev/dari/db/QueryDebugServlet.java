@@ -407,8 +407,7 @@ public class QueryDebugServlet extends HttpServlet {
 
             for (ObjectIndex index : database.getEnvironment().getIndexes()) {
 
-                // Ignore inRowIndexes.
-                if (index.isVisibility() && !index.isShortConstant()) {
+                if (index.isVisibility()) {
                     visibilityIndexValues.put(index, new ArrayList<Object>());
                 }
             }
@@ -416,8 +415,7 @@ public class QueryDebugServlet extends HttpServlet {
             if (type != null) {
                 for (ObjectIndex index : type.getIndexes()) {
 
-                    // Ignore inRowIndexes.
-                    if (index.isVisibility() && !index.isShortConstant()) {
+                    if (index.isVisibility()) {
                         visibilityIndexValues.put(index, new ArrayList<Object>());
                     }
                 }
