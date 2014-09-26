@@ -3,6 +3,12 @@ package com.psddev.dari.util;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -24,6 +30,23 @@ public class FrameFilter extends AbstractFilter {
     private static final String DISCARDING_DONE_ATTRIBUTE = ATTRIBUTE_PREFIX + "discardingDone";
     public static final String BODY_ATTRIBUTE = ATTRIBUTE_PREFIX + "frameBody";
 
+    private static Map<String, String> hashToPathMap = Collections.emptyMap();
+
+    @Override
+    protected void doInit() throws Exception {
+
+        Map<String, String> map = new ConcurrentHashMap<String, String>();
+
+        List<String> resourcePaths = new ArrayList<String>();
+        collectResourcePaths(resourcePaths, "/");
+
+        for (String path : resourcePaths) {
+            map.put(StringUtils.hex(StringUtils.md5(path)), path);
+        }
+
+        hashToPathMap = map;
+    }
+
     @Override
     protected void doRequest(
             final HttpServletRequest request,
@@ -31,7 +54,7 @@ public class FrameFilter extends AbstractFilter {
             FilterChain chain)
             throws IOException, ServletException {
 
-        String path = request.getParameter(PATH_PARAMETER);
+        String path = decodePath(request.getParameter(PATH_PARAMETER));
 
         if (ObjectUtils.isBlank(path)) {
             chain.doFilter(request, response);
@@ -52,7 +75,7 @@ public class FrameFilter extends AbstractFilter {
                 if (location != null) {
                     response.setHeader("Location",
                             StringUtils.addQueryParameters(location,
-                                    PATH_PARAMETER, path,
+                                    PATH_PARAMETER, encodePath(path),
                                     NAME_PARAMETER, name));
                     return;
                 }
@@ -152,5 +175,68 @@ public class FrameFilter extends AbstractFilter {
         @Override
         public void write(int b) {
         }
+    }
+
+    /**
+     * Recursively gathers all resource paths available to the current servlet
+     * context in the given directory {@code path} and adds them to the provided
+     * {@code allResourcePaths} list.
+     *
+     * @param allResourcePaths the list containing all the resource paths.
+     * @param path the directory path to search for resources.
+     */
+    private void collectResourcePaths(List<String> allResourcePaths, String path) {
+
+        if (path.endsWith("/")) {
+
+            List<String> subPaths = new ArrayList<String>();
+
+            Set<String> resourcePaths = getServletContext().getResourcePaths(path);
+            if (resourcePaths != null) {
+                subPaths.addAll(resourcePaths);
+            }
+            Collections.sort(subPaths);
+
+            for (String subPath : subPaths) {
+                collectResourcePaths(allResourcePaths, subPath);
+            }
+
+        } else {
+            allResourcePaths.add(path);
+        }
+    }
+
+    /**
+     * @param path the path to hash.
+     * @return a hex-encoded md5 hash string of the given {@code path}. If the
+     *      hash is not present in the lookup map, the original path is returned
+     *      instead.
+     */
+    public static String encodePath(String path) {
+
+        if (path != null) {
+            String hash = StringUtils.hex(StringUtils.md5(path));
+
+            return hashToPathMap.containsKey(hash) ? hash : path;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param hash the md5 hash to look up.
+     * @return the resource path that would generate the given md5 {@code hash}
+     *      based on a hash look up table containing all known resource paths.
+     *      If the hash can not be found, return it verbatim instead.
+     */
+    public static String decodePath(String hash) {
+
+        if (hash != null) {
+            String path = hashToPathMap.get(hash);
+
+            return path != null ? path : hash;
+        }
+
+        return null;
     }
 }

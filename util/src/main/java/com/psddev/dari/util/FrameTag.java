@@ -80,7 +80,7 @@ public class FrameTag extends BodyTagSupport implements DynamicAttributes {
                 "name", name,
                 "data-insertion-mode", mode != null ? mode : InsertionMode.replace,
                 "data-extra-form-data",
-                        FrameFilter.PATH_PARAMETER + "=" + StringUtils.encodeUri(JspUtils.getCurrentServletPath(request)) + "&" +
+                        FrameFilter.PATH_PARAMETER + "=" + StringUtils.encodeUri(FrameFilter.encodePath(JspUtils.getCurrentServletPath(request))) + "&" +
                         FrameFilter.NAME_PARAMETER + "=" + StringUtils.encodeUri(name));
     }
 
