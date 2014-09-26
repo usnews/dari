@@ -1292,8 +1292,10 @@ public abstract class AbstractDatabase<C> implements Database {
     }
 
     protected void doWriteIndexUpdates(C connection, boolean isImmediate, Map<ObjectIndex, List<State>> indexUpdates) throws Exception {
-        for (Map.Entry<ObjectIndex, List<State>> entry : indexUpdates.entrySet()) {
-            doIndexUpdates(connection, isImmediate, entry.getKey(), entry.getValue());
+        if (indexUpdates != null) {
+            for (Map.Entry<ObjectIndex, List<State>> entry : indexUpdates.entrySet()) {
+                doIndexUpdates(connection, isImmediate, entry.getKey(), entry.getValue());
+            }
         }
     }
 
