@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import org.joda.time.DateTime;
 
@@ -60,6 +61,9 @@ public final class ComparisonPredicate extends Predicate {
 
             } else if (value instanceof Enum) {
                 mutableValues.add(((Enum<?>) value).name());
+
+            } else if (value instanceof Locale) {
+                mutableValues.add(((Locale) value).toLanguageTag());
 
             } else if (value instanceof Class) {
                 mutableValues.add(ObjectType.getInstance((Class<?>) value).getId());

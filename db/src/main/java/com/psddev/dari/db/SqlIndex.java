@@ -877,6 +877,9 @@ public enum SqlIndex {
             } else if (value instanceof Enum) {
                 values.add(((Enum<?>) value).name());
 
+            } else if (value instanceof Locale) {
+                values.add(((Locale) value).toLanguageTag());
+
             } else {
                 values.add(value);
             }

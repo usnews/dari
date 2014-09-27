@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -605,6 +606,29 @@ abstract class StateValueUtils {
                     UUID uuid = ObjectUtils.to(UUID.class, value);
                     if (uuid != null) {
                         return uuid;
+                    }
+                }
+
+                throw new IllegalArgumentException();
+            }
+        });
+
+        m.put(ObjectField.LOCALE_TYPE, new Converter() {
+            @Override
+            public Object toJavaValue(
+                    Database database,
+                    Object object,
+                    ObjectField field,
+                    String subType,
+                    Object value) {
+
+                if (value instanceof Locale) {
+                    return value;
+
+                } else {
+                    Locale locale = ObjectUtils.to(Locale.class, value);
+                    if (locale != null) {
+                        return locale;
                     }
                 }
 

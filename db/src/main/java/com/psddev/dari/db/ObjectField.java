@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -57,6 +58,7 @@ public class ObjectField extends Record {
     public static final String URI_TYPE = "uri";
     public static final String URL_TYPE = "url";
     public static final String UUID_TYPE = "uuid";
+    public static final String LOCALE_TYPE = "locale";
 
     private static final TypeReference<Set<String>> SET_STRING_TYPE_REF = new TypeReference<Set<String>>() { };
 
@@ -99,6 +101,7 @@ public class ObjectField extends Record {
         CLASS_TO_TYPE.put(URI.class, URI_TYPE);
         CLASS_TO_TYPE.put(URL.class, URL_TYPE);
         CLASS_TO_TYPE.put(UUID.class, UUID_TYPE);
+        CLASS_TO_TYPE.put(Locale.class, LOCALE_TYPE);
 
         for (Map.Entry<Class<?>, String> e : CLASS_TO_TYPE.entrySet()) {
             Class<?> type = e.getKey();
