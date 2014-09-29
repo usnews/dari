@@ -171,6 +171,16 @@ public interface Recordable {
         boolean isUnique() default false;
     }
 
+    /** Specifies how the method index should be updated. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.METHOD })
+    @ObjectField.AnnotationProcessorClass(IndexUpdateProcessor.class)
+    public @interface IndexUpdate {
+        public Class<? extends IndexUpdateDelay> delay() default IndexUpdateDelay.Hourly.class;
+        public String metricField() default "";
+    }
+
     /** Specifies the target's internal name. */
     @Documented
     @ObjectType.AnnotationProcessorClass(InternalNameProcessor.class)
@@ -666,6 +676,20 @@ class InternalNameProcessor implements ObjectType.AnnotationProcessor<Recordable
     @Override
     public void process(ObjectType type, Recordable.InternalName annotation) {
         type.setInternalName(annotation.value());
+    }
+}
+
+class IndexUpdateProcessor implements ObjectField.AnnotationProcessor<Recordable.IndexUpdate> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.IndexUpdate annotation) {
+
+        field.as(IndexUpdateFieldData.class).setDelayClass(annotation.delay());
+
+        if (annotation.metricField() != null && !"".equals(annotation.metricField())) {
+            MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
+            metricFieldData.setIndexUpdateFieldName(annotation.metricField());
+        }
     }
 }
 

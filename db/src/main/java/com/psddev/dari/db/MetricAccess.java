@@ -17,11 +17,14 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.psddev.dari.util.AsyncConsumer;
@@ -63,15 +66,17 @@ class MetricAccess {
     private static final ConcurrentMap<String, MetricAccess> METRIC_ACCESSES = new ConcurrentHashMap<String, MetricAccess>();
 
     private final String symbol;
+    private final String fieldName;
     private final SqlDatabase db;
     private final UUID typeId;
 
     private MetricInterval eventDateProcessor;
 
-    public MetricAccess(SqlDatabase database, UUID typeId, String symbol, MetricInterval interval) {
+    protected MetricAccess(SqlDatabase database, UUID typeId, ObjectField field, MetricInterval interval) {
         this.db = database;
         this.typeId = typeId;
-        this.symbol = symbol;
+        this.symbol = field.getUniqueName();
+        this.fieldName = field.getInternalName();
         this.eventDateProcessor = interval;
     }
 
@@ -257,6 +262,7 @@ class MetricAccess {
             Static.doIncrementUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, amount, eventDate, isImplicitEventDate);
         }
         clearCachedData(Static.getCachingDatabase(), id);
+        updateImmediateIndexes(id);
     }
 
     public void setMetric(UUID id, DateTime time, String dimensionValue, Double amount) throws SQLException {
@@ -276,16 +282,19 @@ class MetricAccess {
             Static.doSetUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, allDimensionsAmount, 0L);
         }
         clearCachedData(Static.getCachingDatabase(), id);
+        updateImmediateIndexes(id);
     }
 
     public void deleteMetric(UUID id) throws SQLException {
         Static.doMetricDelete(getDatabase(), id, getTypeId(), getSymbolId());
         clearCachedData(Static.getCachingDatabase(), id);
+        updateImmediateIndexes(id);
     }
 
     public void reconstructCumulativeAmounts(UUID id) throws SQLException {
         Static.doReconstructCumulativeAmounts(getDatabase(), id, getTypeId(), getSymbolId(), null);
         clearCachedData(Static.getCachingDatabase(), id);
+        updateImmediateIndexes(id);
     }
 
     public void resummarize(UUID id, UUID dimensionId, MetricInterval interval, Long startTimestamp, Long endTimestamp) throws SQLException {
@@ -297,6 +306,54 @@ class MetricAccess {
         ResummarizeTask task = new ResummarizeTask(getDatabase(), getSymbolId(), interval, startTimestamp, endTimestamp, numParallel, executor, name);
         task.submit();
         return task;
+    }
+
+    public void updateImmediateIndexes(UUID id) {
+        Set<ObjectMethod> immediateMethods = new HashSet<ObjectMethod>();
+        for (ObjectMethod method : getIndexUpdateObjectMethods(db, typeId, fieldName)) {
+            IndexUpdateFieldData methodData = method.as(IndexUpdateFieldData.class);
+            if (methodData.getIndexUpdateDelay() != null && methodData.getIndexUpdateDelay().isImmediate()) {
+                immediateMethods.add(method);
+            }
+        }
+        if (!immediateMethods.isEmpty()) {
+            Object obj = Query.fromAll().where("_id = ?", id).first();
+            State state = State.getInstance(obj);
+            if (state != null) {
+                for (ObjectMethod method : immediateMethods) {
+                    method.updateIndex(state);
+                }
+            }
+        }
+    }
+
+    public void updateIndexes(UUID id) {
+        Set<ObjectMethod> methods = getIndexUpdateObjectMethods(db, typeId, fieldName);
+        if (!methods.isEmpty()) {
+            Object obj = Query.fromAll().where("_id = ?", id).first();
+            State state = State.getInstance(obj);
+            if (state != null) {
+                for (ObjectMethod method : methods) {
+                    method.updateIndex(state);
+                }
+            }
+        }
+    }
+
+    private static Set<ObjectMethod> getIndexUpdateObjectMethods(Database db, UUID typeId, String fieldName) {
+        Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
+        ObjectField field = db.getEnvironment().getField(fieldName);
+        ObjectType type = ObjectType.getInstance(typeId);
+        if (field == null) {
+            field = type.getField(fieldName);
+        }
+        if (field != null) {
+            FieldData fieldData = field.as(FieldData.class);
+            if (fieldData != null) {
+                methods.addAll(fieldData.getIndexUpdateObjectMethods(type));
+            }
+        }
+        return methods;
     }
 
     public static UUID getDimensionIdByValue(SqlDatabase db, String dimensionValue) {
@@ -1636,7 +1693,7 @@ class MetricAccess {
                     }
                 }
                 if (sqlDb != null) {
-                    metricAccess = new MetricAccess(sqlDb, (type != null ? type.getId() : UuidUtils.ZERO_UUID), field.getUniqueName(), field.as(MetricAccess.FieldData.class).getEventDateProcessor());
+                    metricAccess = new MetricAccess(sqlDb, (type != null ? type.getId() : UuidUtils.ZERO_UUID), field, field.as(MetricAccess.FieldData.class).getEventDateProcessor());
                     METRIC_ACCESSES.put(maKey, metricAccess);
                 }
             }
@@ -1687,6 +1744,7 @@ class MetricAccess {
 
         private boolean metricValue;
         private String eventDateProcessorClassName;
+        private String indexUpdateFieldName;
 
         public boolean isMetricValue() {
             return metricValue;
@@ -1728,6 +1786,81 @@ class MetricAccess {
         public void setEventDateProcessorClassName(String eventDateProcessorClassName) {
             this.eventDateProcessorClassName = eventDateProcessorClassName;
         }
+
+        public String getIndexUpdateFieldName() {
+            return indexUpdateFieldName;
+        }
+
+        public void setIndexUpdateFieldName(String fieldName) {
+            this.indexUpdateFieldName = fieldName;
+        }
+
+        public Set<ObjectMethod> getIndexUpdateObjectMethods(ObjectType type) {
+            Set<ObjectMethod> methods = indexUpdateObjectMethods.get();
+            methods.addAll(type.as(TypeData.class).getIndexUpdateObjectMethods(getOriginalObject().getInternalName()));
+            return methods;
+        }
+
+        private final transient Supplier<Set<ObjectMethod>> indexUpdateObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Set<ObjectMethod>>() {
+
+            @Override
+            public Set<ObjectMethod> get() {
+                Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
+                String fieldName = getOriginalObject().getInternalName();
+
+                if (fieldName != null) {
+                    for (ObjectMethod method : getState().getDatabase().getEnvironment().getMethods()) {
+                        if (fieldName.equals(method.as(FieldData.class).getIndexUpdateFieldName())) {
+                            methods.add(method);
+                        }
+                    }
+
+                    ObjectType parentType = getOriginalObject().getParentType();
+                    if (parentType != null) {
+                        for (ObjectMethod method : parentType.getMethods()) {
+                            if (fieldName.equals(method.as(FieldData.class).getIndexUpdateFieldName())) {
+                                methods.add(method);
+                            }
+                        }
+                    }
+                }
+
+                return methods;
+            }
+
+        }, 5, TimeUnit.SECONDS);
+
+    }
+
+    @Record.FieldInternalNamePrefix("dari.metric.")
+    public static class TypeData extends Modification<ObjectType> {
+
+        public Set<ObjectMethod> getIndexUpdateObjectMethods(String metricFieldName) {
+            Set<ObjectMethod> methods = indexUpdateObjectMethods.get().get(metricFieldName);
+            if (methods == null) {
+                methods = new HashSet<ObjectMethod>();
+            }
+            return methods;
+        }
+
+        private final transient Supplier<Map<String, Set<ObjectMethod>>> indexUpdateObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Map<String, Set<ObjectMethod>>>() {
+
+            @Override
+            public Map<String, Set<ObjectMethod>> get() {
+                Map<String, Set<ObjectMethod>> methods = new CompactMap<String, Set<ObjectMethod>>();
+
+                for (ObjectMethod method : getOriginalObject().getMethods()) {
+                    String fieldName = method.as(FieldData.class).getIndexUpdateFieldName();
+                    if (!methods.containsKey(fieldName)) {
+                        methods.put(fieldName, new HashSet<ObjectMethod>());
+                    }
+                    methods.get(fieldName).add(method);
+                }
+
+                return methods;
+            }
+
+        }, 5, TimeUnit.SECONDS);
 
     }
 }
