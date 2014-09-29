@@ -698,7 +698,18 @@ public class State implements Map<String, Object> {
     }
 
     private boolean isMethod(String key) {
-        return getType() != null ? getType().isMethod(key) : false;
+
+        if (getDatabase().getEnvironment().isMethod(key)) {
+            return true;
+        }
+
+        if (getType() != null) {
+            if (getType().isMethod(key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public Map<String, Object> getRawValues() {

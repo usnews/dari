@@ -116,6 +116,12 @@ public class ObjectMethod extends ObjectField {
             }
         }
 
+        for (ObjectIndex idx : db.getEnvironment().getIndexes()) {
+            if (idx.getFields().contains(getInternalName())) {
+                db.updateIndex(state, idx);
+            }
+        }
+
     }
 
 }
