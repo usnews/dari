@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -252,6 +253,7 @@ public class Converter {
         putDirectFunction(Object.class, Iterable.class, new ObjectToIterable());
         putDirectFunction(Object.class, String.class, new ObjectToString());
         putDirectFunction(Object.class, UUID.class, new ObjectToUuid());
+        putDirectFunction(Object.class, Locale.class, new ObjectToLocale());
 
         putInheritableFunction(Object.class, Collection.class, new ObjectToAnyCollection());
         putInheritableFunction(Object.class, Enum.class, new ObjectToAnyEnum());
@@ -551,6 +553,24 @@ public class Converter {
             return object instanceof byte[] ?
                     UuidUtils.fromBytes((byte[]) object) :
                     UuidUtils.fromString(object.toString().trim());
+        }
+    }
+
+    private static class ObjectToLocale implements ConversionFunction<Object, Locale> {
+
+        @Override
+        public Locale convert(Converter converter, Type returnType, Object object) {
+            if (object instanceof Locale) {
+                return (Locale) object;
+            } else {
+                Locale locale = Locale.forLanguageTag(object.toString().trim());
+                for (Locale availableLocale : Locale.getAvailableLocales()) {
+                    if (availableLocale.equals(locale)) {
+                        return locale;
+                    }
+                }
+            }
+            return null;
         }
     }
 

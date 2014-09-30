@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -356,6 +357,9 @@ public class ObjectIndex {
 
         } else if (value instanceof Enum) {
             values.add(((Enum<?>) value).name());
+
+        } else if (value instanceof Locale) {
+            values.add(((Locale) value).toLanguageTag());
 
         } else {
             values.add(value);

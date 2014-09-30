@@ -536,6 +536,9 @@ public class State implements Map<String, Object> {
         } else if (value instanceof Enum) {
             return ((Enum<?>) value).name();
 
+        } else if (value instanceof Locale) {
+            return ((Locale) value).toLanguageTag();
+
         } else {
             return toSimpleValue(ObjectUtils.to(Map.class, value), isEmbedded, withTypeNames);
         }
