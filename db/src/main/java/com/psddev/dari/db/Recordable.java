@@ -175,7 +175,7 @@ public interface Recordable {
     @Documented
     @ObjectType.AnnotationProcessorClass(InternalNameProcessor.class)
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.FIELD, ElementType.TYPE })
+    @Target({ ElementType.FIELD, ElementType.TYPE, ElementType.METHOD })
     public @interface InternalName {
         String value();
     }
