@@ -234,8 +234,7 @@ public class IndexUpdateTask extends RepeatingTask {
         for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
             for (ObjectMethod method : type.getMethods()) {
                 if (method.getJavaDeclaringClassName().equals(type.getObjectClassName()) &&
-                        method.as(IndexUpdateFieldData.class).getIndexUpdateDelay() != null &&
-                        !method.as(IndexUpdateFieldData.class).getIndexUpdateDelay().isImmediate()) {
+                        !method.as(IndexUpdateFieldData.class).isImmediate()) {
 
                     TreeSet<String> groups = new TreeSet<String>();
                     if (Modification.class.isAssignableFrom(type.getObjectClass())) {

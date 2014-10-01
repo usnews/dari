@@ -177,8 +177,9 @@ public interface Recordable {
     @Target({ ElementType.METHOD })
     @ObjectField.AnnotationProcessorClass(IndexUpdateProcessor.class)
     public @interface IndexUpdate {
-        public Class<? extends IndexUpdateDelay> delay() default IndexUpdateDelay.Hourly.class;
+        public Class<? extends IndexUpdateDelay> delay() default IndexUpdateDelay.Hour.class;
         public String metricField() default "";
+        public boolean immediate() default false;
     }
 
     /** Specifies the target's internal name. */
@@ -685,10 +686,13 @@ class IndexUpdateProcessor implements ObjectField.AnnotationProcessor<Recordable
     public void process(ObjectType type, ObjectField field, Recordable.IndexUpdate annotation) {
 
         field.as(IndexUpdateFieldData.class).setDelayClass(annotation.delay());
+        field.as(IndexUpdateFieldData.class).setImmediate(annotation.immediate());
 
         if (annotation.metricField() != null && !"".equals(annotation.metricField())) {
             MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
             metricFieldData.setIndexUpdateFieldName(annotation.metricField());
+        } else if (annotation.immediate()) {
+            throw new IllegalArgumentException("immediate = true requires a metricField!");
         }
     }
 }

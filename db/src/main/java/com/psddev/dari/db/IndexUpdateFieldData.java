@@ -6,6 +6,7 @@ import com.psddev.dari.db.Recordable.FieldInternalNamePrefix;
 class IndexUpdateFieldData extends Modification<ObjectField> {
 
     private String delayClassName;
+    private boolean immediate;
     private transient IndexUpdateDelay delay;
 
     public void setDelayClass(Class<? extends IndexUpdateDelay> delayClass) {
@@ -38,6 +39,14 @@ class IndexUpdateFieldData extends Modification<ObjectField> {
 
     public String getDelayClassName() {
         return delayClassName;
+    }
+
+    public boolean isImmediate() {
+        return immediate;
+    }
+
+    public void setImmediate(boolean immediate) {
+        this.immediate = immediate;
     }
 
 }

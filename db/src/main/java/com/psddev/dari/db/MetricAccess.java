@@ -312,7 +312,7 @@ class MetricAccess {
         Set<ObjectMethod> immediateMethods = new HashSet<ObjectMethod>();
         for (ObjectMethod method : getIndexUpdateObjectMethods(db, typeId, fieldName)) {
             IndexUpdateFieldData methodData = method.as(IndexUpdateFieldData.class);
-            if (methodData.getIndexUpdateDelay() != null && methodData.getIndexUpdateDelay().isImmediate()) {
+            if (methodData.isImmediate()) {
                 immediateMethods.add(method);
             }
         }
