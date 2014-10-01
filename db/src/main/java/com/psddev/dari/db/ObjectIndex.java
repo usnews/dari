@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.psddev.dari.util.CompactMap;
+import com.psddev.dari.util.LocaleUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeReference;
@@ -359,7 +360,7 @@ public class ObjectIndex {
             values.add(((Enum<?>) value).name());
 
         } else if (value instanceof Locale) {
-            values.add(((Locale) value).toLanguageTag());
+            values.add(LocaleUtils.toLanguageTag((Locale) value));
 
         } else {
             values.add(value);

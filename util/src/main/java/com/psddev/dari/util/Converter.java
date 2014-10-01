@@ -562,15 +562,10 @@ public class Converter {
         public Locale convert(Converter converter, Type returnType, Object object) {
             if (object instanceof Locale) {
                 return (Locale) object;
+
             } else {
-                Locale locale = Locale.forLanguageTag(object.toString().trim());
-                for (Locale availableLocale : Locale.getAvailableLocales()) {
-                    if (availableLocale.equals(locale)) {
-                        return locale;
-                    }
-                }
+                return LocaleUtils.forLanguageTag(object.toString().trim());
             }
-            return null;
         }
     }
 

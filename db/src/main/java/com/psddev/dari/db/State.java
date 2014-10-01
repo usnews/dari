@@ -30,6 +30,7 @@ import com.psddev.dari.util.ConversionFunction;
 import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.LoadingCacheMap;
+import com.psddev.dari.util.LocaleUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Profiler;
@@ -537,7 +538,7 @@ public class State implements Map<String, Object> {
             return ((Enum<?>) value).name();
 
         } else if (value instanceof Locale) {
-            return ((Locale) value).toLanguageTag();
+            return LocaleUtils.toLanguageTag((Locale) value);
 
         } else {
             return toSimpleValue(ObjectUtils.to(Map.class, value), isEmbedded, withTypeNames);
