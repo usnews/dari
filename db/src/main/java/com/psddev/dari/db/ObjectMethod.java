@@ -112,13 +112,25 @@ public class ObjectMethod extends ObjectField {
 
         for (ObjectIndex idx : state.getType().getIndexes()) {
             if (idx.getFields().contains(getInternalName())) {
-                db.updateIndex(state, idx);
+                if (db instanceof AggregateDatabase) {
+                    ((AggregateDatabase) db).updateIndex(state, idx);
+                } else if (db instanceof ForwardingDatabase) {
+                    ((ForwardingDatabase) db).updateIndex(state, idx);
+                } else if (db instanceof AbstractDatabase) {
+                    ((AbstractDatabase<?>) db).updateIndex(state, idx);
+                }
             }
         }
 
         for (ObjectIndex idx : db.getEnvironment().getIndexes()) {
             if (idx.getFields().contains(getInternalName())) {
-                db.updateIndex(state, idx);
+                if (db instanceof AggregateDatabase) {
+                    ((AggregateDatabase) db).updateIndex(state, idx);
+                } else if (db instanceof ForwardingDatabase) {
+                    ((ForwardingDatabase) db).updateIndex(state, idx);
+                } else if (db instanceof AbstractDatabase) {
+                    ((AbstractDatabase<?>) db).updateIndex(state, idx);
+                }
             }
         }
 

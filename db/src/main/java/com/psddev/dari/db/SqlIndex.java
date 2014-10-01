@@ -198,11 +198,6 @@ public enum SqlIndex {
                 Connection connection,
                 ObjectIndex index) throws SQLException;
 
-        public String prepareUpdateStatement(
-                SqlDatabase database,
-                Connection connection,
-                ObjectIndex index) throws SQLException;
-
         public void bindInsertValues(
                 SqlDatabase database,
                 ObjectIndex index,
@@ -212,14 +207,6 @@ public enum SqlIndex {
                 Set<String> bindKeys,
                 List<List<Object>> parameters) throws SQLException;
 
-        public void bindUpdateValues(
-                SqlDatabase database,
-                ObjectIndex index,
-                UUID id,
-                UUID typeId,
-                IndexValue indexValue,
-                Set<String> bindKeys,
-                List<List<Object>> parameters) throws SQLException;
     }
 
     private abstract static class AbstractTable implements Table {
@@ -386,7 +373,6 @@ public enum SqlIndex {
             return insertBuilder.toString();
         }
 
-        @Override
         public String prepareUpdateStatement(
                 SqlDatabase database,
                 Connection connection,
@@ -486,7 +472,6 @@ public enum SqlIndex {
             }
         }
 
-        @Override
         public void bindUpdateValues(
                 SqlDatabase database,
                 ObjectIndex index,
@@ -792,7 +777,11 @@ public enum SqlIndex {
                         List<List<Object>> parameters = updateParameters.get(name);
                         Set<String> bindKeys = updateBindKeys.get(name);
                         if (sqlQuery == null && parameters == null) {
-                            sqlQuery = table.prepareUpdateStatement(database, connection, index);
+                            if (table instanceof AbstractTable) {
+                                sqlQuery = ((AbstractTable) table).prepareUpdateStatement(database, connection, index);
+                            } else {
+                                throw new IllegalStateException("Table " + table.getName(database, index) + " does not support updates.");
+                            }
                             updateQueries.put(name, sqlQuery);
 
                             parameters = new ArrayList<List<Object>>();
@@ -802,7 +791,11 @@ public enum SqlIndex {
                             updateBindKeys.put(name, bindKeys);
                         }
 
-                        table.bindUpdateValues(database, index, id, typeId, indexValue, bindKeys, parameters);
+                        if (table instanceof AbstractTable) {
+                            ((AbstractTable) table).bindUpdateValues(database, index, id, typeId, indexValue, bindKeys, parameters);
+                        } else {
+                            throw new IllegalStateException("Table " + table.getName(database, index) + " does not support updates.");
+                        }
                     }
                 }
 

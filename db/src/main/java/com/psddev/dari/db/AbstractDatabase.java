@@ -904,7 +904,6 @@ public abstract class AbstractDatabase<C> implements Database {
     public void indexAll(ObjectIndex index) {
     }
 
-    @Override
     public void updateIndex(State state, ObjectIndex index) {
         checkState(state);
         if (index.isVisibility()) {

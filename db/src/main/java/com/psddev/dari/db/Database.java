@@ -143,9 +143,6 @@ public interface Database extends SettingsBackedObject {
     /** Ensures that the given {@code state}'s indexes are up-to-date. */
     public void index(State state);
 
-    /** Updates the index for a single value of a state. */
-    public void updateIndex(State state, ObjectIndex index);
-
     /** Ensures that given {@code index} is up-to-date across all states. */
     public void indexAll(ObjectIndex index);
 
