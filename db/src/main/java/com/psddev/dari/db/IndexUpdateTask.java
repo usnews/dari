@@ -20,7 +20,7 @@ import com.psddev.dari.util.StringUtils;
  */
 public class IndexUpdateTask extends RepeatingTask {
 
-    private static final int UPDATE_LATEST_EVERY = 200;
+    private static final int UPDATE_LATEST_EVERY_SECONDS = 60;
     private static final int QUERY_ITERABLE_SIZE = 200;
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexUpdateTask.class);
 
@@ -78,6 +78,13 @@ public class IndexUpdateTask extends RepeatingTask {
                 }
             }
 
+        }
+
+        if (shouldExecute) {
+            // Check to see if any other processes are currently running on other hosts.
+            if (Query.from(LastIndexUpdate.class).where("currentRunningDate > ?", new DateTime().minusSeconds(UPDATE_LATEST_EVERY_SECONDS * 5)).hasMoreThan(0)) {
+                shouldExecute = false;
+            }
         }
 
         if (shouldExecute) {
@@ -140,7 +147,6 @@ public class IndexUpdateTask extends RepeatingTask {
                 }
             }
 
-            long i = 0L;
             for (Object obj : query.iterable(QUERY_ITERABLE_SIZE)) {
                 try {
                     if (!shouldContinue()) {
@@ -173,8 +179,7 @@ public class IndexUpdateTask extends RepeatingTask {
                         method.updateIndex(objState);
                     }
                 } finally {
-                    i++;
-                    if (i % UPDATE_LATEST_EVERY == 0) {
+                    if (last.getCurrentRunningDate().plusSeconds(UPDATE_LATEST_EVERY_SECONDS).isBeforeNow()) {
                         last.setCurrentRunningDate(new DateTime());
                         last.saveImmediately();
                     }
@@ -194,7 +199,8 @@ public class IndexUpdateTask extends RepeatingTask {
     public static class LastIndexUpdate extends Record {
 
         // null if it's not running
-        private Long startRunningDate;
+        @Indexed
+        private Long currentRunningDate;
 
         private Long lastExecutedDate;
 
@@ -202,11 +208,11 @@ public class IndexUpdateTask extends RepeatingTask {
         private String key;
 
         public DateTime getCurrentRunningDate() {
-            return (startRunningDate == null ? null : new DateTime(startRunningDate));
+            return (currentRunningDate == null ? null : new DateTime(currentRunningDate));
         }
 
-        public void setCurrentRunningDate(DateTime startRunningDate) {
-            this.startRunningDate = (startRunningDate == null ? null : startRunningDate.getMillis());
+        public void setCurrentRunningDate(DateTime currentRunningDate) {
+            this.currentRunningDate = (currentRunningDate == null ? null : currentRunningDate.getMillis());
         }
 
         public DateTime getLastExecutedDate() {
