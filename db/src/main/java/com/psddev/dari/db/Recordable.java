@@ -690,7 +690,7 @@ class RecalculateProcessor implements ObjectField.AnnotationProcessor<Recordable
 
         if (annotation.metricField() != null && !"".equals(annotation.metricField())) {
             MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
-            metricFieldData.setRecalcuableFieldName(annotation.metricField());
+            metricFieldData.setRecalculableFieldName(annotation.metricField());
         } else if (annotation.immediate()) {
             throw new IllegalArgumentException("immediate = true requires a metricField!");
         }

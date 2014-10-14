@@ -310,7 +310,7 @@ class MetricAccess {
 
     public void recalculateImmediateFields(UUID id) {
         Set<ObjectMethod> immediateMethods = new HashSet<ObjectMethod>();
-        for (ObjectMethod method : getRecalcuableObjectMethods(db, typeId, fieldName)) {
+        for (ObjectMethod method : getRecalculableObjectMethods(db, typeId, fieldName)) {
             FieldRecalculationData methodData = method.as(FieldRecalculationData.class);
             if (methodData.isImmediate()) {
                 immediateMethods.add(method);
@@ -328,7 +328,7 @@ class MetricAccess {
     }
 
     public void recalculateFields(UUID id) {
-        Set<ObjectMethod> methods = getRecalcuableObjectMethods(db, typeId, fieldName);
+        Set<ObjectMethod> methods = getRecalculableObjectMethods(db, typeId, fieldName);
         if (!methods.isEmpty()) {
             Object obj = Query.fromAll().where("_id = ?", id).first();
             State state = State.getInstance(obj);
@@ -340,7 +340,7 @@ class MetricAccess {
         }
     }
 
-    private static Set<ObjectMethod> getRecalcuableObjectMethods(Database db, UUID typeId, String fieldName) {
+    private static Set<ObjectMethod> getRecalculableObjectMethods(Database db, UUID typeId, String fieldName) {
         Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
         ObjectField field = db.getEnvironment().getField(fieldName);
         ObjectType type = ObjectType.getInstance(typeId);
@@ -350,7 +350,7 @@ class MetricAccess {
         if (field != null) {
             FieldData fieldData = field.as(FieldData.class);
             if (fieldData != null) {
-                methods.addAll(fieldData.getRecalcuableObjectMethods(type));
+                methods.addAll(fieldData.getRecalculableObjectMethods(type));
             }
         }
         return methods;
@@ -1744,7 +1744,7 @@ class MetricAccess {
 
         private boolean metricValue;
         private String eventDateProcessorClassName;
-        private String recalcuableFieldName;
+        private String recalculableFieldName;
 
         public boolean isMetricValue() {
             return metricValue;
@@ -1787,21 +1787,21 @@ class MetricAccess {
             this.eventDateProcessorClassName = eventDateProcessorClassName;
         }
 
-        public String getRecalcuableFieldName() {
-            return recalcuableFieldName;
+        public String getRecalculableFieldName() {
+            return recalculableFieldName;
         }
 
-        public void setRecalcuableFieldName(String fieldName) {
-            this.recalcuableFieldName = fieldName;
+        public void setRecalculableFieldName(String fieldName) {
+            this.recalculableFieldName = fieldName;
         }
 
-        public Set<ObjectMethod> getRecalcuableObjectMethods(ObjectType type) {
-            Set<ObjectMethod> methods = recalcuableObjectMethods.get();
-            methods.addAll(type.as(TypeData.class).getRecalcuableObjectMethods(getOriginalObject().getInternalName()));
+        public Set<ObjectMethod> getRecalculableObjectMethods(ObjectType type) {
+            Set<ObjectMethod> methods = recalculableObjectMethods.get();
+            methods.addAll(type.as(TypeData.class).getRecalculableObjectMethods(getOriginalObject().getInternalName()));
             return methods;
         }
 
-        private final transient Supplier<Set<ObjectMethod>> recalcuableObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Set<ObjectMethod>>() {
+        private final transient Supplier<Set<ObjectMethod>> recalculableObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Set<ObjectMethod>>() {
 
             @Override
             public Set<ObjectMethod> get() {
@@ -1810,7 +1810,7 @@ class MetricAccess {
 
                 if (fieldName != null) {
                     for (ObjectMethod method : getState().getDatabase().getEnvironment().getMethods()) {
-                        if (fieldName.equals(method.as(FieldData.class).getRecalcuableFieldName())) {
+                        if (fieldName.equals(method.as(FieldData.class).getRecalculableFieldName())) {
                             methods.add(method);
                         }
                     }
@@ -1818,7 +1818,7 @@ class MetricAccess {
                     ObjectType parentType = getOriginalObject().getParentType();
                     if (parentType != null) {
                         for (ObjectMethod method : parentType.getMethods()) {
-                            if (fieldName.equals(method.as(FieldData.class).getRecalcuableFieldName())) {
+                            if (fieldName.equals(method.as(FieldData.class).getRecalculableFieldName())) {
                                 methods.add(method);
                             }
                         }
@@ -1835,22 +1835,22 @@ class MetricAccess {
     @Record.FieldInternalNamePrefix("dari.metric.")
     public static class TypeData extends Modification<ObjectType> {
 
-        public Set<ObjectMethod> getRecalcuableObjectMethods(String metricFieldName) {
-            Set<ObjectMethod> methods = recalcuableObjectMethods.get().get(metricFieldName);
+        public Set<ObjectMethod> getRecalculableObjectMethods(String metricFieldName) {
+            Set<ObjectMethod> methods = recalculableObjectMethods.get().get(metricFieldName);
             if (methods == null) {
                 methods = new HashSet<ObjectMethod>();
             }
             return methods;
         }
 
-        private final transient Supplier<Map<String, Set<ObjectMethod>>> recalcuableObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Map<String, Set<ObjectMethod>>>() {
+        private final transient Supplier<Map<String, Set<ObjectMethod>>> recalculableObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Map<String, Set<ObjectMethod>>>() {
 
             @Override
             public Map<String, Set<ObjectMethod>> get() {
                 Map<String, Set<ObjectMethod>> methods = new CompactMap<String, Set<ObjectMethod>>();
 
                 for (ObjectMethod method : getOriginalObject().getMethods()) {
-                    String fieldName = method.as(FieldData.class).getRecalcuableFieldName();
+                    String fieldName = method.as(FieldData.class).getRecalculableFieldName();
                     if (!methods.containsKey(fieldName)) {
                         methods.put(fieldName, new HashSet<ObjectMethod>());
                     }

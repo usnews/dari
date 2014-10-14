@@ -291,7 +291,7 @@ public class FieldRecalculationTask extends RepeatingTask {
             ObjectField metricField = null;
             ObjectField useMetricField = null;
             for (ObjectMethod method : methods) {
-                String methodMetricFieldName = method.as(MetricAccess.FieldData.class).getRecalcuableFieldName();
+                String methodMetricFieldName = method.as(MetricAccess.FieldData.class).getRecalculableFieldName();
                 ObjectField methodMetricfield = null;
                 if (methodMetricFieldName != null) {
                     methodMetricfield = type.getState().getDatabase().getEnvironment().getField(methodMetricFieldName);
