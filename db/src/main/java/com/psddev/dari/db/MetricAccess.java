@@ -310,8 +310,8 @@ class MetricAccess {
 
     public void updateImmediateIndexes(UUID id) {
         Set<ObjectMethod> immediateMethods = new HashSet<ObjectMethod>();
-        for (ObjectMethod method : getIndexUpdateObjectMethods(db, typeId, fieldName)) {
-            IndexUpdateFieldData methodData = method.as(IndexUpdateFieldData.class);
+        for (ObjectMethod method : getRecalcuableObjectMethods(db, typeId, fieldName)) {
+            FieldRecalculationData methodData = method.as(FieldRecalculationData.class);
             if (methodData.isImmediate()) {
                 immediateMethods.add(method);
             }
@@ -321,26 +321,26 @@ class MetricAccess {
             State state = State.getInstance(obj);
             if (state != null) {
                 for (ObjectMethod method : immediateMethods) {
-                    method.updateIndex(state);
+                    method.recalculate(state);
                 }
             }
         }
     }
 
-    public void updateIndexes(UUID id) {
-        Set<ObjectMethod> methods = getIndexUpdateObjectMethods(db, typeId, fieldName);
+    public void recalculateFields(UUID id) {
+        Set<ObjectMethod> methods = getRecalcuableObjectMethods(db, typeId, fieldName);
         if (!methods.isEmpty()) {
             Object obj = Query.fromAll().where("_id = ?", id).first();
             State state = State.getInstance(obj);
             if (state != null) {
                 for (ObjectMethod method : methods) {
-                    method.updateIndex(state);
+                    method.recalculate(state);
                 }
             }
         }
     }
 
-    private static Set<ObjectMethod> getIndexUpdateObjectMethods(Database db, UUID typeId, String fieldName) {
+    private static Set<ObjectMethod> getRecalcuableObjectMethods(Database db, UUID typeId, String fieldName) {
         Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
         ObjectField field = db.getEnvironment().getField(fieldName);
         ObjectType type = ObjectType.getInstance(typeId);
@@ -350,7 +350,7 @@ class MetricAccess {
         if (field != null) {
             FieldData fieldData = field.as(FieldData.class);
             if (fieldData != null) {
-                methods.addAll(fieldData.getIndexUpdateObjectMethods(type));
+                methods.addAll(fieldData.getRecalcuableObjectMethods(type));
             }
         }
         return methods;
@@ -1744,7 +1744,7 @@ class MetricAccess {
 
         private boolean metricValue;
         private String eventDateProcessorClassName;
-        private String indexUpdateFieldName;
+        private String recalcuableFieldName;
 
         public boolean isMetricValue() {
             return metricValue;
@@ -1787,21 +1787,21 @@ class MetricAccess {
             this.eventDateProcessorClassName = eventDateProcessorClassName;
         }
 
-        public String getIndexUpdateFieldName() {
-            return indexUpdateFieldName;
+        public String getRecalcuableFieldName() {
+            return recalcuableFieldName;
         }
 
-        public void setIndexUpdateFieldName(String fieldName) {
-            this.indexUpdateFieldName = fieldName;
+        public void setRecalcuableFieldName(String fieldName) {
+            this.recalcuableFieldName = fieldName;
         }
 
-        public Set<ObjectMethod> getIndexUpdateObjectMethods(ObjectType type) {
-            Set<ObjectMethod> methods = indexUpdateObjectMethods.get();
-            methods.addAll(type.as(TypeData.class).getIndexUpdateObjectMethods(getOriginalObject().getInternalName()));
+        public Set<ObjectMethod> getRecalcuableObjectMethods(ObjectType type) {
+            Set<ObjectMethod> methods = recalcuableObjectMethods.get();
+            methods.addAll(type.as(TypeData.class).getRecalcuableObjectMethods(getOriginalObject().getInternalName()));
             return methods;
         }
 
-        private final transient Supplier<Set<ObjectMethod>> indexUpdateObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Set<ObjectMethod>>() {
+        private final transient Supplier<Set<ObjectMethod>> recalcuableObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Set<ObjectMethod>>() {
 
             @Override
             public Set<ObjectMethod> get() {
@@ -1810,7 +1810,7 @@ class MetricAccess {
 
                 if (fieldName != null) {
                     for (ObjectMethod method : getState().getDatabase().getEnvironment().getMethods()) {
-                        if (fieldName.equals(method.as(FieldData.class).getIndexUpdateFieldName())) {
+                        if (fieldName.equals(method.as(FieldData.class).getRecalcuableFieldName())) {
                             methods.add(method);
                         }
                     }
@@ -1818,7 +1818,7 @@ class MetricAccess {
                     ObjectType parentType = getOriginalObject().getParentType();
                     if (parentType != null) {
                         for (ObjectMethod method : parentType.getMethods()) {
-                            if (fieldName.equals(method.as(FieldData.class).getIndexUpdateFieldName())) {
+                            if (fieldName.equals(method.as(FieldData.class).getRecalcuableFieldName())) {
                                 methods.add(method);
                             }
                         }
@@ -1835,22 +1835,22 @@ class MetricAccess {
     @Record.FieldInternalNamePrefix("dari.metric.")
     public static class TypeData extends Modification<ObjectType> {
 
-        public Set<ObjectMethod> getIndexUpdateObjectMethods(String metricFieldName) {
-            Set<ObjectMethod> methods = indexUpdateObjectMethods.get().get(metricFieldName);
+        public Set<ObjectMethod> getRecalcuableObjectMethods(String metricFieldName) {
+            Set<ObjectMethod> methods = recalcuableObjectMethods.get().get(metricFieldName);
             if (methods == null) {
                 methods = new HashSet<ObjectMethod>();
             }
             return methods;
         }
 
-        private final transient Supplier<Map<String, Set<ObjectMethod>>> indexUpdateObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Map<String, Set<ObjectMethod>>>() {
+        private final transient Supplier<Map<String, Set<ObjectMethod>>> recalcuableObjectMethods = Suppliers.memoizeWithExpiration(new Supplier<Map<String, Set<ObjectMethod>>>() {
 
             @Override
             public Map<String, Set<ObjectMethod>> get() {
                 Map<String, Set<ObjectMethod>> methods = new CompactMap<String, Set<ObjectMethod>>();
 
                 for (ObjectMethod method : getOriginalObject().getMethods()) {
-                    String fieldName = method.as(FieldData.class).getIndexUpdateFieldName();
+                    String fieldName = method.as(FieldData.class).getRecalcuableFieldName();
                     if (!methods.containsKey(fieldName)) {
                         methods.put(fieldName, new HashSet<ObjectMethod>());
                     }

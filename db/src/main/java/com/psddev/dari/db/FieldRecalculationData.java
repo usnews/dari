@@ -2,14 +2,14 @@ package com.psddev.dari.db;
 
 import com.psddev.dari.db.Recordable.FieldInternalNamePrefix;
 
-@FieldInternalNamePrefix("dari.indexupdate.")
-class IndexUpdateFieldData extends Modification<ObjectField> {
+@FieldInternalNamePrefix("dari.fieldrecalculation.")
+class FieldRecalculationData extends Modification<ObjectField> {
 
     private String delayClassName;
     private boolean immediate;
-    private transient IndexUpdateDelay delay;
+    private transient FieldRecalculationDelay delay;
 
-    public void setDelayClass(Class<? extends IndexUpdateDelay> delayClass) {
+    public void setDelayClass(Class<? extends FieldRecalculationDelay> delayClass) {
 
         this.delayClassName = delayClass != null ? delayClass.getName() : null;
         this.delay = null;
@@ -17,13 +17,13 @@ class IndexUpdateFieldData extends Modification<ObjectField> {
     }
 
     @SuppressWarnings("unchecked")
-    public IndexUpdateDelay getIndexUpdateDelay() {
+    public FieldRecalculationDelay getFieldRecalculationDelay() {
         if (delay == null) {
             if (delayClassName == null) {
                 return null;
             } else {
                 try {
-                    Class<IndexUpdateDelay> cls = (Class<IndexUpdateDelay>) Class.forName(delayClassName);
+                    Class<FieldRecalculationDelay> cls = (Class<FieldRecalculationDelay>) Class.forName(delayClassName);
                     delay = cls.newInstance();
                 } catch (ClassNotFoundException e) {
                     throw new RuntimeException(e);

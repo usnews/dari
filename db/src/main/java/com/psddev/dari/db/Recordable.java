@@ -175,9 +175,9 @@ public interface Recordable {
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ ElementType.METHOD })
-    @ObjectField.AnnotationProcessorClass(IndexUpdateProcessor.class)
-    public @interface IndexUpdate {
-        public Class<? extends IndexUpdateDelay> delay() default IndexUpdateDelay.Hour.class;
+    @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
+    public @interface Recalculate {
+        public Class<? extends FieldRecalculationDelay> delay() default FieldRecalculationDelay.Hour.class;
         public String metricField() default "";
         public boolean immediate() default false;
     }
@@ -680,17 +680,17 @@ class InternalNameProcessor implements ObjectType.AnnotationProcessor<Recordable
     }
 }
 
-class IndexUpdateProcessor implements ObjectField.AnnotationProcessor<Recordable.IndexUpdate> {
+class RecalculateProcessor implements ObjectField.AnnotationProcessor<Recordable.Recalculate> {
 
     @Override
-    public void process(ObjectType type, ObjectField field, Recordable.IndexUpdate annotation) {
+    public void process(ObjectType type, ObjectField field, Recordable.Recalculate annotation) {
 
-        field.as(IndexUpdateFieldData.class).setDelayClass(annotation.delay());
-        field.as(IndexUpdateFieldData.class).setImmediate(annotation.immediate());
+        field.as(FieldRecalculationData.class).setDelayClass(annotation.delay());
+        field.as(FieldRecalculationData.class).setImmediate(annotation.immediate());
 
         if (annotation.metricField() != null && !"".equals(annotation.metricField())) {
             MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
-            metricFieldData.setIndexUpdateFieldName(annotation.metricField());
+            metricFieldData.setRecalcuableFieldName(annotation.metricField());
         } else if (annotation.immediate()) {
             throw new IllegalArgumentException("immediate = true requires a metricField!");
         }

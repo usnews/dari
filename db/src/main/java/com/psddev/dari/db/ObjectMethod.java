@@ -104,7 +104,7 @@ public class ObjectMethod extends ObjectField {
         return name;
     }
 
-    public void updateIndex(State state) {
+    public void recalculate(State state) {
         if (state == null) {
             return;
         }
@@ -113,11 +113,11 @@ public class ObjectMethod extends ObjectField {
         for (ObjectIndex idx : state.getType().getIndexes()) {
             if (idx.getFields().contains(getInternalName())) {
                 if (db instanceof AggregateDatabase) {
-                    ((AggregateDatabase) db).updateIndex(state, idx);
+                    ((AggregateDatabase) db).recalculateField(state, idx);
                 } else if (db instanceof ForwardingDatabase) {
-                    ((ForwardingDatabase) db).updateIndex(state, idx);
+                    ((ForwardingDatabase) db).recalculateField(state, idx);
                 } else if (db instanceof AbstractDatabase) {
-                    ((AbstractDatabase<?>) db).updateIndex(state, idx);
+                    ((AbstractDatabase<?>) db).recalculateField(state, idx);
                 }
             }
         }
@@ -125,11 +125,11 @@ public class ObjectMethod extends ObjectField {
         for (ObjectIndex idx : db.getEnvironment().getIndexes()) {
             if (idx.getFields().contains(getInternalName())) {
                 if (db instanceof AggregateDatabase) {
-                    ((AggregateDatabase) db).updateIndex(state, idx);
+                    ((AggregateDatabase) db).recalculateField(state, idx);
                 } else if (db instanceof ForwardingDatabase) {
-                    ((ForwardingDatabase) db).updateIndex(state, idx);
+                    ((ForwardingDatabase) db).recalculateField(state, idx);
                 } else if (db instanceof AbstractDatabase) {
-                    ((AbstractDatabase<?>) db).updateIndex(state, idx);
+                    ((AbstractDatabase<?>) db).recalculateField(state, idx);
                 }
             }
         }

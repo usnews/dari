@@ -16,13 +16,13 @@ import com.psddev.dari.util.RepeatingTask;
 import com.psddev.dari.util.StringUtils;
 
 /**
- * Periodically updates indexes annotated with {@code \@IndexUpdate}.
+ * Periodically updates indexes annotated with {@code \@Recalculate}.
  */
-public class IndexUpdateTask extends RepeatingTask {
+public class FieldRecalculationTask extends RepeatingTask {
 
     private static final int UPDATE_LATEST_EVERY_SECONDS = 60;
     private static final int QUERY_ITERABLE_SIZE = 200;
-    private static final Logger LOGGER = LoggerFactory.getLogger(IndexUpdateTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FieldRecalculationTask.class);
 
     private int progressIndex = 0;
     private int progressTotal = 0;
@@ -38,24 +38,24 @@ public class IndexUpdateTask extends RepeatingTask {
         progressIndex = 0;
         progressTotal = 0;
 
-        for (IndexUpdateContext context : getIndexableMethods()) {
-            updateIndexesIfNecessary(context);
+        for (FieldRecalculationContext context : getIndexableMethods()) {
+            recalculateIfNecessary(context);
         }
 
     }
 
     /**
-     * Checks the LastIndexUpdate and DistributedLock and executes updateIndexes if it should.
+     * Checks the LastFieldRecalculation and DistributedLock and executes recalculate if it should.
      */
-    private void updateIndexesIfNecessary(IndexUpdateContext context) {
+    private void recalculateIfNecessary(FieldRecalculationContext context) {
         String updateKey = context.getKey();
 
-        LastIndexUpdate last = Query.from(LastIndexUpdate.class).master().noCache().where("key = ?", updateKey).first();
+        LastFieldRecalculation last = Query.from(LastFieldRecalculation.class).master().noCache().where("key = ?", updateKey).first();
 
         boolean shouldExecute = false;
         boolean canExecute = false;
         if (last == null) {
-            last = new LastIndexUpdate();
+            last = new LastFieldRecalculation();
             last.setKey(updateKey);
             shouldExecute = true;
         } else {
@@ -82,7 +82,7 @@ public class IndexUpdateTask extends RepeatingTask {
 
         if (shouldExecute) {
             // Check to see if any other processes are currently running on other hosts.
-            if (Query.from(LastIndexUpdate.class).where("currentRunningDate > ?", new DateTime().minusSeconds(UPDATE_LATEST_EVERY_SECONDS * 5)).hasMoreThan(0)) {
+            if (Query.from(LastFieldRecalculation.class).where("currentRunningDate > ?", new DateTime().minusSeconds(UPDATE_LATEST_EVERY_SECONDS * 5)).hasMoreThan(0)) {
                 shouldExecute = false;
             }
         }
@@ -105,7 +105,7 @@ public class IndexUpdateTask extends RepeatingTask {
 
             if (canExecute) {
                 try {
-                    updateIndexes(context, last);
+                    recalculate(context, last);
                 } finally {
                     last.setLastExecutedDate(new DateTime());
                     last.setCurrentRunningDate(null);
@@ -120,7 +120,7 @@ public class IndexUpdateTask extends RepeatingTask {
     /**
      * Actually does the work of iterating through the records and updating indexes.
      */
-    private void updateIndexes(IndexUpdateContext context, LastIndexUpdate last) {
+    private void recalculate(FieldRecalculationContext context, LastFieldRecalculation last) {
 
         // Still testing this out.
         boolean useMetricQuery = false;
@@ -176,7 +176,7 @@ public class IndexUpdateTask extends RepeatingTask {
                     setProgressIndex(++progressIndex);
                     for (ObjectMethod method : context.methods) {
                         LOGGER.debug("Updating Index: " + method.getInternalName() + " for " + objState.getId());
-                        method.updateIndex(objState);
+                        method.recalculate(objState);
                     }
                 } finally {
                     if (last.getCurrentRunningDate().plusSeconds(UPDATE_LATEST_EVERY_SECONDS).isBeforeNow()) {
@@ -196,7 +196,7 @@ public class IndexUpdateTask extends RepeatingTask {
     /**
      * Saves the last time the index update was executed for each context.
      */
-    public static class LastIndexUpdate extends Record {
+    public static class LastFieldRecalculation extends Record {
 
         // null if it's not running
         @Indexed
@@ -233,14 +233,14 @@ public class IndexUpdateTask extends RepeatingTask {
 
     }
 
-    private static Collection<IndexUpdateContext> getIndexableMethods() {
+    private static Collection<FieldRecalculationContext> getIndexableMethods() {
 
-        Map<String, IndexUpdateContext> contextsByGroupsAndDelayAndMetricField = new HashMap<String, IndexUpdateContext>();
+        Map<String, FieldRecalculationContext> contextsByGroupsAndDelayAndMetricField = new HashMap<String, FieldRecalculationContext>();
 
         for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
             for (ObjectMethod method : type.getMethods()) {
                 if (method.getJavaDeclaringClassName().equals(type.getObjectClassName()) &&
-                        !method.as(IndexUpdateFieldData.class).isImmediate()) {
+                        !method.as(FieldRecalculationData.class).isImmediate()) {
 
                     TreeSet<String> groups = new TreeSet<String>();
                     if (Modification.class.isAssignableFrom(type.getObjectClass())) {
@@ -258,7 +258,7 @@ public class IndexUpdateTask extends RepeatingTask {
                         groups.add(type.getInternalName());
                     }
 
-                    IndexUpdateContext context = new IndexUpdateContext(type, groups, method.as(IndexUpdateFieldData.class).getIndexUpdateDelay());
+                    FieldRecalculationContext context = new FieldRecalculationContext(type, groups, method.as(FieldRecalculationData.class).getFieldRecalculationDelay());
                     context.methods.add(method);
                     String key = context.getKey();
                     if (!contextsByGroupsAndDelayAndMetricField.containsKey(key)) {
@@ -274,13 +274,13 @@ public class IndexUpdateTask extends RepeatingTask {
         return contextsByGroupsAndDelayAndMetricField.values();
     }
 
-    private static final class IndexUpdateContext {
+    private static final class FieldRecalculationContext {
         public final ObjectType type;
-        public final IndexUpdateDelay delay;
+        public final FieldRecalculationDelay delay;
         public final TreeSet<String> groups;
         public final Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
 
-        public IndexUpdateContext(ObjectType type, TreeSet<String> groups, IndexUpdateDelay delay) {
+        public FieldRecalculationContext(ObjectType type, TreeSet<String> groups, FieldRecalculationDelay delay) {
             this.type = type;
             this.groups = groups;
             this.delay = delay;
@@ -291,7 +291,7 @@ public class IndexUpdateTask extends RepeatingTask {
             ObjectField metricField = null;
             ObjectField useMetricField = null;
             for (ObjectMethod method : methods) {
-                String methodMetricFieldName = method.as(MetricAccess.FieldData.class).getIndexUpdateFieldName();
+                String methodMetricFieldName = method.as(MetricAccess.FieldData.class).getRecalcuableFieldName();
                 ObjectField methodMetricfield = null;
                 if (methodMetricFieldName != null) {
                     methodMetricfield = type.getState().getDatabase().getEnvironment().getField(methodMetricFieldName);

@@ -2613,7 +2613,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     @Override
-    public void doIndexUpdates(Connection connection, boolean isImmediate, ObjectIndex index, List<State> states) throws SQLException {
+    public void doFieldRecalculations(Connection connection, boolean isImmediate, ObjectIndex index, List<State> states) throws SQLException {
         SqlIndex.Static.updateByStates(this, connection, index, states);
     }
 
