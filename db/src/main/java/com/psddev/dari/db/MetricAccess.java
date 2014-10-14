@@ -262,7 +262,7 @@ class MetricAccess {
             Static.doIncrementUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, amount, eventDate, isImplicitEventDate);
         }
         clearCachedData(Static.getCachingDatabase(), id);
-        updateImmediateIndexes(id);
+        recalculateImmediateFields(id);
     }
 
     public void setMetric(UUID id, DateTime time, String dimensionValue, Double amount) throws SQLException {
@@ -282,19 +282,19 @@ class MetricAccess {
             Static.doSetUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, allDimensionsAmount, 0L);
         }
         clearCachedData(Static.getCachingDatabase(), id);
-        updateImmediateIndexes(id);
+        recalculateImmediateFields(id);
     }
 
     public void deleteMetric(UUID id) throws SQLException {
         Static.doMetricDelete(getDatabase(), id, getTypeId(), getSymbolId());
         clearCachedData(Static.getCachingDatabase(), id);
-        updateImmediateIndexes(id);
+        recalculateImmediateFields(id);
     }
 
     public void reconstructCumulativeAmounts(UUID id) throws SQLException {
         Static.doReconstructCumulativeAmounts(getDatabase(), id, getTypeId(), getSymbolId(), null);
         clearCachedData(Static.getCachingDatabase(), id);
-        updateImmediateIndexes(id);
+        recalculateImmediateFields(id);
     }
 
     public void resummarize(UUID id, UUID dimensionId, MetricInterval interval, Long startTimestamp, Long endTimestamp) throws SQLException {
@@ -308,7 +308,7 @@ class MetricAccess {
         return task;
     }
 
-    public void updateImmediateIndexes(UUID id) {
+    public void recalculateImmediateFields(UUID id) {
         Set<ObjectMethod> immediateMethods = new HashSet<ObjectMethod>();
         for (ObjectMethod method : getRecalcuableObjectMethods(db, typeId, fieldName)) {
             FieldRecalculationData methodData = method.as(FieldRecalculationData.class);
