@@ -177,8 +177,8 @@ public interface Recordable {
     @Target({ ElementType.METHOD })
     @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
     public @interface Recalculate {
-        public Class<? extends FieldRecalculationDelay> delay() default FieldRecalculationDelay.Hour.class;
-        public String metricField() default "";
+        public Class<? extends RecalculationDelay> delay() default RecalculationDelay.Hour.class;
+        public String metric() default "";
         public boolean immediate() default false;
     }
 
@@ -685,14 +685,14 @@ class RecalculateProcessor implements ObjectField.AnnotationProcessor<Recordable
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.Recalculate annotation) {
 
-        field.as(FieldRecalculationData.class).setDelayClass(annotation.delay());
-        field.as(FieldRecalculationData.class).setImmediate(annotation.immediate());
+        field.as(RecalculationFieldData.class).setDelayClass(annotation.delay());
+        field.as(RecalculationFieldData.class).setImmediate(annotation.immediate());
 
-        if (annotation.metricField() != null && !"".equals(annotation.metricField())) {
+        if (annotation.metric() != null && !"".equals(annotation.metric())) {
             MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
-            metricFieldData.setRecalculableFieldName(annotation.metricField());
+            metricFieldData.setRecalculableFieldName(annotation.metric());
         } else if (annotation.immediate()) {
-            throw new IllegalArgumentException("immediate = true requires a metricField!");
+            throw new IllegalArgumentException("immediate = true requires a metric!");
         }
     }
 }

@@ -262,7 +262,7 @@ class MetricAccess {
             Static.doIncrementUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, amount, eventDate, isImplicitEventDate);
         }
         clearCachedData(Static.getCachingDatabase(), id);
-        recalculateImmediateFields(id);
+        recalculateImmediateIndexedMethods(id);
     }
 
     public void setMetric(UUID id, DateTime time, String dimensionValue, Double amount) throws SQLException {
@@ -282,19 +282,19 @@ class MetricAccess {
             Static.doSetUpdateOrInsert(getDatabase(), id, getTypeId(), getSymbolId(), UuidUtils.ZERO_UUID, allDimensionsAmount, 0L);
         }
         clearCachedData(Static.getCachingDatabase(), id);
-        recalculateImmediateFields(id);
+        recalculateImmediateIndexedMethods(id);
     }
 
     public void deleteMetric(UUID id) throws SQLException {
         Static.doMetricDelete(getDatabase(), id, getTypeId(), getSymbolId());
         clearCachedData(Static.getCachingDatabase(), id);
-        recalculateImmediateFields(id);
+        recalculateImmediateIndexedMethods(id);
     }
 
     public void reconstructCumulativeAmounts(UUID id) throws SQLException {
         Static.doReconstructCumulativeAmounts(getDatabase(), id, getTypeId(), getSymbolId(), null);
         clearCachedData(Static.getCachingDatabase(), id);
-        recalculateImmediateFields(id);
+        recalculateImmediateIndexedMethods(id);
     }
 
     public void resummarize(UUID id, UUID dimensionId, MetricInterval interval, Long startTimestamp, Long endTimestamp) throws SQLException {
@@ -308,10 +308,10 @@ class MetricAccess {
         return task;
     }
 
-    public void recalculateImmediateFields(UUID id) {
+    private void recalculateImmediateIndexedMethods(UUID id) {
         Set<ObjectMethod> immediateMethods = new HashSet<ObjectMethod>();
         for (ObjectMethod method : getRecalculableObjectMethods(db, typeId, fieldName)) {
-            FieldRecalculationData methodData = method.as(FieldRecalculationData.class);
+            RecalculationFieldData methodData = method.as(RecalculationFieldData.class);
             if (methodData.isImmediate()) {
                 immediateMethods.add(method);
             }
@@ -321,19 +321,6 @@ class MetricAccess {
             State state = State.getInstance(obj);
             if (state != null) {
                 for (ObjectMethod method : immediateMethods) {
-                    method.recalculate(state);
-                }
-            }
-        }
-    }
-
-    public void recalculateFields(UUID id) {
-        Set<ObjectMethod> methods = getRecalculableObjectMethods(db, typeId, fieldName);
-        if (!methods.isEmpty()) {
-            Object obj = Query.fromAll().where("_id = ?", id).first();
-            State state = State.getInstance(obj);
-            if (state != null) {
-                for (ObjectMethod method : methods) {
                     method.recalculate(state);
                 }
             }

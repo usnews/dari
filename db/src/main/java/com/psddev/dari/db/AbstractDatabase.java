@@ -89,7 +89,7 @@ public abstract class AbstractDatabase<C> implements Database {
         public final List<State> saves = new ArrayList<State>();
         public final List<State> indexes = new ArrayList<State>();
         public final List<State> deletes = new ArrayList<State>();
-        public final Map<ObjectIndex, List<State>> fieldRecalculations = new CompactMap<ObjectIndex, List<State>>();
+        public final Map<ObjectIndex, List<State>> recalculations = new CompactMap<ObjectIndex, List<State>>();
 
         public void addToValidates(State state) {
             validates.remove(state);
@@ -233,15 +233,15 @@ public abstract class AbstractDatabase<C> implements Database {
             deletes.add(state);
         }
 
-        public void addToFieldRecalculations(State state, ObjectIndex index) {
+        public void addToRecalculations(State state, ObjectIndex index) {
             if (index == null || state == null) {
                 return;
             }
-            if (!fieldRecalculations.containsKey(index)) {
-                fieldRecalculations.put(index, new ArrayList<State>());
+            if (!recalculations.containsKey(index)) {
+                recalculations.put(index, new ArrayList<State>());
             }
-            fieldRecalculations.get(index).remove(state);
-            fieldRecalculations.get(index).add(state);
+            recalculations.get(index).remove(state);
+            recalculations.get(index).add(state);
         }
 
     }
@@ -737,7 +737,7 @@ public abstract class AbstractDatabase<C> implements Database {
 
         } else {
             try {
-                write(writes.validates, writes.saves, writes.indexes, writes.deletes, writes.fieldRecalculations, isImmediate);
+                write(writes.validates, writes.saves, writes.indexes, writes.deletes, writes.recalculations, isImmediate);
                 return true;
 
             } finally {
@@ -745,7 +745,7 @@ public abstract class AbstractDatabase<C> implements Database {
                 writes.saves.clear();
                 writes.indexes.clear();
                 writes.deletes.clear();
-                writes.fieldRecalculations.clear();
+                writes.recalculations.clear();
             }
         }
     }
@@ -904,7 +904,7 @@ public abstract class AbstractDatabase<C> implements Database {
     public void indexAll(ObjectIndex index) {
     }
 
-    public void recalculateField(State state, ObjectIndex index) {
+    public void recalculate(State state, ObjectIndex index) {
         checkState(state);
         if (index.isVisibility()) {
             throw new IllegalArgumentException("Updating single field index value is unsupported for visibility indexes!");
@@ -912,12 +912,12 @@ public abstract class AbstractDatabase<C> implements Database {
 
         Writes writes = getCurrentWrites();
         if (writes != null) {
-            writes.addToFieldRecalculations(state, index);
+            writes.addToRecalculations(state, index);
 
         } else {
-            Map<ObjectIndex, List<State>> fieldRecalculations = new CompactMap<ObjectIndex, List<State>>();
-            fieldRecalculations.put(index, Arrays.asList(state));
-            write(null, null, null, null, fieldRecalculations, true);
+            Map<ObjectIndex, List<State>> recalculations = new CompactMap<ObjectIndex, List<State>>();
+            recalculations.put(index, Arrays.asList(state));
+            write(null, null, null, null, recalculations, true);
         }
     }
 
@@ -962,16 +962,16 @@ public abstract class AbstractDatabase<C> implements Database {
             List<State> saves,
             List<State> indexes,
             List<State> deletes,
-            Map<ObjectIndex, List<State>> fieldRecalculations,
+            Map<ObjectIndex, List<State>> recalculations,
             boolean isImmediate) {
 
         boolean hasValidates = validates != null && !validates.isEmpty();
         boolean hasSaves = saves != null && !saves.isEmpty();
         boolean hasIndexes = indexes != null && !indexes.isEmpty();
         boolean hasDeletes = deletes != null && !deletes.isEmpty();
-        boolean hasFieldRecalculations = fieldRecalculations != null && !fieldRecalculations.isEmpty();
+        boolean hasRecalculations = recalculations != null && !recalculations.isEmpty();
 
-        if (!(hasValidates || hasSaves || hasIndexes || hasDeletes || hasFieldRecalculations)) {
+        if (!(hasValidates || hasSaves || hasIndexes || hasDeletes || hasRecalculations)) {
             return;
         }
 
@@ -996,7 +996,7 @@ public abstract class AbstractDatabase<C> implements Database {
                         try {
                             beginTransaction(connection, isImmediate);
                             doWrites(connection, isImmediate, saves, indexes, deletes);
-                            doWriteFieldRecalculations(connection, isImmediate, fieldRecalculations);
+                            doWriteRecalculations(connection, isImmediate, recalculations);
                             commitTransaction(connection, isImmediate);
                             isCommitted = true;
                             break;
@@ -1290,10 +1290,10 @@ public abstract class AbstractDatabase<C> implements Database {
         }
     }
 
-    protected void doWriteFieldRecalculations(C connection, boolean isImmediate, Map<ObjectIndex, List<State>> fieldRecalculations) throws Exception {
-        if (fieldRecalculations != null) {
-            for (Map.Entry<ObjectIndex, List<State>> entry : fieldRecalculations.entrySet()) {
-                doFieldRecalculations(connection, isImmediate, entry.getKey(), entry.getValue());
+    protected void doWriteRecalculations(C connection, boolean isImmediate, Map<ObjectIndex, List<State>> recalculations) throws Exception {
+        if (recalculations != null) {
+            for (Map.Entry<ObjectIndex, List<State>> entry : recalculations.entrySet()) {
+                doRecalculations(connection, isImmediate, entry.getKey(), entry.getValue());
             }
         }
     }
@@ -1331,7 +1331,7 @@ public abstract class AbstractDatabase<C> implements Database {
      * @param connection {@link #openConnection Implementation-specific
      *        connection} to the underlying database.
      */
-    protected void doFieldRecalculations(C connection, boolean isImmediate, ObjectIndex index, List<State> states) throws Exception {
+    protected void doRecalculations(C connection, boolean isImmediate, ObjectIndex index, List<State> states) throws Exception {
     }
 
     @SuppressWarnings("serial")

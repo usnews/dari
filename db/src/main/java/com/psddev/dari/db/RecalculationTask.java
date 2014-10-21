@@ -18,11 +18,11 @@ import com.psddev.dari.util.StringUtils;
 /**
  * Periodically updates indexes annotated with {@code \@Recalculate}.
  */
-public class FieldRecalculationTask extends RepeatingTask {
+public class RecalculationTask extends RepeatingTask {
 
     private static final int UPDATE_LATEST_EVERY_SECONDS = 60;
     private static final int QUERY_ITERABLE_SIZE = 200;
-    private static final Logger LOGGER = LoggerFactory.getLogger(FieldRecalculationTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RecalculationTask.class);
 
     private int progressIndex = 0;
     private int progressTotal = 0;
@@ -38,24 +38,24 @@ public class FieldRecalculationTask extends RepeatingTask {
         progressIndex = 0;
         progressTotal = 0;
 
-        for (FieldRecalculationContext context : getIndexableMethods()) {
+        for (RecalculationContext context : getIndexableMethods()) {
             recalculateIfNecessary(context);
         }
 
     }
 
     /**
-     * Checks the LastFieldRecalculation and DistributedLock and executes recalculate if it should.
+     * Checks the LastRecalculation and DistributedLock and executes recalculate if it should.
      */
-    private void recalculateIfNecessary(FieldRecalculationContext context) {
+    private void recalculateIfNecessary(RecalculationContext context) {
         String updateKey = context.getKey();
 
-        LastFieldRecalculation last = Query.from(LastFieldRecalculation.class).master().noCache().where("key = ?", updateKey).first();
+        LastRecalculation last = Query.from(LastRecalculation.class).master().noCache().where("key = ?", updateKey).first();
 
         boolean shouldExecute = false;
         boolean canExecute = false;
         if (last == null) {
-            last = new LastFieldRecalculation();
+            last = new LastRecalculation();
             last.setKey(updateKey);
             shouldExecute = true;
         } else {
@@ -82,7 +82,7 @@ public class FieldRecalculationTask extends RepeatingTask {
 
         if (shouldExecute) {
             // Check to see if any other processes are currently running on other hosts.
-            if (Query.from(LastFieldRecalculation.class).where("currentRunningDate > ?", new DateTime().minusSeconds(UPDATE_LATEST_EVERY_SECONDS * 5)).hasMoreThan(0)) {
+            if (Query.from(LastRecalculation.class).where("currentRunningDate > ?", new DateTime().minusSeconds(UPDATE_LATEST_EVERY_SECONDS * 5)).hasMoreThan(0)) {
                 shouldExecute = false;
             }
         }
@@ -120,7 +120,7 @@ public class FieldRecalculationTask extends RepeatingTask {
     /**
      * Actually does the work of iterating through the records and updating indexes.
      */
-    private void recalculate(FieldRecalculationContext context, LastFieldRecalculation last) {
+    private void recalculate(RecalculationContext context, LastRecalculation last) {
 
         // Still testing this out.
         boolean useMetricQuery = false;
@@ -132,7 +132,7 @@ public class FieldRecalculationTask extends RepeatingTask {
                 query.or(method.getUniqueName() + " != missing");
             }
 
-            ObjectField metricField = context.getMetricField();
+            ObjectField metricField = context.getMetric();
             DateTime processedLastRunDate = last.getLastExecutedDate();
             if (metricField != null) {
                 if (last.getLastExecutedDate() != null) {
@@ -196,7 +196,7 @@ public class FieldRecalculationTask extends RepeatingTask {
     /**
      * Saves the last time the index update was executed for each context.
      */
-    public static class LastFieldRecalculation extends Record {
+    public static class LastRecalculation extends Record {
 
         // null if it's not running
         @Indexed
@@ -233,14 +233,14 @@ public class FieldRecalculationTask extends RepeatingTask {
 
     }
 
-    private static Collection<FieldRecalculationContext> getIndexableMethods() {
+    private static Collection<RecalculationContext> getIndexableMethods() {
 
-        Map<String, FieldRecalculationContext> contextsByGroupsAndDelayAndMetricField = new HashMap<String, FieldRecalculationContext>();
+        Map<String, RecalculationContext> contextsByGroupsAndDelayAndMetric = new HashMap<String, RecalculationContext>();
 
         for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
             for (ObjectMethod method : type.getMethods()) {
                 if (method.getJavaDeclaringClassName().equals(type.getObjectClassName()) &&
-                        !method.as(FieldRecalculationData.class).isImmediate()) {
+                        !method.as(RecalculationFieldData.class).isImmediate()) {
 
                     TreeSet<String> groups = new TreeSet<String>();
                     if (Modification.class.isAssignableFrom(type.getObjectClass())) {
@@ -258,55 +258,55 @@ public class FieldRecalculationTask extends RepeatingTask {
                         groups.add(type.getInternalName());
                     }
 
-                    FieldRecalculationContext context = new FieldRecalculationContext(type, groups, method.as(FieldRecalculationData.class).getFieldRecalculationDelay());
+                    RecalculationContext context = new RecalculationContext(type, groups, method.as(RecalculationFieldData.class).getRecalculationDelay());
                     context.methods.add(method);
                     String key = context.getKey();
-                    if (!contextsByGroupsAndDelayAndMetricField.containsKey(key)) {
-                        contextsByGroupsAndDelayAndMetricField.put(key, context);
+                    if (!contextsByGroupsAndDelayAndMetric.containsKey(key)) {
+                        contextsByGroupsAndDelayAndMetric.put(key, context);
                     }
-                    contextsByGroupsAndDelayAndMetricField.get(key).methods.add(method);
+                    contextsByGroupsAndDelayAndMetric.get(key).methods.add(method);
 
                 }
             }
 
         }
 
-        return contextsByGroupsAndDelayAndMetricField.values();
+        return contextsByGroupsAndDelayAndMetric.values();
     }
 
-    private static final class FieldRecalculationContext {
+    private static final class RecalculationContext {
         public final ObjectType type;
-        public final FieldRecalculationDelay delay;
+        public final RecalculationDelay delay;
         public final TreeSet<String> groups;
         public final Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
 
-        public FieldRecalculationContext(ObjectType type, TreeSet<String> groups, FieldRecalculationDelay delay) {
+        public RecalculationContext(ObjectType type, TreeSet<String> groups, RecalculationDelay delay) {
             this.type = type;
             this.groups = groups;
             this.delay = delay;
         }
 
-        public ObjectField getMetricField() {
+        public ObjectField getMetric() {
             boolean first = true;
             ObjectField metricField = null;
             ObjectField useMetricField = null;
             for (ObjectMethod method : methods) {
                 String methodMetricFieldName = method.as(MetricAccess.FieldData.class).getRecalculableFieldName();
-                ObjectField methodMetricfield = null;
+                ObjectField methodMetricField = null;
                 if (methodMetricFieldName != null) {
-                    methodMetricfield = type.getState().getDatabase().getEnvironment().getField(methodMetricFieldName);
-                    if (methodMetricfield == null) {
-                        methodMetricfield = type.getField(methodMetricFieldName);
+                    methodMetricField = type.getState().getDatabase().getEnvironment().getField(methodMetricFieldName);
+                    if (methodMetricField == null) {
+                        methodMetricField = type.getField(methodMetricFieldName);
                     }
-                    if (methodMetricfield == null) {
+                    if (methodMetricField == null) {
                         LOGGER.warn("Invalid metric field: " + methodMetricFieldName);
                     }
                 }
                 if (first) {
-                    metricField = methodMetricfield;
+                    metricField = methodMetricField;
                     useMetricField = metricField;
                 } else {
-                    if (!ObjectUtils.equals(metricField, methodMetricfield)) {
+                    if (!ObjectUtils.equals(metricField, methodMetricField)) {
                         useMetricField = null;
                     }
                 }
@@ -320,7 +320,7 @@ public class FieldRecalculationTask extends RepeatingTask {
                 throw new IllegalStateException("Add a method before you get the key!");
             }
 
-            ObjectField metricField = getMetricField();
+            ObjectField metricField = getMetric();
             return type.getInternalName() + " " +
                 StringUtils.join(groups.toArray(new String[0]), ",") + " " +
                 delay.getClass().getName() +
