@@ -1210,10 +1210,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
 
                     while (result.next()) {
-                        byte[] typeId = result.getBytes(1);
                         UUID id = ObjectUtils.to(UUID.class, result.getBytes(3));
                         byte[] data = result.getBytes(2);
                         Map<String, Object> dataJson = unserializeData(data);
+                        byte[] typeId = UuidUtils.toBytes(ObjectUtils.to(UUID.class, dataJson.get(StateValueUtils.TYPE_KEY)));
 
                         if (!Arrays.equals(typeId, UuidUtils.ZERO_BYTES) && id != null) {
                             replicationCache.put(id, new Object[] { typeId, data, dataJson });
