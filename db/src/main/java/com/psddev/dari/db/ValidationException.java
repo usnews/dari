@@ -1,6 +1,9 @@
 package com.psddev.dari.db;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -44,6 +47,49 @@ public class ValidationException extends IllegalArgumentException {
                     message.append("] [");
                     message.append(error);
                     message.append("],");
+                }
+            }
+
+            // Handle embedded objects.
+            for (ObjectField field : state.getType().getFields()) {
+                if (ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
+                    boolean embedded = field.isEmbedded();
+                    for (ObjectType type : field.getTypes()) {
+                        if (type != null && type.isEmbedded()) {
+                            embedded = true;
+                        }
+                    }
+                    if (embedded) {
+                        Object fieldObj = state.getByPath(field.getInternalName());
+                        String embeddedFieldLabel = field.getLabel();
+                        Collection<Object> objects = new ArrayList<Object>();
+                        if (fieldObj instanceof Collection<?>) {
+                            for (Object obj : (Collection<?>) fieldObj) {
+                                objects.add((Recordable) obj);
+                            }
+                        } else {
+                            objects.add(fieldObj);
+                        }
+                        for (Object obj : objects) {
+                            State embeddedState = State.getInstance(obj);
+                            if (embeddedState != null) {
+                                for (ObjectField embeddedStateField : embeddedState.getErrorFields()) {
+                                    String label = embeddedStateField.getLabel();
+                                    for (String error : new LinkedHashSet<String>(embeddedState.getErrors(embeddedStateField))) {
+                                        message.append(" [");
+                                        message.append(embeddedFieldLabel);
+                                        message.append(" #");
+                                        message.append(embeddedState.getId());
+                                        message.append(": ");
+                                        message.append(label);
+                                        message.append("] [");
+                                        message.append(error);
+                                        message.append("],");
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
