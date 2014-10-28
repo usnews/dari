@@ -51,47 +51,7 @@ public class ValidationException extends IllegalArgumentException {
             }
 
             // Handle embedded objects.
-            for (ObjectField field : state.getType().getFields()) {
-                if (ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
-                    boolean embedded = field.isEmbedded();
-                    for (ObjectType type : field.getTypes()) {
-                        if (type != null && type.isEmbedded()) {
-                            embedded = true;
-                        }
-                    }
-                    if (embedded) {
-                        Object fieldObj = state.getByPath(field.getInternalName());
-                        String embeddedFieldLabel = field.getLabel();
-                        Collection<Object> objects = new ArrayList<Object>();
-                        if (fieldObj instanceof Collection<?>) {
-                            for (Object obj : (Collection<?>) fieldObj) {
-                                objects.add((Recordable) obj);
-                            }
-                        } else {
-                            objects.add(fieldObj);
-                        }
-                        for (Object obj : objects) {
-                            State embeddedState = State.getInstance(obj);
-                            if (embeddedState != null) {
-                                for (ObjectField embeddedStateField : embeddedState.getErrorFields()) {
-                                    String label = embeddedStateField.getLabel();
-                                    for (String error : new LinkedHashSet<String>(embeddedState.getErrors(embeddedStateField))) {
-                                        message.append(" [");
-                                        message.append(embeddedFieldLabel);
-                                        message.append(" #");
-                                        message.append(embeddedState.getId());
-                                        message.append(": ");
-                                        message.append(label);
-                                        message.append("] [");
-                                        message.append(error);
-                                        message.append("],");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            appendEmbeddedErrors(message, null, state, state.getType().getFields());
 
             message.setLength(message.length() - 1);
             message.append("; ");
@@ -105,4 +65,52 @@ public class ValidationException extends IllegalArgumentException {
             return null;
         }
     }
+
+    private void appendEmbeddedErrors(StringBuilder message, String messagePrefix, State state, Collection<ObjectField> fields) {
+        if (messagePrefix == null) {
+            messagePrefix = "";
+        }
+        for (ObjectField field : fields) {
+            if (ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
+                boolean embedded = field.isEmbedded();
+                for (ObjectType type : field.getTypes()) {
+                    if (type != null && type.isEmbedded()) {
+                        embedded = true;
+                    }
+                }
+                if (embedded) {
+                    Object fieldObj = state.getByPath(field.getInternalName());
+                    String embeddedFieldLabel = field.getLabel();
+                    Collection<Object> objects = new ArrayList<Object>();
+                    if (fieldObj instanceof Collection<?>) {
+                        for (Object obj : (Collection<?>) fieldObj) {
+                            objects.add((Recordable) obj);
+                        }
+                    } else {
+                        objects.add(fieldObj);
+                    }
+                    for (Object obj : objects) {
+                        State embeddedState = State.getInstance(obj);
+                        if (embeddedState != null) {
+                            String embeddedMessagePrefix = embeddedFieldLabel + " #" + embeddedState.getId() + ": ";
+                            for (ObjectField embeddedStateField : embeddedState.getErrorFields()) {
+                                String label = embeddedStateField.getLabel();
+                                for (String error : new LinkedHashSet<String>(embeddedState.getErrors(embeddedStateField))) {
+                                    message.append(" [");
+                                    message.append(messagePrefix);
+                                    message.append(embeddedMessagePrefix);
+                                    message.append(label);
+                                    message.append("] [");
+                                    message.append(error);
+                                    message.append("],");
+                                }
+                            }
+                            appendEmbeddedErrors(message, messagePrefix + embeddedMessagePrefix, embeddedState, embeddedState.getType().getFields());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }
