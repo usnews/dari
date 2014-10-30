@@ -1481,6 +1481,17 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                         entry.getValue());
             }
 
+            for (ObjectMethod method : state.getType().getMethods()) {
+                addDocumentValues(
+                        document,
+                        allBuilder,
+                        true,
+                        method,
+                        method.getUniqueName(),
+                        state.getByPath(method.getInternalName())
+                        );
+            }
+
             document.setField(ALL_FIELD, allBuilder.toString());
 
             SolrField labelField = schema.get().getField(ObjectField.TEXT_TYPE);

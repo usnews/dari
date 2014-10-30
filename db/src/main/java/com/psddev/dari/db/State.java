@@ -333,6 +333,15 @@ public class State implements Map<String, Object> {
         return field;
     }
 
+    public ObjectMethod getMethod(String name) {
+        ObjectField field = getField(name);
+        if (field instanceof ObjectMethod) {
+            return (ObjectMethod) field;
+        } else {
+            return null;
+        }
+    }
+
     /** Returns the status. */
     public StateStatus getStatus() {
         int statusFlag = flags >>> STATUS_FLAG_OFFSET;
@@ -580,31 +589,58 @@ public class State implements Map<String, Object> {
                 value = ((Recordable) value).getState();
             }
 
-            if (key.endsWith("()")) {
+            if (key.endsWith("()") || State.getInstance(value).isMethod(key)) {
                 if (value instanceof State) {
-                    key = key.substring(0, key.length() - 2);
 
                     Class<?> keyClass = null;
-                    int dotAt = key.lastIndexOf('.');
+                    ObjectMethod objMethod = null;
+                    if (key.endsWith("()")) {
+                        key = key.substring(0, key.length() - 2);
 
-                    if (dotAt > -1) {
-                        keyClass = ObjectUtils.getClassByName(key.substring(0, dotAt));
-                        key = key.substring(dotAt + 1);
-                    }
+                        int dotAt = key.lastIndexOf('.');
 
-                    if (keyClass == null) {
-                        value = ((State) value).getOriginalObject();
-                        keyClass = value.getClass();
+                        if (dotAt > -1) {
+                            keyClass = ObjectUtils.getClassByName(key.substring(0, dotAt));
+                            key = key.substring(dotAt + 1);
+                        }
+
+                        if (keyClass == null) {
+                            value = ((State) value).getOriginalObject();
+                            keyClass = value.getClass();
+
+                        } else {
+                            value = ((State) value).as(keyClass);
+                        }
 
                     } else {
-                        value = ((State) value).as(keyClass);
+                        objMethod = State.getInstance(value).getMethod(key);
+                        if (objMethod != null) {
+                            keyClass = ObjectUtils.getClassByName(objMethod.getJavaDeclaringClassName());
+                        }
                     }
 
                     for (Class<?> c = keyClass; c != null; c = c.getSuperclass()) {
                         try {
-                            Method keyMethod = c.getDeclaredMethod(key);
+                            Method keyMethod;
+                            if (objMethod != null) {
+                                keyMethod = objMethod.getJavaMethod(c);
+                                if (keyMethod == null) {
+                                    for (String className : State.getInstance(value).getType().getModificationClassNames()) {
+                                        c = ObjectUtils.getClassByName(className);
+                                        keyMethod = objMethod.getJavaMethod(c);
+                                        if (keyMethod != null) {
+                                            break;
+                                        }
+                                    }
+                                }
+                            } else {
+                                keyMethod = c.getDeclaredMethod(key);
+                            }
+                            if (keyMethod == null) {
+                                continue;
+                            }
                             keyMethod.setAccessible(false);
-                            value = keyMethod.invoke(value);
+                            value = keyMethod.invoke(State.getInstance(value).as(c));
                             continue KEY;
 
                         } catch (IllegalAccessException error) {
@@ -663,6 +699,21 @@ public class State implements Map<String, Object> {
         }
 
         return value;
+    }
+
+    private boolean isMethod(String key) {
+
+        if (getDatabase().getEnvironment().isMethod(key)) {
+            return true;
+        }
+
+        if (getType() != null) {
+            if (getType().isMethod(key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public Map<String, Object> getRawValues() {
