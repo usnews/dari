@@ -237,6 +237,20 @@ public class TypeDefinition<T> {
         return ObjectUtils.isBlank(fields) ? null : fields.get(fields.size() - 1);
     }
 
+    /** Returns the first method with the given {@code name}. */
+    public Method getMethod(String name) {
+        Method method = getAllGetters().get(name);
+        if (method != null) {
+            return method;
+        }
+        for (Method m : getAllMethods()) {
+            if (m.getName().equals(name)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
     /** Returns an unmodifiable list of all the constructors. */
     public List<Constructor<T>> getConstructors() {
         return constructors.get();

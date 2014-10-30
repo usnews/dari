@@ -545,6 +545,49 @@ public class DatabaseEnvironment implements ObjectStruct {
         metricFieldsCache.reset();
     }
 
+    /**
+     * Returns the method associated with the given {@code name} in this type.
+     *
+     * @param name If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public ObjectMethod getMethod(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        ObjectField field = getField(name);
+
+        if (field instanceof ObjectMethod) {
+            return (ObjectMethod) field;
+        } else {
+            return null;
+        }
+
+    }
+
+    /**
+     * Returns all of the methods that Dari is aware of.
+     */
+    public List<ObjectMethod> getMethods() {
+        List<ObjectMethod> methods = new ArrayList<ObjectMethod>();
+        for (ObjectField field : getFields()) {
+            if (field instanceof ObjectMethod) {
+                methods.add((ObjectMethod) field);
+            }
+        }
+        return methods;
+    }
+
+    /**
+     * Returns whether the given {@code name} is an ObjectMethod in this type.
+     *
+     * @param name If {@code null}, returns {@code false}.
+     */
+    public boolean isMethod(String name) {
+        return getMethod(name) != null;
+    }
+
     public List<ObjectField> getMetricFields() {
         return metricFieldsCache.get();
     }

@@ -3,13 +3,17 @@ package com.psddev.dari.util;
 import java.io.IOException;
 
 import javax.servlet.FilterChain;
+import javax.servlet.Servlet;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import javax.servlet.http.HttpSession;
+import javax.servlet.jsp.PageContext;
 
-/** Suppresses session IDs in URLs for security. */
+/** Suppresses session IDs in URLs for security and disables sessions. */
 public class SessionIdFilter extends AbstractFilter {
 
     // --- AbstractFilter support ---
@@ -29,6 +33,26 @@ public class SessionIdFilter extends AbstractFilter {
         }
 
         chain.doFilter(request, new StrippingResponse(response));
+    }
+
+    @Override
+    protected void doInit() {
+        JspUtils.wrapDefaultJspFactory(ThreadLocalSessionStrippingJspFactory.class);
+    }
+
+    @Override
+    protected void doDestroy() {
+        JspUtils.unwrapDefaultJspFactory(ThreadLocalSessionStrippingJspFactory.class);
+    }
+
+    private static class ThreadLocalSessionStrippingJspFactory extends JspFactoryWrapper {
+
+        @Override
+        public PageContext getPageContext(Servlet servlet, ServletRequest request, ServletResponse response, String errorPageUrl, boolean needsSession, int buffer, boolean autoflush) {
+            needsSession = false;
+
+            return super.getPageContext(servlet, request, response, errorPageUrl, needsSession, buffer, autoflush);
+        }
     }
 
     private static final class StrippingResponse extends HttpServletResponseWrapper {

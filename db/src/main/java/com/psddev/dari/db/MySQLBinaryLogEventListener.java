@@ -23,6 +23,7 @@ import com.google.common.cache.Cache;
 import com.psddev.dari.db.shyiko.DariQueryEventData;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StringUtils;
+import com.psddev.dari.util.UuidUtils;
 
 class MySQLBinaryLogEventListener implements EventListener {
 
@@ -68,9 +69,10 @@ class MySQLBinaryLogEventListener implements EventListener {
             if (cachedValue != null) {
                 // populate cache
                 Object[] value = new Object[3];
-                value[0] = typeId == null || typeId.length == 0 ? cachedValue[0] : confirm16Bytes(typeId);
                 value[1] = data;
-                value[2] = SqlDatabase.unserializeData(data);
+                Map<String, Object> jsonData = SqlDatabase.unserializeData(data);
+                value[2] = jsonData;
+                value[0] = UuidUtils.toBytes(ObjectUtils.to(UUID.class, jsonData.get(StateValueUtils.TYPE_KEY)));
                 cache.put(bid, value);
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.debug("[BINLOG] UPDATING CACHE: ID [{}]", StringUtils.hex(id));

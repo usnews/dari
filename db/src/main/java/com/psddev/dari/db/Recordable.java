@@ -118,7 +118,7 @@ public interface Recordable {
     @ObjectField.AnnotationProcessorClass(DisplayNameProcessor.class)
     @ObjectType.AnnotationProcessorClass(DisplayNameProcessor.class)
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.FIELD, ElementType.TYPE })
+    @Target({ ElementType.FIELD, ElementType.TYPE, ElementType.METHOD })
     public @interface DisplayName {
         String value();
     }
@@ -151,7 +151,7 @@ public interface Recordable {
     /** Specifies whether the target field is ignored. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
     public @interface Ignored {
         boolean value() default true;
     }
@@ -159,7 +159,7 @@ public interface Recordable {
     /** Specifies whether the target field value is indexed. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
     public @interface Indexed {
         String[] extraFields() default { };
         boolean unique() default false;
@@ -171,11 +171,22 @@ public interface Recordable {
         boolean isUnique() default false;
     }
 
+    /** Specifies how the method index should be updated. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.METHOD })
+    @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
+    public @interface Recalculate {
+        public Class<? extends RecalculationDelay> delay() default RecalculationDelay.Hour.class;
+        public String metric() default "";
+        public boolean immediate() default false;
+    }
+
     /** Specifies the target's internal name. */
     @Documented
     @ObjectType.AnnotationProcessorClass(InternalNameProcessor.class)
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.FIELD, ElementType.TYPE })
+    @Target({ ElementType.FIELD, ElementType.TYPE, ElementType.METHOD })
     public @interface InternalName {
         String value();
     }
@@ -666,6 +677,23 @@ class InternalNameProcessor implements ObjectType.AnnotationProcessor<Recordable
     @Override
     public void process(ObjectType type, Recordable.InternalName annotation) {
         type.setInternalName(annotation.value());
+    }
+}
+
+class RecalculateProcessor implements ObjectField.AnnotationProcessor<Recordable.Recalculate> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.Recalculate annotation) {
+
+        field.as(RecalculationFieldData.class).setDelayClass(annotation.delay());
+        field.as(RecalculationFieldData.class).setImmediate(annotation.immediate());
+
+        if (annotation.metric() != null && !"".equals(annotation.metric())) {
+            MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
+            metricFieldData.setRecalculableFieldName(annotation.metric());
+        } else if (annotation.immediate()) {
+            throw new IllegalArgumentException("immediate = true requires a metric!");
+        }
     }
 }
 
