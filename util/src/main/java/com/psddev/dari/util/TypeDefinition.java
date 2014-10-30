@@ -337,9 +337,13 @@ public class TypeDefinition<T> {
 
             Class<T> objectClass = getObjectClass();
             List<Method> methods = new ArrayList<Method>();
-            for (Method method : objectClass.getDeclaredMethods()) {
-                method.setAccessible(true);
-                methods.add(method);
+            try {
+                for (Method method : objectClass.getDeclaredMethods()) {
+                    method.setAccessible(true);
+                    methods.add(method);
+                }
+            } catch (NoClassDefFoundError error) {
+                // Class isn't available, so can't run methods anyway
             }
 
             Class<? super T> superClass = objectClass.getSuperclass();
