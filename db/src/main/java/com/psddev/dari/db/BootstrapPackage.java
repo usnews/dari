@@ -392,21 +392,26 @@ public class BootstrapPackage extends Record {
 
             // Row Count:
             Long count;
-            if (pkg.isInit()) {
-                count = Query.fromAll().using(database).noCache().count();
-            } else {
-                Query<?> countQuery = Query.fromAll().using(database).noCache().where("_type = ?", exportTypes);
-                if (needsObjectTypeMap) {
-                    countQuery.or("_type = ?", objType);
+            try {
+                if (pkg.isInit()) {
+                    count = Query.fromAll().using(database).noCache().count();
+                } else {
+                    Query<?> countQuery = Query.fromAll().using(database).noCache().where("_type = ?", exportTypes);
+                    if (needsObjectTypeMap) {
+                        countQuery.or("_type = ?", objType);
+                    }
+                    if (!typeMaps.isEmpty()) {
+                        countQuery.or("_type = ?", typeMaps);
+                    }
+                    count = countQuery.count();
                 }
-                if (!typeMaps.isEmpty()) {
-                    countQuery.or("_type = ?", typeMaps);
-                }
-                count = countQuery.count();
+                writer.write(ROW_COUNT_HEADER + ": ");
+                writer.write(ObjectUtils.to(String.class, count));
+                writer.write('\n');
+            } catch (RuntimeException e) {
+                // Count query timed out. Just don't write the row count header.
+                count = null;
             }
-            writer.write(ROW_COUNT_HEADER + ": ");
-            writer.write(ObjectUtils.to(String.class, count));
-            writer.write('\n');
 
             // blank line between headers and data
             writer.write('\n');
