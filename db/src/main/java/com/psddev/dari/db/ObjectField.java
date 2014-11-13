@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -714,20 +715,21 @@ public class ObjectField extends Record {
         if (getJavaFieldName() == null) {
             return null;
         }
+
         Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
 
         return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
-                javaFieldCache.getUnchecked(objectClass) :
+                javaFieldCache.getUnchecked(objectClass).orNull() :
                 null;
     }
 
-    private final transient LoadingCache<Class<?>, Field> javaFieldCache = CacheBuilder.
+    private final transient LoadingCache<Class<?>, Optional<Field>> javaFieldCache = CacheBuilder.
             newBuilder().
-            build(new CacheLoader<Class<?>, Field>() {
+            build(new CacheLoader<Class<?>, Optional<Field>>() {
 
         @Override
-        public Field load(Class<?> objectClass) {
-            return TypeDefinition.getInstance(objectClass).getField(getJavaFieldName());
+        public Optional<Field> load(Class<?> objectClass) {
+            return Optional.fromNullable(TypeDefinition.getInstance(objectClass).getField(getJavaFieldName()));
         }
     });
 
