@@ -593,54 +593,56 @@ public class State implements Map<String, Object> {
                 if (value instanceof State) {
 
                     Class<?> keyClass = null;
-                    ObjectMethod objMethod = null;
+
                     if (key.endsWith("()")) {
                         key = key.substring(0, key.length() - 2);
+                    }
 
-                        int dotAt = key.lastIndexOf('.');
+                    int dotAt = key.lastIndexOf('.');
 
-                        if (dotAt > -1) {
-                            keyClass = ObjectUtils.getClassByName(key.substring(0, dotAt));
-                            key = key.substring(dotAt + 1);
-                        }
+                    ObjectMethod objMethod = State.getInstance(value).getMethod(key);
 
-                        if (keyClass == null) {
-                            value = ((State) value).getOriginalObject();
+                    if (dotAt > -1) {
+                        keyClass = ObjectUtils.getClassByName(key.substring(0, dotAt));
+                        key = key.substring(dotAt + 1);
+                    }
+
+                    if (keyClass == null) {
+                        Object valueObj = ((State) value).getOriginalObjectOrNull();
+                        if (valueObj != null) {
+                            value = valueObj;
                             keyClass = value.getClass();
-
-                        } else {
-                            value = ((State) value).as(keyClass);
                         }
 
                     } else {
-                        objMethod = State.getInstance(value).getMethod(key);
-                        if (objMethod != null) {
-                            keyClass = ObjectUtils.getClassByName(objMethod.getJavaDeclaringClassName());
-                        }
+                        value = ((State) value).as(keyClass);
                     }
 
                     for (Class<?> c = keyClass; c != null; c = c.getSuperclass()) {
                         try {
+                            Class<?> modC = null;
                             Method keyMethod;
                             if (objMethod != null) {
                                 keyMethod = objMethod.getJavaMethod(c);
                                 if (keyMethod == null) {
                                     for (String className : State.getInstance(value).getType().getModificationClassNames()) {
-                                        c = ObjectUtils.getClassByName(className);
-                                        keyMethod = objMethod.getJavaMethod(c);
-                                        if (keyMethod != null) {
-                                            break;
+                                        modC = ObjectUtils.getClassByName(className);
+                                        if (modC != null) {
+                                            keyMethod = objMethod.getJavaMethod(modC);
+                                            if (keyMethod != null) {
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                             } else {
-                                keyMethod = c.getDeclaredMethod(key);
+                                keyMethod = c.getMethod(key);
                             }
                             if (keyMethod == null) {
                                 continue;
                             }
                             keyMethod.setAccessible(false);
-                            value = keyMethod.invoke(State.getInstance(value).as(c));
+                            value = keyMethod.invoke(State.getInstance(value).as(modC != null ? modC : c));
                             continue KEY;
 
                         } catch (IllegalAccessException error) {
