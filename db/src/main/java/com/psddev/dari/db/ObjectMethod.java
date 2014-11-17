@@ -105,7 +105,7 @@ public class ObjectMethod extends ObjectField {
     }
 
     public void recalculate(State state) {
-        if (state == null) {
+        if (state == null || state.getType() == null) {
             return;
         }
         Database db = state.getDatabase();
