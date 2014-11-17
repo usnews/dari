@@ -240,7 +240,8 @@ public class RecalculationTask extends RepeatingTask {
         for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
             for (ObjectMethod method : type.getMethods()) {
                 if (method.getJavaDeclaringClassName().equals(type.getObjectClassName()) &&
-                        !method.as(RecalculationFieldData.class).isImmediate()) {
+                        !method.as(RecalculationFieldData.class).isImmediate() &&
+                        method.as(RecalculationFieldData.class).getRecalculationDelay() != null) {
 
                     TreeSet<String> groups = new TreeSet<String>();
                     if (Modification.class.isAssignableFrom(type.getObjectClass())) {
