@@ -81,6 +81,28 @@ public interface Recordable {
         String value();
     }
 
+    @ObjectField.AnnotationProcessorClass(BootstrapFollowReferencesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface BootstrapFollowReferences {
+    }
+
+    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapPackages {
+        String[] value();
+        Class<?>[] depends() default { };
+    }
+
+    @ObjectType.AnnotationProcessorClass(BootstrapTypeMappableProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapTypeMappable {
+        Class<?>[] groups();
+        String uniqueKey();
+    }
+
     /** Specifies the maximum number of items allowed in the target field. */
     @Documented
     @ObjectField.AnnotationProcessorClass(CollectionMaximumProcessor.class)
@@ -169,17 +191,6 @@ public interface Recordable {
         /** @deprecated Use {@link #unique} instead. */
         @Deprecated
         boolean isUnique() default false;
-    }
-
-    /** Specifies how the method index should be updated. */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.METHOD })
-    @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
-    public @interface Recalculate {
-        public Class<? extends RecalculationDelay> delay() default RecalculationDelay.Hour.class;
-        public String metric() default "";
-        public boolean immediate() default false;
     }
 
     /** Specifies the target's internal name. */
@@ -275,6 +286,17 @@ public interface Recordable {
         String value();
     }
 
+    /** Specifies how the method index should be updated. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.METHOD })
+    @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
+    public @interface Recalculate {
+        public Class<? extends RecalculationDelay> delay() default RecalculationDelay.Hour.class;
+        public String metric() default "";
+        public boolean immediate() default false;
+    }
+
     /**
      * Specifies the regular expression pattern that the target field value
      * must match.
@@ -353,28 +375,6 @@ public interface Recordable {
     @Target(ElementType.FIELD)
     public @interface Where {
         String value();
-    }
-
-    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.TYPE)
-    public @interface BootstrapPackages {
-        String[] value();
-        Class<?>[] depends() default { };
-    }
-
-    @ObjectType.AnnotationProcessorClass(BootstrapTypeMappableProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.TYPE)
-    public @interface BootstrapTypeMappable {
-        Class<?>[] groups();
-        String uniqueKey();
-    }
-
-    @ObjectField.AnnotationProcessorClass(BootstrapFollowReferencesProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
-    public @interface BootstrapFollowReferences {
     }
 
     // --- Deprecated ---
