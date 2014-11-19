@@ -350,6 +350,16 @@ public interface Recordable {
         double value();
     }
 
+    /**
+     * Specifies the processor class(es) to run after the type is initialized.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface TypePostProcessorClasses {
+        Class<? extends ObjectType.PostProcessor>[] value();
+    }
+
     /** Specifies the valid types for the target field value. */
     @Documented
     @ObjectField.AnnotationProcessorClass(TypesProcessor.class)

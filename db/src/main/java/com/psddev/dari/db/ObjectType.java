@@ -1162,6 +1162,15 @@ public class ObjectType extends Record implements ObjectStruct {
                 processor.process(this, annotation);
             }
         }
+
+        TypePostProcessorClasses tppcAnnotation = modificationClass.getAnnotation(TypePostProcessorClasses.class);
+        if (tppcAnnotation != null) {
+            for (Class<? extends PostProcessor> processorClass : tppcAnnotation.value()) {
+                PostProcessor processor = (PostProcessor) ANNOTATION_PROCESSORS.getUnchecked(processorClass);
+                processor.process(this);
+            }
+        }
+
     }
 
     /**
@@ -1222,6 +1231,13 @@ public class ObjectType extends Record implements ObjectStruct {
     public static interface AnnotationProcessor<A extends Annotation> {
 
         public void process(ObjectType type, A annotation);
+    }
+
+    /** Processor for Recordable.TypePostProcessorClass. */
+    public static interface PostProcessor {
+
+        public void process(ObjectType type);
+
     }
 
     /**
