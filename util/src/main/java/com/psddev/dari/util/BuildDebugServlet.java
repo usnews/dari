@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.regex.Matcher;
@@ -25,6 +26,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 /** Debug servlet for inspecting application build information. */
 @DebugFilter.Path("build")
 @SuppressWarnings("serial")
@@ -33,6 +37,7 @@ public class BuildDebugServlet extends HttpServlet {
     public static final String PROPERTIES_FILE_NAME = "build.properties";
     public static final String PROPERTIES_FILE = "/WEB-INF/classes/" + PROPERTIES_FILE_NAME;
     public static final String LIB_PATH = "/WEB-INF/lib";
+    private static final Cache<String, Properties> PROPERTIES_CACHE = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
 
     /** Returns all the properties in the build file. */
     public static Properties getProperties(ServletContext context) throws IOException {
@@ -40,55 +45,64 @@ public class BuildDebugServlet extends HttpServlet {
     }
 
     /** Returns all the properties in the build file of an embedded war file. */
-    public static Properties getEmbeddedProperties(ServletContext context, String embeddedPath) throws IOException {
-        Properties build = new Properties();
-        InputStream stream = context.getResourceAsStream((embeddedPath != null ? embeddedPath : "") + PROPERTIES_FILE);
-        if (stream != null) {
-            try {
-                build.load(stream);
-            } finally {
-                stream.close();
+    public static synchronized Properties getEmbeddedProperties(ServletContext context, String embeddedPath) throws IOException {
+        embeddedPath = embeddedPath != null ? embeddedPath : "";
+        Properties build = PROPERTIES_CACHE.getIfPresent(embeddedPath);
+        if (build == null) {
+            build = new Properties();
+            InputStream stream = context.getResourceAsStream(embeddedPath + PROPERTIES_FILE);
+            if (stream != null) {
+                try {
+                    build.load(stream);
+                } finally {
+                    stream.close();
+                }
             }
+            PROPERTIES_CACHE.put(embeddedPath, build);
         }
         return build;
     }
 
     /** Returns all the properties in the build file of an embedded jar file. */
-    public static Properties getEmbeddedPropertiesInJar(ServletContext context, String jarResource) throws IOException {
-        Properties build = new Properties();
-        InputStream inputStream = context.getResourceAsStream(jarResource);
-        if (inputStream != null) {
-            try {
-                JarInputStream jarStream = new JarInputStream(inputStream);
-                if (jarStream != null) {
-                    try {
-                        JarEntry entry = null;
-                        while ((entry = jarStream.getNextJarEntry()) != null) {
-                            if (PROPERTIES_FILE_NAME.equals(entry.getName())) {
-                                byte[] buffer = new byte[4096];
-                                ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
-                                int read = 0;
-                                while ((read = jarStream.read(buffer)) != -1) {
-                                    outputBytes.write(buffer, 0, read);
-                                }
-                                InputStream propertiesFileInputStream = new ByteArrayInputStream(outputBytes.toByteArray());
-                                if (propertiesFileInputStream != null) {
-                                    try {
-                                        build.load(propertiesFileInputStream);
-                                        break;
-                                    } finally {
-                                        propertiesFileInputStream.close();
+    public static synchronized Properties getEmbeddedPropertiesInJar(ServletContext context, String jarResource) throws IOException {
+        Properties build = PROPERTIES_CACHE.getIfPresent(jarResource);
+        if (build == null) {
+            build = new Properties();
+            InputStream inputStream = context.getResourceAsStream(jarResource);
+            if (inputStream != null) {
+                try {
+                    JarInputStream jarStream = new JarInputStream(inputStream);
+                    if (jarStream != null) {
+                        try {
+                            JarEntry entry = null;
+                            while ((entry = jarStream.getNextJarEntry()) != null) {
+                                if (PROPERTIES_FILE_NAME.equals(entry.getName())) {
+                                    byte[] buffer = new byte[4096];
+                                    ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
+                                    int read = 0;
+                                    while ((read = jarStream.read(buffer)) != -1) {
+                                        outputBytes.write(buffer, 0, read);
+                                    }
+                                    InputStream propertiesFileInputStream = new ByteArrayInputStream(outputBytes.toByteArray());
+                                    if (propertiesFileInputStream != null) {
+                                        try {
+                                            build.load(propertiesFileInputStream);
+                                            break;
+                                        } finally {
+                                            propertiesFileInputStream.close();
+                                        }
                                     }
                                 }
                             }
+                        } finally {
+                            jarStream.close();
                         }
-                    } finally {
-                        jarStream.close();
                     }
+                } finally {
+                    inputStream.close();
                 }
-            } finally {
-                inputStream.close();
             }
+            PROPERTIES_CACHE.put(jarResource, build);
         }
         return build;
     }
