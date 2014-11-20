@@ -238,13 +238,7 @@ public class ObjectType extends Record implements ObjectStruct {
             }
         }
 
-        for (Map.Entry<String, Method> entry : definition.getAllGetters().entrySet()) {
-            Method javaMethod = entry.getValue();
-
-            // only include methods annotated with @Indexed and/or @Ignored(false)
-            if (!javaMethod.isAnnotationPresent(Indexed.class) && (!javaMethod.isAnnotationPresent(Ignored.class) || javaMethod.getAnnotation(Ignored.class).value())) {
-                continue;
-            }
+        for (Method javaMethod : findObjectMethodCapableMethods(definition)) {
 
             List<ObjectField> fields = localFields;
             List<ObjectIndex> indexes = localIndexes;
@@ -268,6 +262,9 @@ public class ObjectType extends Record implements ObjectStruct {
 
             method.getState().setDatabase(database);
             method.setInternalName(internalName);
+            for (Class<?> paramType : javaMethod.getParameterTypes()) {
+                method.getJavaParameterTypeNames().add(paramType.getName());
+            }
 
             try {
                 method.setInternalType(environment, definition.getObjectClass(), javaMethod.getGenericReturnType());
@@ -336,6 +333,34 @@ public class ObjectType extends Record implements ObjectStruct {
             environment.setFields(globalFields);
             environment.setIndexes(globalIndexes);
         }
+    }
+
+    private static List<Method> findObjectMethodCapableMethods(TypeDefinition<?> definition) {
+
+        List<Method> methods = new ArrayList<Method>();
+
+        for (Method javaMethod : definition.getAllMethods()) {
+            if (javaMethod.getDeclaringClass() != Object.class) {
+                int mod = javaMethod.getModifiers();
+                Class<?>[] parameterTypes = javaMethod.getParameterTypes();
+                if (Modifier.isPublic(mod) &&
+                        !Modifier.isStatic(mod) &&
+                        javaMethod.getReturnType() != void.class &&
+                        javaMethod.getReturnType() != Void.class &&
+                        (parameterTypes.length == 0 ||
+                            (parameterTypes.length == 1 &&
+                             ObjectMethod.class.equals(parameterTypes[0]))) &&
+                        (javaMethod.isAnnotationPresent(Indexed.class) ||
+                            (javaMethod.getAnnotation(Ignored.class) != null &&
+                             !javaMethod.getAnnotation(Ignored.class).value()))) {
+
+                    methods.add(javaMethod);
+
+                }
+            }
+        }
+
+        return methods;
     }
 
     /**
@@ -1103,13 +1128,7 @@ public class ObjectType extends Record implements ObjectStruct {
             fieldInternalNames.add(prefix + internalName);
         }
 
-        for (Map.Entry<String, Method> e : definition.getAllGetters().entrySet()) {
-            Method javaMethod = e.getValue();
-
-            // only include methods annotated with @Indexed and/or @Ignored(false)
-            if (!javaMethod.isAnnotationPresent(Indexed.class) && (!javaMethod.isAnnotationPresent(Ignored.class) || javaMethod.getAnnotation(Ignored.class).value())) {
-                continue;
-            }
+        for (Method javaMethod : findObjectMethodCapableMethods(definition)) {
 
             String internalName = javaMethod.getName().replace('$', '.');
 

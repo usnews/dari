@@ -1,6 +1,8 @@
 package com.psddev.dari.db;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -17,21 +19,30 @@ import com.psddev.dari.util.TypeDefinition;
 public class ObjectMethod extends ObjectField {
 
     public static final String JAVA_METHOD_NAME_KEY = "java.method";
+    public static final String JAVA_PARAMETER_TYPES_KEY = "java.parameterTypes";
 
-    @InternalName("java.method")
+    @InternalName(JAVA_METHOD_NAME_KEY)
     private String javaMethodName;
+
+    @InternalName(JAVA_PARAMETER_TYPES_KEY)
+    private List<String> javaParameterTypeNames;
+
+    private transient Boolean hasSingleObjectMethodParameter;
 
     public ObjectMethod(ObjectMethod method) {
         super(method);
         javaMethodName = method.getJavaMethodName();
+        javaParameterTypeNames = method.getJavaParameterTypeNames();
     }
 
+    @SuppressWarnings("unchecked")
     public ObjectMethod(ObjectStruct parent, Map<String, Object> definition) {
         super(parent, definition);
         if (definition == null) {
             return;
         }
         javaMethodName = (String) definition.remove(JAVA_METHOD_NAME_KEY);
+        javaParameterTypeNames = (List<String>) definition.remove(JAVA_PARAMETER_TYPES_KEY);
     }
 
     public String getJavaMethodName() {
@@ -40,6 +51,26 @@ public class ObjectMethod extends ObjectField {
 
     public void setJavaMethodName(String javaMethodName) {
         this.javaMethodName = javaMethodName;
+    }
+
+    public List<String> getJavaParameterTypeNames() {
+        if (javaParameterTypeNames == null) {
+            javaParameterTypeNames = new ArrayList<String>();
+        }
+        return javaParameterTypeNames;
+    }
+
+    public void setJavaParameterTypeNames(List<String> javaParameterTypeNames) {
+        this.javaParameterTypeNames = javaParameterTypeNames;
+        hasSingleObjectMethodParameter = null;
+    }
+
+    public boolean hasSingleObjectMethodParameter() {
+        if (hasSingleObjectMethodParameter == null) {
+            hasSingleObjectMethodParameter = getJavaParameterTypeNames().size() == 1 &&
+                ObjectMethod.class.getName().equals(getJavaParameterTypeNames().get(0));
+        }
+        return hasSingleObjectMethodParameter;
     }
 
     public Method getJavaMethod(Class<?> objectClass) {

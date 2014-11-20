@@ -642,7 +642,12 @@ public class State implements Map<String, Object> {
                                 continue;
                             }
                             keyMethod.setAccessible(false);
-                            value = keyMethod.invoke(State.getInstance(value).as(modC != null ? modC : c));
+                            Object invokeValue = State.getInstance(value).as(modC != null ? modC : c);
+                            if (objMethod != null && objMethod.hasSingleObjectMethodParameter()) {
+                                value = keyMethod.invoke(invokeValue, objMethod);
+                            } else {
+                                value = keyMethod.invoke(invokeValue);
+                            }
                             continue KEY;
 
                         } catch (IllegalAccessException error) {
