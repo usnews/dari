@@ -590,7 +590,9 @@ public class State implements Map<String, Object> {
                 value = ((Recordable) value).getState();
             }
 
-            if (key.endsWith("()") || (value instanceof State && ((State) value).isMethod(key))) {
+            if (key.endsWith("()") ||
+                    ((key.startsWith("get") || key.startsWith("is") || key.startsWith("has")) &&
+                     (value instanceof State && ((State) value).isMethod(key)))) {
                 if (value instanceof State) {
 
                     Class<?> keyClass = null;
