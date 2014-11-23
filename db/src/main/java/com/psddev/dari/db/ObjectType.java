@@ -343,7 +343,8 @@ public class ObjectType extends Record implements ObjectStruct {
             if (javaMethod.getDeclaringClass() != Object.class) {
                 int mod = javaMethod.getModifiers();
                 Class<?>[] parameterTypes = javaMethod.getParameterTypes();
-                if (Modifier.isPublic(mod) &&
+                if (StringUtils.getMatcher(javaMethod.getName(), "^(get|(is|has))([^a-z])(.*)$").matches() &&
+                        Modifier.isPublic(mod) &&
                         !Modifier.isStatic(mod) &&
                         javaMethod.getReturnType() != void.class &&
                         javaMethod.getReturnType() != Void.class &&
