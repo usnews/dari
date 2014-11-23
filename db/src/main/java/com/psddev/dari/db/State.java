@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -589,7 +590,9 @@ public class State implements Map<String, Object> {
                 value = ((Recordable) value).getState();
             }
 
-            if (key.endsWith("()") || (value instanceof State && ((State) value).isMethod(key))) {
+            if (key.endsWith("()") ||
+                    ((key.startsWith("get") || key.startsWith("is") || key.startsWith("has")) &&
+                     (value instanceof State && ((State) value).isMethod(key)))) {
                 if (value instanceof State) {
 
                     Class<?> keyClass = null;
@@ -618,6 +621,7 @@ public class State implements Map<String, Object> {
                         value = ((State) value).as(keyClass);
                     }
 
+                    Set<String> checkedMods = new HashSet<String>();
                     for (Class<?> c = keyClass; c != null; c = c.getSuperclass()) {
                         try {
                             Class<?> modC = null;
@@ -626,12 +630,22 @@ public class State implements Map<String, Object> {
                                 keyMethod = objMethod.getJavaMethod(c);
                                 if (keyMethod == null) {
                                     for (String className : State.getInstance(value).getType().getModificationClassNames()) {
+                                        if (checkedMods.contains(className)) {
+                                            continue;
+                                        }
+                                        checkedMods.add(className);
                                         modC = ObjectUtils.getClassByName(className);
                                         if (modC != null) {
                                             keyMethod = objMethod.getJavaMethod(modC);
                                             if (keyMethod != null) {
                                                 break;
                                             }
+                                        }
+                                    }
+                                    if (keyMethod == null && Object.class.equals(c)) {
+                                        modC = ObjectUtils.getClassByName(objMethod.getJavaDeclaringClassName());
+                                        if (modC != null) {
+                                            keyMethod = objMethod.getJavaMethod(modC);
                                         }
                                     }
                                 }
