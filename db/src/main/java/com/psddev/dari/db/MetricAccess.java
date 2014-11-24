@@ -1731,7 +1731,6 @@ class MetricAccess {
 
         private boolean metricValue;
         private String eventDateProcessorClassName;
-        private String recalculableFieldName;
 
         public boolean isMetricValue() {
             return metricValue;
@@ -1775,11 +1774,11 @@ class MetricAccess {
         }
 
         public String getRecalculableFieldName() {
-            return recalculableFieldName;
+            return getOriginalObject().as(RecalculationFieldData.class).getMetricFieldName();
         }
 
         public void setRecalculableFieldName(String fieldName) {
-            this.recalculableFieldName = fieldName;
+            getOriginalObject().as(RecalculationFieldData.class).setMetricFieldName(fieldName);
         }
 
         public Set<ObjectMethod> getRecalculableObjectMethods(ObjectType type) {

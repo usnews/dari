@@ -3,10 +3,14 @@ package com.psddev.dari.db;
 import com.psddev.dari.db.Recordable.FieldInternalNamePrefix;
 
 @FieldInternalNamePrefix("dari.recalculation.")
-class RecalculationFieldData extends Modification<ObjectField> {
+public class RecalculationFieldData extends Modification<ObjectMethod> {
 
     private String delayClassName;
+
     private boolean immediate;
+
+    private String metricFieldName;
+
     private transient RecalculationDelay delay;
 
     public void setDelayClass(Class<? extends RecalculationDelay> delayClass) {
@@ -47,6 +51,14 @@ class RecalculationFieldData extends Modification<ObjectField> {
 
     public void setImmediate(boolean immediate) {
         this.immediate = immediate;
+    }
+
+    public String getMetricFieldName() {
+        return metricFieldName;
+    }
+
+    public void setMetricFieldName(String metricFieldName) {
+        this.metricFieldName = metricFieldName;
     }
 
 }
