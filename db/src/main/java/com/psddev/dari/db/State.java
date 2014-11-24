@@ -591,7 +591,8 @@ public class State implements Map<String, Object> {
             }
 
             if (key.endsWith("()") ||
-                    ((key.startsWith("get") || key.startsWith("is") || key.startsWith("has")) &&
+                    ((key.startsWith("get") || key.startsWith("is") || key.startsWith("has") ||
+                     key.contains(".get") || key.contains(".is") || key.contains(".has")) &&
                      (value instanceof State && ((State) value).isMethod(key)))) {
                 if (value instanceof State) {
 
