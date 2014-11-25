@@ -3,12 +3,9 @@ package com.psddev.dari.maven;
 import java.io.IOException;
 import java.util.UUID;
 
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.apache.maven.plugin.logging.Log;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.core.CoreContainer;
-import org.xml.sax.SAXException;
 
 import com.jolbox.bonecp.BoneCPDataSource;
 import com.psddev.dari.db.AggregateDatabase;
