@@ -657,7 +657,8 @@ public class State implements Map<String, Object> {
                                 continue;
                             }
                             keyMethod.setAccessible(false);
-                            Object invokeValue = State.getInstance(value).as(modC != null ? modC : c);
+                            State valueState = State.getInstance(value);
+                            Object invokeValue = modC != null ? valueState.as(modC) : valueState.as(c);
                             if (objMethod != null && objMethod.hasSingleObjectMethodParameter()) {
                                 value = keyMethod.invoke(invokeValue, objMethod);
                             } else {
