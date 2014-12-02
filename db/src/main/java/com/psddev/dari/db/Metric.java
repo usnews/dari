@@ -368,6 +368,14 @@ public class Metric extends Record {
         return getByDimensionBetween(null, null, null);
     }
 
+    public static class FieldData extends Modification<ObjectField> {
+
+        public MetricInterval getEventDateProcessor() {
+            return getOriginalObject().as(MetricAccess.FieldData.class).getEventDateProcessor();
+        }
+
+    }
+
     public static class Static {
 
         private static final String EXTRA_METRICS_FETCHED_PREFIX = "dari.metric.preFetched.";
