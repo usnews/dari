@@ -135,7 +135,7 @@ public class RecalculationTask extends RepeatingTask {
         boolean useMetricQuery = false;
 
         try {
-            Query<?> query = Query.fromAll().noCache();
+            Query<?> query = Query.fromAll().noCache().resolveToReferenceOnly();
             query.getOptions().put(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
             if (!context.isReindexAll()) {
                 for (ObjectMethod method : context.methods) {
@@ -185,6 +185,7 @@ public class RecalculationTask extends RepeatingTask {
                         }
                     }
                     setProgressIndex(++progressIndex);
+                    objState.setResolveToReferenceOnly(false);
                     for (ObjectMethod method : context.methods) {
                         LOGGER.debug("Updating Index: " + method.getInternalName() + " for " + objState.getId());
                         method.recalculate(objState);
