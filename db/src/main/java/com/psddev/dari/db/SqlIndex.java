@@ -757,6 +757,9 @@ public enum SqlIndex {
             Map<String, String> updateQueries = new HashMap<String, String>();
             Map<String, List<List<Object>>> updateParameters = new HashMap<String, List<List<Object>>>();
             Map<String, Set<String>> updateBindKeys = new HashMap<String, Set<String>>();
+            Map<String, List<State>> updateStates = new HashMap<String, List<State>>();
+            Set<State> needDeletes = new HashSet<State>();
+            Set<State> needInserts = new HashSet<State>();
 
             for (State state : states) {
                 UUID id = state.getId();
@@ -777,7 +780,8 @@ public enum SqlIndex {
                         String sqlQuery = updateQueries.get(name);
                         List<List<Object>> parameters = updateParameters.get(name);
                         Set<String> bindKeys = updateBindKeys.get(name);
-                        if (sqlQuery == null && parameters == null) {
+                        List<State> tableStates = updateStates.get(name);
+                        if (sqlQuery == null && parameters == null && tableStates == null) {
                             if (table instanceof AbstractTable) {
                                 sqlQuery = ((AbstractTable) table).prepareUpdateStatement(database, connection, index);
                             } else {
@@ -790,14 +794,21 @@ public enum SqlIndex {
 
                             bindKeys = new HashSet<String>();
                             updateBindKeys.put(name, bindKeys);
+
+                            tableStates = new ArrayList<State>();
+                            updateStates.put(name, tableStates);
                         }
 
                         if (table instanceof AbstractTable) {
                             ((AbstractTable) table).bindUpdateValues(database, index, id, typeId, indexValue, bindKeys, parameters);
+                            tableStates.add(state);
                         } else {
                             throw new IllegalStateException("Table " + table.getName(database, index) + " does not support updates.");
                         }
                     }
+                }
+                if (indexValues.isEmpty()) {
+                    needDeletes.add(state);
                 }
 
             }
@@ -806,16 +817,29 @@ public enum SqlIndex {
                 String name = entry.getKey();
                 String sqlQuery = entry.getValue();
                 List<List<Object>> parameters = updateParameters.get(name);
+                List<State> tableStates = updateStates.get(name);
                 try {
                     if (!parameters.isEmpty()) {
-                        SqlDatabase.Static.executeBatchUpdate(connection, sqlQuery, parameters);
+                        int[] rows = SqlDatabase.Static.executeBatchUpdate(connection, sqlQuery, parameters);
+                        for (int i = 0; i < rows.length ; i++) {
+                            if (rows[i] == 0) {
+                                needInserts.add(tableStates.get(i));
+                            }
+                        }
                     }
                 } catch (BatchUpdateException bue) {
                     SqlDatabase.Static.logBatchUpdateException(bue, sqlQuery, parameters);
                     throw bue;
                 }
             }
-
+            if (!needDeletes.isEmpty()) {
+                deleteByStates(database, connection, new ArrayList<State>(needDeletes));
+            }
+            if (!needInserts.isEmpty()) {
+                List<State> insertStates = new ArrayList<State>(needInserts);
+                deleteByStates(database, connection, insertStates);
+                insertByStates(database, connection, insertStates);
+            }
         }
 
         /**
