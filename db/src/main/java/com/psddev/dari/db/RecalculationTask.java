@@ -58,10 +58,12 @@ public class RecalculationTask extends RepeatingTask {
             last = new LastRecalculation();
             last.setKey(updateKey);
             shouldExecute = true;
+            context.setReindexAll(true);
         } else {
             if (last.getLastExecutedDate() == null && last.getCurrentRunningDate() == null) {
                 // this has never been executed, and it's not currently executing.
                 shouldExecute = true;
+                context.setReindexAll(true);
             } else if (last.getLastExecutedDate() != null && context.delay.isUpdateDue(new DateTime(), last.getLastExecutedDate())) {
                 // this has been executed before and an update is due.
                 shouldExecute = true;
@@ -128,8 +130,10 @@ public class RecalculationTask extends RepeatingTask {
         try {
             Query<?> query = Query.fromAll().noCache();
             query.getOptions().put(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
-            for (ObjectMethod method : context.methods) {
-                query.or(method.getUniqueName() + " != missing");
+            if (!context.isReindexAll()) {
+                for (ObjectMethod method : context.methods) {
+                    query.or(method.getUniqueName() + " != missing");
+                }
             }
 
             ObjectField metricField = context.getMetric();
@@ -166,7 +170,7 @@ public class RecalculationTask extends RepeatingTask {
                                     // there's no metric data, so just pass.
                                     continue;
                                 }
-                                if (lastMetricUpdate.isBefore(processedLastRunDate.minusSeconds(1))) {
+                                if (!context.isReindexAll() && lastMetricUpdate.isBefore(processedLastRunDate.minusSeconds(1))) {
                                     // metric data is older than the last run date, so skip it.
                                     continue;
                                 }
@@ -280,6 +284,7 @@ public class RecalculationTask extends RepeatingTask {
         public final RecalculationDelay delay;
         public final TreeSet<String> groups;
         public final Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
+        public boolean reindexAll = false;
 
         public RecalculationContext(ObjectType type, TreeSet<String> groups, RecalculationDelay delay) {
             this.type = type;
@@ -328,6 +333,12 @@ public class RecalculationTask extends RepeatingTask {
                 (metricField != null ? " " + metricField.getUniqueName() : "");
         }
 
-    }
+        public boolean isReindexAll() {
+            return reindexAll;
+        }
 
+        public void setReindexAll(boolean reindexAll) {
+            this.reindexAll = reindexAll;
+        }
+    }
 }
