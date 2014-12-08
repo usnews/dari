@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.RepeatingTask;
+import com.psddev.dari.util.Stats;
 import com.psddev.dari.util.StringUtils;
 
 /**
@@ -23,6 +24,7 @@ public class RecalculationTask extends RepeatingTask {
     private static final int UPDATE_LATEST_EVERY_SECONDS = 60;
     private static final int QUERY_ITERABLE_SIZE = 200;
     private static final Logger LOGGER = LoggerFactory.getLogger(RecalculationTask.class);
+    private static final Stats STATS = new Stats("Recalculation Task");
 
     private int progressIndex = 0;
     private int progressTotal = 0;
@@ -39,7 +41,11 @@ public class RecalculationTask extends RepeatingTask {
         progressTotal = 0;
 
         for (RecalculationContext context : getIndexableMethods()) {
-            recalculateIfNecessary(context);
+            Stats.Timer timer = STATS.startTimer();
+            long recalculated = recalculateIfNecessary(context);
+            if (recalculated > 0L) {
+                timer.stop("Recalculate " + context.getKey(), recalculated);
+            }
         }
 
     }
@@ -47,8 +53,9 @@ public class RecalculationTask extends RepeatingTask {
     /**
      * Checks the LastRecalculation and DistributedLock and executes recalculate if it should.
      */
-    private void recalculateIfNecessary(RecalculationContext context) {
+    private long recalculateIfNecessary(RecalculationContext context) {
         String updateKey = context.getKey();
+        long recalculated = 0;
 
         LastRecalculation last = Query.from(LastRecalculation.class).master().noCache().where("key = ?", updateKey).first();
 
@@ -107,7 +114,7 @@ public class RecalculationTask extends RepeatingTask {
 
             if (canExecute) {
                 try {
-                    recalculate(context, last);
+                    recalculated = recalculate(context, last);
                 } finally {
                     last.setLastExecutedDate(new DateTime());
                     last.setCurrentRunningDate(null);
@@ -116,14 +123,14 @@ public class RecalculationTask extends RepeatingTask {
             }
 
         }
-
+        return recalculated;
     }
 
     /**
      * Actually does the work of iterating through the records and updating indexes.
      */
-    private void recalculate(RecalculationContext context, LastRecalculation last) {
-
+    private long recalculate(RecalculationContext context, LastRecalculation last) {
+        long recalculated = 0L;
         // Still testing this out.
         boolean useMetricQuery = false;
 
@@ -181,6 +188,7 @@ public class RecalculationTask extends RepeatingTask {
                     for (ObjectMethod method : context.methods) {
                         LOGGER.debug("Updating Index: " + method.getInternalName() + " for " + objState.getId());
                         method.recalculate(objState);
+                        recalculated++;
                     }
                 } finally {
                     if (last.getCurrentRunningDate().plusSeconds(UPDATE_LATEST_EVERY_SECONDS).isBeforeNow()) {
@@ -194,7 +202,7 @@ public class RecalculationTask extends RepeatingTask {
             last.setCurrentRunningDate(new DateTime());
             last.saveImmediately();
         }
-
+        return recalculated;
     }
 
     /**
