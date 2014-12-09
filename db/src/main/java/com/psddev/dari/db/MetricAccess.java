@@ -160,12 +160,16 @@ class MetricAccess {
      */
     private List<byte[]> getMaxMinData(UUID id, UUID dimensionId, Long startTimestamp, Long endTimestamp) throws SQLException {
         CachingDatabase cachingDb = Static.getCachingDatabase();
-        List<byte[]> result;
+        List<byte[]> result = null;
         if (hasCachedData(cachingDb, id, dimensionId, startTimestamp, CACHE_MIN) && hasCachedData(cachingDb, id, dimensionId, endTimestamp, CACHE_MAX)) {
             result = new ArrayList<byte[]>();
             result.add(getCachedData(cachingDb, id, dimensionId, endTimestamp, CACHE_MAX));
             result.add(getCachedData(cachingDb, id, dimensionId, startTimestamp, CACHE_MIN));
-        } else {
+            if ((result.get(0) == null) != (result.get(1) == null)) {
+                result = null;
+            }
+        }
+        if (result == null) {
             result = Static.getMaxMinDataByIdAndDimension(getDatabase(), id, getTypeId(), getSymbolId(), dimensionId, startTimestamp, endTimestamp, false);
             if (result.isEmpty()) {
                 result.add(null);
