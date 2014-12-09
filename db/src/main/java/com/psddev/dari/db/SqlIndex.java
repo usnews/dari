@@ -821,7 +821,7 @@ public enum SqlIndex {
                 try {
                     if (!parameters.isEmpty()) {
                         int[] rows = SqlDatabase.Static.executeBatchUpdate(connection, sqlQuery, parameters);
-                        for (int i = 0; i < rows.length ; i++) {
+                        for (int i = 0; i < rows.length; i++) {
                             if (rows[i] == 0) {
                                 needInserts.add(tableStates.get(i));
                             }
