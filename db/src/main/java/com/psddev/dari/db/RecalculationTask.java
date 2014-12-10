@@ -131,17 +131,10 @@ public class RecalculationTask extends RepeatingTask {
      */
     private long recalculate(RecalculationContext context, LastRecalculation last) {
         long recalculated = 0L;
-        // Still testing this out.
-        boolean useMetricQuery = false;
 
         try {
             Query<?> query = Query.fromAll().noCache().resolveToReferenceOnly();
             query.getOptions().put(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
-            if (!context.isReindexAll()) {
-                for (ObjectMethod method : context.methods) {
-                    query.or(method.getUniqueName() + " != missing");
-                }
-            }
 
             ObjectField metricField = context.getMetric();
             DateTime processedLastRunDate = last.getLastExecutedDate();
@@ -150,14 +143,16 @@ public class RecalculationTask extends RepeatingTask {
                     MetricInterval interval = metricField.as(MetricAccess.FieldData.class).getEventDateProcessor();
                     if (interval != null) {
                         processedLastRunDate = new DateTime(interval.process(processedLastRunDate));
-                        if (useMetricQuery) {
-                            query.and(metricField.getUniqueName() + "#date >= ?", processedLastRunDate);
-                            query.and(metricField.getUniqueName() + " != 0");
-                        }
+                    }
+                }
+                if (!context.isReindexAll()) {
+                    for (ObjectMethod method : context.methods) {
+                        query.or(method.getUniqueName() + " != missing");
                     }
                 }
             }
 
+            boolean isGlobal = context.groups.contains(Object.class.getName());
             for (Object obj : query.iterable(QUERY_ITERABLE_SIZE)) {
                 try {
                     if (!shouldContinue()) {
@@ -165,23 +160,26 @@ public class RecalculationTask extends RepeatingTask {
                     }
                     setProgressIndex(++ recordsTotal);
                     State objState = State.getInstance(obj);
-                    if (objState == null) {
+                    if (objState == null || objState.getType() == null) {
                         continue;
                     }
-                    if (!useMetricQuery) {
-                        if (last.getLastExecutedDate() != null) {
-                            if (metricField != null) {
-                                Metric metric = new Metric(objState, metricField);
-                                DateTime lastMetricUpdate = metric.getLastUpdate();
-                                if (lastMetricUpdate == null) {
-                                    // there's no metric data, so just pass.
-                                    continue;
-                                }
-                                if (!context.isReindexAll() && lastMetricUpdate.isBefore(processedLastRunDate.minusSeconds(1))) {
-                                    // metric data is older than the last run date, so skip it.
-                                    continue;
-                                }
-                            }
+                    if (!isGlobal) {
+                        Set<String> objGroups = new HashSet<String>(objState.getType().getGroups());
+                        objGroups.retainAll(context.groups);
+                        if (objGroups.isEmpty()) {
+                            continue;
+                        }
+                    }
+                    if (metricField != null) {
+                        Metric metric = new Metric(objState, metricField);
+                        DateTime lastMetricUpdate = metric.getLastUpdate();
+                        if (lastMetricUpdate == null) {
+                            // there's no metric data, so just pass.
+                            continue;
+
+                        } else if (last.getLastExecutedDate() != null && !context.isReindexAll() && lastMetricUpdate.isBefore(processedLastRunDate.minusSeconds(1))) {
+                            // metric data is older than the last run date, so skip it.
+                            continue;
                         }
                     }
                     objState.setResolveToReferenceOnly(false);
