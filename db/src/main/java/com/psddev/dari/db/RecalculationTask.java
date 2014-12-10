@@ -26,8 +26,8 @@ public class RecalculationTask extends RepeatingTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecalculationTask.class);
     private static final Stats STATS = new Stats("Recalculation Task");
 
-    private int progressIndex = 0;
-    private int progressTotal = 0;
+    private long recordsProcessed = 0L;
+    private long recordsTotal = 0L;
 
     @Override
     protected DateTime calculateRunTime(DateTime currentTime) {
@@ -36,9 +36,8 @@ public class RecalculationTask extends RepeatingTask {
 
     @Override
     protected void doRepeatingTask(DateTime runTime) throws Exception {
-
-        progressIndex = 0;
-        progressTotal = 0;
+        recordsProcessed = 0L;
+        recordsTotal = 0L;
 
         for (RecalculationContext context : getIndexableMethods()) {
             Stats.Timer timer = STATS.startTimer();
@@ -47,7 +46,6 @@ public class RecalculationTask extends RepeatingTask {
                 timer.stop("Recalculate " + context.getKey(), recalculated);
             }
         }
-
     }
 
     /**
@@ -56,25 +54,27 @@ public class RecalculationTask extends RepeatingTask {
     private long recalculateIfNecessary(RecalculationContext context) {
         String updateKey = context.getKey();
         long recalculated = 0;
-
-        LastRecalculation last = Query.from(LastRecalculation.class).master().noCache().where("key = ?", updateKey).first();
-
         boolean shouldExecute = false;
         boolean canExecute = false;
+        LastRecalculation last = Query.from(LastRecalculation.class).master().noCache().where("key = ?", updateKey).first();
+
         if (last == null) {
             last = new LastRecalculation();
             last.setKey(updateKey);
             shouldExecute = true;
             context.setReindexAll(true);
+
         } else {
             if (last.getLastExecutedDate() == null && last.getCurrentRunningDate() == null) {
                 // this has never been executed, and it's not currently executing.
                 shouldExecute = true;
                 context.setReindexAll(true);
+
             } else if (last.getLastExecutedDate() != null && context.delay.isUpdateDue(new DateTime(), last.getLastExecutedDate())) {
                 // this has been executed before and an update is due.
                 shouldExecute = true;
             }
+
             if (last.getCurrentRunningDate() != null) {
                 // this is currently executing
                 shouldExecute = false;
@@ -86,7 +86,6 @@ public class RecalculationTask extends RepeatingTask {
                     last.saveImmediately();
                 }
             }
-
         }
 
         if (shouldExecute) {
@@ -106,6 +105,7 @@ public class RecalculationTask extends RepeatingTask {
                     last.saveImmediately();
                     canExecute = true;
                 }
+
             } finally {
                 if (locked) {
                     lock.unlock();
@@ -115,13 +115,13 @@ public class RecalculationTask extends RepeatingTask {
             if (canExecute) {
                 try {
                     recalculated = recalculate(context, last);
+
                 } finally {
                     last.setLastExecutedDate(new DateTime());
                     last.setCurrentRunningDate(null);
                     last.saveImmediately();
                 }
             }
-
         }
         return recalculated;
     }
@@ -163,7 +163,7 @@ public class RecalculationTask extends RepeatingTask {
                     if (!shouldContinue()) {
                         break;
                     }
-                    setProgressTotal(++progressTotal);
+                    setProgressIndex(++ recordsTotal);
                     State objState = State.getInstance(obj);
                     if (objState == null) {
                         continue;
@@ -184,13 +184,14 @@ public class RecalculationTask extends RepeatingTask {
                             }
                         }
                     }
-                    setProgressIndex(++progressIndex);
                     objState.setResolveToReferenceOnly(false);
                     for (ObjectMethod method : context.methods) {
                         LOGGER.debug("Updating Index: " + method.getInternalName() + " for " + objState.getId());
                         method.recalculate(objState);
-                        recalculated++;
+                        recalculated ++;
                     }
+                    recordsProcessed ++;
+
                 } finally {
                     if (last.getCurrentRunningDate().plusSeconds(UPDATE_LATEST_EVERY_SECONDS).isBeforeNow()) {
                         last.setCurrentRunningDate(new DateTime());
@@ -204,6 +205,11 @@ public class RecalculationTask extends RepeatingTask {
             last.saveImmediately();
         }
         return recalculated;
+    }
+
+    @Override
+    public String getProgress() {
+        return new StringBuilder("Recalculated ").append(recordsProcessed).append(", checked ").append(recordsTotal).toString();
     }
 
     /**
@@ -247,7 +253,6 @@ public class RecalculationTask extends RepeatingTask {
     }
 
     private static Collection<RecalculationContext> getIndexableMethods() {
-
         Map<String, RecalculationContext> contextsByGroupsAndDelayAndMetric = new HashMap<String, RecalculationContext>();
 
         for (ObjectType type : Database.Static.getDefault().getEnvironment().getTypes()) {
@@ -264,10 +269,12 @@ public class RecalculationTask extends RepeatingTask {
                             ObjectType modifiedType = ObjectType.getInstance(modifiedClass);
                             if (modifiedType != null) {
                                 groups.add(modifiedType.getInternalName());
+
                             } else {
                                 groups.add(modifiedClass.getName());
                             }
                         }
+
                     } else {
                         groups.add(type.getInternalName());
                     }
@@ -279,10 +286,8 @@ public class RecalculationTask extends RepeatingTask {
                         contextsByGroupsAndDelayAndMetric.put(key, context);
                     }
                     contextsByGroupsAndDelayAndMetric.get(key).methods.add(method);
-
                 }
             }
-
         }
 
         return contextsByGroupsAndDelayAndMetric.values();
