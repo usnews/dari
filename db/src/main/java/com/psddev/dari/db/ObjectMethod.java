@@ -19,30 +19,24 @@ import com.psddev.dari.util.TypeDefinition;
 public class ObjectMethod extends ObjectField {
 
     public static final String JAVA_METHOD_NAME_KEY = "java.method";
-    public static final String JAVA_PARAMETER_TYPES_KEY = "java.parameterTypes";
 
     @InternalName(JAVA_METHOD_NAME_KEY)
     private String javaMethodName;
 
-    @InternalName(JAVA_PARAMETER_TYPES_KEY)
-    private List<String> javaParameterTypeNames;
-
+    private transient List<String> javaParameterTypeNames;
     private transient Boolean hasSingleObjectMethodParameter;
 
     public ObjectMethod(ObjectMethod method) {
         super(method);
         javaMethodName = method.getJavaMethodName();
-        javaParameterTypeNames = method.getJavaParameterTypeNames();
     }
 
-    @SuppressWarnings("unchecked")
     public ObjectMethod(ObjectStruct parent, Map<String, Object> definition) {
         super(parent, definition);
         if (definition == null) {
             return;
         }
         javaMethodName = (String) definition.remove(JAVA_METHOD_NAME_KEY);
-        javaParameterTypeNames = (List<String>) definition.remove(JAVA_PARAMETER_TYPES_KEY);
     }
 
     public String getJavaMethodName() {
@@ -56,13 +50,13 @@ public class ObjectMethod extends ObjectField {
     public List<String> getJavaParameterTypeNames() {
         if (javaParameterTypeNames == null) {
             javaParameterTypeNames = new ArrayList<String>();
+            Method method = getJavaMethod(ObjectUtils.getClassByName(getJavaDeclaringClassName()));
+            for (Class<?> cls : method.getParameterTypes()) {
+                javaParameterTypeNames.add(cls.getName());
+            }
+            hasSingleObjectMethodParameter = null;
         }
         return javaParameterTypeNames;
-    }
-
-    public void setJavaParameterTypeNames(List<String> javaParameterTypeNames) {
-        this.javaParameterTypeNames = javaParameterTypeNames;
-        hasSingleObjectMethodParameter = null;
     }
 
     public boolean hasSingleObjectMethodParameter() {
@@ -167,4 +161,10 @@ public class ObjectMethod extends ObjectField {
 
     }
 
+    @Deprecated
+    public static final String JAVA_PARAMETER_TYPES_KEY = "java.parameterTypes";
+
+    @Deprecated
+    public void setJavaParameterTypeNames(List<String> ignored) {
+    }
 }
