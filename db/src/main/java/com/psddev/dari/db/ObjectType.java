@@ -262,9 +262,6 @@ public class ObjectType extends Record implements ObjectStruct {
 
             method.getState().setDatabase(database);
             method.setInternalName(internalName);
-            for (Class<?> paramType : javaMethod.getParameterTypes()) {
-                method.getJavaParameterTypeNames().add(paramType.getName());
-            }
 
             try {
                 method.setInternalType(environment, definition.getObjectClass(), javaMethod.getGenericReturnType());

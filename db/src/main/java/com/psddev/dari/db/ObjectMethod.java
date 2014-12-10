@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,14 +50,16 @@ public class ObjectMethod extends ObjectField {
 
     public List<String> getJavaParameterTypeNames() {
         if (javaParameterTypeNames == null) {
-            javaParameterTypeNames = new ArrayList<String>();
             Method method = getJavaMethod(ObjectUtils.getClassByName(getJavaDeclaringClassName()));
-            for (Class<?> cls : method.getParameterTypes()) {
-                javaParameterTypeNames.add(cls.getName());
+            if (method != null) {
+                javaParameterTypeNames = new ArrayList<String>();
+                for (Class<?> cls : method.getParameterTypes()) {
+                    javaParameterTypeNames.add(cls.getName());
+                }
             }
             hasSingleObjectMethodParameter = null;
         }
-        return javaParameterTypeNames;
+        return javaParameterTypeNames != null ? Collections.unmodifiableList(javaParameterTypeNames) : Collections.<String>emptyList();
     }
 
     public boolean hasSingleObjectMethodParameter() {
