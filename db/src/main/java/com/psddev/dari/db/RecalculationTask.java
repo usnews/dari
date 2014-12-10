@@ -260,9 +260,11 @@ public class RecalculationTask extends RepeatingTask {
                         method.as(RecalculationFieldData.class).getRecalculationDelay() != null) {
 
                     TreeSet<String> groups = new TreeSet<String>();
-                    if (Modification.class.isAssignableFrom(type.getObjectClass())) {
+                    String group = method.as(RecalculationFieldData.class).getGroup();
+                    Class<?> objectClass = group != null ? ObjectUtils.getClassByName(group) : type.getObjectClass();
+                    if (Modification.class.isAssignableFrom(objectClass)) {
                         @SuppressWarnings("unchecked")
-                        Class<? extends Modification<?>> modClass = ((Class<? extends Modification<?>>) type.getObjectClass());
+                        Class<? extends Modification<?>> modClass = ((Class<? extends Modification<?>>) objectClass);
                         for (Class<?> modifiedClass : Modification.Static.getModifiedClasses(modClass)) {
                             ObjectType modifiedType = ObjectType.getInstance(modifiedClass);
                             if (modifiedType != null) {
@@ -274,7 +276,7 @@ public class RecalculationTask extends RepeatingTask {
                         }
 
                     } else {
-                        groups.add(type.getInternalName());
+                        groups.add(objectClass.getName());
                     }
 
                     RecalculationContext context = new RecalculationContext(type, groups, method.as(RecalculationFieldData.class).getRecalculationDelay());

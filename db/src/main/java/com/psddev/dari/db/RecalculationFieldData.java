@@ -11,6 +11,8 @@ public class RecalculationFieldData extends Modification<ObjectMethod> {
 
     private String metricFieldName;
 
+    private String group;
+
     private transient RecalculationDelay delay;
 
     public void setDelayClass(Class<? extends RecalculationDelay> delayClass) {
@@ -61,4 +63,11 @@ public class RecalculationFieldData extends Modification<ObjectMethod> {
         this.metricFieldName = metricFieldName;
     }
 
+    public String getGroup() {
+        return group;
+    }
+
+    public void setGroup(String group) {
+        this.group = group;
+    }
 }
