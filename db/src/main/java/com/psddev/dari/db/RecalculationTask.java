@@ -170,14 +170,14 @@ public class RecalculationTask extends RepeatingTask {
                             continue;
                         }
                     }
-                    if (metricField != null) {
+                    if (!context.isReindexAll() && metricField != null) {
                         Metric metric = new Metric(objState, metricField);
                         DateTime lastMetricUpdate = metric.getLastUpdate();
                         if (lastMetricUpdate == null) {
                             // there's no metric data, so just pass.
                             continue;
 
-                        } else if (last.getLastExecutedDate() != null && !context.isReindexAll() && lastMetricUpdate.isBefore(processedLastRunDate.minusSeconds(1))) {
+                        } else if (last.getLastExecutedDate() != null && lastMetricUpdate.isBefore(processedLastRunDate.minusSeconds(1))) {
                             // metric data is older than the last run date, so skip it.
                             continue;
                         }
