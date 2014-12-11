@@ -260,23 +260,30 @@ public class RecalculationTask extends RepeatingTask {
                         method.as(RecalculationFieldData.class).getRecalculationDelay() != null) {
 
                     TreeSet<String> groups = new TreeSet<String>();
-                    String group = method.as(RecalculationFieldData.class).getGroup();
-                    Class<?> objectClass = group != null ? ObjectUtils.getClassByName(group) : type.getObjectClass();
-                    if (Modification.class.isAssignableFrom(objectClass)) {
-                        @SuppressWarnings("unchecked")
-                        Class<? extends Modification<?>> modClass = ((Class<? extends Modification<?>>) objectClass);
-                        for (Class<?> modifiedClass : Modification.Static.getModifiedClasses(modClass)) {
-                            ObjectType modifiedType = ObjectType.getInstance(modifiedClass);
-                            if (modifiedType != null) {
-                                groups.add(modifiedType.getInternalName());
+                    Set<Class<?>> objectClasses = new HashSet<Class<?>>();
+                    for (String group : method.as(RecalculationFieldData.class).getGroups()) {
+                        objectClasses.add(ObjectUtils.getClassByName(group));
+                    }
+                    if (objectClasses.isEmpty()) {
+                        objectClasses.add(type.getObjectClass());
+                    }
+                    for (Class<?> objectClass : objectClasses) {
+                        if (Modification.class.isAssignableFrom(objectClass)) {
+                            @SuppressWarnings("unchecked")
+                            Class<? extends Modification<?>> modClass = ((Class<? extends Modification<?>>) objectClass);
+                            for (Class<?> modifiedClass : Modification.Static.getModifiedClasses(modClass)) {
+                                ObjectType modifiedType = ObjectType.getInstance(modifiedClass);
+                                if (modifiedType != null) {
+                                    groups.add(modifiedType.getInternalName());
 
-                            } else {
-                                groups.add(modifiedClass.getName());
+                                } else {
+                                    groups.add(modifiedClass.getName());
+                                }
                             }
-                        }
 
-                    } else {
-                        groups.add(objectClass.getName());
+                        } else {
+                            groups.add(objectClass.getName());
+                        }
                     }
 
                     RecalculationContext context = new RecalculationContext(type, groups, method.as(RecalculationFieldData.class).getRecalculationDelay());

@@ -1,5 +1,8 @@
 package com.psddev.dari.db;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import com.psddev.dari.db.Recordable.FieldInternalNamePrefix;
 
 @FieldInternalNamePrefix("dari.recalculation.")
@@ -11,7 +14,7 @@ public class RecalculationFieldData extends Modification<ObjectMethod> {
 
     private String metricFieldName;
 
-    private String group;
+    private Set<String> groups;
 
     private transient RecalculationDelay delay;
 
@@ -63,11 +66,15 @@ public class RecalculationFieldData extends Modification<ObjectMethod> {
         this.metricFieldName = metricFieldName;
     }
 
-    public String getGroup() {
-        return group;
+    public Set<String> getGroups() {
+        if (groups == null) {
+            groups = new HashSet<String>();
+        }
+        return groups;
     }
 
-    public void setGroup(String group) {
-        this.group = group;
+    public void setGroups(Set<String> groups) {
+        this.groups = groups;
     }
+
 }
