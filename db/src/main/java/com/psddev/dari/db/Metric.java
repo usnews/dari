@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -368,6 +369,18 @@ public class Metric extends Record {
         return getByDimensionBetween(null, null, null);
     }
 
+    public static class DistinctIds {
+        public final UUID id;
+        public final UUID typeId;
+        public final UUID dimensionId;
+
+        public DistinctIds(UUID id, UUID typeId, UUID dimensionId) {
+            this.id = id;
+            this.typeId = typeId;
+            this.dimensionId = dimensionId;
+        }
+    }
+
     public static class Static {
 
         private static final String EXTRA_METRICS_FETCHED_PREFIX = "dari.metric.preFetched.";
@@ -428,6 +441,12 @@ public class Metric extends Record {
             }
         }
 
+        public static Iterator<DistinctIds> getDistinctIdsBetween(Database database, ObjectType type, ObjectField field, DateTime start, DateTime end) {
+            Long startTimestamp = (start == null ? null : start.getMillis());
+            Long endTimestamp = (end == null ? null : end.getMillis());
+            MetricAccess mdb = MetricAccess.Static.getMetricAccess(database, null, field);
+            return MetricAccess.Static.getDistinctIds(mdb.getDatabase(), type != null ? type.getId() : null, mdb.getSymbolId(), startTimestamp, endTimestamp);
+        }
     }
 
     /**
