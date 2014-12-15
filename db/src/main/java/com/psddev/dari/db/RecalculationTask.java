@@ -24,7 +24,6 @@ import com.psddev.dari.util.StringUtils;
 public class RecalculationTask extends RepeatingTask {
 
     private static final int UPDATE_LATEST_EVERY_SECONDS = 60;
-    private static final int OVERDUE_REINDEX_HOURS = 6;
     private static final int QUERY_ITERABLE_SIZE = 200;
     private static final Logger LOGGER = LoggerFactory.getLogger(RecalculationTask.class);
     private static final Stats STATS = new Stats("Recalculation Task");
@@ -74,11 +73,6 @@ public class RecalculationTask extends RepeatingTask {
             } else if (last.getLastExecutedDate() != null && context.delay.isUpdateDue(new DateTime(), last.getLastExecutedDate())) {
                 // this has been executed before and an update is due.
                 shouldExecute = true;
-                if (context.delay.isUpdateDue(new DateTime().minusHours(OVERDUE_REINDEX_HOURS), last.getLastExecutedDate())) {
-                    // this has been executed before, but it is over
-                    // OVERDUE_REINDEX_HOURS hours overdue, so reindex all.
-                    context.setReindexAll(true);
-                }
             }
 
             if (last.getCurrentRunningDate() != null) {
