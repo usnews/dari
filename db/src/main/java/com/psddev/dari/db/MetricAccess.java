@@ -1397,7 +1397,7 @@ class MetricAccess {
             return datas;
         }
 
-        public static class DistinctIdsIterator implements Iterator<List<UUID>> {
+        public static class DistinctIdsIterator implements Iterator<Metric.DistinctIds> {
 
             private final SqlDatabase database;
             private final UUID typeId;
@@ -1405,7 +1405,7 @@ class MetricAccess {
             private final Long minEventDate;
             private final Long maxEventDate;
             private final int fetchSize;
-            private List<List<UUID>> items;
+            private List<Metric.DistinctIds> items;
             private boolean done = false;
 
             private int index = 0;
@@ -1424,9 +1424,9 @@ class MetricAccess {
             }
 
             @Override
-            public List<UUID> next() {
+            public Metric.DistinctIds next() {
                 if (hasNext()) {
-                    List<UUID> result = items.get(index);
+                    Metric.DistinctIds result = items.get(index);
                     ++ index;
                     return result;
 
@@ -1467,7 +1467,7 @@ class MetricAccess {
 
             private void fetchNext() throws SQLException {
                 String sql = getSql();
-                items = new ArrayList<List<UUID>>();
+                items = new ArrayList<Metric.DistinctIds>();
                 Connection connection = database.openConnection();
                 try {
                     Statement statement = connection.createStatement();
@@ -1483,7 +1483,7 @@ class MetricAccess {
                                 row.add(lastId);
                                 row.add(lastDimensionId);
                                 row.add(lastTypeId);
-                                items.add(row);
+                                items.add(new Metric.DistinctIds(lastId, lastTypeId, lastDimensionId));
                             }
                         } finally {
                             result.close();
@@ -1865,7 +1865,7 @@ class ResummarizeTask extends Task {
     private final int numConsumers;
     private final String executor;
     private final String name;
-    private final AsyncQueue<List<UUID>> queue = new AsyncQueue<List<UUID>>(new ArrayBlockingQueue<List<UUID>>(QUEUE_SIZE));
+    private final AsyncQueue<Metric.DistinctIds> queue = new AsyncQueue<Metric.DistinctIds>(new ArrayBlockingQueue<Metric.DistinctIds>(QUEUE_SIZE));
     private final List<ResummarizeConsumer> consumers = new ArrayList<ResummarizeConsumer>();
 
     public ResummarizeTask(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, int numConsumers, String executor, String name) {
@@ -1895,7 +1895,7 @@ class ResummarizeTask extends Task {
                 int i = 0;
                 while (shouldContinue() && iter.hasNext()) {
                     this.setProgressIndex(++i);
-                    List<UUID> tuple = iter.next();
+                    Metric.DistinctIds tuple = iter.next();
                     queue.add(tuple);
                 }
                 this.setProgressTotal(i);
@@ -1917,17 +1917,16 @@ class ResummarizeTask extends Task {
             }
         }
     }
-
 }
 
-class ResummarizeConsumer extends AsyncConsumer<List<UUID>> {
+class ResummarizeConsumer extends AsyncConsumer<Metric.DistinctIds> {
     private final SqlDatabase database;
     private final int symbolId;
     private final MetricInterval interval;
     private final Long startTimestamp;
     private final Long endTimestamp;
 
-    public ResummarizeConsumer(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, AsyncQueue<List<UUID>> input, String executor) {
+    public ResummarizeConsumer(SqlDatabase database, int symbolId, MetricInterval interval, Long startTimestamp, Long endTimestamp, AsyncQueue<Metric.DistinctIds> input, String executor) {
         super(executor, input);
         this.database = database;
         this.symbolId = symbolId;
@@ -1937,11 +1936,8 @@ class ResummarizeConsumer extends AsyncConsumer<List<UUID>> {
     }
 
     @Override
-    protected void consume(List<UUID> tuple) throws Exception {
-        UUID id = tuple.get(0);
-        UUID dimensionId = tuple.get(1);
-        UUID typeId = tuple.get(2);
-        MetricAccess.Static.doResummarize(database, id, typeId, symbolId, dimensionId, interval, startTimestamp, endTimestamp);
+    protected void consume(Metric.DistinctIds tuple) throws Exception {
+        MetricAccess.Static.doResummarize(database, tuple.id, tuple.typeId, symbolId, tuple.dimensionId, interval, startTimestamp, endTimestamp);
     }
 
 }

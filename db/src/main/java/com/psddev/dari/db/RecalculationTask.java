@@ -3,9 +3,11 @@ package com.psddev.dari.db;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -63,13 +65,11 @@ public class RecalculationTask extends RepeatingTask {
             last = new LastRecalculation();
             last.setKey(updateKey);
             shouldExecute = true;
-            context.setReindexAll(true);
 
         } else {
             if (last.getLastExecutedDate() == null && last.getCurrentRunningDate() == null) {
                 // this has never been executed, and it's not currently executing.
                 shouldExecute = true;
-                context.setReindexAll(true);
 
             } else if (last.getLastExecutedDate() != null && context.delay.isUpdateDue(new DateTime(), last.getLastExecutedDate())) {
                 // this has been executed before and an update is due.
@@ -137,13 +137,12 @@ public class RecalculationTask extends RepeatingTask {
      */
     private long recalculate(RecalculationContext context, LastRecalculation last) {
         long recalculated = 0L;
-
         try {
-            Query<?> query = Query.fromAll().noCache().resolveToReferenceOnly();
-            query.getOptions().put(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
-
             ObjectField metricField = context.getMetric();
             DateTime processedLastRunDate = last.getLastExecutedDate();
+            boolean isGlobal = context.groups.contains(Object.class.getName());
+            Iterator<?> iterator = null;
+
             if (metricField != null) {
                 if (last.getLastExecutedDate() != null) {
                     MetricInterval interval = metricField.as(MetricAccess.FieldData.class).getEventDateProcessor();
@@ -151,18 +150,27 @@ public class RecalculationTask extends RepeatingTask {
                         processedLastRunDate = new DateTime(interval.process(processedLastRunDate));
                     }
                 }
-                if (!context.isReindexAll()) {
-                    for (ObjectMethod method : context.methods) {
-                        query.or(method.getUniqueName() + " != missing");
-                    }
-                }
+                iterator = Metric.Static.getDistinctIdsBetween(Database.Static.getDefault(), null, metricField, processedLastRunDate, null);
+
+            } else {
+                Query<?> query = Query.fromAll().noCache().resolveToReferenceOnly().option(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
+                iterator = query.iterable(QUERY_ITERABLE_SIZE).iterator();
             }
 
-            boolean isGlobal = context.groups.contains(Object.class.getName());
-            for (Object obj : query.iterable(QUERY_ITERABLE_SIZE)) {
+            UUID lastId = null;
+            while (iterator.hasNext()) {
                 try {
+                    Object obj = iterator.next();
                     if (!shouldContinue()) {
                         break;
+                    }
+                    if (obj instanceof Metric.DistinctIds) {
+                        Metric.DistinctIds distinctIds = (Metric.DistinctIds) obj;
+                        if (distinctIds.id.equals(lastId)) {
+                            continue;
+                        }
+                        lastId = distinctIds.id;
+                        obj = Query.fromAll().noCache().resolveToReferenceOnly().where("_id = ?", distinctIds.id).first();
                     }
                     setProgressIndex(++ recordsTotal);
                     State objState = State.getInstance(obj);
@@ -173,18 +181,6 @@ public class RecalculationTask extends RepeatingTask {
                         Set<String> objGroups = new HashSet<String>(objState.getType().getGroups());
                         objGroups.retainAll(context.groups);
                         if (objGroups.isEmpty()) {
-                            continue;
-                        }
-                    }
-                    if (!context.isReindexAll() && metricField != null) {
-                        Metric metric = new Metric(objState, metricField);
-                        DateTime lastMetricUpdate = metric.getLastUpdate();
-                        if (lastMetricUpdate == null) {
-                            // there's no metric data, so just pass.
-                            continue;
-
-                        } else if (last.getLastExecutedDate() != null && lastMetricUpdate.isBefore(processedLastRunDate.minusSeconds(1))) {
-                            // metric data is older than the last run date, so skip it.
                             continue;
                         }
                     }
@@ -311,7 +307,6 @@ public class RecalculationTask extends RepeatingTask {
         public final RecalculationDelay delay;
         public final TreeSet<String> groups;
         public final Set<ObjectMethod> methods = new HashSet<ObjectMethod>();
-        public boolean reindexAll = false;
 
         public RecalculationContext(ObjectType type, TreeSet<String> groups, RecalculationDelay delay) {
             this.type = type;
@@ -358,14 +353,6 @@ public class RecalculationTask extends RepeatingTask {
                 StringUtils.join(groups.toArray(new String[0]), ",") + " " +
                 delay.getClass().getName() +
                 (metricField != null ? " " + metricField.getUniqueName() : "");
-        }
-
-        public boolean isReindexAll() {
-            return reindexAll;
-        }
-
-        public void setReindexAll(boolean reindexAll) {
-            this.reindexAll = reindexAll;
         }
     }
 }
