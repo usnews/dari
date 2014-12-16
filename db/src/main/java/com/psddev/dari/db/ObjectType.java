@@ -1179,15 +1179,6 @@ public class ObjectType extends Record implements ObjectStruct {
                 processor.process(this, annotation);
             }
         }
-
-        TypePostProcessorClasses tppcAnnotation = modificationClass.getAnnotation(TypePostProcessorClasses.class);
-        if (tppcAnnotation != null) {
-            for (Class<? extends PostProcessor> processorClass : tppcAnnotation.value()) {
-                PostProcessor processor = (PostProcessor) ANNOTATION_PROCESSORS.getUnchecked(processorClass);
-                processor.process(this);
-            }
-        }
-
     }
 
     /**
