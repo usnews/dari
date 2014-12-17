@@ -1397,7 +1397,7 @@ class MetricAccess {
             return datas;
         }
 
-        public static class DistinctIdsIterator implements Iterator<Metric.DistinctIds> {
+        private static class DistinctIdsIterator implements Iterator<Metric.DistinctIds> {
 
             private final SqlDatabase database;
             private final UUID typeId;
@@ -1550,7 +1550,7 @@ class MetricAccess {
             }
         }
 
-        public static DistinctIdsIterator getDistinctIds(SqlDatabase database, UUID typeId, int symbolId, Long startTimestamp, Long endTimestamp) {
+        public static Iterator<Metric.DistinctIds> getDistinctIds(SqlDatabase database, UUID typeId, int symbolId, Long startTimestamp, Long endTimestamp) {
             return new DistinctIdsIterator(database, typeId, symbolId, startTimestamp, endTimestamp, 200);
         }
 
@@ -1891,7 +1891,7 @@ class ResummarizeTask extends Task {
                     consumers.add(consumer);
                     consumer.submit();
                 }
-                MetricAccess.Static.DistinctIdsIterator iter = MetricAccess.Static.getDistinctIds(database, null, symbolId, startTimestamp, endTimestamp);
+                Iterator<Metric.DistinctIds> iter = MetricAccess.Static.getDistinctIds(database, null, symbolId, startTimestamp, endTimestamp);
                 int i = 0;
                 while (shouldContinue() && iter.hasNext()) {
                     this.setProgressIndex(++i);
