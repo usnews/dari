@@ -99,7 +99,7 @@ public class HtmlMicrodata {
                 value = ObjectUtils.firstNonNull(prop.attr("datetime"), prop.text());
 
             } else {
-                if(prop.hasAttr("content")) {
+                if (prop.hasAttr("content")) {
                     value = prop.attr("content");
                 } else {
                     value = prop.text();
@@ -270,7 +270,7 @@ public class HtmlMicrodata {
          * @return
          */
         public static HtmlMicrodata getFirstType(List<HtmlMicrodata> htmlMicrodatas, Collection<String> allowedSchemaTypes) {
-            for(HtmlMicrodata htmlMicrodata : htmlMicrodatas) {
+            for (HtmlMicrodata htmlMicrodata : htmlMicrodatas) {
                 for (String allowedSchemaType : allowedSchemaTypes) {
                     if (htmlMicrodata.getTypes().contains(allowedSchemaType)) {
                         return htmlMicrodata;
