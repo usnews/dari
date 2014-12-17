@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -98,7 +99,11 @@ public class HtmlMicrodata {
                 value = ObjectUtils.firstNonNull(prop.attr("datetime"), prop.text());
 
             } else {
-                value = prop.text();
+                if(prop.hasAttr("content")) {
+                    value = prop.attr("content");
+                } else {
+                    value = prop.text();
+                }
             }
 
             if (!ObjectUtils.isBlank(names)) {
@@ -256,6 +261,23 @@ public class HtmlMicrodata {
          */
         public static List<HtmlMicrodata> parseUrl(URL url) throws IOException {
             return parseString(url, IoUtils.toString(url));
+        }
+
+        /**
+         * Returns the first HtmlMicrodata instance in the list that matches one of the supplied schema types, or null if none match
+         * @param htmlMicrodatas
+         * @param allowedSchemaTypes
+         * @return
+         */
+        public static HtmlMicrodata getFirstType(List<HtmlMicrodata> htmlMicrodatas, Collection<String> allowedSchemaTypes) {
+            for(HtmlMicrodata htmlMicrodata : htmlMicrodatas) {
+                for (String allowedSchemaType : allowedSchemaTypes) {
+                    if (htmlMicrodata.getTypes().contains(allowedSchemaType)) {
+                        return htmlMicrodata;
+                    }
+                }
+            }
+            return null;
         }
     }
 }
