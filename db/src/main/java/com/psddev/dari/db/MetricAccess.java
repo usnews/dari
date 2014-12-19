@@ -117,6 +117,11 @@ class MetricAccess {
         return data != null ? new DateTime(Static.timestampFromBytes(data)) : null;
     }
 
+    public DateTime getFirstUpdate(UUID id, String dimensionValue) throws SQLException {
+        List<byte[]> data = getMaxMinData(id, getDimensionId(dimensionValue), null, null);
+        return data != null && data.size() == 2 ? new DateTime(Static.timestampFromBytes(data.get(1))) : null;
+    }
+
     public Double getMetric(UUID id, String dimensionValue, Long startTimestamp, Long endTimestamp) throws SQLException {
         if (startTimestamp == null) {
             byte[] data = getMaxData(id, getDimensionId(dimensionValue), endTimestamp);
