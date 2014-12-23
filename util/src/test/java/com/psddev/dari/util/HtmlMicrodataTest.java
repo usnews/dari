@@ -100,6 +100,29 @@ public class HtmlMicrodataTest {
         assertEquals("PT30M", microdata.getFirstProperty("prepTime"));
     }
 
+
+    @Test
+    public void Static_parse_time_datetime() {
+        List<HtmlMicrodata> microdatas = HtmlMicrodata.Static.parseDocument(testUrl, getDocument("simple-content.html"));
+        HtmlMicrodata microdata = HtmlMicrodata.Static.getFirstType(microdatas, Arrays.asList(new String[] { "http://schema.org/Recipe" }));
+        assertEquals("PT15M", microdata.getFirstProperty("cookTimeDateTime"));
+    }
+
+    @Test
+    public void Static_parse_time_content() {
+        List<HtmlMicrodata> microdatas = HtmlMicrodata.Static.parseDocument(testUrl, getDocument("simple-content.html"));
+        HtmlMicrodata microdata = HtmlMicrodata.Static.getFirstType(microdatas, Arrays.asList(new String[] { "http://schema.org/Recipe" }));
+        assertEquals("PT14M", microdata.getFirstProperty("cookTimeContent"));
+    }
+
+    @Test
+    public void Static_parse_time_value() {
+        List<HtmlMicrodata> microdatas = HtmlMicrodata.Static.parseDocument(testUrl, getDocument("simple-content.html"));
+        HtmlMicrodata microdata = HtmlMicrodata.Static.getFirstType(microdatas, Arrays.asList(new String[] { "http://schema.org/Recipe" }));
+        assertEquals("13 mins", microdata.getFirstProperty("cookTimeValue"));
+    }
+
+
     /** UTILITY **/
     public static Document getDocument(String file) {
         try {

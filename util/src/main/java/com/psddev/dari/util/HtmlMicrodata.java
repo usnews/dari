@@ -96,7 +96,15 @@ public class HtmlMicrodata {
                 value = prop.attr("value");
 
             } else if (" time ".contains(tagName)) {
-                value = ObjectUtils.firstNonNull(prop.attr("datetime"), prop.text());
+                if (prop.hasAttr("datetime")) {
+                    value = prop.attr("datetime");
+                } else if (prop.hasAttr("content")) {
+                    value = prop.attr("content");
+                } else {
+                    value = prop.text();
+                }
+                // this older version was returning empty string... prop.attr returning non-null?
+                // value = ObjectUtils.firstNonNull(prop.attr("datetime"), prop.attr("content"), prop.text());
 
             } else {
                 if (prop.hasAttr("content")) {
