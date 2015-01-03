@@ -159,13 +159,13 @@ public abstract class ForwardingDatabase implements Database {
         getDelegate().indexAll(index);
     }
 
-    public void recalculate(State state, ObjectIndex index) {
+    public void recalculate(State state, ObjectIndex... indexes) {
         if (getDelegate() instanceof AggregateDatabase) {
-            ((AggregateDatabase) getDelegate()).recalculate(state, index);
+            ((AggregateDatabase) getDelegate()).recalculate(state, indexes);
         } else if (getDelegate() instanceof ForwardingDatabase) {
-            ((ForwardingDatabase) getDelegate()).recalculate(state, index);
+            ((ForwardingDatabase) getDelegate()).recalculate(state, indexes);
         } else if (getDelegate() instanceof AbstractDatabase) {
-            ((AbstractDatabase<?>) getDelegate()).recalculate(state, index);
+            ((AbstractDatabase<?>) getDelegate()).recalculate(state, indexes);
         }
     }
 

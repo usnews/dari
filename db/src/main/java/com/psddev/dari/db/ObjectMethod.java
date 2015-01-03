@@ -4,8 +4,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 
 import com.google.common.cache.CacheBuilder;
@@ -138,30 +140,30 @@ public class ObjectMethod extends ObjectField {
         }
         Database db = state.getDatabase();
 
-        for (ObjectIndex idx : state.getType().getIndexes()) {
-            if (idx.getFields().contains(getInternalName())) {
-                if (db instanceof AggregateDatabase) {
-                    ((AggregateDatabase) db).recalculate(state, idx);
-                } else if (db instanceof ForwardingDatabase) {
-                    ((ForwardingDatabase) db).recalculate(state, idx);
-                } else if (db instanceof AbstractDatabase) {
-                    ((AbstractDatabase<?>) db).recalculate(state, idx);
-                }
+        for (ObjectIndex idx : findIndexes(state.getType())) {
+            if (db instanceof AggregateDatabase) {
+                ((AggregateDatabase) db).recalculate(state, idx);
+            } else if (db instanceof ForwardingDatabase) {
+                ((ForwardingDatabase) db).recalculate(state, idx);
+            } else if (db instanceof AbstractDatabase) {
+                ((AbstractDatabase<?>) db).recalculate(state, idx);
             }
         }
+    }
 
-        for (ObjectIndex idx : db.getEnvironment().getIndexes()) {
+    public Set<ObjectIndex> findIndexes(ObjectType type) {
+        Set<ObjectIndex> indexes = new HashSet<ObjectIndex>();
+        for (ObjectIndex idx : type.getIndexes()) {
             if (idx.getFields().contains(getInternalName())) {
-                if (db instanceof AggregateDatabase) {
-                    ((AggregateDatabase) db).recalculate(state, idx);
-                } else if (db instanceof ForwardingDatabase) {
-                    ((ForwardingDatabase) db).recalculate(state, idx);
-                } else if (db instanceof AbstractDatabase) {
-                    ((AbstractDatabase<?>) db).recalculate(state, idx);
-                }
+                indexes.add(idx);
             }
         }
-
+        for (ObjectIndex idx : type.getEnvironment().getIndexes()) {
+            if (idx.getFields().contains(getInternalName())) {
+                indexes.add(idx);
+            }
+        }
+        return indexes;
     }
 
     @Deprecated

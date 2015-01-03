@@ -904,19 +904,23 @@ public abstract class AbstractDatabase<C> implements Database {
     public void indexAll(ObjectIndex index) {
     }
 
-    public void recalculate(State state, ObjectIndex index) {
+    public void recalculate(State state, ObjectIndex... indexes) {
         checkState(state);
-        if (index.isVisibility()) {
-            throw new IllegalArgumentException("Updating single field index value is unsupported for visibility indexes!");
-        }
-
         Writes writes = getCurrentWrites();
-        if (writes != null) {
-            writes.addToRecalculations(state, index);
+        Map<ObjectIndex, List<State>> recalculations = writes == null ? new CompactMap<ObjectIndex, List<State>>() : null;
+        for (ObjectIndex index : indexes) {
+            if (index.isVisibility()) {
+                throw new IllegalArgumentException("Updating single field index value is unsupported for visibility indexes!");
+            }
 
-        } else {
-            Map<ObjectIndex, List<State>> recalculations = new CompactMap<ObjectIndex, List<State>>();
-            recalculations.put(index, Arrays.asList(state));
+            if (writes != null) {
+                writes.addToRecalculations(state, index);
+
+            } else {
+                recalculations.put(index, Arrays.asList(state));
+            }
+        }
+        if (recalculations != null) {
             write(null, null, null, null, recalculations, true);
         }
     }
