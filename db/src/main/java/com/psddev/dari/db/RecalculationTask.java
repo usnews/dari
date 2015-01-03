@@ -13,6 +13,9 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.RepeatingTask;
 import com.psddev.dari.util.Stats;
@@ -25,6 +28,7 @@ public class RecalculationTask extends RepeatingTask {
 
     private static final int UPDATE_LATEST_EVERY_SECONDS = 60;
     private static final int QUERY_ITERABLE_SIZE = 200;
+    private static final int COMMIT_SIZE = 200;
     private static final Logger LOGGER = LoggerFactory.getLogger(RecalculationTask.class);
     private static final Stats STATS = new Stats("Recalculation Task");
 
@@ -129,13 +133,30 @@ public class RecalculationTask extends RepeatingTask {
     /**
      * Actually does the work of iterating through the records and updating indexes.
      */
-    private long recalculate(RecalculationContext context, LastRecalculation last) {
+    private long recalculate(final RecalculationContext context, LastRecalculation last) {
+
+        LoadingCache<ObjectType, ObjectIndex[]> typeMethodIndexes = CacheBuilder.newBuilder().build(
+                new CacheLoader<ObjectType, ObjectIndex[]>() {
+                    @Override
+                    public ObjectIndex[] load(ObjectType type) throws Exception {
+                        Set<ObjectIndex> result = new HashSet<ObjectIndex>();
+                        for (ObjectMethod method : context.methods) {
+                            result.addAll(method.findIndexes(type));
+                        }
+                        return result.toArray(new ObjectIndex[result.size()]);
+                    }
+                }
+        );
+
         long recalculated = 0L;
+        int transactionCounter = 0;
+        Database db = Database.Static.getDefault();
+        db.beginWrites();
         try {
             ObjectField metricField = context.getMetric();
             DateTime processedLastRunDate = last.getLastExecutedDate();
             boolean isGlobal = context.groups.contains(Object.class.getName());
-            Iterator<?> iterator = null;
+            Iterator<?> iterator;
 
             if (metricField != null) {
                 if (last.getLastExecutedDate() != null) {
@@ -147,7 +168,7 @@ public class RecalculationTask extends RepeatingTask {
                 iterator = Metric.Static.getDistinctIdsBetween(Database.Static.getDefault(), null, metricField, processedLastRunDate, null);
 
             } else {
-                Query<?> query = Query.fromAll().noCache().resolveToReferenceOnly().option(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
+                Query<?> query = Query.fromAll().using(db).noCache().resolveToReferenceOnly().option(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
                 iterator = query.iterable(QUERY_ITERABLE_SIZE).iterator();
             }
 
@@ -179,12 +200,22 @@ public class RecalculationTask extends RepeatingTask {
                         }
                     }
                     objState.setResolveToReferenceOnly(false);
-                    for (ObjectMethod method : context.methods) {
-                        LOGGER.debug("Updating Index: " + method.getInternalName() + " for " + objState.getId());
-                        method.recalculate(objState);
-                        recalculated ++;
+                    ObjectIndex[] indexes = typeMethodIndexes.getUnchecked(objState.getType());
+                    if (db instanceof AggregateDatabase) {
+                        ((AggregateDatabase) db).recalculate(objState, indexes);
+                    } else if (db instanceof ForwardingDatabase) {
+                        ((ForwardingDatabase) db).recalculate(objState, indexes);
+                    } else if (db instanceof AbstractDatabase) {
+                        ((AbstractDatabase<?>) db).recalculate(objState, indexes);
                     }
+
+                    recalculated += indexes.length;
                     recordsProcessed ++;
+                    transactionCounter += indexes.length;
+                    if (transactionCounter >= COMMIT_SIZE) {
+                        transactionCounter = 0;
+                        db.commitWritesEventually();
+                    }
 
                 } finally {
                     if (last.getCurrentRunningDate().plusSeconds(UPDATE_LATEST_EVERY_SECONDS).isBeforeNow()) {
@@ -195,6 +226,10 @@ public class RecalculationTask extends RepeatingTask {
             }
 
         } finally {
+            if (transactionCounter > 0) {
+                db.commitWritesEventually();
+            }
+            db.endWrites();
             last.setCurrentRunningDate(new DateTime());
             last.saveImmediately();
         }
@@ -335,7 +370,7 @@ public class RecalculationTask extends RepeatingTask {
 
             ObjectField metricField = getMetric();
             return type.getInternalName() + " " +
-                StringUtils.join(groups.toArray(new String[0]), ",") + " " +
+                StringUtils.join(groups.toArray(new String[groups.size()]), ",") + " " +
                 delay.getClass().getName() +
                 (metricField != null ? " " + metricField.getUniqueName() : "");
         }
