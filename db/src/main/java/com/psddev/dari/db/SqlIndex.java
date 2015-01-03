@@ -199,6 +199,13 @@ public enum SqlIndex {
                 Connection connection,
                 ObjectIndex index) throws SQLException;
 
+        public default String prepareUpdateStatement(
+                SqlDatabase database,
+                Connection connection,
+                ObjectIndex index) throws SQLException {
+            throw new UnsupportedOperationException();
+        }
+
         public void bindInsertValues(
                 SqlDatabase database,
                 ObjectIndex index,
@@ -208,6 +215,16 @@ public enum SqlIndex {
                 Set<String> bindKeys,
                 List<List<Object>> parameters) throws SQLException;
 
+        public default void bindUpdateValues(
+                SqlDatabase database,
+                ObjectIndex index,
+                UUID id,
+                UUID typeId,
+                IndexValue indexValue,
+                Set<String> bindKeys,
+                List<List<Object>> parameters) throws SQLException {
+            throw new UnsupportedOperationException();
+        }
     }
 
     private abstract static class AbstractTable implements Table {

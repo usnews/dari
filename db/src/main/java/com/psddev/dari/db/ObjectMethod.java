@@ -140,15 +140,8 @@ public class ObjectMethod extends ObjectField {
         }
         Database db = state.getDatabase();
 
-        for (ObjectIndex idx : findIndexes(state.getType())) {
-            if (db instanceof AggregateDatabase) {
-                ((AggregateDatabase) db).recalculate(state, idx);
-            } else if (db instanceof ForwardingDatabase) {
-                ((ForwardingDatabase) db).recalculate(state, idx);
-            } else if (db instanceof AbstractDatabase) {
-                ((AbstractDatabase<?>) db).recalculate(state, idx);
-            }
-        }
+        Set<ObjectIndex> indexes = findIndexes(state.getType());
+        db.recalculate(state, indexes.toArray(new ObjectIndex[indexes.size()]));
     }
 
     public Set<ObjectIndex> findIndexes(ObjectType type) {
