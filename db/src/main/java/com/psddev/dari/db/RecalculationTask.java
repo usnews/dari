@@ -201,14 +201,7 @@ public class RecalculationTask extends RepeatingTask {
                     }
                     objState.setResolveToReferenceOnly(false);
                     ObjectIndex[] indexes = typeMethodIndexes.getUnchecked(objState.getType());
-                    if (db instanceof AggregateDatabase) {
-                        ((AggregateDatabase) db).recalculate(objState, indexes);
-                    } else if (db instanceof ForwardingDatabase) {
-                        ((ForwardingDatabase) db).recalculate(objState, indexes);
-                    } else if (db instanceof AbstractDatabase) {
-                        ((AbstractDatabase<?>) db).recalculate(objState, indexes);
-                    }
-
+                    db.recalculate(objState, indexes);
                     recalculated += indexes.length;
                     recordsProcessed ++;
                     transactionCounter += indexes.length;
