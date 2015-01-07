@@ -478,8 +478,10 @@ public class ObjectIndex {
          */
         public static List<Map<String, Object>> convertInstancesToDefinitions(List<ObjectIndex> instances) {
             List<Map<String, Object>> definitions = new ArrayList<Map<String, Object>>();
-            for (ObjectIndex instance : instances) {
-                definitions.add(instance.toDefinition());
+            if (instances != null) {
+                for (ObjectIndex instance : instances) {
+                    definitions.add(instance.toDefinition());
+                }
             }
             return definitions;
         }
