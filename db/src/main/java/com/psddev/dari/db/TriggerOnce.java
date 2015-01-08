@@ -35,7 +35,7 @@ public abstract class TriggerOnce implements Trigger {
         }
     }
 
-    boolean isMissing(Class<?> cls) {
+    protected boolean isMissing(Class<?> cls) {
         return false;
     }
 }
