@@ -88,6 +88,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
     public static final String ENABLE_REPLICATION_CACHE_SUB_SETTING = "enableReplicationCache";
+    public static final String ENABLE_FUNNEL_CACHE_SUB_SETTING = "enableFunnelCache";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -128,6 +129,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private static final String UPDATE_PROFILER_EVENT = SHORT_NAME + " " + UPDATE_STATS_OPERATION;
     private static final String REPLICATION_CACHE_GET_PROFILER_EVENT = SHORT_NAME + " Replication Cache Get";
     private static final String REPLICATION_CACHE_PUT_PROFILER_EVENT = SHORT_NAME + " Replication Cache Put";
+    private static final String FUNNEL_CACHE_GET_PROFILER_EVENT = SHORT_NAME + " Funnel Cache Get";
+    private static final String FUNNEL_CACHE_PUT_PROFILER_EVENT = SHORT_NAME + " Funnel Cache Put";
     private static final long NOW_EXPIRATION_SECONDS = 300;
 
     private static final List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
@@ -145,9 +148,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile boolean compressData;
     private volatile boolean cacheData;
     private volatile boolean enableReplicationCache;
+    private volatile boolean enableFunnelCache;
 
     private transient volatile Cache<UUID, Object[]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
     private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
+    private transient volatile FunnelCache funnelCache;
+    private transient volatile FunnelCacheProducer funnelCacheProducer;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -367,6 +373,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         this.enableReplicationCache = enableReplicationCache;
     }
 
+    public boolean isEnableFunnelCache() {
+        return enableFunnelCache;
+    }
+
+    public void setEnableFunnelCache(boolean enableFunnelCache) {
+        this.enableFunnelCache = enableFunnelCache;
+    }
+
     /**
      * Returns {@code true} if the {@link #RECORD_TABLE} in this database
      * has the {@link #IN_ROW_INDEX_COLUMN}.
@@ -401,7 +415,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * contains the given {@code column}.
      *
      * @param table If {@code null}, always returns {@code false}.
-     * @param name If {@code null}, always returns {@code false}.
+     * @param column If {@code null}, always returns {@code false}.
      */
     public boolean hasColumn(String table, String column) {
         if (table == null || column == null) {
@@ -1246,12 +1260,32 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return objects;
     }
 
+    private <T> List<T> findObjectsFromFunnelCache(String sqlQuery, Query<T> query) {
+        Profiler.Static.startThreadEvent(FUNNEL_CACHE_GET_PROFILER_EVENT);
+        List<FunnelCache.CachedObject> cachedObjects = funnelCache.get(sqlQuery, query, funnelCacheProducer);
+        List<T> objects = new ArrayList<T>();
+        if (cachedObjects != null) {
+            for (FunnelCache.CachedObject cachedObj : cachedObjects) {
+                T savedObj = createSavedObjectFromReplicationCache(UuidUtils.toBytes(cachedObj.getTypeId()), cachedObj.getId(), cachedObj.getData(), cachedObj.getValues(), query);
+                objects.add(savedObj);
+            }
+        }
+        Profiler.Static.stopThreadEvent(objects);
+        return objects;
+    }
+
     /**
      * Selects the first object that matches the given {@code sqlQuery}
      * with options from the given {@code query}.
      */
     public <T> T selectFirstWithOptions(String sqlQuery, Query<T> query) {
         sqlQuery = vendor.rewriteQueryWithLimitClause(sqlQuery, 1, 0);
+        if (checkFunnelCache(sqlQuery, query)) {
+            List<T> objects = findObjectsFromFunnelCache(sqlQuery, query);
+            if (objects != null) {
+                return objects.isEmpty() ? null : objects.get(0);
+            }
+        }
 
         ConnectionRef extraConnectionRef = new ConnectionRef();
         Connection connection = null;
@@ -1286,6 +1320,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * with options from the given {@code query}.
      */
     public <T> List<T> selectListWithOptions(String sqlQuery, Query<T> query) {
+        if (checkFunnelCache(sqlQuery, query)) {
+            List<T> objects = findObjectsFromFunnelCache(sqlQuery, query);
+            if (objects != null) {
+                return objects;
+            }
+        }
         ConnectionRef extraConnectionRef = new ConnectionRef();
         Connection connection = null;
         Statement statement = null;
@@ -1677,6 +1717,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
         setEnableReplicationCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_REPLICATION_CACHE_SUB_SETTING)));
+        setEnableFunnelCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_FUNNEL_CACHE_SUB_SETTING)));
 
         if (isEnableReplicationCache() &&
                 vendor instanceof SqlVendor.MySQL &&
@@ -1691,6 +1732,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 setEnableReplicationCache(false);
                 LOGGER.warn("Can't start MySQL binary log reader!", error);
             }
+        }
+
+        if (isEnableFunnelCache()) {
+            funnelCache = FunnelCache.getInstance();
+            funnelCacheProducer = new FunnelCacheProducer();
         }
     }
 
@@ -1832,6 +1878,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 isEnableReplicationCache() &&
                 mysqlBinaryLogReader != null &&
                 mysqlBinaryLogReader.isConnected();
+    }
+
+    private boolean checkFunnelCache(String sqlQuery, Query<?> query) {
+        return query.isCache() &&
+                !query.isReferenceOnly() &&
+                isEnableFunnelCache() &&
+                funnelCache != null &&
+                funnelCacheProducer != null;
     }
 
     @Override
@@ -2773,6 +2827,43 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             data.setIndexTableSameColumnNames(annotation.sameColumnNames());
             data.setIndexTableSource(annotation.source());
             data.setIndexTableReadOnly(annotation.readOnly());
+        }
+    }
+
+    private class FunnelCacheProducer implements FunnelCache.CachedObjectProducer {
+
+        @Override
+        public List<FunnelCache.CachedObject> apply(String sqlQuery, Query<?> query) {
+            Profiler.Static.startThreadEvent(FUNNEL_CACHE_PUT_PROFILER_EVENT);
+            ConnectionRef extraConnectionRef = new ConnectionRef();
+            Connection connection = null;
+            Statement statement = null;
+            ResultSet result = null;
+            List<FunnelCache.CachedObject> objects = new ArrayList<FunnelCache.CachedObject>();
+            int timeout = getQueryReadTimeout(query);
+
+            try {
+                connection = openQueryConnection(query);
+                statement = connection.createStatement();
+                result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
+                while (result.next()) {
+                    UUID id = ObjectUtils.to(UUID.class, result.getObject(1));
+                    UUID typeId = ObjectUtils.to(UUID.class, result.getObject(2));
+                    byte[] data = result.getBytes(3);
+                    Map<String, Object> dataJson = unserializeData(data);
+                    objects.add(new FunnelCache.CachedObject(id, typeId, dataJson, data));
+                }
+
+                Profiler.Static.stopThreadEvent(objects);
+                return objects;
+
+            } catch (SQLException ex) {
+                throw createQueryException(ex, sqlQuery, query);
+
+            } finally {
+                closeResources(query, connection, statement, result);
+                extraConnectionRef.close();
+            }
         }
     }
 
