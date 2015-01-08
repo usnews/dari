@@ -34,4 +34,8 @@ public abstract class TriggerOnce implements Trigger {
             executeOnce(object);
         }
     }
+
+    boolean isMissing(Class<?> cls) {
+        return false;
+    }
 }

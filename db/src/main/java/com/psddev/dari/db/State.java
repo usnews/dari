@@ -1389,6 +1389,9 @@ public class State implements Map<String, Object> {
     }
 
     private void fireModificationTrigger(Trigger trigger, Class<?> modClass) {
+        if (trigger instanceof TriggerOnce && ((TriggerOnce) trigger).isMissing(modClass)) {
+            return;
+        }
         Object modObject;
 
         try {
@@ -1398,10 +1401,11 @@ public class State implements Map<String, Object> {
             return;
         }
 
-        LOGGER.debug(
-                "Firing trigger [{}] from [{}] on [{}]",
-                new Object[] { trigger, modClass.getName(), State.getInstance(modObject) });
-
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    "Firing trigger [{}] from [{}] on [{}]",
+                    new Object[] { trigger, modClass.getName(), State.getInstance(modObject) });
+        }
         trigger.execute(modObject);
     }
 
