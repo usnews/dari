@@ -1399,6 +1399,8 @@ class MetricAccess {
 
         private static class DistinctIdsIterator implements Iterator<Metric.DistinctIds> {
 
+            private static final int QUERY_TIMEOUT = 0;
+
             private final SqlDatabase database;
             private final UUID typeId;
             private final int symbolId;
