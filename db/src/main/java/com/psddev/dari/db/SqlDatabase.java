@@ -153,7 +153,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private transient volatile Cache<UUID, Object[]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
     private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
     private transient volatile FunnelCache funnelCache;
-    private transient volatile FunnelCacheProducer funnelCacheProducer;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -1262,11 +1261,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private <T> List<T> findObjectsFromFunnelCache(String sqlQuery, Query<T> query) {
         Profiler.Static.startThreadEvent(FUNNEL_CACHE_GET_PROFILER_EVENT);
-        List<FunnelCache.CachedObject> cachedObjects = funnelCache.get(sqlQuery, query, funnelCacheProducer);
+        List<FunnelCache.CachedObject> cachedObjects = funnelCache.get(new FunnelCacheProducer(sqlQuery, query));
         List<T> objects = new ArrayList<T>();
         if (cachedObjects != null) {
             for (FunnelCache.CachedObject cachedObj : cachedObjects) {
-                T savedObj = createSavedObjectFromReplicationCache(UuidUtils.toBytes(cachedObj.getTypeId()), cachedObj.getId(), cachedObj.getData(), cachedObj.getValues(), query);
+                T savedObj = createSavedObjectFromReplicationCache(UuidUtils.toBytes(cachedObj.getTypeId()), cachedObj.getId(), null, cachedObj.getValues(), query);
+                if (cachedObj.getExtras() != null && !cachedObj.getExtras().isEmpty()) {
+                    State.getInstance(savedObj).getExtras().putAll(cachedObj.getExtras());
+                }
                 objects.add(savedObj);
             }
         }
@@ -1280,7 +1282,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      */
     public <T> T selectFirstWithOptions(String sqlQuery, Query<T> query) {
         sqlQuery = vendor.rewriteQueryWithLimitClause(sqlQuery, 1, 0);
-        if (checkFunnelCache(sqlQuery, query)) {
+        if (checkFunnelCache(query)) {
             List<T> objects = findObjectsFromFunnelCache(sqlQuery, query);
             if (objects != null) {
                 return objects.isEmpty() ? null : objects.get(0);
@@ -1320,7 +1322,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      * with options from the given {@code query}.
      */
     public <T> List<T> selectListWithOptions(String sqlQuery, Query<T> query) {
-        if (checkFunnelCache(sqlQuery, query)) {
+        if (checkFunnelCache(query)) {
             List<T> objects = findObjectsFromFunnelCache(sqlQuery, query);
             if (objects != null) {
                 return objects;
@@ -1736,7 +1738,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         if (isEnableFunnelCache()) {
             funnelCache = FunnelCache.getInstance();
-            funnelCacheProducer = new FunnelCacheProducer();
         }
     }
 
@@ -1880,12 +1881,11 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 mysqlBinaryLogReader.isConnected();
     }
 
-    private boolean checkFunnelCache(String sqlQuery, Query<?> query) {
+    private boolean checkFunnelCache(Query<?> query) {
         return query.isCache() &&
                 !query.isReferenceOnly() &&
                 isEnableFunnelCache() &&
-                funnelCache != null &&
-                funnelCacheProducer != null;
+                funnelCache != null;
     }
 
     @Override
@@ -2832,8 +2832,21 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private class FunnelCacheProducer implements FunnelCache.CachedObjectProducer {
 
+        private final String sqlQuery;
+        private final Query<?> query;
+
+        protected FunnelCacheProducer(String sqlQuery, Query<?> query) {
+            this.query = query;
+            this.sqlQuery = sqlQuery;
+        }
+
         @Override
-        public List<FunnelCache.CachedObject> apply(String sqlQuery, Query<?> query) {
+        public String getKey() {
+            return sqlQuery + ':' + query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION);
+        }
+
+        @Override
+        public List<FunnelCache.CachedObject> call() {
             Profiler.Static.startThreadEvent(FUNNEL_CACHE_PUT_PROFILER_EVENT);
             ConnectionRef extraConnectionRef = new ConnectionRef();
             Connection connection = null;
@@ -2851,7 +2864,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     UUID typeId = ObjectUtils.to(UUID.class, result.getObject(2));
                     byte[] data = result.getBytes(3);
                     Map<String, Object> dataJson = unserializeData(data);
-                    objects.add(new FunnelCache.CachedObject(id, typeId, dataJson, data));
+                    Map<String, Object> extras = null;
+                    if (Boolean.TRUE.equals(ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION)))) {
+                        extras = new CompactMap<String, Object>();
+                        extras.put(ORIGINAL_DATA_EXTRA, data);
+                    }
+
+                    objects.add(new FunnelCache.CachedObject(id, typeId, dataJson, extras));
                 }
 
                 Profiler.Static.stopThreadEvent(objects);
