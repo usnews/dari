@@ -135,6 +135,7 @@ public class ObjectField extends Record {
     private static final String DEFAULT_VALUE_KEY = "defaultValue";
     private static final String PREDICATE_KEY = "predicate";
     private static final String VALUES_KEY = "values";
+    private static final String GROUPS_KEY = "groups";
     private static final String VALUE_TYPES_KEY = "valueTypes";
     private static final String GENERIC_ARGUMENT_INDEX_KEY = "genericArgumentIndex";
     private static final String GENERIC_ARGUMENTS_KEY = "genericArguments";
@@ -170,6 +171,8 @@ public class ObjectField extends Record {
     private Object defaultValue;
     private String predicate;
     private Set<Value> values;
+
+    private Set<String> groups;
 
     @InternalName("valueTypes")
     private Set<ObjectType> types;
@@ -254,6 +257,7 @@ public class ObjectField extends Record {
         pattern = (String) definition.remove(PATTERN_KEY);
         defaultValue = definition.remove(DEFAULT_VALUE_KEY);
         predicate = (String) definition.remove(PREDICATE_KEY);
+        groups = ObjectUtils.to(SET_STRING_TYPE_REF, definition.remove(GROUPS_KEY));
 
         @SuppressWarnings("unchecked")
         Collection<String> typeIds = (Collection<String>) definition.remove(VALUE_TYPES_KEY);
@@ -354,6 +358,7 @@ public class ObjectField extends Record {
         definition.put(DEFAULT_VALUE_KEY, defaultValue);
         definition.put(PREDICATE_KEY, predicate);
         definition.put(VALUES_KEY, valueDefinitions.isEmpty() ? null : valueDefinitions);
+        definition.put(GROUPS_KEY, groups);
         definition.put(VALUE_TYPES_KEY, typeIds.isEmpty() ? null : typeIds);
         definition.put(GENERIC_ARGUMENT_INDEX_KEY, genericArgumentIndex);
         definition.put(GENERIC_ARGUMENTS_KEY, genericArgumentIds.isEmpty() ? null : genericArgumentIds);
@@ -661,6 +666,17 @@ public class ObjectField extends Record {
 
     public void setPredicate(String predicate) {
         this.predicate = predicate;
+    }
+
+    public Set<String> getGroups() {
+        if (groups == null) {
+            groups = new LinkedHashSet<String>();
+        }
+        return groups;
+    }
+
+    public void setGroups(Set<String> groups) {
+        this.groups = groups;
     }
 
     /** Returns the valid field types. */
@@ -1137,15 +1153,24 @@ public class ObjectField extends Record {
      * valid field value types.
      */
     public Set<ObjectType> findConcreteTypes() {
-
         Set<ObjectType> concreteTypes = new LinkedHashSet<ObjectType>();
+        Set<String> groups = getGroups();
         Set<ObjectType> types = getTypes();
         DatabaseEnvironment environment = getParent().getEnvironment();
 
-        if (types.isEmpty()) {
+        if (groups.isEmpty() && types.isEmpty()) {
             for (ObjectType type : environment.getTypesByGroup(Object.class.getName())) {
                 if (!type.isAbstract()) {
                     concreteTypes.add(type);
+                }
+            }
+
+        } else if (!groups.isEmpty()) {
+            for (String group : groups) {
+                for (ObjectType compatibleType : environment.getTypesByGroup(group)) {
+                    if (!compatibleType.isAbstract()) {
+                        concreteTypes.add(compatibleType);
+                    }
                 }
             }
 

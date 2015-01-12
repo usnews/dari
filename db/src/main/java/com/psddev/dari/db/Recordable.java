@@ -170,6 +170,16 @@ public interface Recordable {
         String value();
     }
 
+    @Documented
+    @Inherited
+    @ObjectField.AnnotationProcessorClass(GroupsProcessor.class)
+    @ObjectType.AnnotationProcessorClass(GroupsProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.FIELD, ElementType.TYPE })
+    public @interface Groups {
+        String[] value();
+    }
+
     /** Specifies whether the target field is ignored. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
@@ -680,6 +690,21 @@ class EmbeddedProcessor implements
     @Override
     public void process(ObjectType type, Recordable.Embedded annotation) {
         type.setEmbedded(annotation.value());
+    }
+}
+
+class GroupsProcessor implements
+        ObjectField.AnnotationProcessor<Recordable.Groups>,
+        ObjectType.AnnotationProcessor<Recordable.Groups> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.Groups annotation) {
+        Collections.addAll(field.getGroups(), annotation.value());
+    }
+
+    @Override
+    public void process(ObjectType type, Recordable.Groups annotation) {
+        Collections.addAll(type.getGroups(), annotation.value());
     }
 }
 
