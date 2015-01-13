@@ -18,13 +18,16 @@ enum FunnelCache {
     private static final Stats STATS = new Stats("Funnel Cache");
 
     private static final String CACHE_EXPIRE_MILLISECONDS_SETTING = "dari/funnelCacheMillis";
+    private static final String CONCURRENCY_LEVEL_SETTING = "dari/funnelCacheConcurrencyLevel";
     private static final String CACHE_SIZE_SETTING = "dari/funnelCacheSize";
     private static final long DEFAULT_CACHE_EXPIRE_MILLISECONDS = 1000;
+    private static final int DEFAULT_CONCURRENCY_LEVEL = 20;
     private static final long DEFAULT_CACHE_SIZE = 10000;
 
     private final Cache<String, List<CachedObject>> objectCache = CacheBuilder.
             newBuilder().
             maximumSize(Settings.getOrDefault(Long.class, CACHE_SIZE_SETTING, DEFAULT_CACHE_SIZE)).
+            concurrencyLevel(Settings.getOrDefault(Integer.class, CONCURRENCY_LEVEL_SETTING, DEFAULT_CONCURRENCY_LEVEL)).
             expireAfterWrite(Settings.getOrDefault(Long.class, CACHE_EXPIRE_MILLISECONDS_SETTING, DEFAULT_CACHE_EXPIRE_MILLISECONDS), TimeUnit.MILLISECONDS).build();
 
     static FunnelCache getInstance() {
