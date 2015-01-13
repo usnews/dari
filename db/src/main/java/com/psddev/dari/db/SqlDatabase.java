@@ -1885,6 +1885,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         return query.isCache() &&
                 !query.isReferenceOnly() &&
                 isEnableFunnelCache() &&
+                !Boolean.TRUE.equals(query.getOptions().get(Database.DISABLE_FUNNEL_CACHE_QUERY_OPTION)) &&
                 funnelCache != null;
     }
 
