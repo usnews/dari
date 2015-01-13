@@ -110,6 +110,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String RETURN_ORIGINAL_DATA_QUERY_OPTION = "sql.returnOriginalData";
     public static final String USE_JDBC_FETCH_SIZE_QUERY_OPTION = "sql.useJdbcFetchSize";
     public static final String USE_READ_DATA_SOURCE_QUERY_OPTION = "sql.useReadDataSource";
+    public static final String DISABLE_REPLICATION_CACHE_QUERY_OPTION = "sql.disableReplicationCache";
     public static final String SKIP_INDEX_STATE_EXTRA = "sql.skipIndex";
 
     public static final String INDEX_TABLE_INDEX_OPTION = "sql.indexTable";
@@ -1877,6 +1878,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private boolean checkReplicationCache(Query<?> query) {
         return query.isCache() &&
                 isEnableReplicationCache() &&
+                !Boolean.TRUE.equals(query.getOptions().get(DISABLE_REPLICATION_CACHE_QUERY_OPTION)) &&
                 mysqlBinaryLogReader != null &&
                 mysqlBinaryLogReader.isConnected();
     }
