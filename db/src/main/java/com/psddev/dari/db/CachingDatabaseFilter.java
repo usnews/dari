@@ -79,7 +79,7 @@ public class CachingDatabaseFilter extends AbstractFilter {
             ForwardingDatabase db = new ForwardingDatabase() {
                 @Override
                 protected <T> Query<T> filterQuery(Query<T> query) {
-                    return query.clone().option(Database.DISABLE_FUNNEL_CACHE_QUERY_OPTION, true);
+                    return query.clone().option(Database.DISABLE_FUNNEL_CACHE_QUERY_OPTION, true).option(SqlDatabase.DISABLE_REPLICATION_CACHE_QUERY_OPTION, true);
                 }
             };
             db.setDelegate(Database.Static.getDefault());
