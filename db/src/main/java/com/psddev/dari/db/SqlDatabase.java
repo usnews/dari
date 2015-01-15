@@ -153,7 +153,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     private transient volatile Cache<UUID, Object[]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
     private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
-    private transient volatile FunnelCache funnelCache;
+    private transient volatile FunnelCache<SqlDatabase> funnelCache;
 
     /**
      * Quotes the given {@code identifier} so that it's safe to use
@@ -1741,7 +1741,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         if (isEnableFunnelCache()) {
-            funnelCache = FunnelCache.getInstance();
+            funnelCache = new FunnelCache<SqlDatabase>(this, settings);
         }
     }
 
@@ -2836,35 +2836,45 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    private class FunnelCacheProducer implements FunnelCache.CachedObjectProducer {
+    private static final class FunnelCacheProducer implements FunnelCache.CachedObjectProducer<SqlDatabase> {
 
         private final String sqlQuery;
         private final Query<?> query;
 
-        protected FunnelCacheProducer(String sqlQuery, Query<?> query) {
+        private FunnelCacheProducer(String sqlQuery, Query<?> query) {
             this.query = query;
             this.sqlQuery = sqlQuery;
         }
 
         @Override
-        public String getKey() {
-            return sqlQuery + ':' + query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION);
+        public boolean equals(Object other) {
+            if (!(other instanceof FunnelCacheProducer)) {
+                return false;
+            }
+            FunnelCacheProducer otherProducer = (FunnelCacheProducer) other;
+            return (otherProducer.sqlQuery + otherProducer.query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION)).
+                    equals(sqlQuery + query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
         }
 
         @Override
-        public List<FunnelCache.CachedObject> call() {
-            ConnectionRef extraConnectionRef = new ConnectionRef();
+        public int hashCode() {
+            return sqlQuery.hashCode();
+        }
+
+        @Override
+        public List<FunnelCache.CachedObject> produce(SqlDatabase db) {
+            ConnectionRef extraConnectionRef = db.new ConnectionRef();
             Connection connection = null;
             Statement statement = null;
             ResultSet result = null;
             List<FunnelCache.CachedObject> objects = new ArrayList<FunnelCache.CachedObject>();
-            int timeout = getQueryReadTimeout(query);
+            int timeout = db.getQueryReadTimeout(query);
             Profiler.Static.startThreadEvent(FUNNEL_CACHE_PUT_PROFILER_EVENT);
 
             try {
-                connection = openQueryConnection(query);
+                connection = db.openQueryConnection(query);
                 statement = connection.createStatement();
-                result = executeQueryBeforeTimeout(statement, sqlQuery, timeout);
+                result = db.executeQueryBeforeTimeout(statement, sqlQuery, timeout);
                 while (result.next()) {
                     UUID id = ObjectUtils.to(UUID.class, result.getObject(1));
                     UUID typeId = ObjectUtils.to(UUID.class, result.getObject(2));
@@ -2882,13 +2892,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 return objects;
 
             } catch (SQLException ex) {
-                throw createQueryException(ex, sqlQuery, query);
+                throw db.createQueryException(ex, sqlQuery, query);
 
             } finally {
                 Profiler.Static.stopThreadEvent(objects);
-                closeResources(query, connection, statement, result);
+                db.closeResources(query, connection, statement, result);
                 extraConnectionRef.close();
             }
+        }
+
+        @Override
+        public String toString() {
+            return sqlQuery;
         }
     }
 
