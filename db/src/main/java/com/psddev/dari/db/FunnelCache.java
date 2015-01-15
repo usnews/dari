@@ -30,7 +30,7 @@ enum FunnelCache {
             concurrencyLevel(Settings.getOrDefault(Integer.class, CONCURRENCY_LEVEL_SETTING, DEFAULT_CONCURRENCY_LEVEL)).
             expireAfterWrite(Settings.getOrDefault(Long.class, CACHE_EXPIRE_MILLISECONDS_SETTING, DEFAULT_CACHE_EXPIRE_MILLISECONDS), TimeUnit.MILLISECONDS).build();
 
-    static FunnelCache getInstance() {
+    public static FunnelCache getInstance() {
         return INSTANCE;
     }
 
@@ -45,7 +45,7 @@ enum FunnelCache {
         }
     }
 
-    static final class CachedObject {
+    protected static final class CachedObject {
 
         private final UUID id;
         private final UUID typeId;
@@ -81,7 +81,7 @@ enum FunnelCache {
         }
     }
 
-    interface CachedObjectProducer extends Callable<List<CachedObject>> {
+    protected interface CachedObjectProducer extends Callable<List<CachedObject>> {
         String getKey();
     }
 }
