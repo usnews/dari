@@ -1261,20 +1261,23 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     private <T> List<T> findObjectsFromFunnelCache(String sqlQuery, Query<T> query) {
-        Profiler.Static.startThreadEvent(FUNNEL_CACHE_GET_PROFILER_EVENT);
-        List<FunnelCache.CachedObject> cachedObjects = funnelCache.get(new FunnelCacheProducer(sqlQuery, query));
         List<T> objects = new ArrayList<T>();
-        if (cachedObjects != null) {
-            for (FunnelCache.CachedObject cachedObj : cachedObjects) {
-                T savedObj = createSavedObjectFromReplicationCache(UuidUtils.toBytes(cachedObj.getTypeId()), cachedObj.getId(), null, cachedObj.getValues(), query);
-                if (cachedObj.getExtras() != null && !cachedObj.getExtras().isEmpty()) {
-                    State.getInstance(savedObj).getExtras().putAll(cachedObj.getExtras());
+        Profiler.Static.startThreadEvent(FUNNEL_CACHE_GET_PROFILER_EVENT);
+        try {
+            List<FunnelCache.CachedObject> cachedObjects = funnelCache.get(new FunnelCacheProducer(sqlQuery, query));
+            if (cachedObjects != null) {
+                for (FunnelCache.CachedObject cachedObj : cachedObjects) {
+                    T savedObj = createSavedObjectFromReplicationCache(UuidUtils.toBytes(cachedObj.getTypeId()), cachedObj.getId(), null, cachedObj.getValues(), query);
+                    if (cachedObj.getExtras() != null && !cachedObj.getExtras().isEmpty()) {
+                        State.getInstance(savedObj).getExtras().putAll(cachedObj.getExtras());
+                    }
+                    objects.add(savedObj);
                 }
-                objects.add(savedObj);
             }
+            return objects;
+        } finally {
+            Profiler.Static.stopThreadEvent(objects);
         }
-        Profiler.Static.stopThreadEvent(objects);
-        return objects;
     }
 
     /**
@@ -2850,13 +2853,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         @Override
         public List<FunnelCache.CachedObject> call() {
-            Profiler.Static.startThreadEvent(FUNNEL_CACHE_PUT_PROFILER_EVENT);
             ConnectionRef extraConnectionRef = new ConnectionRef();
             Connection connection = null;
             Statement statement = null;
             ResultSet result = null;
             List<FunnelCache.CachedObject> objects = new ArrayList<FunnelCache.CachedObject>();
             int timeout = getQueryReadTimeout(query);
+            Profiler.Static.startThreadEvent(FUNNEL_CACHE_PUT_PROFILER_EVENT);
 
             try {
                 connection = openQueryConnection(query);
@@ -2876,13 +2879,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     objects.add(new FunnelCache.CachedObject(id, typeId, dataJson, extras));
                 }
 
-                Profiler.Static.stopThreadEvent(objects);
                 return objects;
 
             } catch (SQLException ex) {
                 throw createQueryException(ex, sqlQuery, query);
 
             } finally {
+                Profiler.Static.stopThreadEvent(objects);
                 closeResources(query, connection, statement, result);
                 extraConnectionRef.close();
             }
