@@ -702,6 +702,15 @@ public enum SqlIndex {
                 Connection connection,
                 List<State> states)
                 throws SQLException {
+            deleteByStates(database, connection, null, states);
+        }
+
+        private static void deleteByStates(
+                SqlDatabase database,
+                Connection connection,
+                ObjectIndex onlyIndex,
+                List<State> states)
+                throws SQLException {
 
             if (states == null || states.isEmpty()) {
                 return;
@@ -742,16 +751,25 @@ public enum SqlIndex {
                     for (Table table : sqlIndex.getWriteTables(database, null)) {
                         StringBuilder deleteBuilder = new StringBuilder();
                         deleteBuilder.append("DELETE FROM ");
-                        vendor.appendIdentifier(deleteBuilder, table.getName(database, null));
+                        vendor.appendIdentifier(deleteBuilder, table.getName(database, onlyIndex));
                         deleteBuilder.append(" WHERE ");
-                        vendor.appendIdentifier(deleteBuilder, table.getIdField(database, null));
+                        vendor.appendIdentifier(deleteBuilder, table.getIdField(database, onlyIndex));
                         deleteBuilder.append(idsBuilder);
+                        if (onlyIndex != null && table.getKeyField(database, onlyIndex) != null) {
+                            deleteBuilder.append(" AND ");
+                            vendor.appendIdentifier(deleteBuilder, table.getKeyField(database, onlyIndex));
+                            deleteBuilder.append(" = ");
+                            deleteBuilder.append(database.getSymbolId(onlyIndex.getUniqueName()));
+                        }
                         SqlDatabase.Static.executeUpdateWithArray(connection, deleteBuilder.toString());
                     }
                 }
             }
 
             for (ObjectIndex index : customIndexes) {
+                if (onlyIndex != null && !onlyIndex.equals(index)) {
+                    continue;
+                }
                 for (Table table : CUSTOM.getWriteTables(database, index)) {
                     StringBuilder deleteBuilder = new StringBuilder();
                     deleteBuilder.append("DELETE FROM ");
@@ -759,6 +777,12 @@ public enum SqlIndex {
                     deleteBuilder.append(" WHERE ");
                     vendor.appendIdentifier(deleteBuilder, table.getIdField(database, index));
                     deleteBuilder.append(idsBuilder);
+                    if (onlyIndex != null && table.getKeyField(database, onlyIndex) != null) {
+                        deleteBuilder.append(" AND ");
+                        vendor.appendIdentifier(deleteBuilder, table.getKeyField(database, onlyIndex));
+                        deleteBuilder.append(" = ");
+                        deleteBuilder.append(database.getSymbolId(onlyIndex.getUniqueName()));
+                    }
                     SqlDatabase.Static.executeUpdateWithArray(connection, deleteBuilder.toString());
                 }
             }
@@ -850,12 +874,12 @@ public enum SqlIndex {
                 }
             }
             if (!needDeletes.isEmpty()) {
-                deleteByStates(database, connection, new ArrayList<State>(needDeletes));
+                deleteByStates(database, connection, index, new ArrayList<State>(needDeletes));
             }
             if (!needInserts.isEmpty()) {
                 List<State> insertStates = new ArrayList<State>(needInserts);
-                deleteByStates(database, connection, insertStates);
-                insertByStates(database, connection, insertStates);
+                deleteByStates(database, connection, index, insertStates);
+                insertByStates(database, connection, index, insertStates);
             }
         }
 
@@ -865,6 +889,15 @@ public enum SqlIndex {
         public static Map<State, String> insertByStates(
                 SqlDatabase database,
                 Connection connection,
+                List<State> states)
+                throws SQLException {
+            return insertByStates(database, connection, null, states);
+        }
+
+        private static Map<State, String> insertByStates(
+                SqlDatabase database,
+                Connection connection,
+                ObjectIndex onlyIndex,
                 List<State> states)
                 throws SQLException {
 
@@ -883,6 +916,9 @@ public enum SqlIndex {
 
                 for (IndexValue indexValue : getIndexValues(state)) {
                     ObjectIndex index = indexValue.getIndex();
+                    if (onlyIndex != null && !onlyIndex.equals(index)) {
+                        continue;
+                    }
 
                     if (database.hasInRowIndex() && index.isShortConstant()) {
                         StringBuilder inRowIndex = new StringBuilder();
