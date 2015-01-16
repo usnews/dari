@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.cache.CacheBuilder;
@@ -53,9 +52,14 @@ class FunnelCache<T extends Database> {
     public final List<CachedObject> get(final CachedObjectProducer<T> producer) {
         Stats.Timer timer = STATS.startTimer();
         try {
-            return objectCache.get(producer);
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
+            return objectCache.getUnchecked(producer);
+        } catch (UncheckedExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            } else {
+                throw new DatabaseException(database, cause);
+            }
         } finally {
             timer.stop("Get");
         }
