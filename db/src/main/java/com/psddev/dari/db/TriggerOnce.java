@@ -25,9 +25,11 @@ public abstract class TriggerOnce implements Trigger {
     @Override
     public final void execute(Object object) {
         if (executed.containsKey(object)) {
-            LOGGER.debug(
-                    "Already fired trigger [{}] from [{}] on [{}]",
-                    new Object[] { this, object.getClass().getName(), State.getInstance(object).getId() });
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace(
+                        "Already fired trigger [{}] from [{}] on [{}]",
+                        new Object[] { this, object.getClass().getName(), State.getInstance(object).getId() });
+            }
 
         } else {
             executed.put(object, null);

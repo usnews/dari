@@ -1401,8 +1401,8 @@ public class State implements Map<String, Object> {
             return;
         }
 
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace(
                     "Firing trigger [{}] from [{}] on [{}]",
                     new Object[] { trigger, modClass.getName(), State.getInstance(modObject) });
         }
