@@ -51,6 +51,9 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.jolbox.bonecp.BoneCPDataSource;
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.Lazy;
@@ -719,11 +722,43 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     }
 
     /**
+     * Maintains a cache of Querys to SQL select statements.
+     *
+     * This cache sets the Database of the Query to null to
+     * avoid keeping a reference to the CachingDatabase, so
+     * only call it with a clone of your query with a null Database.
+     */
+    private final LoadingCache<Query<?>, String> sqlQueryCache = CacheBuilder.
+            newBuilder().
+            maximumSize(5000).
+            concurrencyLevel(20).
+            weakKeys().
+            build(new CacheLoader<Query<?>, String>() {
+                @Override
+                public String load(Query<?> query) throws Exception {
+                    String sql = new SqlQuery(SqlDatabase.this, query).selectStatement();
+                    query.setDatabase(null);
+                    return sql;
+                }
+            });
+
+    /**
      * Builds an SQL statement that can be used to list all rows
      * matching the given {@code query}.
      */
     public String buildSelectStatement(Query<?> query) {
-        return new SqlQuery(this, query).selectStatement();
+        try {
+            Query<?> strippedQuery = query.clone();
+            strippedQuery.setDatabase(null);
+            return sqlQueryCache.getUnchecked(strippedQuery);
+        } catch (UncheckedExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            } else {
+                throw new DatabaseException(this, cause);
+            }
+        }
     }
 
     // Closes all the given SQL resources safely.
