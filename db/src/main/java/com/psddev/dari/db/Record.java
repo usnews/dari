@@ -47,7 +47,7 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
 
         @Override
         protected boolean isMissing(Class<?> cls) {
-            return !ObjectType.Static.hasAfterCreate(cls);
+            return !hasMethod(cls, "afterCreate");
         }
     }
 
