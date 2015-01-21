@@ -1560,8 +1560,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             return;
         }
 
-        if (value instanceof List) {
-            for (Object item : (List<?>) value) {
+        if (value instanceof Iterable) {
+            for (Object item : (Iterable<?>) value) {
                 addDocumentValues(document, allBuilder, includeInAny, field, name, item);
             }
             return;
