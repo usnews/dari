@@ -1548,11 +1548,13 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     // Pass through distinct set of States to doSaves.
     @Override
     protected void doWriteRecalculations(SolrServer server, boolean isImmediate, Map<ObjectIndex, List<State>> recalculations) throws Exception {
-        Set<State> states = new HashSet<State>();
-        for (Map.Entry<ObjectIndex, List<State>> entry : recalculations.entrySet()) {
-            states.addAll(entry.getValue());
+        if (recalculations != null) {
+            Set<State> states = new HashSet<State>();
+            for (Map.Entry<ObjectIndex, List<State>> entry : recalculations.entrySet()) {
+                states.addAll(entry.getValue());
+            }
+            doSaves(server, isImmediate, new ArrayList<State>(states));
         }
-        doSaves(server, isImmediate, new ArrayList<State>(states));
     }
 
     // Pass through to doWriteRecalculations.
