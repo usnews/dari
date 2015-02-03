@@ -100,12 +100,22 @@ public class SchemaDebugServlet extends HttpServlet {
                                 Map<String, List<ObjectField>> fieldsByClass = new CompactMap<String, List<ObjectField>>();
                                 for (ObjectField field : t.getFields()) {
                                     String declaringClass = field.getJavaDeclaringClassName();
-                                    List<ObjectField> fields = fieldsByClass.get(declaringClass);
-                                    if (fields == null) {
-                                        fields = new ArrayList<ObjectField>();
-                                        fieldsByClass.put(declaringClass, fields);
+
+                                    if (declaringClass == null) {
+                                        ObjectField originalField = field.getOriginalObjectField();
+                                        if (originalField != null) {
+                                            declaringClass = originalField.getJavaDeclaringClassName();
+                                        }
                                     }
-                                    fields.add(field);
+
+                                    if (declaringClass != null) {
+                                        List<ObjectField> fields = fieldsByClass.get(declaringClass);
+                                        if (fields == null) {
+                                            fields = new ArrayList<ObjectField>();
+                                            fieldsByClass.put(declaringClass, fields);
+                                        }
+                                        fields.add(field);
+                                    }
                                 }
 
                                 writeStart("div").writeEnd();
