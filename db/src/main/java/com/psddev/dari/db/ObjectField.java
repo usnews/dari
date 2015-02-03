@@ -142,6 +142,7 @@ public class ObjectField extends Record {
     private static final String JAVA_FIELD_NAME_KEY = "java.field";
     private static final String JAVA_DECLARING_CLASS_NAME_KEY = "java.declaringClass";
     private static final String JAVA_ENUM_CLASS_NAME_KEY = "java.enumClass";
+    private static final String ORIGINAL_OBJECT_FIELD_NAME = "originalObjectFieldName";
 
     private final transient ObjectStruct parent;
 
@@ -189,6 +190,8 @@ public class ObjectField extends Record {
     @InternalName("java.enumClass")
     private String javaEnumClassName;
 
+    private String originalObjectFieldName;
+
     private transient Map<String, Object> options;
 
     public ObjectField(ObjectField field) {
@@ -217,6 +220,7 @@ public class ObjectField extends Record {
         javaFieldName = field.javaFieldName;
         javaDeclaringClassName = field.javaDeclaringClassName;
         javaEnumClassName = field.javaEnumClassName;
+        originalObjectFieldName = field.originalObjectFieldName;
         options = field.options != null ? new CompactMap<String, Object>(field.options) : null;
     }
 
@@ -307,6 +311,9 @@ public class ObjectField extends Record {
         javaFieldName = (String) definition.remove(JAVA_FIELD_NAME_KEY);
         javaDeclaringClassName = (String) definition.remove(JAVA_DECLARING_CLASS_NAME_KEY);
         javaEnumClassName = (String) definition.remove(JAVA_ENUM_CLASS_NAME_KEY);
+
+        originalObjectFieldName = (String) definition.remove(ORIGINAL_OBJECT_FIELD_NAME);
+
         options = definition;
     }
 
@@ -365,8 +372,37 @@ public class ObjectField extends Record {
         definition.put(JAVA_FIELD_NAME_KEY, javaFieldName);
         definition.put(JAVA_DECLARING_CLASS_NAME_KEY, javaDeclaringClassName);
         definition.put(JAVA_ENUM_CLASS_NAME_KEY, javaEnumClassName);
+        definition.put(ORIGINAL_OBJECT_FIELD_NAME, originalObjectFieldName);
 
         return definition;
+    }
+
+    /**
+     * Creates a copy of this {@code ObjectField} disjunct from all Java
+     * information from the original field. The original ObjectField name can
+     * be retrieved from {@link #getOriginalObjectFieldName()}, and similarly,
+     * the original {@code ObjectField} can be retrieved with
+     * {@link #getOriginalObjectField()}.
+     *
+     * @return a copy of this field.
+     */
+    public ObjectField createJavaDisjunctCopy(String internalName) {
+
+        if (internalName.equals(getInternalName())) {
+            throw new IllegalArgumentException("The [internalName] must be unique!");
+        }
+
+        ObjectField copy = new ObjectField(getParent(), toDefinition());
+
+        copy.setInternalName(internalName);
+        copy.setOriginalObjectFieldName(ObjectUtils.firstNonNull(
+                getOriginalObjectFieldName(),
+                getInternalName()));
+        copy.setJavaDeclaringClassName(null);
+        copy.setJavaFieldName(null);
+        copy.setJavaEnumClassName(null);
+
+        return copy;
     }
 
     public ObjectStruct getParent() {
@@ -772,6 +808,23 @@ public class ObjectField extends Record {
     /** Sets the Java enum class name used to convert the field value. */
     public void setJavaEnumClassName(String className) {
         this.javaEnumClassName = className;
+    }
+
+    /** Returns the internal name of the original ObjectField that was used to
+     *  create this field. */
+    public String getOriginalObjectFieldName() {
+        return originalObjectFieldName;
+    }
+
+    /** Returns the original ObjectField that used to create this one. */
+    public ObjectField getOriginalObjectField() {
+        return getParent() != null ? getParent().getField(getOriginalObjectFieldName()) : null;
+    }
+
+    /** Sets the internal name of the original ObjectField that was used to
+     *  create this field. */
+    public void setOriginalObjectFieldName(String originalObjectFieldName) {
+        this.originalObjectFieldName = originalObjectFieldName;
     }
 
     /** Returns the map of custom option values. */
