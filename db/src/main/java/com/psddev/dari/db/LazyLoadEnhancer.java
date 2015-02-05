@@ -3,17 +3,17 @@ package com.psddev.dari.db;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.psddev.dari.util.ClassEnhancer;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.asm.AnnotationVisitor;
+import com.psddev.dari.util.asm.ClassReader;
+import com.psddev.dari.util.asm.FieldVisitor;
+import com.psddev.dari.util.asm.MethodVisitor;
+import com.psddev.dari.util.asm.Opcodes;
+import com.psddev.dari.util.asm.Type;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Enables lazily loading fields that are expensive to initialize.
