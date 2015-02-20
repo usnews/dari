@@ -38,6 +38,7 @@ import org.apache.solr.common.params.MoreLikeThisParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -1500,13 +1501,38 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             for (ObjectMethod method : state.getType().getMethods()) {
+                Object methodResult = state.getByPath(method.getInternalName());
+
+                if (ObjectField.RECORD_TYPE.equals(method.getInternalItemType())) {
+                    if (methodResult instanceof Iterable) {
+                        List<Map<String, UUID>> refs = new ArrayList<Map<String, UUID>>();
+                        for (Object methodResultElement : (Iterable) methodResult) {
+                            State methodResultState = State.getInstance(methodResultElement);
+                            if (methodResultState != null) {
+                                Map<String, UUID> ref = new CompactMap<String, UUID>();
+                                ref.put(StateValueUtils.REFERENCE_KEY, methodResultState.getId());
+                                ref.put(StateValueUtils.TYPE_KEY, methodResultState.getTypeId());
+                                refs.add(ref);
+                            }
+                        }
+                        methodResult = refs;
+                    } else {
+                        State methodResultState = State.getInstance(methodResult);
+                        Map<String, UUID> ref = new CompactMap<String, UUID>();
+                        if (methodResultState != null) {
+                            ref.put(StateValueUtils.REFERENCE_KEY, methodResultState.getId());
+                            ref.put(StateValueUtils.TYPE_KEY, methodResultState.getTypeId());
+                        }
+                        methodResult = ref;
+                    }
+                }
                 addDocumentValues(
                         document,
                         allBuilder,
                         true,
                         method,
                         method.getUniqueName(),
-                        state.getByPath(method.getInternalName())
+                        methodResult
                         );
             }
 
