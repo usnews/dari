@@ -1357,7 +1357,7 @@ public class State implements Map<String, Object> {
                 if (modClass != null &&
                         Modification.class.isAssignableFrom(modClass) &&
                         Modification.Static.getModifiedClasses((Class<? extends Modification<?>>) modClass).contains(Object.class) &&
-                        (!(trigger instanceof TriggerOnce) || !((TriggerOnce) trigger).isMissing(modClass))) {
+                        !trigger.isMissing(modClass)) {
                     triggerGlobalModifications.add(modClass);
                 }
             }
@@ -1391,7 +1391,7 @@ public class State implements Map<String, Object> {
                 for (String modClassName : type.getModificationClassNames()) {
                     Class<?> modClass = ObjectUtils.getClassByName(modClassName);
 
-                    if (modClass != null && (!(trigger instanceof TriggerOnce) || !((TriggerOnce) trigger).isMissing(modClass))) {
+                    if (modClass != null && !trigger.isMissing(modClass)) {
                         triggerTypeModifications.add(modClass);
                     }
                 }
@@ -1437,7 +1437,7 @@ public class State implements Map<String, Object> {
     }
 
     private void fireModificationTrigger(Trigger trigger, Class<?> modClass) {
-        if (trigger instanceof TriggerOnce && ((TriggerOnce) trigger).isMissing(modClass)) {
+        if (trigger.isMissing(modClass)) {
             return;
         }
         Object modObject;
@@ -1470,11 +1470,9 @@ public class State implements Map<String, Object> {
         } else if (value instanceof Recordable) {
             State valueState = ((Recordable) value).getState();
 
-            if (trigger instanceof TriggerOnce) {
-                Class<?> valueClass = valueState.getType() != null ? valueState.getType().getObjectClass() : null;
-                if (valueClass == null || ((TriggerOnce) trigger).isMissing(valueClass)) {
-                    return;
-                }
+            Class<?> valueClass = valueState.getType() != null ? valueState.getType().getObjectClass() : null;
+            if (valueClass == null || trigger.isMissing(valueClass)) {
+                return;
             }
 
             if (embedded) {

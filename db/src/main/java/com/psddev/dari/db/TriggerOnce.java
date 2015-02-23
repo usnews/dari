@@ -44,10 +44,6 @@ public abstract class TriggerOnce implements Trigger {
         }
     }
 
-    protected boolean isMissing(Class<?> cls) {
-        return false;
-    }
-
     protected boolean hasMethod(Class<?> cls, final String method) {
         if (!HAS_METHOD.containsKey(method)) {
             synchronized (HAS_METHOD) {
@@ -57,11 +53,8 @@ public abstract class TriggerOnce implements Trigger {
                         public Boolean load(Class<?> key) throws Exception {
                             try {
                                 return key.getDeclaredMethod(method) != null;
-                            } catch (NoClassDefFoundError error) {
-                                // Class isn't available, so can't run method anyway.
-
-                            } catch (NoSuchMethodException error) {
-                                // No method available to run.
+                            } catch (NoClassDefFoundError | NoSuchMethodException error) {
+                                // Class isn't available, or no method available to run.
                             }
                             return false;
                         }
