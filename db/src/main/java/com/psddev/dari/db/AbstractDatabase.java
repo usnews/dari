@@ -904,6 +904,7 @@ public abstract class AbstractDatabase<C> implements Database {
     public void indexAll(ObjectIndex index) {
     }
 
+    @Override
     public void recalculate(State state, ObjectIndex... indexes) {
         checkState(state);
         Writes writes = getCurrentWrites();

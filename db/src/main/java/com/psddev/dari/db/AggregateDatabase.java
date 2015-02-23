@@ -354,25 +354,14 @@ public class AggregateDatabase implements Database, Iterable<Database> {
         }
     }
 
+    @Override
     public void recalculate(State state, ObjectIndex... indexes) {
         Database defaultDelegate = getDefaultDelegate();
-        if (defaultDelegate instanceof AggregateDatabase) {
-            ((AggregateDatabase) defaultDelegate).recalculate(state, indexes);
-        } else if (defaultDelegate instanceof ForwardingDatabase) {
-            ((ForwardingDatabase) defaultDelegate).recalculate(state, indexes);
-        } else if (defaultDelegate instanceof AbstractDatabase) {
-            ((AbstractDatabase<?>) defaultDelegate).recalculate(state, indexes);
-        }
+        defaultDelegate.recalculate(state, indexes);
         for (Database delegate : getDelegates().values()) {
             if (!delegate.equals(defaultDelegate)) {
                 try {
-                    if (delegate instanceof AggregateDatabase) {
-                        ((AggregateDatabase) delegate).recalculate(state, indexes);
-                    } else if (delegate instanceof ForwardingDatabase) {
-                        ((ForwardingDatabase) delegate).recalculate(state, indexes);
-                    } else if (delegate instanceof AbstractDatabase) {
-                        ((AbstractDatabase<?>) delegate).recalculate(state, indexes);
-                    }
+                    delegate.recalculate(state, indexes);
                 } catch (Exception ex) {
                     LOGGER.warn(String.format("Can't write to [%s]", delegate), ex);
                 }

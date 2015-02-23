@@ -7,7 +7,6 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,7 +25,7 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -39,6 +38,7 @@ import org.apache.solr.common.params.MoreLikeThisParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -1164,14 +1164,14 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
 
         try {
-            setServer(new CommonsHttpSolrServer(url));
+            setServer(new HttpSolrServer(url));
 
             String readUrl = ObjectUtils.to(String.class, settings.get(READ_SERVER_URL_SUB_SETTING));
             if (!ObjectUtils.isBlank(readUrl)) {
-                setReadServer(new CommonsHttpSolrServer(readUrl));
+                setReadServer(new HttpSolrServer(readUrl));
             }
 
-        } catch (MalformedURLException ex) {
+        } catch (Exception ex) {
             throw new SettingsException(
                     settingsKey + "/" + SERVER_URL_SUB_SETTING,
                     String.format("[%s] is not a valid URL!", url));
@@ -1482,13 +1482,38 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             }
 
             for (ObjectMethod method : state.getType().getMethods()) {
+                Object methodResult = state.getByPath(method.getInternalName());
+
+                if (ObjectField.RECORD_TYPE.equals(method.getInternalItemType())) {
+                    if (methodResult instanceof Iterable) {
+                        List<Map<String, UUID>> refs = new ArrayList<Map<String, UUID>>();
+                        for (Object methodResultElement : (Iterable) methodResult) {
+                            State methodResultState = State.getInstance(methodResultElement);
+                            if (methodResultState != null) {
+                                Map<String, UUID> ref = new CompactMap<String, UUID>();
+                                ref.put(StateValueUtils.REFERENCE_KEY, methodResultState.getId());
+                                ref.put(StateValueUtils.TYPE_KEY, methodResultState.getTypeId());
+                                refs.add(ref);
+                            }
+                        }
+                        methodResult = refs;
+                    } else {
+                        State methodResultState = State.getInstance(methodResult);
+                        Map<String, UUID> ref = new CompactMap<String, UUID>();
+                        if (methodResultState != null) {
+                            ref.put(StateValueUtils.REFERENCE_KEY, methodResultState.getId());
+                            ref.put(StateValueUtils.TYPE_KEY, methodResultState.getTypeId());
+                        }
+                        methodResult = ref;
+                    }
+                }
                 addDocumentValues(
                         document,
                         allBuilder,
                         true,
                         method,
                         method.getUniqueName(),
-                        state.getByPath(method.getInternalName())
+                        methodResult
                         );
             }
 
@@ -1546,6 +1571,26 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
         }
     }
 
+    // Pass through distinct set of States to doSaves.
+    @Override
+    protected void doWriteRecalculations(SolrServer server, boolean isImmediate, Map<ObjectIndex, List<State>> recalculations) throws Exception {
+        if (recalculations != null) {
+            Set<State> states = new HashSet<State>();
+            for (Map.Entry<ObjectIndex, List<State>> entry : recalculations.entrySet()) {
+                states.addAll(entry.getValue());
+            }
+            doSaves(server, isImmediate, new ArrayList<State>(states));
+        }
+    }
+
+    // Pass through to doWriteRecalculations.
+    @Override
+    protected void doRecalculations(SolrServer server, boolean isImmediate, ObjectIndex index, List<State> states) throws Exception {
+        Map<ObjectIndex, List<State>> recalculations = new HashMap<ObjectIndex, List<State>>();
+        recalculations.put(index, states);
+        doWriteRecalculations(server, isImmediate, recalculations);
+    }
+
     // Adds all items within the given {@code value} to the given
     // {@code document} at the given {@code name}.
     private void addDocumentValues(
@@ -1560,8 +1605,8 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
             return;
         }
 
-        if (value instanceof List) {
-            for (Object item : (List<?>) value) {
+        if (value instanceof Iterable) {
+            for (Object item : (Iterable<?>) value) {
                 addDocumentValues(document, allBuilder, includeInAny, field, name, item);
             }
             return;

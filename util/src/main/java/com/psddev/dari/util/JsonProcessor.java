@@ -182,7 +182,7 @@ public class JsonProcessor {
             return null;
         }
 
-        switch(token) {
+        switch (token) {
             case VALUE_STRING:
                 return parser.getText();
 

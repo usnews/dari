@@ -162,6 +162,7 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
         return null;
     }
 
+    // CHECKSTYLE:OFF
     @SuppressWarnings("unused") private Object getDynamicProperty0() { return getDynamicProperty(0); }
     @SuppressWarnings("unused") private Object getDynamicProperty1() { return getDynamicProperty(1); }
     @SuppressWarnings("unused") private Object getDynamicProperty2() { return getDynamicProperty(2); }
@@ -192,6 +193,7 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
     @SuppressWarnings("unused") private Object getDynamicProperty27() { return getDynamicProperty(27); }
     @SuppressWarnings("unused") private Object getDynamicProperty28() { return getDynamicProperty(28); }
     @SuppressWarnings("unused") private Object getDynamicProperty29() { return getDynamicProperty(29); }
+    // CHECKSTYLE:ON
 
     // --- Cloneable support ---
 

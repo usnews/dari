@@ -201,14 +201,7 @@ public class RecalculationTask extends RepeatingTask {
                     }
                     objState.setResolveToReferenceOnly(false);
                     ObjectIndex[] indexes = typeMethodIndexes.getUnchecked(objState.getType());
-                    if (db instanceof AggregateDatabase) {
-                        ((AggregateDatabase) db).recalculate(objState, indexes);
-                    } else if (db instanceof ForwardingDatabase) {
-                        ((ForwardingDatabase) db).recalculate(objState, indexes);
-                    } else if (db instanceof AbstractDatabase) {
-                        ((AbstractDatabase<?>) db).recalculate(objState, indexes);
-                    }
-
+                    db.recalculate(objState, indexes);
                     recalculated += indexes.length;
                     recordsProcessed ++;
                     transactionCounter += indexes.length;
@@ -291,21 +284,30 @@ public class RecalculationTask extends RepeatingTask {
                         method.as(RecalculationFieldData.class).getRecalculationDelay() != null) {
 
                     TreeSet<String> groups = new TreeSet<String>();
-                    if (Modification.class.isAssignableFrom(type.getObjectClass())) {
-                        @SuppressWarnings("unchecked")
-                        Class<? extends Modification<?>> modClass = ((Class<? extends Modification<?>>) type.getObjectClass());
-                        for (Class<?> modifiedClass : Modification.Static.getModifiedClasses(modClass)) {
-                            ObjectType modifiedType = ObjectType.getInstance(modifiedClass);
-                            if (modifiedType != null) {
-                                groups.add(modifiedType.getInternalName());
+                    Set<Class<?>> objectClasses = new HashSet<Class<?>>();
+                    for (String group : method.as(RecalculationFieldData.class).getGroups()) {
+                        objectClasses.add(ObjectUtils.getClassByName(group));
+                    }
+                    if (objectClasses.isEmpty()) {
+                        objectClasses.add(type.getObjectClass());
+                    }
+                    for (Class<?> objectClass : objectClasses) {
+                        if (Modification.class.isAssignableFrom(objectClass)) {
+                            @SuppressWarnings("unchecked")
+                            Class<? extends Modification<?>> modClass = ((Class<? extends Modification<?>>) objectClass);
+                            for (Class<?> modifiedClass : Modification.Static.getModifiedClasses(modClass)) {
+                                ObjectType modifiedType = ObjectType.getInstance(modifiedClass);
+                                if (modifiedType != null) {
+                                    groups.add(modifiedType.getInternalName());
 
-                            } else {
-                                groups.add(modifiedClass.getName());
+                                } else {
+                                    groups.add(modifiedClass.getName());
+                                }
                             }
-                        }
 
-                    } else {
-                        groups.add(type.getInternalName());
+                        } else {
+                            groups.add(objectClass.getName());
+                        }
                     }
 
                     RecalculationContext context = new RecalculationContext(type, groups, method.as(RecalculationFieldData.class).getRecalculationDelay());

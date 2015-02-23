@@ -8,7 +8,7 @@
 
     <groupId>com.psddev</groupId>
     <artifactId>dari-grandparent</artifactId>
-    <version>2.4-SNAPSHOT</version>
+    <version>3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Dari: Grandparent POM</name>
@@ -39,8 +39,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.3.2</version>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                     <showDeprecation>true</showDeprecation>
                     <showWarnings>true</showWarnings>
                 </configuration>
@@ -196,6 +196,15 @@ try {
                     <path>${tomcat.path}</path>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9.1</version>
+                <configuration>
+                    <additionalparam>-Xdoclint:none</additionalparam>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -325,6 +334,13 @@ try {
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-checkstyle-plugin</artifactId>
                         <version>2.12</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>com.puppycrawl.tools</groupId>
+                                <artifactId>checkstyle</artifactId>
+                                <version>5.9</version>
+                            </dependency>
+                        </dependencies>
                         <executions>
                             <execution>
                                 <id>verify-style</id>
@@ -438,10 +454,18 @@ try {
                                     <goal>check-no-fork</goal>
                                 </goals>
                                 <configuration>
+                                    <ignoredDifferencesFile>etc/clirr-ignored.xml</ignoredDifferencesFile>
                                     <logResults>true</logResults>
                                 </configuration>
                             </execution>
                         </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>com.google.code.findbugs</groupId>
+                                <artifactId>bcel-findbugs</artifactId>
+                                <version>6.0</version>
+                            </dependency>
+                        </dependencies>
                     </plugin>
                 </plugins>
             </build>

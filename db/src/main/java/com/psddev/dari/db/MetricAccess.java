@@ -117,6 +117,11 @@ class MetricAccess {
         return data != null ? new DateTime(Static.timestampFromBytes(data)) : null;
     }
 
+    public DateTime getFirstUpdate(UUID id, String dimensionValue) throws SQLException {
+        List<byte[]> data = getMaxMinData(id, getDimensionId(dimensionValue), null, null);
+        return data != null && data.size() == 2 ? new DateTime(Static.timestampFromBytes(data.get(1))) : null;
+    }
+
     public Double getMetric(UUID id, String dimensionValue, Long startTimestamp, Long endTimestamp) throws SQLException {
         if (startTimestamp == null) {
             byte[] data = getMaxData(id, getDimensionId(dimensionValue), endTimestamp);
@@ -321,11 +326,18 @@ class MetricAccess {
             }
         }
         if (!immediateMethods.isEmpty()) {
-            Object obj = Query.fromAll().where("_id = ?", id).first();
+            Object obj = Query.fromAll().master().noCache().where("_id = ?", id).first();
             State state = State.getInstance(obj);
             if (state != null) {
-                for (ObjectMethod method : immediateMethods) {
-                    method.recalculate(state);
+                Database stateDb = state.getDatabase();
+                stateDb.beginIsolatedWrites();
+                try {
+                    for (ObjectMethod method : immediateMethods) {
+                        method.recalculate(state);
+                    }
+                    stateDb.commitWrites();
+                } finally {
+                    stateDb.endWrites();
                 }
             }
         }
@@ -1737,7 +1749,6 @@ class MetricAccess {
 
         private boolean metricValue;
         private String eventDateProcessorClassName;
-        private String recalculableFieldName;
 
         public boolean isMetricValue() {
             return metricValue;
@@ -1781,11 +1792,11 @@ class MetricAccess {
         }
 
         public String getRecalculableFieldName() {
-            return recalculableFieldName;
+            return getOriginalObject().as(RecalculationFieldData.class).getMetricFieldName();
         }
 
         public void setRecalculableFieldName(String fieldName) {
-            this.recalculableFieldName = fieldName;
+            getOriginalObject().as(RecalculationFieldData.class).setMetricFieldName(fieldName);
         }
 
         public Set<ObjectMethod> getRecalculableObjectMethods(ObjectType type) {

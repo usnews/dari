@@ -147,6 +147,31 @@ public class Metric extends Record {
     }
 
     /**
+     * Returns when the metric value associated with the given
+     * {@code dimension} was first updated.
+     *
+     * @param dimension May be {@code null}.
+     * @return May be {@code null}.
+     */
+    public DateTime getFirstDimensionUpdate(String dimension) {
+        try {
+            Static.preFetchMetrics(getOwner(), getMetricAccess().getDimensionId(dimension), null, null);
+            return getMetricAccess().getFirstUpdate(getOwner().getId(), dimension);
+        } catch (SQLException e) {
+            throw new DatabaseException(getMetricAccess().getDatabase(), "Error in MetricAccess.getLastUpdate() : " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Returns when the metric value was first updated.
+     *
+     * @return May be {@code null}.
+     */
+    public DateTime getFirstUpdate() {
+        return getFirstDimensionUpdate(null);
+    }
+
+    /**
      * Sets the metric value to the given {@code amount} and associates it with
      * the given {@code dimension} and {@code time}.
      *
@@ -367,6 +392,13 @@ public class Metric extends Record {
     @Deprecated
     public double getValue() {
         return getByDimensionBetween(null, null, null);
+    }
+
+    public static class FieldData extends Modification<ObjectField> {
+
+        public MetricInterval getEventDateProcessor() {
+            return getOriginalObject().as(MetricAccess.FieldData.class).getEventDateProcessor();
+        }
     }
 
     public static class DistinctIds {

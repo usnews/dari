@@ -81,6 +81,28 @@ public interface Recordable {
         String value();
     }
 
+    @ObjectField.AnnotationProcessorClass(BootstrapFollowReferencesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface BootstrapFollowReferences {
+    }
+
+    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapPackages {
+        String[] value();
+        Class<?>[] depends() default { };
+    }
+
+    @ObjectType.AnnotationProcessorClass(BootstrapTypeMappableProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapTypeMappable {
+        Class<?>[] groups();
+        String uniqueKey();
+    }
+
     /** Specifies the maximum number of items allowed in the target field. */
     @Documented
     @ObjectField.AnnotationProcessorClass(CollectionMaximumProcessor.class)
@@ -181,17 +203,6 @@ public interface Recordable {
         boolean isUnique() default false;
     }
 
-    /** Specifies how the method index should be updated. */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.METHOD })
-    @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
-    public @interface Recalculate {
-        public Class<? extends RecalculationDelay> delay() default RecalculationDelay.Hour.class;
-        public String metric() default "";
-        public boolean immediate() default false;
-    }
-
     /** Specifies the target's internal name. */
     @Documented
     @ObjectType.AnnotationProcessorClass(InternalNameProcessor.class)
@@ -285,6 +296,17 @@ public interface Recordable {
         String value();
     }
 
+    /** Specifies how the method index should be updated. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.METHOD })
+    @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
+    public @interface Recalculate {
+        public Class<? extends RecalculationDelay> delay() default RecalculationDelay.Hour.class;
+        public String metric() default "";
+        public boolean immediate() default false;
+    }
+
     /**
      * Specifies the regular expression pattern that the target field value
      * must match.
@@ -338,6 +360,16 @@ public interface Recordable {
         double value();
     }
 
+    /**
+     * Specifies the processor class(es) to run after the type is initialized.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface TypePostProcessorClasses {
+        Class<? extends ObjectType.PostProcessor>[] value();
+    }
+
     /** Specifies the valid types for the target field value. */
     @Documented
     @ObjectField.AnnotationProcessorClass(TypesProcessor.class)
@@ -363,28 +395,6 @@ public interface Recordable {
     @Target(ElementType.FIELD)
     public @interface Where {
         String value();
-    }
-
-    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.TYPE)
-    public @interface BootstrapPackages {
-        String[] value();
-        Class<?>[] depends() default { };
-    }
-
-    @ObjectType.AnnotationProcessorClass(BootstrapTypeMappableProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.TYPE)
-    public @interface BootstrapTypeMappable {
-        Class<?>[] groups();
-        String uniqueKey();
-    }
-
-    @ObjectField.AnnotationProcessorClass(BootstrapFollowReferencesProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
-    public @interface BootstrapFollowReferences {
     }
 
     // --- Deprecated ---
@@ -710,14 +720,17 @@ class RecalculateProcessor implements ObjectField.AnnotationProcessor<Recordable
     @Override
     public void process(ObjectType type, ObjectField field, Recordable.Recalculate annotation) {
 
-        field.as(RecalculationFieldData.class).setDelayClass(annotation.delay());
-        field.as(RecalculationFieldData.class).setImmediate(annotation.immediate());
+        if (field instanceof ObjectMethod) {
+            RecalculationFieldData fieldData = ((ObjectMethod) field).as(RecalculationFieldData.class);
 
-        if (annotation.metric() != null && !"".equals(annotation.metric())) {
-            MetricAccess.FieldData metricFieldData = field.as(MetricAccess.FieldData.class);
-            metricFieldData.setRecalculableFieldName(annotation.metric());
-        } else if (annotation.immediate()) {
-            throw new IllegalArgumentException("immediate = true requires a metric!");
+            fieldData.setDelayClass(annotation.delay());
+            fieldData.setImmediate(annotation.immediate());
+
+            if (annotation.metric() != null && !"".equals(annotation.metric())) {
+                fieldData.setMetricFieldName(annotation.metric());
+            } else if (annotation.immediate()) {
+                throw new IllegalArgumentException("immediate = true requires a metric!");
+            }
         }
     }
 }

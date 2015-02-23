@@ -1,6 +1,9 @@
 package com.psddev.dari.db;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
@@ -20,8 +23,11 @@ public class ObjectMethod extends ObjectField {
 
     public static final String JAVA_METHOD_NAME_KEY = "java.method";
 
-    @InternalName("java.method")
+    @InternalName(JAVA_METHOD_NAME_KEY)
     private String javaMethodName;
+
+    private transient List<String> javaParameterTypeNames;
+    private transient Boolean hasSingleObjectMethodParameter;
 
     public ObjectMethod(ObjectMethod method) {
         super(method);
@@ -42,6 +48,28 @@ public class ObjectMethod extends ObjectField {
 
     public void setJavaMethodName(String javaMethodName) {
         this.javaMethodName = javaMethodName;
+    }
+
+    public List<String> getJavaParameterTypeNames() {
+        if (javaParameterTypeNames == null) {
+            Method method = getJavaMethod(ObjectUtils.getClassByName(getJavaDeclaringClassName()));
+            if (method != null) {
+                javaParameterTypeNames = new ArrayList<String>();
+                for (Class<?> cls : method.getParameterTypes()) {
+                    javaParameterTypeNames.add(cls.getName());
+                }
+            }
+            hasSingleObjectMethodParameter = null;
+        }
+        return javaParameterTypeNames != null ? Collections.unmodifiableList(javaParameterTypeNames) : Collections.<String>emptyList();
+    }
+
+    public boolean hasSingleObjectMethodParameter() {
+        if (hasSingleObjectMethodParameter == null) {
+            hasSingleObjectMethodParameter = getJavaParameterTypeNames().size() == 1 &&
+                ObjectMethod.class.getName().equals(getJavaParameterTypeNames().get(0));
+        }
+        return hasSingleObjectMethodParameter;
     }
 
     public Method getJavaMethod(Class<?> objectClass) {
@@ -112,15 +140,8 @@ public class ObjectMethod extends ObjectField {
         }
         Database db = state.getDatabase();
 
-        for (ObjectIndex idx : findIndexes(state.getType())) {
-            if (db instanceof AggregateDatabase) {
-                ((AggregateDatabase) db).recalculate(state, idx);
-            } else if (db instanceof ForwardingDatabase) {
-                ((ForwardingDatabase) db).recalculate(state, idx);
-            } else if (db instanceof AbstractDatabase) {
-                ((AbstractDatabase<?>) db).recalculate(state, idx);
-            }
-        }
+        Set<ObjectIndex> indexes = findIndexes(state.getType());
+        db.recalculate(state, indexes.toArray(new ObjectIndex[indexes.size()]));
     }
 
     public Set<ObjectIndex> findIndexes(ObjectType type) {
@@ -136,5 +157,12 @@ public class ObjectMethod extends ObjectField {
             }
         }
         return indexes;
+    }
+
+    @Deprecated
+    public static final String JAVA_PARAMETER_TYPES_KEY = "java.parameterTypes";
+
+    @Deprecated
+    public void setJavaParameterTypeNames(List<String> ignored) {
     }
 }
