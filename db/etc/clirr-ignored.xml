@@ -41,4 +41,10 @@
         <differenceType>5001</differenceType>
         <to>org/objectweb/asm/ClassAdapter</to>
     </difference>
+
+    <difference>
+        <className>com/psddev/dari/db/Trigger</className>
+        <differenceType>7012</differenceType>
+        <method>boolean isMissing(java.lang.Class)</method>
+    </difference>
 </differences>
