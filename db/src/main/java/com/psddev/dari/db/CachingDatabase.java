@@ -5,12 +5,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Settings;
@@ -48,7 +48,13 @@ public class CachingDatabase extends ForwardingDatabase {
     private final Cache<Query<?>, List<?>> readAllCache = CacheBuilder.newBuilder().maximumSize(getCacheSize()).build();
     private final Cache<Query<?>, Long> readCountCache = CacheBuilder.newBuilder().maximumSize(getCacheSize()).build();
     private final Cache<Query<?>, Object> readFirstCache = CacheBuilder.newBuilder().maximumSize(getCacheSize()).build();
-    private final Cache<Query<?>, Map<Range, PaginatedResult<?>>> readPartialCache = CacheBuilder.newBuilder().maximumSize(getCacheSize()).build();
+    private final LoadingCache<Query<?>, Map<Range, PaginatedResult<?>>> readPartialCache = CacheBuilder.newBuilder().maximumSize(getCacheSize()).build(
+            new CacheLoader<Query<?>, Map<Range, PaginatedResult<?>>>() {
+                @Override
+                public Map<Range, PaginatedResult<?>> load(Query<?> key) throws Exception {
+                    return new ConcurrentHashMap<>();
+                }
+            });
     private final Cache<UUID, Boolean> idOnlyQueryIds = CacheBuilder.newBuilder().maximumSize(getCacheSize()).build();
 
     private static class Range {
@@ -291,18 +297,7 @@ public class CachingDatabase extends ForwardingDatabase {
             return super.readPartial(query, offset, limit);
         }
 
-        Map<Range, PaginatedResult<?>> subCache = null;
-        try {
-            subCache = readPartialCache.get(query, new Callable<Map<Range, PaginatedResult<?>>>() {
-                @Override
-                public Map<Range, PaginatedResult<?>> call() throws Exception {
-                    return new ConcurrentHashMap<Range, PaginatedResult<?>>();
-                }
-            });
-        } catch (ExecutionException e) {
-            // This shouldn't ever happen.
-            throw new RuntimeException(e);
-        }
+        Map<Range, PaginatedResult<?>> subCache = readPartialCache.getUnchecked(query);
 
         Range range = new Range(offset, limit);
         PaginatedResult<?> result = subCache.get(range);
