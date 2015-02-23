@@ -88,10 +88,6 @@ public class CachingDatabase extends ForwardingDatabase {
         }
     }
 
-    protected long getCacheSize() {
-        return Settings.getOrDefault(long.class, CACHE_SIZE_SETTING, DEFAULT_CACHE_SIZE);
-    }
-
     /**
      * Returns the set of all IDs which were results of ID-only queries.
      *
@@ -120,6 +116,10 @@ public class CachingDatabase extends ForwardingDatabase {
     }
 
     // --- ForwardingDatabase support ---
+
+    private long getCacheSize() {
+        return Settings.getOrDefault(long.class, CACHE_SIZE_SETTING, DEFAULT_CACHE_SIZE);
+    }
 
     private boolean isCacheDisabled(Query<?> query) {
         if (query.isCache()) {
