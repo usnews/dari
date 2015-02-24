@@ -99,12 +99,7 @@ public class SchemaDebugServlet extends HttpServlet {
 
                                 Map<String, List<ObjectField>> fieldsByClass = new CompactMap<String, List<ObjectField>>();
                                 for (ObjectField field : t.getFields()) {
-
                                     String declaringClass = field.getJavaDeclaringClassName();
-                                    if (declaringClass == null) {
-                                        declaringClass = "Dynamic Fields";
-                                    }
-
                                     List<ObjectField> fields = fieldsByClass.get(declaringClass);
                                     if (fields == null) {
                                         fields = new ArrayList<ObjectField>();
