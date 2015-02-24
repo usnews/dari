@@ -2,7 +2,6 @@ package com.psddev.dari.db;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -16,7 +15,10 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Stats;
 
-class FunnelCache<T extends Database> {
+/**
+ * Provides a global (per-Database) short-lived cache for database read operations.
+ */
+public class FunnelCache<T extends Database> {
 
     private static final Stats STATS = new Stats("Funnel Cache");
 
@@ -30,7 +32,7 @@ class FunnelCache<T extends Database> {
     private static final long DEFAULT_CACHE_SIZE = 10000;
 
     private final T database;
-    private final LoadingCache<CachedObjectProducer<T>, List<CachedObject>> objectCache;
+    private final LoadingCache<FunnelCachedObjectProducer<T>, List<FunnelCachedObject>> objectCache;
 
     public FunnelCache(T db, Map<String, Object> settings) {
         this.database = db;
@@ -49,7 +51,7 @@ class FunnelCache<T extends Database> {
             build(new FunnelCacheLoader());
     }
 
-    public final List<CachedObject> get(final CachedObjectProducer<T> producer) {
+    public final List<FunnelCachedObject> get(final FunnelCachedObjectProducer<T> producer) {
         Stats.Timer timer = STATS.startTimer();
         try {
             return objectCache.getUnchecked(producer);
@@ -65,46 +67,10 @@ class FunnelCache<T extends Database> {
         }
     }
 
-    protected static final class CachedObject {
-
-        private final UUID id;
-        private final UUID typeId;
-        private final Map<String, Object> values;
-        private final Map<String, Object> extras;
-
-        CachedObject(UUID id, UUID typeId, Map<String, Object> values, Map<String, Object> extras) {
-            this.id = id;
-            this.typeId = typeId;
-            this.values = values;
-            this.extras = extras;
-        }
-
-        public UUID getId() {
-            return id;
-        }
-
-        public UUID getTypeId() {
-            return typeId;
-        }
-
-        public Map<String, Object> getValues() {
-            return values;
-        }
-
-        public Map<String, Object> getExtras() {
-            return extras;
-        }
+    private final class FunnelCacheLoader extends CacheLoader<FunnelCachedObjectProducer<T>, List<FunnelCachedObject>> {
 
         @Override
-        public String toString() {
-            return String.format("ID: %s, Type: %s", id, typeId);
-        }
-    }
-
-    private final class FunnelCacheLoader extends CacheLoader<CachedObjectProducer<T>, List<CachedObject>> {
-
-        @Override
-        public List<CachedObject> load(CachedObjectProducer<T> producer) throws Exception {
+        public List<FunnelCachedObject> load(FunnelCachedObjectProducer<T> producer) throws Exception {
             Stats.Timer timer = STATS.startTimer();
             try {
                 return producer.produce(database);
@@ -114,10 +80,10 @@ class FunnelCache<T extends Database> {
         }
 
         @Override
-        public ListenableFuture<List<CachedObject>> reload(final CachedObjectProducer<T> producer, List<CachedObject> previousResult) {
-            ListenableFutureTask<List<CachedObject>> task = ListenableFutureTask.create(new Callable<List<CachedObject>>() {
+        public ListenableFuture<List<FunnelCachedObject>> reload(final FunnelCachedObjectProducer<T> producer, List<FunnelCachedObject> previousResult) {
+            ListenableFutureTask<List<FunnelCachedObject>> task = ListenableFutureTask.create(new Callable<List<FunnelCachedObject>>() {
                 @Override
-                public List<CachedObject> call() {
+                public List<FunnelCachedObject> call() {
                     Stats.Timer timer = STATS.startTimer();
                     try {
                         return producer.produce(database);
@@ -129,9 +95,5 @@ class FunnelCache<T extends Database> {
             MoreExecutors.sameThreadExecutor().execute(task);
             return task;
         }
-    }
-
-    protected interface CachedObjectProducer<T extends Database> {
-        List<CachedObject> produce(T database);
     }
 }

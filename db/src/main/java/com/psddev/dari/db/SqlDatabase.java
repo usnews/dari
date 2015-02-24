@@ -1299,9 +1299,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         List<T> objects = new ArrayList<T>();
         Profiler.Static.startThreadEvent(FUNNEL_CACHE_GET_PROFILER_EVENT);
         try {
-            List<FunnelCache.CachedObject> cachedObjects = funnelCache.get(new FunnelCacheProducer(sqlQuery, query));
+            List<FunnelCachedObject> cachedObjects = funnelCache.get(new FunnelCacheProducer(sqlQuery, query));
             if (cachedObjects != null) {
-                for (FunnelCache.CachedObject cachedObj : cachedObjects) {
+                for (FunnelCachedObject cachedObj : cachedObjects) {
                     T savedObj = createSavedObjectFromReplicationCache(UuidUtils.toBytes(cachedObj.getTypeId()), cachedObj.getId(), null, cachedObj.getValues(), query);
                     if (cachedObj.getExtras() != null && !cachedObj.getExtras().isEmpty()) {
                         State.getInstance(savedObj).getExtras().putAll(cachedObj.getExtras());
@@ -2871,7 +2871,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }
 
-    private static final class FunnelCacheProducer implements FunnelCache.CachedObjectProducer<SqlDatabase> {
+    private static final class FunnelCacheProducer implements FunnelCachedObjectProducer<SqlDatabase> {
 
         private final String sqlQuery;
         private final Query<?> query;
@@ -2897,12 +2897,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         @Override
-        public List<FunnelCache.CachedObject> produce(SqlDatabase db) {
+        public List<FunnelCachedObject> produce(SqlDatabase db) {
             ConnectionRef extraConnectionRef = db.new ConnectionRef();
             Connection connection = null;
             Statement statement = null;
             ResultSet result = null;
-            List<FunnelCache.CachedObject> objects = new ArrayList<FunnelCache.CachedObject>();
+            List<FunnelCachedObject> objects = new ArrayList<FunnelCachedObject>();
             int timeout = db.getQueryReadTimeout(query);
             Profiler.Static.startThreadEvent(FUNNEL_CACHE_PUT_PROFILER_EVENT);
 
@@ -2921,7 +2921,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         extras.put(ORIGINAL_DATA_EXTRA, data);
                     }
 
-                    objects.add(new FunnelCache.CachedObject(id, typeId, dataJson, extras));
+                    objects.add(new FunnelCachedObject(id, typeId, dataJson, extras));
                 }
 
                 return objects;
