@@ -1022,7 +1022,21 @@ public enum SqlIndex {
                 }
 
                 Set<Object> values = new HashSet<Object>();
-                Object fieldValue = field instanceof ObjectMethod ? state.getByPath(field.getInternalName()) : stateValues.get(field.getInternalName());
+                Object fieldValue;
+                if (field instanceof ObjectMethod) {
+                    StringBuilder path = new StringBuilder();
+                    if (prefixes != null) {
+                        for (ObjectField fieldPrefix : prefixes) {
+                            path.append(fieldPrefix.getInternalName());
+                            path.append("/");
+                        }
+                    }
+                    path.append(field.getInternalName());
+                    fieldValue = state.getByPath(path.toString());
+                } else {
+                    fieldValue = stateValues.get(field.getInternalName());
+                }
+
                 collectFieldValues(state, indexValues, prefixes, struct, field, values, fieldValue);
                 if (values.isEmpty()) {
                     return;
