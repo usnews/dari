@@ -477,7 +477,26 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 continue;
 
             } else if (Sorter.RELEVANT_OPERATOR.equals(operator)) {
-                Predicate sortPredicate = (Predicate) sorter.getOptions().get(1);
+
+                Predicate sortPredicate = null;
+
+                Object predicateObject = sorter.getOptions().get(1);
+                if (predicateObject instanceof Predicate) {
+                    sortPredicate = (Predicate) predicateObject;
+
+                } else {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> simpleValues = (Map<String, Object>) predicateObject;
+
+                    ObjectType type = ObjectType.getInstance(ObjectUtils.to(UUID.class, simpleValues.get(StateValueUtils.TYPE_KEY)));
+                    Object object = type.createObject(ObjectUtils.to(UUID.class, simpleValues.get(StateValueUtils.ID_KEY)));
+                    State state = State.getInstance(predicateObject);
+                    state.putAll(simpleValues);
+
+                    if (object instanceof Predicate) {
+                        sortPredicate = (Predicate) object;
+                    }
+                }
                 double boost = ObjectUtils.to(double.class, sorter.getOptions().get(0));
                 if (boost < 0.0) {
                     boost = -boost;
