@@ -1109,7 +1109,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             objectState.getExtras().put(ORIGINAL_DATA_EXTRA, data);
         }
 
-        return object;
+        return swapObjectType(query, object);
     }
 
     @SuppressWarnings("unchecked")
