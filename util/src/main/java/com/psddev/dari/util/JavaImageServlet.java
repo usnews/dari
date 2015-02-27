@@ -436,7 +436,6 @@ public class JavaImageServlet extends HttpServlet {
             ServletOutputStream out = response.getOutputStream();
             ImageIO.write(bufferedImage, imageType, out);
 
-
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             ImageIO.write(bufferedImage, "jpg", byteArrayOutputStream);
             byteArrayOutputStream.flush();
