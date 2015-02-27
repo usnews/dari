@@ -5,10 +5,17 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.TimeZone;
 import javax.imageio.ImageIO;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
@@ -16,13 +23,15 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.imgscalr.Scalr;
+import org.joda.time.DateTime;
 
-@RoutingFilter.Path(application = "", value = "/_image")
+@RoutingFilter.Path(application = "_image", value = "")
 public class JavaImageServlet extends HttpServlet {
-    private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV"); //Commands that don't require a value
+    private static final List<String> BASIC_COMMANDS = Arrays.asList("circle", "grayscale", "invert", "sepia", "star", "starburst", "flipH", "flipV", "sharpen", "blur"); //Commands that don't require a value
     private static final List<String> PNG_COMMANDS = Arrays.asList("circle", "star", "starburst"); //Commands that return a PNG regardless of input
     private static final String QUALITY_OPTION = "quality";
-    protected static final String SERVLET_PATH = "/_image/";
+    private static SimpleDateFormat expiresDateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+    protected static final String SERVLET_PATH = StringUtils.ensureEnd(RoutingFilter.Static.getApplicationPath("_image"), "/");
 
     @Override
     public void service(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -142,10 +151,18 @@ public class JavaImageServlet extends HttpServlet {
             }
 
             BufferedImage bufferedImage;
-            if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
-                bufferedImage = JavaImageTiffReader.readTiff(imageUrl);
-            } else {
-                bufferedImage = ImageIO.read(new URL(imageUrl));
+
+            try {
+                URL url = new URL(imageUrl);
+                URI uri = new URI(url.getProtocol(), url.getAuthority(), url.getPath(), url.getQuery(), url.getRef());
+
+                if ((imageUrl.endsWith("tif") || imageUrl.endsWith("tiff")) && ObjectUtils.getClassByName(JavaImageEditor.TIFF_READER_CLASS) != null) {
+                    bufferedImage = JavaImageTiffReader.readTiff(uri.toString());
+                } else {
+                    bufferedImage = ImageIO.read(new URL(uri.toString()));
+                }
+            } catch (URISyntaxException ex) {
+                bufferedImage = null;
             }
 
             if (bufferedImage == null) {
@@ -169,6 +186,7 @@ public class JavaImageServlet extends HttpServlet {
             for (int i = 0; i < parameters.length; i = i + 2) {
                 String command = parameters[i];
                 String value = i + 1 < parameters.length ? parameters[i + 1] : "";
+                boolean validComand = true;
 
                 if (command.equals(ImageEditor.RESIZE_COMMAND)) {
                     String option = null;
@@ -306,6 +324,42 @@ public class JavaImageServlet extends HttpServlet {
 
                     bufferedImage = javaImageEditor.brightness(bufferedImage, brightness.intValue(), contrast.intValue());
 
+                } else if (command.equals("sharpen")) {
+                    Integer ammount = null;
+                    try {
+                        ammount = Integer.parseInt(value);
+                    } catch (NumberFormatException ex) {
+                        ammount = 2;
+                    }
+                    bufferedImage = javaImageEditor.sharpen(bufferedImage, ammount);
+
+                } else if (command.equals("blur")) {
+                    int defaultBlur = 1;
+
+                    if (value.contains("x")) {
+                        String[] axywh = value.split("x");
+                        int ammount = defaultBlur;
+                        int sizeOffset = 0;
+                        if (axywh.length > 4) {
+                            ammount = Integer.parseInt(axywh[0]);
+                            sizeOffset = 1;
+                        }
+                        int x = Integer.parseInt(axywh[sizeOffset]);
+                        int y = Integer.parseInt(axywh[sizeOffset + 1]);
+                        int w = Integer.parseInt(axywh[sizeOffset + 2]);
+                        int h = Integer.parseInt(axywh[sizeOffset + 3]);
+
+                        bufferedImage = javaImageEditor.blurArea(bufferedImage, ammount, x, y, w, h);
+                    } else {
+                        Integer ammount = null;
+                        try {
+                            ammount = Integer.parseInt(value);
+                        } catch (NumberFormatException ex) {
+                            ammount = defaultBlur;
+                        }
+                        bufferedImage = javaImageEditor.blur(bufferedImage, ammount);
+                    }
+
                 } else if (command.equals("contrast")) {
                     Double contrast = Double.valueOf(value);
                     if (Math.abs(contrast) < 0) {
@@ -343,23 +397,63 @@ public class JavaImageServlet extends HttpServlet {
                     bufferedImage = javaImageEditor.star(bufferedImage);
 
                 } else if (command.equals("starburst")) {
-                    bufferedImage = javaImageEditor.starburst(bufferedImage);
+                    int size = 5;
+                    int count = 30;
+                    if (value.contains("x")) {
+                        String[] sc = value.split("x");
+                        if (!StringUtils.isBlank(sc[0])) {
+                            size = Integer.parseInt(sc[0]);
+                        }
+                        if (sc.length > 1 && !StringUtils.isBlank(sc[1])) {
+                            count = Integer.parseInt(sc[1]);
+                        }
+                    }
+                    bufferedImage = javaImageEditor.starburst(bufferedImage, size, count);
 
+                } else {
+                    validComand = false;
                 }
 
                 if (PNG_COMMANDS.contains(command)) {
                     imageType = "png";
                 }
 
-                //shift offset if basic command has no value
-                if (BASIC_COMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true")) {
+                //shift offset if a command wasn't found or a basic command has no value
+                if (!validComand || (BASIC_COMMANDS.contains(command) && !StringUtils.isBlank(value) && !value.toLowerCase().equals("true"))) {
                     i = i - 1;
                 }
             }
 
+            Integer maxAge = Settings.getOrDefault(Integer.class, "dari/imageEditor/_java/max-age", 31536000);
             response.setContentType("image/" + imageType);
+            response.setHeader("Cache-Control", String.format("%s, public", maxAge.toString()));
+            response.setHeader("Edge-Control", String.format("downstream-ttl=%s", maxAge));
+            DateTime expires = new DateTime().plusSeconds(maxAge);
+            if (!expiresDateFormat.getTimeZone().equals(TimeZone.getTimeZone("GMT"))) {
+                expiresDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+            }
+            response.setHeader("Expires", expiresDateFormat.format(expires.toDate()));
             ServletOutputStream out = response.getOutputStream();
             ImageIO.write(bufferedImage, imageType, out);
+
+
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ImageIO.write(bufferedImage, "jpg", byteArrayOutputStream);
+            byteArrayOutputStream.flush();
+            byte[] data = byteArrayOutputStream.toByteArray();
+
+            try {
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                md.update(data);
+                byte[] hash = md.digest();
+                StringBuilder eTag = new StringBuilder();
+                for (int hashIndex = 0; hashIndex < hash.length; hashIndex++) {
+                    eTag.append(Integer.toString((hash[hashIndex] & 0xff) + 0x100, 16).substring(1));
+                }
+                response.setHeader("ETag", eTag.toString());
+            } catch (NoSuchAlgorithmException ex) {
+                //No Such Algorithm Exception don't write eTag
+            }
 
             if (cacheImage) {
                 FileOutputStream fileOutputStream = new FileOutputStream(file);

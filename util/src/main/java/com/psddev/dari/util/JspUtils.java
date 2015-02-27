@@ -978,6 +978,11 @@ public final class JspUtils {
 
         @SuppressWarnings("unchecked")
         Set<String> subPaths = (Set<String>) context.getResourcePaths(path);
+
+        if (subPaths == null) {
+            return;
+        }
+
         for (String subPath : subPaths) {
 
             if (subPath.endsWith(suffix)) {

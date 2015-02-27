@@ -152,7 +152,8 @@ public class CodeDebugServlet extends HttpServlet {
                 if (filePath.endsWith(".java")) {
                     filePath = filePath.substring(0, filePath.length() - 5);
 
-                    for (File sourceDirectory : CodeUtils.getSourceDirectories()) { String sourceDirectoryPath = sourceDirectory.getPath();
+                    for (File sourceDirectory : CodeUtils.getSourceDirectories()) {
+                        String sourceDirectoryPath = sourceDirectory.getPath();
 
                         if (filePath.startsWith(sourceDirectoryPath)) {
                             String classPath = filePath.substring(sourceDirectoryPath.length());
@@ -330,7 +331,6 @@ public class CodeDebugServlet extends HttpServlet {
                         writeStart("script", "type", "text/javascript");
                             write("$('body').frame();");
                             write("var $codeForm = $('form.code');");
-                            write("setTimeout(function() { $codeForm.submit(); }, 0);");
 
                             write("var lineMarkers = [ ];");
                             write("var columnMarkers = [ ];");

@@ -24,6 +24,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.psddev.dari.db.Recordable.TypePostProcessorClasses;
 import com.psddev.dari.util.ClassFinder;
 import com.psddev.dari.util.CodeUtils;
 import com.psddev.dari.util.Lazy;
@@ -196,6 +197,17 @@ public class DatabaseEnvironment implements ObjectStruct {
             }
         }
     };
+
+    // Cache that contains ObjectType.PostProcessors.
+    private static final LoadingCache<Class<? extends ObjectType.PostProcessor>, ObjectType.PostProcessor> TYPE_POST_PROCESSORS = CacheBuilder.newBuilder().
+            weakKeys().
+            build(new CacheLoader<Class<? extends ObjectType.PostProcessor>, ObjectType.PostProcessor>() {
+
+                @Override
+                public ObjectType.PostProcessor load(Class<? extends ObjectType.PostProcessor> processorClass) {
+                    return (ObjectType.PostProcessor) TypeDefinition.getInstance(processorClass).newInstance();
+                }
+            });
 
     /** Immediately refreshes all globals using the backing database. */
     public synchronized void refreshGlobals() {
@@ -444,6 +456,19 @@ public class DatabaseEnvironment implements ObjectStruct {
                 }
             }
         }
+
+        for (ObjectType type : getTypes()) {
+            Class<?> objectClass = type.getObjectClass();
+            if (objectClass != null) {
+                TypePostProcessorClasses tppcAnnotation = objectClass.getAnnotation(TypePostProcessorClasses.class);
+                if (tppcAnnotation != null) {
+                    for (Class<? extends ObjectType.PostProcessor> processorClass : tppcAnnotation.value()) {
+                        ObjectType.PostProcessor processor = (ObjectType.PostProcessor) TYPE_POST_PROCESSORS.getUnchecked(processorClass);
+                        processor.process(type);
+                    }
+                }
+            }
+        }
     }
 
     private static void initializeAndModify(TypesCache temporaryTypes, ObjectType type, List<Class<?>> modifications) {
@@ -543,6 +568,49 @@ public class DatabaseEnvironment implements ObjectStruct {
         getGlobals().put(GLOBAL_FIELDS_FIELD, ObjectField.Static.convertInstancesToDefinitions(fields));
         fieldsCache.reset();
         metricFieldsCache.reset();
+    }
+
+    /**
+     * Returns the method associated with the given {@code name} in this type.
+     *
+     * @param name If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public ObjectMethod getMethod(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        ObjectField field = getField(name);
+
+        if (field instanceof ObjectMethod) {
+            return (ObjectMethod) field;
+        } else {
+            return null;
+        }
+
+    }
+
+    /**
+     * Returns all of the methods that Dari is aware of.
+     */
+    public List<ObjectMethod> getMethods() {
+        List<ObjectMethod> methods = new ArrayList<ObjectMethod>();
+        for (ObjectField field : getFields()) {
+            if (field instanceof ObjectMethod) {
+                methods.add((ObjectMethod) field);
+            }
+        }
+        return methods;
+    }
+
+    /**
+     * Returns whether the given {@code name} is an ObjectMethod in this type.
+     *
+     * @param name If {@code null}, returns {@code false}.
+     */
+    public boolean isMethod(String name) {
+        return getMethod(name) != null;
     }
 
     public List<ObjectField> getMetricFields() {

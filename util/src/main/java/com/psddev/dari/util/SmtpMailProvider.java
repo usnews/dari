@@ -163,13 +163,13 @@ public class SmtpMailProvider extends AbstractMailProvider {
 
             if (!StringUtils.isEmpty(message.getBodyPlain())) {
                 MimeBodyPart plain = new MimeBodyPart();
-                plain.setText(message.getBodyPlain());
+                plain.setText(message.getBodyPlain(), StringUtils.UTF_8.toString());
                 multiPartContent.addBodyPart(plain);
             }
 
             if (!StringUtils.isEmpty(message.getBodyHtml())) {
                 MimeBodyPart html = new MimeBodyPart();
-                html.setContent(message.getBodyHtml(), "text/html");
+                html.setContent(message.getBodyHtml(), "text/html; charset=" + StringUtils.UTF_8.toString());
                 multiPartContent.addBodyPart(html);
                 multiPartContent.setSubType("alternative");
             }

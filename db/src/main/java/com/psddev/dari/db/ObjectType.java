@@ -7,6 +7,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -237,10 +238,127 @@ public class ObjectType extends Record implements ObjectStruct {
             }
         }
 
+        for (Method javaMethod : findObjectMethodCapableMethods(definition)) {
+
+            List<ObjectField> fields = localFields;
+            List<ObjectIndex> indexes = localIndexes;
+
+            String internalName = javaMethod.getName().replace('$', '.');
+            String declaringClass = javaMethod.getDeclaringClass().getName();
+
+            FieldInternalName fieldInternalNameAnnotation = javaMethod.getAnnotation(FieldInternalName.class);
+            if (fieldInternalNameAnnotation != null) {
+                internalName = fieldInternalNameAnnotation.value();
+            }
+
+            InternalName internalNameAnnotation = javaMethod.getAnnotation(InternalName.class);
+            if (internalNameAnnotation != null) {
+                internalName = internalNameAnnotation.value();
+            }
+
+            internalName = prefix + internalName;
+
+            ObjectMethod method = new ObjectMethod(type != null ? type : environment, null);
+
+            method.getState().setDatabase(database);
+            method.setInternalName(internalName);
+
+            try {
+                method.setInternalType(environment, definition.getObjectClass(), javaMethod.getGenericReturnType());
+
+            } catch (IllegalArgumentException error) {
+                LOGGER.warn(error.getMessage());
+                continue;
+            }
+
+            method.setJavaMethodName(javaMethod.getName());
+            method.setJavaDeclaringClassName(declaringClass);
+            method.setDeprecated(javaMethod.isAnnotationPresent(Deprecated.class));
+
+            for (Annotation annotation : javaMethod.getAnnotations()) {
+                ObjectField.AnnotationProcessorClass processorClass = annotation.annotationType().getAnnotation(ObjectField.AnnotationProcessorClass.class);
+                if (processorClass != null) {
+                    @SuppressWarnings("unchecked")
+                    ObjectField.AnnotationProcessor<Annotation> processor = (ObjectField.AnnotationProcessor<Annotation>) ANNOTATION_PROCESSORS.getUnchecked(processorClass.value());
+                    processor.process(type, method, annotation);
+                }
+            }
+
+            fields.add(method);
+
+            // Index definition
+            String[] extraFields = null;
+            boolean isUnique = false;
+            boolean caseSensitive = false;
+            boolean visibility = false;
+
+            Indexed indexedAnnotation = javaMethod.getAnnotation(Indexed.class);
+            if (indexedAnnotation != null) {
+                extraFields = indexedAnnotation.extraFields();
+                isUnique = isUnique || indexedAnnotation.unique() || indexedAnnotation.isUnique();
+                caseSensitive = indexedAnnotation.caseSensitive();
+                visibility = indexedAnnotation.visibility();
+            }
+
+            if (extraFields != null) {
+                for (Iterator<ObjectIndex> i = indexes.iterator(); i.hasNext();) {
+                    ObjectIndex index = i.next();
+                    if (internalName.equals(index.getField())) {
+                        i.remove();
+                        break;
+                    }
+                }
+
+                List<String> indexedFields = new ArrayList<String>();
+                indexedFields.add(internalName);
+                Collections.addAll(indexedFields, extraFields);
+
+                ObjectIndex newIndex = new ObjectIndex(type != null ? type : environment, null);
+                newIndex.setFields(indexedFields);
+                newIndex.setType(method.getInternalItemType());
+                newIndex.setUnique(isUnique);
+                newIndex.setCaseSensitive(caseSensitive);
+                newIndex.setVisibility(visibility);
+                newIndex.setJavaDeclaringClassName(declaringClass);
+                newIndex.getOptions().putAll(new ObjectMethod(method.getParent(), method.toDefinition()).getOptions());
+                indexes.add(newIndex);
+            }
+
+        }
+
         if (hasGlobalChanges) {
             environment.setFields(globalFields);
             environment.setIndexes(globalIndexes);
         }
+    }
+
+    private static List<Method> findObjectMethodCapableMethods(TypeDefinition<?> definition) {
+
+        List<Method> methods = new ArrayList<Method>();
+
+        for (Method javaMethod : definition.getAllMethods()) {
+            if (javaMethod.getDeclaringClass() != Object.class) {
+                int mod = javaMethod.getModifiers();
+                Class<?>[] parameterTypes = javaMethod.getParameterTypes();
+                if (StringUtils.getMatcher(javaMethod.getName(), "^(get|(is|has))([^a-z])(.*)$").matches() &&
+                        Modifier.isPublic(mod) &&
+                        !Modifier.isStatic(mod) &&
+                        javaMethod.getReturnType() != void.class &&
+                        javaMethod.getReturnType() != Void.class &&
+                        (parameterTypes.length == 0 ||
+                            (parameterTypes.length == 1 &&
+                             ObjectMethod.class.equals(parameterTypes[0]))) &&
+                        (javaMethod.isAnnotationPresent(Indexed.class) ||
+                            (javaMethod.getAnnotation(Ignored.class) != null &&
+                             !javaMethod.getAnnotation(Ignored.class).value()))) {
+
+                    methods.add(javaMethod);
+
+                }
+            }
+        }
+
+        return methods;
     }
 
     /**
@@ -483,6 +601,49 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         return null;
+    }
+
+    /**
+     * Returns the method associated with the given {@code name} in this type.
+     *
+     * @param name If {@code null}, returns {@code null}.
+     * @return May be {@code null}.
+     */
+    public ObjectMethod getMethod(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        ObjectField field = getField(name);
+
+        if (field instanceof ObjectMethod) {
+            return (ObjectMethod) field;
+        } else {
+            return null;
+        }
+
+    }
+
+    /**
+     * Returns all of the methods that Dari is aware of.
+     */
+    public List<ObjectMethod> getMethods() {
+        List<ObjectMethod> methods = new ArrayList<ObjectMethod>();
+        for (ObjectField field : getFields()) {
+            if (field instanceof ObjectMethod) {
+                methods.add((ObjectMethod) field);
+            }
+        }
+        return methods;
+    }
+
+    /**
+     * Returns whether the given {@code name} is an ObjectMethod in this type.
+     *
+     * @param name If {@code null}, returns {@code false}.
+     */
+    public boolean isMethod(String name) {
+        return getMethod(name) != null;
     }
 
     /**
@@ -914,7 +1075,8 @@ public class ObjectType extends Record implements ObjectStruct {
         }
 
         try {
-            if (modificationClass.getDeclaredMethod("afterCreate") != null) {
+            if (!Modification.class.isAssignableFrom(getObjectClass()) &&
+                    modificationClass.getDeclaredMethod("afterCreate") != null) {
                 Static.HAS_AFTER_CREATE.put(getObjectClass(), Boolean.TRUE);
             }
 
@@ -962,6 +1124,24 @@ public class ObjectType extends Record implements ObjectStruct {
             }
 
             fieldInternalNames.add(prefix + internalName);
+        }
+
+        for (Method javaMethod : findObjectMethodCapableMethods(definition)) {
+
+            String internalName = javaMethod.getName().replace('$', '.');
+
+            FieldInternalName fieldInternalNameAnnotation = javaMethod.getAnnotation(FieldInternalName.class);
+            if (fieldInternalNameAnnotation != null) {
+                internalName = fieldInternalNameAnnotation.value();
+            }
+
+            InternalName internalNameAnnotation = javaMethod.getAnnotation(InternalName.class);
+            if (internalNameAnnotation != null) {
+                internalName = internalNameAnnotation.value();
+            }
+
+            fieldInternalNames.add(prefix + internalName);
+
         }
 
         for (Iterator<ObjectField> i = localFields.iterator(); i.hasNext();) {
@@ -1059,6 +1239,13 @@ public class ObjectType extends Record implements ObjectStruct {
     public static interface AnnotationProcessor<A extends Annotation> {
 
         public void process(ObjectType type, A annotation);
+    }
+
+    /** Processor for Recordable.TypePostProcessorClass. */
+    public static interface PostProcessor {
+
+        public void process(ObjectType type);
+
     }
 
     /**

@@ -115,7 +115,8 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
                 width = Math.round(height * aspect);
             }
 
-            BufferedImage resizedImage = Scalr.resize(original, width, height);
+            String method = Settings.getOrDefault(String.class, "dari/intermediateImageSizeQuality", "AUTOMATIC");
+            BufferedImage resizedImage = Scalr.resize(original, Scalr.Method.valueOf(method), width, height);
             String url = item.getPath();
             List<String> parts = Arrays.asList(url.split("/"));
 

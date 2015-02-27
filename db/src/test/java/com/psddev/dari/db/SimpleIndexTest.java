@@ -10,6 +10,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.junit.After;
@@ -58,6 +59,7 @@ public class SimpleIndexTest {
         }
     }
     private static UUID UUID = UuidUtils.createSequentialUuid();
+    private static Locale LOCALE = Locale.getDefault();
 
     @BeforeClass
     public static void beforeClass() {
@@ -318,6 +320,20 @@ public class SimpleIndexTest {
         }
     }
 
+    @Test
+    public void localeIndex() {
+        for (Database db : DATABASES) {
+            TestRecord expected = TestRecord.getInstance(db);
+            expected.testLocale = LOCALE;
+            expected.save();
+
+            TestRecord actual = Query.from(TestRecord.class).using(db).where("testLocale = ?", LOCALE).first();
+            assertNotNull(actual);
+            assertEquals(actual, expected);
+            assertEquals(actual.testLocale, expected.testLocale);
+        }
+    }
+
     static class TestRecord extends Record {
 
         public static TestRecord getInstance(Database db) {
@@ -342,5 +358,6 @@ public class SimpleIndexTest {
         @Indexed URI testUri;
         @Indexed URL testUrl;
         @Indexed UUID testUuid;
+        @Indexed Locale testLocale;
     }
 }

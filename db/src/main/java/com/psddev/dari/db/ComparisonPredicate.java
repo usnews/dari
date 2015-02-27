@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import org.joda.time.DateTime;
 
+import com.psddev.dari.util.LocaleUtils;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.StringUtils;
@@ -60,6 +62,9 @@ public final class ComparisonPredicate extends Predicate {
 
             } else if (value instanceof Enum) {
                 mutableValues.add(((Enum<?>) value).name());
+
+            } else if (value instanceof Locale) {
+                mutableValues.add(LocaleUtils.toLanguageTag((Locale) value));
 
             } else if (value instanceof Class) {
                 mutableValues.add(ObjectType.getInstance((Class<?>) value).getId());

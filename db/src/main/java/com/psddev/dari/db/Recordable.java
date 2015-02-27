@@ -81,6 +81,28 @@ public interface Recordable {
         String value();
     }
 
+    @ObjectField.AnnotationProcessorClass(BootstrapFollowReferencesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface BootstrapFollowReferences {
+    }
+
+    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapPackages {
+        String[] value();
+        Class<?>[] depends() default { };
+    }
+
+    @ObjectType.AnnotationProcessorClass(BootstrapTypeMappableProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface BootstrapTypeMappable {
+        Class<?>[] groups();
+        String uniqueKey();
+    }
+
     /** Specifies the maximum number of items allowed in the target field. */
     @Documented
     @ObjectField.AnnotationProcessorClass(CollectionMaximumProcessor.class)
@@ -118,7 +140,7 @@ public interface Recordable {
     @ObjectField.AnnotationProcessorClass(DisplayNameProcessor.class)
     @ObjectType.AnnotationProcessorClass(DisplayNameProcessor.class)
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.FIELD, ElementType.TYPE })
+    @Target({ ElementType.FIELD, ElementType.TYPE, ElementType.METHOD })
     public @interface DisplayName {
         String value();
     }
@@ -148,10 +170,20 @@ public interface Recordable {
         String value();
     }
 
+    @Documented
+    @Inherited
+    @ObjectField.AnnotationProcessorClass(GroupsProcessor.class)
+    @ObjectType.AnnotationProcessorClass(GroupsProcessor.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.FIELD, ElementType.TYPE })
+    public @interface Groups {
+        String[] value();
+    }
+
     /** Specifies whether the target field is ignored. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
     public @interface Ignored {
         boolean value() default true;
     }
@@ -159,7 +191,7 @@ public interface Recordable {
     /** Specifies whether the target field value is indexed. */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
     public @interface Indexed {
         String[] extraFields() default { };
         boolean unique() default false;
@@ -175,7 +207,7 @@ public interface Recordable {
     @Documented
     @ObjectType.AnnotationProcessorClass(InternalNameProcessor.class)
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ ElementType.FIELD, ElementType.TYPE })
+    @Target({ ElementType.FIELD, ElementType.TYPE, ElementType.METHOD })
     public @interface InternalName {
         String value();
     }
@@ -264,6 +296,17 @@ public interface Recordable {
         String value();
     }
 
+    /** Specifies how the method index should be updated. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.METHOD })
+    @ObjectField.AnnotationProcessorClass(RecalculateProcessor.class)
+    public @interface Recalculate {
+        public Class<? extends RecalculationDelay> delay() default RecalculationDelay.Hour.class;
+        public String metric() default "";
+        public boolean immediate() default false;
+    }
+
     /**
      * Specifies the regular expression pattern that the target field value
      * must match.
@@ -317,6 +360,16 @@ public interface Recordable {
         double value();
     }
 
+    /**
+     * Specifies the processor class(es) to run after the type is initialized.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface TypePostProcessorClasses {
+        Class<? extends ObjectType.PostProcessor>[] value();
+    }
+
     /** Specifies the valid types for the target field value. */
     @Documented
     @ObjectField.AnnotationProcessorClass(TypesProcessor.class)
@@ -342,28 +395,6 @@ public interface Recordable {
     @Target(ElementType.FIELD)
     public @interface Where {
         String value();
-    }
-
-    @ObjectType.AnnotationProcessorClass(BootstrapPackagesProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.TYPE)
-    public @interface BootstrapPackages {
-        String[] value();
-        Class<?>[] depends() default { };
-    }
-
-    @ObjectType.AnnotationProcessorClass(BootstrapTypeMappableProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.TYPE)
-    public @interface BootstrapTypeMappable {
-        Class<?>[] groups();
-        String uniqueKey();
-    }
-
-    @ObjectField.AnnotationProcessorClass(BootstrapFollowReferencesProcessor.class)
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
-    public @interface BootstrapFollowReferences {
     }
 
     // --- Deprecated ---
@@ -662,10 +693,45 @@ class EmbeddedProcessor implements
     }
 }
 
+class GroupsProcessor implements
+        ObjectField.AnnotationProcessor<Recordable.Groups>,
+        ObjectType.AnnotationProcessor<Recordable.Groups> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.Groups annotation) {
+        Collections.addAll(field.getGroups(), annotation.value());
+    }
+
+    @Override
+    public void process(ObjectType type, Recordable.Groups annotation) {
+        Collections.addAll(type.getGroups(), annotation.value());
+    }
+}
+
 class InternalNameProcessor implements ObjectType.AnnotationProcessor<Recordable.InternalName> {
     @Override
     public void process(ObjectType type, Recordable.InternalName annotation) {
         type.setInternalName(annotation.value());
+    }
+}
+
+class RecalculateProcessor implements ObjectField.AnnotationProcessor<Recordable.Recalculate> {
+
+    @Override
+    public void process(ObjectType type, ObjectField field, Recordable.Recalculate annotation) {
+
+        if (field instanceof ObjectMethod) {
+            RecalculationFieldData fieldData = ((ObjectMethod) field).as(RecalculationFieldData.class);
+
+            fieldData.setDelayClass(annotation.delay());
+            fieldData.setImmediate(annotation.immediate());
+
+            if (annotation.metric() != null && !"".equals(annotation.metric())) {
+                fieldData.setMetricFieldName(annotation.metric());
+            } else if (annotation.immediate()) {
+                throw new IllegalArgumentException("immediate = true requires a metric!");
+            }
+        }
     }
 }
 

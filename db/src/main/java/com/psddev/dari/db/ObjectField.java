@@ -21,13 +21,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.psddev.dari.util.CollectionUtils;
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StorageItem;
@@ -56,6 +59,7 @@ public class ObjectField extends Record {
     public static final String URI_TYPE = "uri";
     public static final String URL_TYPE = "url";
     public static final String UUID_TYPE = "uuid";
+    public static final String LOCALE_TYPE = "locale";
 
     private static final TypeReference<Set<String>> SET_STRING_TYPE_REF = new TypeReference<Set<String>>() { };
 
@@ -98,6 +102,7 @@ public class ObjectField extends Record {
         CLASS_TO_TYPE.put(URI.class, URI_TYPE);
         CLASS_TO_TYPE.put(URL.class, URL_TYPE);
         CLASS_TO_TYPE.put(UUID.class, UUID_TYPE);
+        CLASS_TO_TYPE.put(Locale.class, LOCALE_TYPE);
 
         for (Map.Entry<Class<?>, String> e : CLASS_TO_TYPE.entrySet()) {
             Class<?> type = e.getKey();
@@ -130,7 +135,10 @@ public class ObjectField extends Record {
     private static final String DEFAULT_VALUE_KEY = "defaultValue";
     private static final String PREDICATE_KEY = "predicate";
     private static final String VALUES_KEY = "values";
+    private static final String GROUPS_KEY = "groups";
     private static final String VALUE_TYPES_KEY = "valueTypes";
+    private static final String GENERIC_ARGUMENT_INDEX_KEY = "genericArgumentIndex";
+    private static final String GENERIC_ARGUMENTS_KEY = "genericArguments";
     private static final String JAVA_FIELD_NAME_KEY = "java.field";
     private static final String JAVA_DECLARING_CLASS_NAME_KEY = "java.declaringClass";
     private static final String JAVA_ENUM_CLASS_NAME_KEY = "java.enumClass";
@@ -142,7 +150,7 @@ public class ObjectField extends Record {
     private boolean deprecated;
 
     @InternalName("label")
-    private String displayName;
+    protected String displayName;
 
     @InternalName("name")
     private String internalName;
@@ -164,8 +172,13 @@ public class ObjectField extends Record {
     private String predicate;
     private Set<Value> values;
 
+    private Set<String> groups;
+
     @InternalName("valueTypes")
     private Set<ObjectType> types;
+
+    private Number genericArgumentIndex;
+    private List<ObjectType> genericArguments;
 
     @InternalName("java.field")
     private String javaFieldName;
@@ -198,6 +211,8 @@ public class ObjectField extends Record {
         defaultValue = field.defaultValue;
         predicate = field.predicate;
         types = field.types != null ? new LinkedHashSet<ObjectType>(field.types) : null;
+        genericArgumentIndex = field.genericArgumentIndex;
+        genericArguments = field.genericArguments != null ? new ArrayList<ObjectType>(field.genericArguments) : null;
         values = field.values != null ? new LinkedHashSet<Value>(field.values) : null;
         javaFieldName = field.javaFieldName;
         javaDeclaringClassName = field.javaDeclaringClassName;
@@ -242,6 +257,7 @@ public class ObjectField extends Record {
         pattern = (String) definition.remove(PATTERN_KEY);
         defaultValue = definition.remove(DEFAULT_VALUE_KEY);
         predicate = (String) definition.remove(PREDICATE_KEY);
+        groups = ObjectUtils.to(SET_STRING_TYPE_REF, definition.remove(GROUPS_KEY));
 
         @SuppressWarnings("unchecked")
         Collection<String> typeIds = (Collection<String>) definition.remove(VALUE_TYPES_KEY);
@@ -253,6 +269,26 @@ public class ObjectField extends Record {
                 ObjectType type = environment.getTypeById(ObjectUtils.to(UUID.class, idString));
                 if (type != null) {
                     types.add(type);
+                }
+            }
+        }
+
+        genericArgumentIndex = (Number) definition.remove(GENERIC_ARGUMENT_INDEX_KEY);
+
+        @SuppressWarnings("unchecked")
+        Collection<String> genericArgumentIds = (Collection<String>) definition.remove(GENERIC_ARGUMENTS_KEY);
+
+        if (genericArgumentIds == null) {
+            genericArguments = null;
+
+        } else {
+            genericArguments = new ArrayList<ObjectType>();
+
+            for (String idString : genericArgumentIds) {
+                ObjectType type = environment.getTypeById(ObjectUtils.to(UUID.class, idString));
+
+                if (type != null) {
+                    genericArguments.add(type);
                 }
             }
         }
@@ -285,6 +321,14 @@ public class ObjectField extends Record {
             }
         }
 
+        List<String> genericArgumentIds = new ArrayList<String>();
+
+        for (ObjectType type : getGenericArguments()) {
+            if (type != null) {
+                genericArgumentIds.add(type.getId().toString());
+            }
+        }
+
         List<Map<String, String>> valueDefinitions = new ArrayList<Map<String, String>>();
         Set<Value> values = getValues();
         if (values != null) {
@@ -314,7 +358,10 @@ public class ObjectField extends Record {
         definition.put(DEFAULT_VALUE_KEY, defaultValue);
         definition.put(PREDICATE_KEY, predicate);
         definition.put(VALUES_KEY, valueDefinitions.isEmpty() ? null : valueDefinitions);
+        definition.put(GROUPS_KEY, groups);
         definition.put(VALUE_TYPES_KEY, typeIds.isEmpty() ? null : typeIds);
+        definition.put(GENERIC_ARGUMENT_INDEX_KEY, genericArgumentIndex);
+        definition.put(GENERIC_ARGUMENTS_KEY, genericArgumentIds.isEmpty() ? null : genericArgumentIds);
         definition.put(JAVA_FIELD_NAME_KEY, javaFieldName);
         definition.put(JAVA_DECLARING_CLASS_NAME_KEY, javaDeclaringClassName);
         definition.put(JAVA_ENUM_CLASS_NAME_KEY, javaEnumClassName);
@@ -525,20 +572,41 @@ public class ObjectField extends Record {
 
         } else {
             ObjectType type = types.iterator().next();
+            Predicate resolveInvisiblePredicate = null;
             Query<Object> query = Query.
                     fromType(type).
                     where(getJunctionField() + " = ?", state.getId());
 
             if (state.isResolveInvisible()) {
-                Set<String> comparisonKeys = new HashSet<String>();
                 DatabaseEnvironment environment = Database.Static.getDefault().getEnvironment();
+                List<ObjectIndex> indexes = environment.getIndexes();
 
-                addVisibilityFields(comparisonKeys, environment);
-                addVisibilityFields(comparisonKeys, type);
+                indexes.addAll(type.getIndexes());
 
-                for (String key : comparisonKeys) {
-                    query.and(key + " = missing or " + key + " = true");
+                for (ObjectIndex index : indexes) {
+                    if (index.isVisibility()) {
+                        FindVisibilityValuesTrigger trigger = new FindVisibilityValuesTrigger(index);
+                        String indexName = index.getUniqueName();
+
+                        state.fireTrigger(trigger, false);
+
+                        for (Object value : trigger.getValues()) {
+                            resolveInvisiblePredicate = CompoundPredicate.combine(
+                                             PredicateParser.OR_OPERATOR,
+                                             resolveInvisiblePredicate,
+                                             PredicateParser.Static.parse(indexName + " = ?", value));
+                        }
+
+                        resolveInvisiblePredicate = CompoundPredicate.combine(
+                                             PredicateParser.OR_OPERATOR,
+                                             resolveInvisiblePredicate,
+                                             PredicateParser.Static.parse(indexName + " = missing or " + indexName + " = true"));
+                    }
                 }
+            }
+
+            if (resolveInvisiblePredicate != null) {
+                query.and(resolveInvisiblePredicate);
             }
 
             String junctionPositionField = getJunctionPositionField();
@@ -546,26 +614,7 @@ public class ObjectField extends Record {
             if (!ObjectUtils.isBlank(junctionPositionField)) {
                 query.sortAscending(junctionPositionField);
             }
-
             return query.selectAll();
-        }
-    }
-
-    private void addVisibilityFields(Set<String> comparisonKeys, ObjectStruct struct) {
-        if (struct == null) {
-            return;
-        }
-
-        for (ObjectIndex index : struct.getIndexes()) {
-            if (index.isVisibility()) {
-                for (String fieldName : index.getFields()) {
-                    ObjectField field = struct.getField(fieldName);
-
-                    if (field != null) {
-                        comparisonKeys.add(field.getUniqueName());
-                    }
-                }
-            }
         }
     }
 
@@ -619,6 +668,17 @@ public class ObjectField extends Record {
         this.predicate = predicate;
     }
 
+    public Set<String> getGroups() {
+        if (groups == null) {
+            groups = new LinkedHashSet<String>();
+        }
+        return groups;
+    }
+
+    public void setGroups(Set<String> groups) {
+        this.groups = groups;
+    }
+
     /** Returns the valid field types. */
     public Set<ObjectType> getTypes() {
         if (types == null) {
@@ -630,6 +690,25 @@ public class ObjectField extends Record {
     /** Sets the valid field types. */
     public void setTypes(Set<ObjectType> types) {
         this.types = types;
+    }
+
+    public Number getGenericArgumentIndex() {
+        return genericArgumentIndex;
+    }
+
+    public void setGenericArgumentIndex(Number genericArgumentIndex) {
+        this.genericArgumentIndex = genericArgumentIndex;
+    }
+
+    public List<ObjectType> getGenericArguments() {
+        if (genericArguments == null) {
+            genericArguments = new ArrayList<ObjectType>();
+        }
+        return genericArguments;
+    }
+
+    public void setGenericArguments(List<ObjectType> genericArguments) {
+        this.genericArguments = genericArguments;
     }
 
     /** Returns the valid field values. */
@@ -649,20 +728,24 @@ public class ObjectField extends Record {
 
     /** Returns the Java field. */
     public Field getJavaField(Class<?> objectClass) {
+        if (getJavaFieldName() == null) {
+            return null;
+        }
+
         Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
 
         return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
-                javaFieldCache.getUnchecked(objectClass) :
+                javaFieldCache.getUnchecked(objectClass).orNull() :
                 null;
     }
 
-    private final transient LoadingCache<Class<?>, Field> javaFieldCache = CacheBuilder.
+    private final transient LoadingCache<Class<?>, Optional<Field>> javaFieldCache = CacheBuilder.
             newBuilder().
-            build(new CacheLoader<Class<?>, Field>() {
+            build(new CacheLoader<Class<?>, Optional<Field>>() {
 
         @Override
-        public Field load(Class<?> objectClass) {
-            return TypeDefinition.getInstance(objectClass).getField(getJavaFieldName());
+        public Optional<Field> load(Class<?> objectClass) {
+            return Optional.fromNullable(TypeDefinition.getInstance(objectClass).getField(getJavaFieldName()));
         }
     });
 
@@ -871,8 +954,12 @@ public class ObjectField extends Record {
         setInternalType(translateType(environment, objectClass, javaType));
     }
 
-    // Translates Java type to field internal type.
     private String translateType(DatabaseEnvironment environment, Class<?> objectClass, Type javaType) {
+        return translateType(environment, objectClass, javaType, -1);
+    }
+
+    // Translates Java type to field internal type.
+    private String translateType(DatabaseEnvironment environment, Class<?> objectClass, Type javaType, int javaTypeIndex) {
 
         // Simple translation like String to text.
         if (javaType instanceof Class) {
@@ -886,9 +973,16 @@ public class ObjectField extends Record {
 
             } else if (Recordable.class.isAssignableFrom(javaTypeClass)) {
                 ObjectType type = environment.getTypeByClass(javaTypeClass);
+
                 if (type != null) {
-                    getTypes().add(type);
+                    if (javaTypeIndex < 0) {
+                        getTypes().add(type);
+
+                    } else {
+                        CollectionUtils.set(getGenericArguments(), javaTypeIndex, type);
+                    }
                 }
+
                 return RECORD_TYPE;
 
             } else if (Enum.class.isAssignableFrom(javaTypeClass)) {
@@ -947,14 +1041,19 @@ public class ObjectField extends Record {
         } else if (javaType instanceof ParameterizedType) {
             ParameterizedType javaTypeParamed = (ParameterizedType) javaType;
             Type[] javaTypeArgs = javaTypeParamed.getActualTypeArguments();
-            String firstType = translateType(environment, objectClass, javaTypeParamed.getRawType());
-            String secondType = translateType(environment, objectClass, javaTypeArgs[javaTypeArgs.length - 1]);
+            Type firstRawType = javaTypeParamed.getRawType();
+            String firstType = translateType(environment, objectClass, firstRawType);
 
             if (RECORD_TYPE.equals(firstType)) {
+                for (int i = 0, length = javaTypeArgs.length; i < length; ++ i) {
+                    translateType(environment, objectClass, javaTypeArgs[i], i);
+                }
+
                 return firstType;
 
+            // Assume List, Map, or Set.
             } else {
-                return firstType + "/" + secondType;
+                return firstType + "/" + translateType(environment, objectClass, javaTypeArgs[javaTypeArgs.length - 1]);
             }
 
         // Complex translation like List<T> to list/record.
@@ -980,8 +1079,10 @@ public class ObjectField extends Record {
 
                         if (index < length) {
                             Type[] currentArgs = currentParamed.getActualTypeArguments();
+
                             if (index < currentArgs.length) {
-                                return translateType(environment, objectClass, currentArgs[index]);
+                                setGenericArgumentIndex(index);
+                                return translateType(environment, objectClass, currentArgs[index], index);
                             }
                         }
 
@@ -996,6 +1097,18 @@ public class ObjectField extends Record {
 
                 } else {
                     break;
+                }
+            }
+
+            @SuppressWarnings("rawtypes")
+            TypeVariable[] typeParams = objectClass.getTypeParameters();
+
+            if (typeParams != null) {
+                for (int i = 0, length = typeParams.length; i < length; ++ i) {
+                    if (javaTypeVar.equals(typeParams[i])) {
+                        setGenericArgumentIndex(i);
+                        break;
+                    }
                 }
             }
 
@@ -1040,15 +1153,24 @@ public class ObjectField extends Record {
      * valid field value types.
      */
     public Set<ObjectType> findConcreteTypes() {
-
         Set<ObjectType> concreteTypes = new LinkedHashSet<ObjectType>();
+        Set<String> groups = getGroups();
         Set<ObjectType> types = getTypes();
         DatabaseEnvironment environment = getParent().getEnvironment();
 
-        if (types.isEmpty()) {
+        if (groups.isEmpty() && types.isEmpty()) {
             for (ObjectType type : environment.getTypesByGroup(Object.class.getName())) {
                 if (!type.isAbstract()) {
                     concreteTypes.add(type);
+                }
+            }
+
+        } else if (!groups.isEmpty()) {
+            for (String group : groups) {
+                for (ObjectType compatibleType : environment.getTypesByGroup(group)) {
+                    if (!compatibleType.isAbstract()) {
+                        concreteTypes.add(compatibleType);
+                    }
                 }
             }
 
@@ -1220,7 +1342,13 @@ public class ObjectField extends Record {
             Map<String, ObjectField> instances = new CompactMap<String, ObjectField>();
             if (definitions != null) {
                 for (Map<String, Object> definition : definitions) {
-                    ObjectField instance = new ObjectField(parent, definition);
+                    ObjectField instance;
+                    if (definition.get(JAVA_FIELD_NAME_KEY) == null &&
+                            definition.get(ObjectMethod.JAVA_METHOD_NAME_KEY) != null) {
+                        instance = new ObjectMethod(parent, definition);
+                    } else {
+                        instance = new ObjectField(parent, definition);
+                    }
                     instance.getState().setDatabase(parent.getEnvironment().getDatabase());
                     instances.put(instance.getInternalName(), instance);
                 }
@@ -1238,6 +1366,33 @@ public class ObjectField extends Record {
                 definitions.add(instance.toDefinition());
             }
             return definitions;
+        }
+    }
+
+    private static class FindVisibilityValuesTrigger implements Trigger {
+
+        private final ObjectIndex index;
+        private final Set<Object> values = new HashSet<Object>();
+
+        public FindVisibilityValuesTrigger(ObjectIndex index) {
+            this.index = index;
+        }
+
+        public Set<Object> getValues() {
+            return values;
+        }
+
+        @Override
+        public void execute(Object object) {
+            if (!(object instanceof VisibilityValues)) {
+                return;
+            }
+
+            for (Object o : ((VisibilityValues) object).findVisibilityValues(index)) {
+                if (o != null) {
+                    getValues().add(o);
+                }
+            }
         }
     }
 }

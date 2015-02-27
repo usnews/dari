@@ -7,10 +7,12 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import com.psddev.dari.util.CompactMap;
+import com.psddev.dari.util.LocaleUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeReference;
@@ -357,6 +359,9 @@ public class ObjectIndex {
         } else if (value instanceof Enum) {
             values.add(((Enum<?>) value).name());
 
+        } else if (value instanceof Locale) {
+            values.add(LocaleUtils.toLanguageTag((Locale) value));
+
         } else {
             values.add(value);
         }
@@ -473,8 +478,10 @@ public class ObjectIndex {
          */
         public static List<Map<String, Object>> convertInstancesToDefinitions(List<ObjectIndex> instances) {
             List<Map<String, Object>> definitions = new ArrayList<Map<String, Object>>();
-            for (ObjectIndex instance : instances) {
-                definitions.add(instance.toDefinition());
+            if (instances != null) {
+                for (ObjectIndex instance : instances) {
+                    definitions.add(instance.toDefinition());
+                }
             }
             return definitions;
         }

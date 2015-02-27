@@ -237,6 +237,20 @@ public class TypeDefinition<T> {
         return ObjectUtils.isBlank(fields) ? null : fields.get(fields.size() - 1);
     }
 
+    /** Returns the first method with the given {@code name}. */
+    public Method getMethod(String name) {
+        Method method = getAllGetters().get(name);
+        if (method != null) {
+            return method;
+        }
+        for (Method m : getAllMethods()) {
+            if (m.getName().equals(name)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
     /** Returns an unmodifiable list of all the constructors. */
     public List<Constructor<T>> getConstructors() {
         return constructors.get();
@@ -323,9 +337,13 @@ public class TypeDefinition<T> {
 
             Class<T> objectClass = getObjectClass();
             List<Method> methods = new ArrayList<Method>();
-            for (Method method : objectClass.getDeclaredMethods()) {
-                method.setAccessible(true);
-                methods.add(method);
+            try {
+                for (Method method : objectClass.getDeclaredMethods()) {
+                    method.setAccessible(true);
+                    methods.add(method);
+                }
+            } catch (NoClassDefFoundError error) {
+                // Class isn't available, so can't run methods anyway
             }
 
             Class<? super T> superClass = objectClass.getSuperclass();

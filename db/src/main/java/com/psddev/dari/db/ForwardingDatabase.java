@@ -160,6 +160,11 @@ public abstract class ForwardingDatabase implements Database {
     }
 
     @Override
+    public void recalculate(State state, ObjectIndex... indexes) {
+        getDelegate().recalculate(state, indexes);
+    }
+
+    @Override
     public void delete(State state) {
         getDelegate().delete(filterState(state));
     }

@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -30,8 +31,10 @@ import com.psddev.dari.util.ConversionFunction;
 import com.psddev.dari.util.Converter;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.LoadingCacheMap;
+import com.psddev.dari.util.LocaleUtils;
 import com.psddev.dari.util.ObjectToIterable;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.Profiler;
 import com.psddev.dari.util.StorageItem;
 import com.psddev.dari.util.StringUtils;
 import com.psddev.dari.util.TypeDefinition;
@@ -45,6 +48,8 @@ public class State implements Map<String, Object> {
     public static final String LABEL_KEY = "_label";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(State.class);
+    private static final String PROFILER_EVENT_PREFIX = "State: ";
+    private static final String RESOLVE_REFERENCE_PROFILER_EVENT = PROFILER_EVENT_PREFIX + "Resolve Reference";
 
     /**
      * {@linkplain Query#getOptions Query option} that contains the object
@@ -329,6 +334,15 @@ public class State implements Map<String, Object> {
         return field;
     }
 
+    public ObjectMethod getMethod(String name) {
+        ObjectField field = getField(name);
+        if (field instanceof ObjectMethod) {
+            return (ObjectMethod) field;
+        } else {
+            return null;
+        }
+    }
+
     /** Returns the status. */
     public StateStatus getStatus() {
         int statusFlag = flags >>> STATUS_FLAG_OFFSET;
@@ -409,9 +423,16 @@ public class State implements Map<String, Object> {
     }
 
     public Map<String, Object> getSimpleValues(boolean withTypeNames) {
+        Set<Map.Entry<String, Object>> entries = getValues().entrySet();
         Map<String, Object> values = new CompactMap<String, Object>();
 
-        for (Map.Entry<String, Object> entry : getValues().entrySet()) {
+        for (Object entryObject : entries.toArray()) {
+            if (entryObject == null) {
+                continue;
+            }
+
+            @SuppressWarnings("unchecked")
+            Map.Entry<String, Object> entry = (Map.Entry<String, Object>) entryObject;
             String name = entry.getKey();
             Object value = entry.getValue();
             ObjectField field = getField(name);
@@ -526,6 +547,9 @@ public class State implements Map<String, Object> {
         } else if (value instanceof Enum) {
             return ((Enum<?>) value).name();
 
+        } else if (value instanceof Locale) {
+            return LocaleUtils.toLanguageTag((Locale) value);
+
         } else {
             return toSimpleValue(ObjectUtils.to(Map.class, value), isEmbedded, withTypeNames);
         }
@@ -566,12 +590,21 @@ public class State implements Map<String, Object> {
                 value = ((Recordable) value).getState();
             }
 
-            if (key.endsWith("()")) {
+            if (key.endsWith("()") ||
+                    ((key.startsWith("get") || key.startsWith("is") || key.startsWith("has") ||
+                     key.contains(".get") || key.contains(".is") || key.contains(".has")) &&
+                     (value instanceof State && ((State) value).isMethod(key)))) {
                 if (value instanceof State) {
-                    key = key.substring(0, key.length() - 2);
 
                     Class<?> keyClass = null;
+
+                    if (key.endsWith("()")) {
+                        key = key.substring(0, key.length() - 2);
+                    }
+
                     int dotAt = key.lastIndexOf('.');
+
+                    ObjectMethod objMethod = State.getInstance(value).getMethod(key);
 
                     if (dotAt > -1) {
                         keyClass = ObjectUtils.getClassByName(key.substring(0, dotAt));
@@ -579,18 +612,58 @@ public class State implements Map<String, Object> {
                     }
 
                     if (keyClass == null) {
-                        value = ((State) value).getOriginalObject();
-                        keyClass = value.getClass();
+                        Object valueObj = ((State) value).getOriginalObjectOrNull();
+                        if (valueObj != null) {
+                            value = valueObj;
+                            keyClass = value.getClass();
+                        }
 
                     } else {
                         value = ((State) value).as(keyClass);
                     }
 
+                    Set<String> checkedMods = new HashSet<String>();
                     for (Class<?> c = keyClass; c != null; c = c.getSuperclass()) {
                         try {
-                            Method keyMethod = c.getDeclaredMethod(key);
+                            Class<?> modC = null;
+                            Method keyMethod;
+                            if (objMethod != null) {
+                                keyMethod = objMethod.getJavaMethod(c);
+                                if (keyMethod == null) {
+                                    for (String className : State.getInstance(value).getType().getModificationClassNames()) {
+                                        if (checkedMods.contains(className)) {
+                                            continue;
+                                        }
+                                        checkedMods.add(className);
+                                        modC = ObjectUtils.getClassByName(className);
+                                        if (modC != null) {
+                                            keyMethod = objMethod.getJavaMethod(modC);
+                                            if (keyMethod != null) {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (keyMethod == null && Object.class.equals(c)) {
+                                        modC = ObjectUtils.getClassByName(objMethod.getJavaDeclaringClassName());
+                                        if (modC != null) {
+                                            keyMethod = objMethod.getJavaMethod(modC);
+                                        }
+                                    }
+                                }
+                            } else {
+                                keyMethod = c.getMethod(key);
+                            }
+                            if (keyMethod == null) {
+                                continue;
+                            }
                             keyMethod.setAccessible(false);
-                            value = keyMethod.invoke(value);
+                            State valueState = State.getInstance(value);
+                            Object invokeValue = modC != null ? valueState.as(modC) : valueState.as(c);
+                            if (objMethod != null && objMethod.hasSingleObjectMethodParameter()) {
+                                value = keyMethod.invoke(invokeValue, objMethod);
+                            } else {
+                                value = keyMethod.invoke(invokeValue);
+                            }
                             continue KEY;
 
                         } catch (IllegalAccessException error) {
@@ -649,6 +722,21 @@ public class State implements Map<String, Object> {
         }
 
         return value;
+    }
+
+    private boolean isMethod(String key) {
+
+        if (getDatabase().getEnvironment().isMethod(key)) {
+            return true;
+        }
+
+        if (getType() != null) {
+            if (getType().isMethod(key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public Map<String, Object> getRawValues() {
@@ -1236,13 +1324,25 @@ public class State implements Map<String, Object> {
     }
 
     /**
-     * Fires the given trigger on all objects (the original and the
-     * modifications) associated with this state.
+     * Fires the given {@code trigger} on all objects (the original, the
+     * modifications, and the embedded) associated with this state.
      *
      * @param trigger Can't be {@code null}.
      */
-    @SuppressWarnings("unchecked")
     public void fireTrigger(Trigger trigger) {
+        fireTrigger(trigger, true);
+    }
+
+    /**
+     * Fires the given {@code trigger} on all objects (the original and the
+     * modifications) associated with this state.
+     *
+     * @param trigger Can't be {@code null}.
+     * @param recursive If {@code true}, fires the given {@code trigger}
+     * recursively on all embedded objects.
+     */
+    @SuppressWarnings("unchecked")
+    public void fireTrigger(Trigger trigger, boolean recursive) {
 
         // Global modifications.
         for (ObjectType modType : getDatabase().getEnvironment().getTypesByGroup(Modification.class.getName())) {
@@ -1287,8 +1387,10 @@ public class State implements Map<String, Object> {
         }
 
         // Embedded objects.
-        for (ObjectField field : type.getFields()) {
-            fireValueTrigger(trigger, get(field.getInternalName()), field.isEmbedded());
+        if (recursive) {
+            for (ObjectField field : type.getFields()) {
+                fireValueTrigger(trigger, get(field.getInternalName()), field.isEmbedded());
+            }
         }
     }
 
@@ -1414,6 +1516,7 @@ public class State implements Map<String, Object> {
             return;
         }
 
+        /*
         if (field != null) {
             Object value = rawValues.get(field);
 
@@ -1421,48 +1524,70 @@ public class State implements Map<String, Object> {
                 ObjectField f = getField(field);
 
                 if (f != null && f.isMetric()) {
-                    put(f.getInternalName(), new Metric(this, f));
+                    Profiler.Static.startThreadEvent(RESOLVE_REFERENCE_PROFILER_EVENT, this, field);
+
+                    try {
+                        put(f.getInternalName(), new Metric(this, f));
+
+                    } finally {
+                        Profiler.Static.stopThreadEvent();
+                    }
                 }
 
             } else if (!linkedObjects.isEmpty()) {
                 UUID id = StateValueUtils.toIdIfReference(value);
 
                 if (id != null) {
-                    Object object = linkedObjects.values().iterator().next();
-                    Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, Collections.singleton(value), field);
+                    Profiler.Static.startThreadEvent(RESOLVE_REFERENCE_PROFILER_EVENT, this, field);
 
-                    put(field, references.get(id));
+                    try {
+                        Object object = linkedObjects.values().iterator().next();
+                        Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, Collections.singleton(value), field);
+
+                        put(field, references.get(id));
+
+                    } finally {
+                        Profiler.Static.stopThreadEvent();
+                    }
                 }
             }
 
             return;
         }
+        */
 
         synchronized (this) {
             if ((flags & ALL_RESOLVED_FLAG) != 0) {
                 return;
             }
 
-            flags |= ALL_RESOLVED_FLAG;
+            Profiler.Static.startThreadEvent(RESOLVE_REFERENCE_PROFILER_EVENT, this);
 
-            if (linkedObjects.isEmpty()) {
-                return;
-            }
+            try {
+                flags |= ALL_RESOLVED_FLAG;
 
-            Object object = linkedObjects.values().iterator().next();
-            Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
-            Map<String, Object> resolved = new HashMap<String, Object>();
-            resolveMetricReferences(resolved);
-
-            for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
-                UUID id = StateValueUtils.toIdIfReference(e.getValue());
-                if (id != null) {
-                    resolved.put(e.getKey(), references.get(id));
+                if (linkedObjects.isEmpty()) {
+                    return;
                 }
-            }
 
-            for (Map.Entry<String, Object> e : resolved.entrySet()) {
-                put(e.getKey(), e.getValue());
+                Object object = linkedObjects.values().iterator().next();
+                Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
+                Map<String, Object> resolved = new HashMap<String, Object>();
+                resolveMetricReferences(resolved);
+
+                for (Map.Entry<? extends String, ? extends Object> e : rawValues.entrySet()) {
+                    UUID id = StateValueUtils.toIdIfReference(e.getValue());
+                    if (id != null) {
+                        resolved.put(e.getKey(), references.get(id));
+                    }
+                }
+
+                for (Map.Entry<String, Object> e : resolved.entrySet()) {
+                    put(e.getKey(), e.getValue());
+                }
+
+            } finally {
+                Profiler.Static.stopThreadEvent();
             }
         }
     }

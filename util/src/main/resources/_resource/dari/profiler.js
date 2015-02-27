@@ -80,55 +80,6 @@
     var main = function($) {
         var $body = $('body');
 
-        // Code editor IFRAME.
-        var $editorContainer = $('<div/>', {
-            'css': {
-                'background': 'white',
-                '-moz-border-radius': '6px',
-                '-webkit-border-radius': '6px',
-                'border-radius': '6px',
-                '-moz-box-shadow': '0 3px 7px rgba(0, 0, 0, 0.3)',
-                '-webkit-box-shadow': '0 3px 7px rgba(0, 0, 0, 0.3)',
-                'box-shadow': '0 3px 7px rgba(0, 0, 0, 0.3)',
-                'display': 'none',
-                'position': 'absolute',
-                'z-index': 1000000
-            }
-        });
-        var $editor = $('<iframe/>', {
-            'css': {
-                'border': 'none',
-                '-moz-border-radius': '6px',
-                '-webkit-border-radius': '6px',
-                'border-radius': '6px',
-                'height': '100%',
-                'margin': '0px',
-                'padding': '0px',
-                'width': '100%'
-            }
-        });
-        var $editorClose = $('<div/>', {
-            'text': '×',
-            'css': {
-                'color': 'white',
-                'cursor': 'default',
-                'font-size': '20px',
-                'font-weight': 'bold',
-                'line-height': '18px',
-                'text-shadow': '0 1px 0 black',
-                'position': 'absolute',
-                'right': '20px',
-                'top': '10px'
-            },
-            'click': function() {
-                $editorContainer.trigger('close');
-            }
-        });
-
-        $body.append($editorContainer);
-        $editorContainer.append($editor);
-        $editorContainer.append($editorClose);
-
         // Tooltip that shows profile information around the element
         // under the mouse.
         var $tooltip = $('<div/>', {
@@ -159,7 +110,9 @@
             'height': 1,
             'margin': 0,
             'padding': 0,
-            'width': '100%'
+            'position': 'relative',
+            'width': '100%',
+            'z-index': 1000000
         });
 
         $profile.load(function() {
@@ -202,7 +155,7 @@
 
                 // Try to find all JSPs that may be associated with
                 // rendering the element under the mouse.
-                } else if (!$editorContainer.is(':visible')) {
+                } else {
                     $('._profile-openEditor').remove();
 
                     var $parent = $hoverElement;
@@ -250,6 +203,7 @@
                         $('body').append($('<a/>', {
                             'class': '_profile-openEditor',
                             'data-padding': padding,
+                            'target': '_blank',
                             'href': '/_debug/code' +
                                     '?action=edit' +
                                     '&type=JSP' +
@@ -267,78 +221,6 @@
                                 'top': boundary.top - padding,
                                 'width': boundary.width + (padding * 2),
                                 'z-index': 1000000 - padding
-                            },
-
-                            'click': function() {
-                                var $openEditor = $(this);
-                                var padding = $openEditor.attr('data-padding');
-                                $('._profile-openEditor').not($openEditor).fadeOut();
-
-                                // Close the editor if it's already open.
-                                $editorContainer.trigger('close');
-
-                                // Copy the result from the editor to the page.
-                                $editor.load(function() {
-                                    $editor.unbind('load');
-
-                                    $editorContainer.data('copyResultInterval', setInterval(function() {
-                                        var $resultContainer = $($editor[0].contentDocument.body).find('.resultContainer');
-                                        var $result = $resultContainer.find('.frame > *');
-
-                                        if ($result.length > 0 && !$result.is('.copied')) {
-                                            $result.addClass('copied');
-
-                                            if ($result.is('.alert')) {
-                                                $resultContainer.show();
-
-                                            } else {
-                                                $start.nextUntil($stop).remove();
-                                                $start.after($result.text());
-                                                $resultContainer.hide();
-
-                                                var boundary = calculateBoundary($start, $stop);
-                                                boundary.left -= padding;
-                                                boundary.top -= padding;
-                                                boundary.width += padding * 2;
-                                                boundary.height += padding * 2;
-                                                $openEditor.css(boundary);
-                                            }
-                                        }
-                                    }, 50));
-
-                                    $tooltip.fadeOut();
-                                    $('._profile-eventDisplay').fadeOut();
-                                });
-
-                                $editor.attr('src', $(this).attr('href'));
-
-                                // Stop copying result when the editor is closed.
-                                $editorContainer.bind('close', function() {
-                                    $editorContainer.unbind('close');
-
-                                    var copyResultInterval = $editorContainer.data('copyResultInterval');
-                                    if (copyResultInterval) {
-                                        clearInterval(copyResultInterval);
-                                    }
-
-                                    $editorContainer.fadeOut();
-                                });
-
-                                // Show the editor below the link.
-                                var $win = $(window.top);
-                                var containerTop = boundary.top + boundary.height;
-
-                                $editorContainer.css({
-                                    'height': $win.height()- 40,
-                                    'left': 20,
-                                    'top': containerTop + 20,
-                                    'width': $win.width() - 40
-                                });
-
-                                $editorContainer.fadeIn();
-                                $body.animate({ 'scrollTop': containerTop });
-
-                                return false;
                             }
                         }));
                     })();
@@ -368,6 +250,10 @@
                 var own = parseFloat($event.find('td:eq(3)').text());
                 var ratio = own / maxOwn;
                 var size = 40 + ratio * 160;
+
+                if (own < 1) {
+                    return;
+                }
 
                 // Find the closest parent that's visible so that
                 // the display shows in the correct position.

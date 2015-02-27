@@ -89,6 +89,7 @@ public abstract class AbstractDatabase<C> implements Database {
         public final List<State> saves = new ArrayList<State>();
         public final List<State> indexes = new ArrayList<State>();
         public final List<State> deletes = new ArrayList<State>();
+        public final Map<ObjectIndex, List<State>> recalculations = new CompactMap<ObjectIndex, List<State>>();
 
         public void addToValidates(State state) {
             validates.remove(state);
@@ -231,6 +232,18 @@ public abstract class AbstractDatabase<C> implements Database {
             deletes.remove(state);
             deletes.add(state);
         }
+
+        public void addToRecalculations(State state, ObjectIndex index) {
+            if (index == null || state == null) {
+                return;
+            }
+            if (!recalculations.containsKey(index)) {
+                recalculations.put(index, new ArrayList<State>());
+            }
+            recalculations.get(index).remove(state);
+            recalculations.get(index).add(state);
+        }
+
     }
 
     /**
@@ -724,7 +737,7 @@ public abstract class AbstractDatabase<C> implements Database {
 
         } else {
             try {
-                write(writes.validates, writes.saves, writes.indexes, writes.deletes, isImmediate);
+                write(writes.validates, writes.saves, writes.indexes, writes.deletes, writes.recalculations, isImmediate);
                 return true;
 
             } finally {
@@ -732,6 +745,7 @@ public abstract class AbstractDatabase<C> implements Database {
                 writes.saves.clear();
                 writes.indexes.clear();
                 writes.deletes.clear();
+                writes.recalculations.clear();
             }
         }
     }
@@ -843,7 +857,7 @@ public abstract class AbstractDatabase<C> implements Database {
 
             writes.addToValidates(state);
             writes.addToSaves(state);
-            write(writes.validates, writes.saves, null, null, true);
+            write(writes.validates, writes.saves, null, null, null, true);
         }
     }
 
@@ -856,7 +870,7 @@ public abstract class AbstractDatabase<C> implements Database {
             writes.addToSaves(state);
 
         } else {
-            write(null, Arrays.asList(state), null, null, true);
+            write(null, Arrays.asList(state), null, null, null, true);
         }
     }
 
@@ -869,7 +883,7 @@ public abstract class AbstractDatabase<C> implements Database {
             writes.addToIndexes(state);
 
         } else {
-            write(null, null, Arrays.asList(state), null, true);
+            write(null, null, Arrays.asList(state), null, null, true);
         }
     }
 
@@ -891,6 +905,28 @@ public abstract class AbstractDatabase<C> implements Database {
     }
 
     @Override
+    public void recalculate(State state, ObjectIndex... indexes) {
+        checkState(state);
+        Writes writes = getCurrentWrites();
+        Map<ObjectIndex, List<State>> recalculations = writes == null ? new CompactMap<ObjectIndex, List<State>>() : null;
+        for (ObjectIndex index : indexes) {
+            if (index.isVisibility()) {
+                throw new IllegalArgumentException("Updating single field index value is unsupported for visibility indexes!");
+            }
+
+            if (writes != null) {
+                writes.addToRecalculations(state, index);
+
+            } else {
+                recalculations.put(index, Arrays.asList(state));
+            }
+        }
+        if (recalculations != null) {
+            write(null, null, null, null, recalculations, true);
+        }
+    }
+
+    @Override
     public final void delete(State state) {
         state.fireTrigger(new BeforeDeleteTrigger());
 
@@ -900,7 +936,7 @@ public abstract class AbstractDatabase<C> implements Database {
             writes.addToDeletes(state);
 
         } else {
-            write(null, null, null, Arrays.asList(state), true);
+            write(null, null, null, Arrays.asList(state), null, true);
         }
     }
 
@@ -931,14 +967,16 @@ public abstract class AbstractDatabase<C> implements Database {
             List<State> saves,
             List<State> indexes,
             List<State> deletes,
+            Map<ObjectIndex, List<State>> recalculations,
             boolean isImmediate) {
 
         boolean hasValidates = validates != null && !validates.isEmpty();
         boolean hasSaves = saves != null && !saves.isEmpty();
         boolean hasIndexes = indexes != null && !indexes.isEmpty();
         boolean hasDeletes = deletes != null && !deletes.isEmpty();
+        boolean hasRecalculations = recalculations != null && !recalculations.isEmpty();
 
-        if (!(hasValidates || hasSaves || hasIndexes || hasDeletes)) {
+        if (!(hasValidates || hasSaves || hasIndexes || hasDeletes || hasRecalculations)) {
             return;
         }
 
@@ -963,6 +1001,7 @@ public abstract class AbstractDatabase<C> implements Database {
                         try {
                             beginTransaction(connection, isImmediate);
                             doWrites(connection, isImmediate, saves, indexes, deletes);
+                            doWriteRecalculations(connection, isImmediate, recalculations);
                             commitTransaction(connection, isImmediate);
                             isCommitted = true;
                             break;
@@ -1256,6 +1295,14 @@ public abstract class AbstractDatabase<C> implements Database {
         }
     }
 
+    protected void doWriteRecalculations(C connection, boolean isImmediate, Map<ObjectIndex, List<State>> recalculations) throws Exception {
+        if (recalculations != null) {
+            for (Map.Entry<ObjectIndex, List<State>> entry : recalculations.entrySet()) {
+                doRecalculations(connection, isImmediate, entry.getKey(), entry.getValue());
+            }
+        }
+    }
+
     /**
      * Called by the write methods to save the given {@code states}.
      *
@@ -1281,6 +1328,15 @@ public abstract class AbstractDatabase<C> implements Database {
      *        connection} to the underlying database.
      */
     protected void doDeletes(C connection, boolean isImmediate, List<State> states) throws Exception {
+    }
+
+    /**
+     * Called by the write methods to delete the given {@code states}.
+     *
+     * @param connection {@link #openConnection Implementation-specific
+     *        connection} to the underlying database.
+     */
+    protected void doRecalculations(C connection, boolean isImmediate, ObjectIndex index, List<State> states) throws Exception {
     }
 
     @SuppressWarnings("serial")

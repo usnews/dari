@@ -37,6 +37,7 @@ public class ProfilingDatabaseFilter extends AbstractFilter {
 
             HtmlWriter resultWriter = ProfilerFilter.Static.getResultWriter(request, response);
             resultWriter.putOverride(Recordable.class, RECORDABLE_FORMATTER);
+            resultWriter.putOverride(State.class, STATE_FORMATTER);
 
             try {
                 Database.Static.overrideDefault(profiling);
@@ -69,6 +70,25 @@ public class ProfilingDatabaseFilter extends AbstractFilter {
                     "where", "id = " + recordableState.getId(),
                     "event", "Run"), "target", "query");
                 writer.writeHtml(recordableState.getLabel());
+            writer.writeEnd();
+        }
+    };
+
+    private static final HtmlFormatter<State> STATE_FORMATTER = new HtmlFormatter<State>() {
+
+        @Override
+        public void format(HtmlWriter writer, State state) throws IOException {
+            ObjectType type = state.getType();
+
+            if (type != null) {
+                writer.writeHtml(type.getLabel());
+                writer.writeHtml(": ");
+            }
+
+            writer.writeStart("a", "href", StringUtils.addQueryParameters("/_debug/query",
+                    "where", "id = " + state.getId(),
+                    "event", "Run"), "target", "query");
+                writer.writeHtml(state.getLabel());
             writer.writeEnd();
         }
     };

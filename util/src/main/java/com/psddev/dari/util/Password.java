@@ -57,8 +57,10 @@ public final class Password {
      * the given {@code policy} and hashes it using the given {@code algorithm}
      * and {@code salt}.
      *
+     * @deprecated Use {@link #validateAndCreateCustom(UserPasswordPolicy, Object, String, String, String)} instead.
      * @throws PasswordException If anything's wrong with the given {@code password}.
      */
+    @Deprecated
     public static Password validateAndCreateCustom(
             PasswordPolicy policy,
             String algorithm,
@@ -72,6 +74,32 @@ public final class Password {
 
         if (policy != null) {
             policy.validate(password);
+        }
+
+        return createCustom(algorithm, salt, password);
+    }
+
+    /**
+     * Creates an instance that validates the given {@code password}
+     * for the given {@code user} using the given {@code policy} and
+     * hashes it using the given {@code algorithm} and {@code salt}.
+     *
+     * @throws PasswordException If anything's wrong with the given {@code password}.
+     */
+    public static Password validateAndCreateCustom(
+            UserPasswordPolicy policy,
+            Object user,
+            String algorithm,
+            String salt,
+            String password)
+            throws PasswordException {
+
+        if (password == null) {
+            password = "";
+        }
+
+        if (policy != null) {
+            policy.validate(user, password);
         }
 
         return createCustom(algorithm, salt, password);
@@ -108,11 +136,13 @@ public final class Password {
     }
 
     public String getAlgorithm() {
-        return parseData()[0];
+        String[] parsedData = parseData();
+        return parsedData == null ? null : parsedData[0];
     }
 
     public String getSalt() {
-        return parseData()[1];
+        String[] parsedData = parseData();
+        return parsedData == null ? null : parsedData[1];
     }
 
     // --- Object support ---

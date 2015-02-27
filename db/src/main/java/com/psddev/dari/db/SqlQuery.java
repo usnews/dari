@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 import org.joda.time.DateTime;
 
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StringUtils;
 
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -2063,7 +2064,7 @@ class SqlQuery {
                 if (comparison.isIgnoreCase()) {
                     value = value.toString().toLowerCase(Locale.ENGLISH);
                 } else if (database.comparesIgnoreCase()) {
-                    String valueString = value.toString().trim();
+                    String valueString = StringUtils.trimAndCollapseWhitespaces(value.toString());
                     if (!index.isCaseSensitive()) {
                         valueString = valueString.toLowerCase(Locale.ENGLISH);
                     }

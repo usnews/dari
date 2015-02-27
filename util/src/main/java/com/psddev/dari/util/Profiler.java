@@ -40,6 +40,28 @@ public class Profiler {
     }
 
     /**
+     * Pauses tracking the current event.
+     */
+    public void pauseEvent() {
+        Event current = eventQueue.peekFirst();
+
+        if (current != null) {
+            current.pause();
+        }
+    }
+
+    /**
+     * Resumes tracking the current event.
+     */
+    public void resumeEvent() {
+        Event current = eventQueue.peekFirst();
+
+        if (current != null) {
+            current.resume();
+        }
+    }
+
+    /**
      * Stops tracking the current event and associates it with the given
      * additional {@code objects}.
      *
@@ -122,6 +144,28 @@ public class Profiler {
         }
 
         /**
+         * Pauses tracking the event associated with the profiler in current
+         * thread.
+         */
+        public static void pauseThreadEvent() {
+            Profiler profiler = getThreadProfiler();
+            if (profiler != null) {
+                profiler.pauseEvent();
+            }
+        }
+
+        /**
+         * Resumes tracking the event associated with the profiler in current
+         * thread.
+         */
+        public static void resumeThreadEvent() {
+            Profiler profiler = getThreadProfiler();
+            if (profiler != null) {
+                profiler.resumeEvent();
+            }
+        }
+
+        /**
          * Stops tracking the current event and associates it with the
          * given additional {@code objects} if there's a profielr set for
          * the curent thread.
@@ -179,6 +223,9 @@ public class Profiler {
 
         private final String name;
         private final long start;
+        private long pauseCount;
+        private long pauseStart;
+        private long pauseDuration;
         private long stop;
         private final List<Object> objects = new ArrayList<Object>();
         private final List<Event> children = new ArrayList<Event>();
@@ -255,6 +302,24 @@ public class Profiler {
             return start;
         }
 
+        protected void pause() {
+            ++ pauseCount;
+
+            if (pauseCount == 1) {
+                pauseStart = System.nanoTime();
+            }
+        }
+
+        protected void resume() {
+            if (pauseCount > 0) {
+                -- pauseCount;
+
+                if (pauseCount == 0) {
+                    pauseDuration += (System.nanoTime() - pauseStart);
+                }
+            }
+        }
+
         /** Stops tracking this event. */
         protected void stop() {
             this.stop = System.nanoTime();
@@ -267,8 +332,17 @@ public class Profiler {
          * @return In nanoseconds. Never negative.
          */
         public long getTotalDuration() {
-            long duration = stop - start;
+            long duration = subtractChildrenPauseDuration(stop - start - pauseDuration);
+
             return duration < 0 ? 0 : duration;
+        }
+
+        private long subtractChildrenPauseDuration(long duration) {
+            for (Event child : children) {
+                duration = child.subtractChildrenPauseDuration(duration - child.pauseDuration);
+            }
+
+            return duration;
         }
 
         /**
@@ -279,10 +353,12 @@ public class Profiler {
          */
         public long getOwnDuration() {
             long duration = getTotalDuration();
+
             for (Event child : children) {
                 duration -= child.getTotalDuration();
             }
-            return duration;
+
+            return duration < 0 ? 0 : duration;
         }
     }
 }
