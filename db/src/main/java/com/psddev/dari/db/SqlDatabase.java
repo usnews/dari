@@ -90,8 +90,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
+    public static final String DATA_CACHE_SIZE_SUB_SETTING = "dataCacheSize";
     public static final String ENABLE_REPLICATION_CACHE_SUB_SETTING = "enableReplicationCache";
     public static final String ENABLE_FUNNEL_CACHE_SUB_SETTING = "enableFunnelCache";
+    public static final String REPLICATION_CACHE_SIZE_SUB_SETTING = "replicationCacheSize";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -136,6 +138,8 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private static final String FUNNEL_CACHE_GET_PROFILER_EVENT = SHORT_NAME + " Funnel Cache Get";
     private static final String FUNNEL_CACHE_PUT_PROFILER_EVENT = SHORT_NAME + " Funnel Cache Put";
     private static final long NOW_EXPIRATION_SECONDS = 300;
+    public static final long DEFAULT_REPLICATION_CACHE_SIZE = 10000L;
+    public static final long DEFAULT_DATA_CACHE_SIZE = 10000L;
 
     private static final List<SqlDatabase> INSTANCES = new ArrayList<SqlDatabase>();
 
@@ -151,10 +155,12 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
     private volatile boolean cacheData;
+    private volatile long dataCacheMaximumSize;
     private volatile boolean enableReplicationCache;
     private volatile boolean enableFunnelCache;
+    private volatile long replicationCacheMaximumSize;
 
-    private transient volatile Cache<UUID, Object[]> replicationCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    private transient volatile Cache<UUID, Object[]> replicationCache;
     private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
     private transient volatile FunnelCache<SqlDatabase> funnelCache;
 
@@ -368,6 +374,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         this.cacheData = cacheData;
     }
 
+    public long getDataCacheMaximumSize() {
+        return dataCacheMaximumSize;
+    }
+
+    public void setDataCacheMaximumSize(long dataCacheMaximumSize) {
+        this.dataCacheMaximumSize = dataCacheMaximumSize;
+    }
+
     public boolean isEnableReplicationCache() {
         return enableReplicationCache;
     }
@@ -382,6 +396,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public void setEnableFunnelCache(boolean enableFunnelCache) {
         this.enableFunnelCache = enableFunnelCache;
+    }
+
+    public void setReplicationCacheMaximumSize(long replicationCacheMaximumSize) {
+        this.replicationCacheMaximumSize = replicationCacheMaximumSize;
+    }
+
+    public long getReplicationCacheMaximumSize() {
+        return this.replicationCacheMaximumSize;
     }
 
     /**
@@ -845,7 +867,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 "Unknown format! ([%s])", format));
     }
 
-    private final transient Cache<String, byte[]> dataCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    private transient Cache<String, byte[]> dataCache;
 
     private class ConnectionRef {
 
@@ -1136,7 +1158,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             objectState.getExtras().put(ORIGINAL_DATA_EXTRA, data);
         }
 
-        return object;
+        return swapObjectType(query, object);
     }
 
     @SuppressWarnings("unchecked")
@@ -1757,13 +1779,24 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
+        Long dataCacheMaxSize = ObjectUtils.to(Long.class, settings.get(DATA_CACHE_SIZE_SUB_SETTING));
+        setDataCacheMaximumSize(dataCacheMaxSize != null ? dataCacheMaxSize : DEFAULT_DATA_CACHE_SIZE);
+        if (isCacheData()) {
+            dataCache = CacheBuilder.newBuilder().maximumSize(getDataCacheMaximumSize()).build();
+        }
+
         setEnableReplicationCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_REPLICATION_CACHE_SUB_SETTING)));
         setEnableFunnelCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_FUNNEL_CACHE_SUB_SETTING)));
+        Long replicationCacheMaxSize = ObjectUtils.to(Long.class, settings.get(REPLICATION_CACHE_SIZE_SUB_SETTING));
+        setReplicationCacheMaximumSize(replicationCacheMaxSize != null ? replicationCacheMaxSize : DEFAULT_REPLICATION_CACHE_SIZE);
 
         if (isEnableReplicationCache() &&
                 vendor instanceof SqlVendor.MySQL &&
                 (mysqlBinaryLogReader == null ||
                 !mysqlBinaryLogReader.isRunning())) {
+
+            replicationCache = CacheBuilder.newBuilder().maximumSize(getReplicationCacheMaximumSize()).build();
+
             try {
                 LOGGER.info("Starting MySQL binary log reader");
                 mysqlBinaryLogReader = new MySQLBinaryLogReader(replicationCache, ObjectUtils.firstNonNull(getReadDataSource(), getDataSource()));
