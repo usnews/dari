@@ -490,7 +490,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
 
                     ObjectType type = ObjectType.getInstance(ObjectUtils.to(UUID.class, simpleValues.get(StateValueUtils.TYPE_KEY)));
                     Object object = type.createObject(ObjectUtils.to(UUID.class, simpleValues.get(StateValueUtils.ID_KEY)));
-                    State state = State.getInstance(predicateObject);
+                    State state = State.getInstance(object);
                     state.putAll(simpleValues);
 
                     if (object instanceof Predicate) {
