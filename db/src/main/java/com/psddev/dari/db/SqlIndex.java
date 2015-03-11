@@ -811,6 +811,11 @@ public enum SqlIndex {
                 collectIndexValues(state, indexValues, null, state.getDatabase().getEnvironment(), stateValues, index);
                 ObjectType type = state.getType();
                 if (type != null) {
+                    ObjectField field = type.getField(index.getField());
+                    if (field != null && field.isInternalCollectionType()) {
+                        needInserts.add(state);
+                        continue;
+                    }
                     collectIndexValues(state, indexValues, null, type, stateValues, index);
                 }
 
