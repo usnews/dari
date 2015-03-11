@@ -622,6 +622,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
     }, NOW_EXPIRATION_SECONDS, TimeUnit.SECONDS);
 
+    @Override
     public long now() {
         return System.currentTimeMillis() - nowOffset.get();
     }
