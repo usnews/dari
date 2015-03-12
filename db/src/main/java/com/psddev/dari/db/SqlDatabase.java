@@ -2179,6 +2179,10 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     @Override
     public <T> PaginatedResult<T> readPartial(final Query<T> query, long offset, int limit) {
+        // Guard against integer overflow
+        if (limit == Integer.MAX_VALUE) {
+            limit --;
+        }
         List<T> objects = selectListWithOptions(
                 vendor.rewriteQueryWithLimitClause(buildSelectStatement(query), limit + 1, offset),
                 query);
