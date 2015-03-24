@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS RecordRegion2 (
     PRIMARY KEY (symbolId, value, typeId, id)
 );
 
-CREATE INDEX k_recordregion2_value_gix ON RecordRegion USING GIST (value);
+CREATE INDEX k_recordregion2_value_gix ON RecordRegion2 USING GIST (value);
 
 CREATE TABLE IF NOT EXISTS RecordString4 (
     id UUID NOT NULL,
