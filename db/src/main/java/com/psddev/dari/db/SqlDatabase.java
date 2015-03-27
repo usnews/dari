@@ -1156,6 +1156,24 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
 
+                // Restrict objects based on the types requested by the query
+                if (query != null && (!ObjectUtils.isBlank(query.getGroup()) || query.getObjectClass() != null)) {
+
+                    UUID typeId = ObjectUtils.to(UUID.class, (byte[]) value[0]);
+
+                    if (typeId != null) {
+
+                        ObjectType type = ObjectType.getInstance(typeId);
+
+                        if (type != null &&
+                                ((!ObjectUtils.isBlank(query.getGroup()) && !type.getGroups().contains(query.getGroup())) ||
+                                        (query.getObjectClass() != null && type.getObjectClass() != null && !query.getObjectClass().isAssignableFrom(type.getObjectClass())))) {
+
+                            continue;
+                        }
+                    }
+                }
+
                 @SuppressWarnings("unchecked")
                 T object = createSavedObjectFromReplicationCache((byte[]) value[0], id, (byte[]) value[1], (Map<String, Object>) value[2], query);
 
