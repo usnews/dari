@@ -1137,6 +1137,9 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         Profiler.Static.startThreadEvent(REPLICATION_CACHE_GET_PROFILER_EVENT);
 
+        String queryGroup = query != null ? query.getGroup() : null;
+        Class queryObjectClass = query != null ? query.getObjectClass() : null;
+
         try {
             for (Object idObject : ids) {
                 UUID id = ObjectUtils.to(UUID.class, idObject);
@@ -1156,22 +1159,18 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     continue;
                 }
 
-                // Restrict objects based on the types requested by the query
-                if (query != null && (!ObjectUtils.isBlank(query.getGroup()) || query.getObjectClass() != null)) {
+                UUID typeId = ObjectUtils.to(UUID.class, (byte[]) value[0]);
 
-                    UUID typeId = ObjectUtils.to(UUID.class, (byte[]) value[0]);
+                ObjectType type = typeId != null ? ObjectType.getInstance(typeId) : null;
 
-                    if (typeId != null) {
+                // Restrict objects based on the class provided to the Query
+                if (type != null && queryObjectClass != null && !query.getObjectClass().isAssignableFrom(type.getObjectClass())) {
+                    continue;
+                }
 
-                        ObjectType type = ObjectType.getInstance(typeId);
-
-                        if (type != null &&
-                                ((!ObjectUtils.isBlank(query.getGroup()) && !type.getGroups().contains(query.getGroup())) ||
-                                        (query.getObjectClass() != null && type.getObjectClass() != null && !query.getObjectClass().isAssignableFrom(type.getObjectClass())))) {
-
-                            continue;
-                        }
-                    }
+                // Restrict objects based on the group provided to the Query
+                if (type != null && queryGroup != null && !type.getGroups().contains(queryGroup)) {
+                    continue;
                 }
 
                 @SuppressWarnings("unchecked")
@@ -1231,13 +1230,27 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         UUID id = ObjectUtils.to(UUID.class, result.getBytes(3));
                         byte[] data = result.getBytes(2);
                         Map<String, Object> dataJson = unserializeData(data);
-                        byte[] typeId = UuidUtils.toBytes(ObjectUtils.to(UUID.class, dataJson.get(StateValueUtils.TYPE_KEY)));
+                        byte[] typeIdBytes = UuidUtils.toBytes(ObjectUtils.to(UUID.class, dataJson.get(StateValueUtils.TYPE_KEY)));
 
-                        if (!Arrays.equals(typeId, UuidUtils.ZERO_BYTES) && id != null) {
-                            replicationCache.put(id, new Object[] { typeId, data, dataJson });
+                        if (!Arrays.equals(typeIdBytes, UuidUtils.ZERO_BYTES) && id != null) {
+                            replicationCache.put(id, new Object[] { typeIdBytes, data, dataJson });
                         }
 
-                        T object = createSavedObjectFromReplicationCache(typeId, id, data, dataJson, query);
+                        UUID typeId = ObjectUtils.to(UUID.class, typeIdBytes);
+
+                        ObjectType type = typeId != null ? ObjectType.getInstance(typeId) : null;
+
+                        // Restrict objects based on the class provided to the Query
+                        if (type != null && queryObjectClass != null && !query.getObjectClass().isAssignableFrom(type.getObjectClass())) {
+                            continue;
+                        }
+
+                        // Restrict objects based on the group provided to the Query
+                        if (type != null && queryGroup != null && !type.getGroups().contains(queryGroup)) {
+                            continue;
+                        }
+
+                        T object = createSavedObjectFromReplicationCache(typeIdBytes, id, data, dataJson, query);
 
                         if (object != null) {
                             if (objects == null) {
