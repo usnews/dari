@@ -355,7 +355,7 @@ class SqlQuery {
 
         StringBuilder extraColumnsBuilder = new StringBuilder();
         Set<String> sourceTableColumns = new HashSet<String>();
-        for (ObjectField field: sourceTables) {
+        for (ObjectField field : sourceTables) {
             SqlDatabase.FieldData fieldData = field.as(SqlDatabase.FieldData.class);
             StringBuilder sourceTableNameBuilder = new StringBuilder();
             vendor.appendIdentifier(sourceTableNameBuilder, fieldData.getIndexTable());
