@@ -68,7 +68,7 @@ public class BootstrapDebugServlet extends HttpServlet {
             String action = wp.param(String.class, "action");
             if (LIVE_DOWNLOAD_BUTTON_TEXT.equals(action) || SNAPSHOT_BUTTON_TEXT.equals(action)) {
                 Properties properties = BuildDebugServlet.getProperties(getServletContext());
-                String projectName = ObjectUtils.firstNonBlank(properties.getProperty("name"), "db-bootstrap");
+                String projectName = ObjectUtils.firstNonBlank(properties.getProperty("name"), "dari");
                 BootstrapPackage pkg = null;
                 if (!StringUtils.isEmpty(pkgName)) {
                     pkg = BootstrapPackage.Static.getPackage(selectedDatabase, pkgName);
