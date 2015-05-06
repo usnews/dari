@@ -429,11 +429,20 @@ public class PredicateParser {
 
         String comparisonOperator = getComparisonOperators().get(operator);
         if (comparisonOperator != null) {
-            return new ComparisonPredicate(
-                    comparisonOperator,
-                    isIgnoreCase,
-                    key,
-                    ObjectUtils.to(Iterable.class, value));
+
+            if (value instanceof State) {
+                return new ComparisonPredicate(
+                        comparisonOperator,
+                        isIgnoreCase,
+                        key,
+                        Collections.singleton(value));
+            } else {
+                return new ComparisonPredicate(
+                        comparisonOperator,
+                        isIgnoreCase,
+                        key,
+                        ObjectUtils.to(Iterable.class, value));
+            }
 
         } else {
             throw new IllegalArgumentException(String.format(
