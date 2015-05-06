@@ -326,6 +326,14 @@
                 }));
             });
 
+            $profileBody.on('click', '#_profile-overview tr', function() {
+                var $checkbox = $(this).find(':checkbox');
+
+                $checkbox.prop('checked', !$checkbox.prop('checked'));
+                $checkbox.change();
+                return false;
+            });
+
             $profileBody.find('#_profile-overview :checkbox').live('change', function() {
                 var $checkbox = $(this);
                 var $events = $profileBody.find('#_profile-eventTimeline .' + $checkbox.val());
