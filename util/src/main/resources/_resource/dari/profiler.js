@@ -336,6 +336,22 @@
                     $events.hide();
                 }
             });
+
+            $profileBody.on('click', '#_profile-eventTimeline .tree', function() {
+                var $tree = $(this);
+                var $tr = $tree.closest('tr');
+
+                if ($tree.is('.icon-chevron-down')) {
+                    $tree.removeClass('icon-chevron-down');
+                    $tree.addClass('icon-chevron-right');
+                    $tr.nextUntil('[data-depth=' + $tr.attr('data-depth') + ']').hide();
+
+                } else {
+                    $tree.removeClass('icon-chevron-right');
+                    $tree.addClass('icon-chevron-down');
+                    $tr.nextUntil('[data-depth=' + $tr.attr('data-depth') + ']').show();
+                }
+            });
         });
 
         $body.append($profile);

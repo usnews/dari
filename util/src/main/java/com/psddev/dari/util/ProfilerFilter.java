@@ -219,6 +219,7 @@ public class ProfilerFilter extends AbstractFilter {
 
                         writer.writeStart("thead");
                             writer.writeStart("tr");
+                                writer.writeStart("th", "style", "width: 30px;").writeEnd();
                                 writer.writeStart("th").writeHtml("#").writeEnd();
                                 writer.writeStart("th").writeHtml("Start").writeEnd();
                                 writer.writeStart("th").writeHtml("Total").writeEnd();
@@ -262,7 +263,12 @@ public class ProfilerFilter extends AbstractFilter {
 
         String name = event.getName();
 
-        writer.writeStart("tr", "class", nameClasses.get(name));
+        writer.writeStart("tr", "class", nameClasses.get(name), "data-depth", depth);
+
+            writer.writeStart("td");
+                writer.writeStart("i", "class", "tree icon icon-chevron-down");
+                writer.writeEnd();
+            writer.writeEnd();
 
             writer.writeStart("td").writeHtml(profiler.getEventIndexes().get(event)).writeEnd();
             writer.writeStart("td").writeObject((event.getStart() - profiler.getStart()) / 1e6).writeEnd();
