@@ -69,7 +69,7 @@ public class AsyncQueue<E> {
                             return true;
                         }
                     } catch (InterruptedException ex) {
-                        handleInterrupt();
+                        handleInterrupt(item, ex);
                     }
                 }
             }
@@ -110,7 +110,7 @@ public class AsyncQueue<E> {
                             return item;
                         }
                     } catch (InterruptedException ex) {
-                        handleInterrupt();
+                        handleInterrupt(null, ex);
                     }
                 }
             }
@@ -181,8 +181,12 @@ public class AsyncQueue<E> {
      * InterruptedException is thrown. Subclasses may override this method
      * to handle the interrupt differently. Default implementation closes the
      * queue.
+     *
+     * @param item the item being added, or null if interrupted during a remove
+     *             operation.
+     * @param ex the exception thrown.
      */
-    protected void handleInterrupt() {
+    protected void handleInterrupt(E item, InterruptedException ex) {
         close();
     }
 
