@@ -89,8 +89,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String METRIC_CATALOG_SUB_SETTING = "metricCatalog";
     public static final String VENDOR_CLASS_SETTING = "vendorClass";
     public static final String COMPRESS_DATA_SUB_SETTING = "compressData";
+
+    @Deprecated
     public static final String CACHE_DATA_SUB_SETTING = "cacheData";
+
+    @Deprecated
     public static final String DATA_CACHE_SIZE_SUB_SETTING = "dataCacheSize";
+
     public static final String ENABLE_REPLICATION_CACHE_SUB_SETTING = "enableReplicationCache";
     public static final String ENABLE_FUNNEL_CACHE_SUB_SETTING = "enableFunnelCache";
     public static final String REPLICATION_CACHE_SIZE_SUB_SETTING = "replicationCacheSize";
@@ -154,8 +159,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private transient volatile String defaultCatalog;
     private volatile SqlVendor vendor;
     private volatile boolean compressData;
-    private volatile boolean cacheData;
-    private volatile long dataCacheMaximumSize;
     private volatile boolean enableReplicationCache;
     private volatile boolean enableFunnelCache;
     private volatile long replicationCacheMaximumSize;
@@ -366,20 +369,22 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         this.compressData = compressData;
     }
 
+    @Deprecated
     public boolean isCacheData() {
-        return cacheData;
+        return false;
     }
 
+    @Deprecated
     public void setCacheData(boolean cacheData) {
-        this.cacheData = cacheData;
     }
 
+    @Deprecated
     public long getDataCacheMaximumSize() {
-        return dataCacheMaximumSize;
+        return 0L;
     }
 
+    @Deprecated
     public void setDataCacheMaximumSize(long dataCacheMaximumSize) {
-        this.dataCacheMaximumSize = dataCacheMaximumSize;
     }
 
     public boolean isEnableReplicationCache() {
@@ -868,8 +873,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 "Unknown format! ([%s])", format));
     }
 
-    private transient Cache<String, byte[]> dataCache;
-
     private class ConnectionRef {
 
         private Connection connection;
@@ -904,59 +907,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         State objectState = State.getInstance(object);
 
         if (!objectState.isReferenceOnly()) {
-            byte[] data = null;
-
-            if (isCacheData()) {
-                UUID id = objectState.getId();
-                String key = id + "/" + resultSet.getDouble(3);
-                data = dataCache.getIfPresent(key);
-
-                if (data == null) {
-                    SqlVendor vendor = getVendor();
-                    StringBuilder sqlQuery = new StringBuilder();
-
-                    sqlQuery.append("SELECT r.");
-                    vendor.appendIdentifier(sqlQuery, "data");
-                    sqlQuery.append(", ru.");
-                    vendor.appendIdentifier(sqlQuery, "updateDate");
-                    sqlQuery.append(" FROM ");
-                    vendor.appendIdentifier(sqlQuery, "Record");
-                    sqlQuery.append(" AS r LEFT OUTER JOIN ");
-                    vendor.appendIdentifier(sqlQuery, "RecordUpdate");
-                    sqlQuery.append(" AS ru ON r.");
-                    vendor.appendIdentifier(sqlQuery, "id");
-                    sqlQuery.append(" = ru.");
-                    vendor.appendIdentifier(sqlQuery, "id");
-                    sqlQuery.append(" WHERE r.");
-                    vendor.appendIdentifier(sqlQuery, "id");
-                    sqlQuery.append(" = ");
-                    vendor.appendUuid(sqlQuery, id);
-
-                    Connection connection = null;
-                    Statement statement = null;
-                    ResultSet result = null;
-
-                    try {
-                        connection = extraConnectionRef.getOrOpen(query);
-                        statement = connection.createStatement();
-                        result = executeQueryBeforeTimeout(statement, sqlQuery.toString(), 0);
-
-                        if (result.next()) {
-                            data = result.getBytes(1);
-                            dataCache.put(id + "/" + result.getDouble(2), data);
-                        }
-
-                    } catch (SQLException error) {
-                        throw createQueryException(error, sqlQuery.toString(), query);
-
-                    } finally {
-                        closeResources(null, null, statement, result);
-                    }
-                }
-
-            } else {
-                data = resultSet.getBytes(3);
-            }
+            byte[] data = resultSet.getBytes(3);
 
             if (data != null) {
                 objectState.setValues(unserializeData(data));
@@ -1808,13 +1759,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Settings.get(Boolean.class, "dari/isCompressSqlData"));
         if (compressData != null) {
             setCompressData(compressData);
-        }
-
-        setCacheData(ObjectUtils.to(boolean.class, settings.get(CACHE_DATA_SUB_SETTING)));
-        Long dataCacheMaxSize = ObjectUtils.to(Long.class, settings.get(DATA_CACHE_SIZE_SUB_SETTING));
-        setDataCacheMaximumSize(dataCacheMaxSize != null ? dataCacheMaxSize : DEFAULT_DATA_CACHE_SIZE);
-        if (isCacheData()) {
-            dataCache = CacheBuilder.newBuilder().maximumSize(getDataCacheMaximumSize()).build();
         }
 
         setEnableReplicationCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_REPLICATION_CACHE_SUB_SETTING)));
