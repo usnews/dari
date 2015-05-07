@@ -9,7 +9,7 @@ import com.psddev.dari.util.SettingsException;
 /** Represents an application. */
 @Record.Abstract
 @Record.BootstrapPackages("Application")
-public class Application extends Record {
+public class Application extends Record implements Singleton {
 
     /** Specifies the class name used to determine the main application. */
     public static final String MAIN_CLASS_SETTING = "dari/mainApplicationClass";
