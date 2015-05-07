@@ -38,6 +38,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
@@ -163,6 +164,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile boolean enableFunnelCache;
     private volatile long replicationCacheMaximumSize;
 
+    private final transient ConcurrentMap<Class<?>, UUID> singletonIds = new ConcurrentHashMap<>();
     private transient volatile Cache<UUID, Object[]> replicationCache;
     private transient volatile MySQLBinaryLogReader mysqlBinaryLogReader;
     private transient volatile FunnelCache<SqlDatabase> funnelCache;
@@ -903,8 +905,13 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             Query<T> query,
             ConnectionRef extraConnectionRef)
             throws SQLException {
+
         T object = createSavedObject(resultSet.getObject(2), resultSet.getObject(1), query);
         State objectState = State.getInstance(object);
+
+        if (object instanceof Singleton) {
+            singletonIds.put(object.getClass(), objectState.getId());
+        }
 
         if (!objectState.isReferenceOnly()) {
             byte[] data = resultSet.getBytes(3);
@@ -2008,7 +2015,19 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         }
 
         if (checkReplicationCache(query)) {
-            List<Object> ids = query.findIdOnlyQueryValues();
+            Class<?> objectClass = query.getObjectClass();
+            List<Object> ids;
+
+            if (objectClass != null &&
+                    Singleton.class.isAssignableFrom(objectClass) &&
+                    query.getPredicate() == null) {
+
+                UUID id = singletonIds.get(objectClass);
+                ids = id != null ? Collections.singletonList(id) : null;
+
+            } else {
+                ids = query.findIdOnlyQueryValues();
+            }
 
             if (ids != null && !ids.isEmpty()) {
                 List<T> objects = findObjectsFromReplicationCache(ids, query);
