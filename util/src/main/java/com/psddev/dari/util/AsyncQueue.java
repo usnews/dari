@@ -69,7 +69,7 @@ public class AsyncQueue<E> {
                             return true;
                         }
                     } catch (InterruptedException ex) {
-                        close();
+                        handleInterrupt();
                     }
                 }
             }
@@ -110,7 +110,7 @@ public class AsyncQueue<E> {
                             return item;
                         }
                     } catch (InterruptedException ex) {
-                        close();
+                        handleInterrupt();
                     }
                 }
             }
@@ -174,6 +174,16 @@ public class AsyncQueue<E> {
 
     public long getRemoveWait() {
         return removeWait.get();
+    }
+
+    /**
+     * Called if the thread writing to this queue is interrupted and an
+     * InterruptedException is thrown. Subclasses may override this method
+     * to handle the interrupt differently. Default implementation closes the
+     * queue.
+     */
+    protected void handleInterrupt() {
+        close();
     }
 
     // --- Object support ---
