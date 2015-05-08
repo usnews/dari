@@ -247,6 +247,7 @@ public class HtmlGrid {
         private static final String ATTRIBUTE_PREFIX = HtmlGrid.class.getName() + ".";
         private static final String CSS_MODIFIED_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "cssModified.";
         private static final String GRID_PATHS_ATTRIBUTE = ATTRIBUTE_PREFIX + "gridPaths";
+        private static final String RESTRICT_GRID_PATHS_ATTRIBUTE = ATTRIBUTE_PREFIX + "restrictGridPaths";
         private static final String GRIDS_ATTRIBUTE_PREFIX = ATTRIBUTE_PREFIX + "grids.";
         private static final String REQUEST_GRIDS_ATTRIBUTE = ATTRIBUTE_PREFIX + "requestGrids";
 
@@ -255,6 +256,14 @@ public class HtmlGrid {
         private static final String COLUMNS_PROPERTY = "-dari-grid-definition-columns";
         private static final String ROWS_PROPERTY = "-dari-grid-definition-rows";
         private static final String CONTEXTS_PROPERTY = "-dari-grid-contexts";
+
+        public static void setRestrictGridPaths(List<String> restrictedGridPaths, ServletContext context) {
+            if (restrictedGridPaths != null && !restrictedGridPaths.isEmpty()) {
+                context.setAttribute(RESTRICT_GRID_PATHS_ATTRIBUTE, restrictedGridPaths);
+            } else {
+                context.removeAttribute(RESTRICT_GRID_PATHS_ATTRIBUTE);
+            }
+        }
 
         public static Map<String, HtmlGrid> findAll(ServletContext context) throws IOException {
             return findGrids(context, null, findGridPaths(context));
@@ -380,7 +389,12 @@ public class HtmlGrid {
         private static List<String> findGridPaths(ServletContext context) throws IOException {
             List<String> gridPaths = null;
 
-            if (Settings.isProduction()) {
+            gridPaths = (List<String>) context.getAttribute(RESTRICT_GRID_PATHS_ATTRIBUTE);
+            if (gridPaths != null) {
+                context.setAttribute(GRID_PATHS_ATTRIBUTE, gridPaths);
+            }
+
+            if (gridPaths == null && Settings.isProduction()) {
                 gridPaths = (List<String>) context.getAttribute(GRID_PATHS_ATTRIBUTE);
             }
 
