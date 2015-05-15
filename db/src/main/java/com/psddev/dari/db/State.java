@@ -1613,17 +1613,32 @@ public class State implements Map<String, Object> {
                 return;
             }
 
+            flags |= ALL_RESOLVED_FLAG;
+
+            if (linkedObjects.isEmpty()) {
+                return;
+            }
+
+            boolean hasPotentialRefs = false;
+            Collection<Object> rawValuesValues = rawValues.values();
+
+            for (Object rawValue : rawValuesValues) {
+                if (rawValue instanceof Map &&
+                        ((Map<?, ?>) rawValue).containsKey(StateValueUtils.REFERENCE_KEY)) {
+                    hasPotentialRefs = true;
+                    break;
+                }
+            }
+
+            if (!hasPotentialRefs) {
+                return;
+            }
+
             Profiler.Static.startThreadEvent(RESOLVE_REFERENCE_PROFILER_EVENT, this);
 
             try {
-                flags |= ALL_RESOLVED_FLAG;
-
-                if (linkedObjects.isEmpty()) {
-                    return;
-                }
-
                 Object object = linkedObjects.values().iterator().next();
-                Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValues.values(), field);
+                Map<UUID, Object> references = StateValueUtils.resolveReferences(getDatabase(), object, rawValuesValues, field);
                 Map<String, Object> resolved = new HashMap<String, Object>();
                 resolveMetricReferences(resolved);
 

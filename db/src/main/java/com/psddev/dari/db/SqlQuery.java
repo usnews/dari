@@ -2096,7 +2096,11 @@ class SqlQuery {
                 field = aliasedField(alias, sqlIndexTable.getValueField(database, index, fieldIndex));
             }
 
-            if (comparison != null && comparison.isIgnoreCase()) {
+            if (comparison != null &&
+                    comparison.isIgnoreCase() &&
+                    (sqlIndex != SqlIndex.STRING ||
+                    sqlIndexTable.getVersion() < 3)) {
+
                 field = "LOWER(" + vendor.convertRawToStringSql(field) + ")";
             }
 

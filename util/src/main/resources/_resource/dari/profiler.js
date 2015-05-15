@@ -111,6 +111,8 @@
             'margin': 0,
             'padding': 0,
             'position': 'relative',
+            'top': '0',
+            'left': '0',
             'width': '100%',
             'z-index': 1000000
         });

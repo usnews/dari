@@ -456,7 +456,7 @@ public class DatabaseEnvironment implements ObjectStruct {
                         noCache().
                         hasMoreThan(0)) {
                     try {
-                        State.getInstance(type.createObject(null)).save();
+                        State.getInstance(type.createObject(null)).saveImmediately();
                     } catch (Exception error) {
                         LOGGER.warn(String.format("Can't save [%s] singleton!", type.getLabel()), error);
                     }
