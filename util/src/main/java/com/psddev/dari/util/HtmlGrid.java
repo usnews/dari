@@ -392,7 +392,7 @@ public class HtmlGrid {
             List<String> restrictGridPaths = (List<String>) context.getAttribute(RESTRICT_GRID_PATHS_ATTRIBUTE);
             if (restrictGridPaths != null) {
                 gridPaths = new ArrayList<String>();
-                for (String path: restrictGridPaths) {
+                for (String path : restrictGridPaths) {
                     URLConnection cssConnection = CodeUtils.getResource(context, path).openConnection();
                     parseGridCss(context, path, gridPaths, cssConnection);
                 }
