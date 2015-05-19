@@ -762,7 +762,6 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             newBuilder().
             maximumSize(5000).
             concurrencyLevel(20).
-            weakKeys().
             build(new CacheLoader<Query<?>, String>() {
                 @Override
                 public String load(Query<?> query) throws Exception {
