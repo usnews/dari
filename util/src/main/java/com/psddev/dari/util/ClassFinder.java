@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -14,6 +15,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.tools.JavaFileObject;
 
@@ -231,6 +233,20 @@ public class ClassFinder {
          */
         public static <T> Set<Class<? extends T>> findClasses(Class<T> baseClass) {
             return findClassesFromLoader(null, baseClass);
+        }
+
+        /**
+         * Finds all concrete classes that are compatible with the given {@code baseClass}
+         * within the current class loader.
+         *
+         * @param baseClass Can't be {@code null}.
+         * @return Never {@code null}.
+         */
+        public static <T> Set<Class<? extends T>> findConcreteClasses(Class<T> baseClass) {
+            return findClasses(baseClass).
+                    stream().
+                    filter((clazz) -> (!clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers()))).
+                    collect(Collectors.toSet());
         }
     }
 }
