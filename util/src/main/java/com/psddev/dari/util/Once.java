@@ -25,7 +25,6 @@ import java.util.concurrent.locks.ReadWriteLock;
  */
 public abstract class Once {
 
-    private volatile Thread running;
     private volatile boolean ran;
 
     /**
@@ -53,22 +52,20 @@ public abstract class Once {
      * Ensures that {@link #run} has been called at least once.
      */
     public final void ensure() {
-        if (ran || Thread.currentThread().equals(running)) {
+        if (Thread.holdsLock(this)) {
             return;
         }
 
-        synchronized (this) {
-            if (!ran) {
-                try {
-                    running = Thread.currentThread();
-                    run();
-                    ran = true;
+        if (!ran) {
+            synchronized (this) {
+                if (!ran) {
+                    try {
+                        run();
+                        ran = true;
 
-                } catch (Exception error) {
-                    ErrorUtils.rethrow(error);
-
-                } finally {
-                    running = null;
+                    } catch (Exception error) {
+                        ErrorUtils.rethrow(error);
+                    }
                 }
             }
         }
@@ -79,6 +76,8 @@ public abstract class Once {
      * {@link #run} again.
      */
     public final void reset() {
-        ran = false;
+        synchronized (this) {
+            ran = false;
+        }
     }
 }
