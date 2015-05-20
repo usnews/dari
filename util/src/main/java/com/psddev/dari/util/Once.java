@@ -53,7 +53,7 @@ public abstract class Once {
      * Ensures that {@link #run} has been called at least once.
      */
     public final void ensure() {
-        if (ran || Thread.currentThread().equals(running)) {
+        if (Thread.currentThread().equals(running) || ran) {
             return;
         }
 
