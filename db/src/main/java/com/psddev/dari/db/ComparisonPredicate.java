@@ -55,7 +55,7 @@ public final class ComparisonPredicate extends Predicate {
                 mutableValues.add(((Recordable) value).getState().getId());
 
             } else if (value instanceof State &&
-                    !ObjectUtils.equals(((State) value).getType(), ObjectType.getInstance(Query.class))) {
+                    !((State) value).getType().getGroups().contains(Query.class.getName())) {
                 mutableValues.add(((State) value).getId());
 
             } else if (value instanceof Date) {
