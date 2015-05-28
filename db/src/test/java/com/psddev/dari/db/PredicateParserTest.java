@@ -1,25 +1,73 @@
 package com.psddev.dari.db;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Queue;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PredicateParserTest {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PredicateParserTest.class);
+
+    private static final String REFLECTIVE_IDENTITY_SYNTAX_STANDARD = "?";
+    private static final String REFLECTIVE_IDENTITY_DELIMITED_SYNTAX = "?/";
+    private static final String REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX = "?_id";
+    private static final String REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX = "?/_id";
+    private static final String REFLECTIVE_IDENTITY_INDEXED_SYNTAX = "?0";
+    private static final String REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX = "?0/";
+    private static final String REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX = "?0_id";
+    private static final String REFLECTIVE_IDENTITY_INDEXED_DELIMITED_REDUNDANT_SYNTAX = "?0/_id";
+
+    private static List<TestDatabase> TEST_DATABASES;
+    private static List<Database> DATABASES;
+
 	PredicateParser parser = new PredicateParser();
 	static final Queue<Object> EMPTY_OBJECT_QUEUE = new ArrayDeque<Object>();
 	static final Queue<String> EMPTY_STRING_QUEUE = new ArrayDeque<String>();
 
+    @BeforeClass
+    public static void beforeClass() {
+
+        TEST_DATABASES = DatabaseTestUtils.getNewDefaultTestDatabaseInstances();
+        DATABASES = new ArrayList<Database>();
+
+        for (TestDatabase testDb : TEST_DATABASES) {
+            Database db = testDb.get();
+            DATABASES.add(db);
+        }
+
+        LOGGER.info("Running tests against " + TEST_DATABASES.size() + " databases.");
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        if (TEST_DATABASES != null) for (TestDatabase testDb : TEST_DATABASES) {
+            testDb.close();
+        }
+    }
+
     @Before
-    public void before() {}
+    public void before() {
+
+    }
 
     @After
-    public void after() {}
+    public void after() {
+
+    }
 
     /**
      * public Predicate parse(String predicateString, Object... parameters)
@@ -204,6 +252,170 @@ public class PredicateParserTest {
     @Test (expected=IllegalArgumentException.class)
     public void parse_parens_empty() {
     	assertEquals(null, parser.parse(" ( ) "));
+    }
+
+    /** evaluate reflective identity "?" syntax **/
+
+    public void evaluate_reflective_syntax(String reflectiveSyntax) {
+        for (Database database : DATABASES) {
+
+            ReflectiveTestRecord current = ReflectiveTestRecord.getInstance(database);
+            ReflectiveTestRecord other = ReflectiveTestRecord.getInstance(database);
+
+            current.setOther(other);
+            other.setOther(current);
+
+            assertTrue("\"" + reflectiveSyntax + "\" was evaluated incorrectly!", PredicateParser.Static.evaluate(other, "other = " + reflectiveSyntax, current));
+        }
+    }
+
+    public void evaluate_reflective_syntax_state_valued(String reflectiveSyntax) {
+        for (Database database : DATABASES) {
+
+            ReflectiveTestRecord current = ReflectiveTestRecord.getInstance(database);
+            ReflectiveTestRecord other = ReflectiveTestRecord.getInstance(database);
+
+            current.setOther(other);
+            other.setOther(current);
+
+            assertTrue("\"" + reflectiveSyntax + "\" was evaluated incorrectly!", PredicateParser.Static.evaluate(other, "other = " + reflectiveSyntax, current.getState()));
+        }
+    }
+
+    @Test
+    public void evaluate_reflective_identity_syntax_standard() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
+    }
+
+    @Test
+    public void evaluate_reflective_identity_syntax_standard_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
+    }
+
+    /** evaluate reflective identity delimited "?/" syntax **/
+
+    @Test
+    @Ignore
+    public void evaluate_reflective_identity_delimited_syntax() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
+    }
+
+    @Test
+    @Ignore
+    public void evaluate_reflective_identity_delimited_syntax_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
+    }
+
+    /** evaluate reflective identity redundant "?_id" syntax **/
+
+    @Test
+    public void evaluate_reflective_identity_redundant_syntax() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
+    }
+
+    @Test
+    public void evaluate_reflective_identity_redundant_syntax_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
+    }
+
+    /** evaluate reflective identity delimited redundant "?/_id" syntax **/
+
+    @Test
+    @Ignore
+    public void evaluate_reflective_identity_delimited_redundant_syntax() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
+    }
+
+    @Test
+    @Ignore
+    public void evaluate_reflective_identity_delimited_redundant_syntax_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
+    }
+
+    /** evaluate reflective identity indexed "?0" syntax **/
+
+    @Test
+    public void evaluate_reflective_identity_indexed_syntax() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
+    }
+
+    @Test
+    public void evaluate_reflective_identity_indexed_syntax_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
+    }
+
+    /** evaluate reflective identity indexed delimited "?0/" syntax **/
+
+    @Test
+    public void evaluate_reflective_identity_indexed_delimited_syntax() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX);
+    }
+
+    @Test
+    public void evaluate_reflective_identity_indexed_delimited_syntax_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX);
+    }
+
+    /** evaluate reflective identity indexed redundant "?0_id" syntax **/
+
+    @Test
+    @Ignore
+    public void evaluate_reflective_identity_indexed_redundant_syntax() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
+    }
+
+    @Test
+    @Ignore
+    public void evaluate_reflective_identity_indexed_redundant_syntax_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
+    }
+
+    /** evaluate reflective identity indexed delimited redundant "?0/_id" syntax **/
+
+    @Test
+    public void evaluate_reflective_identity_indexed_delimited_redundant_syntax() {
+
+        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_REDUNDANT_SYNTAX);
+    }
+
+    @Test
+    public void evaluate_reflective_identity_indexed_delimited_redundant_syntax_state_valued() {
+
+        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_REDUNDANT_SYNTAX);
+    }
+
+    public static class ReflectiveTestRecord extends Record {
+
+        public static ReflectiveTestRecord getInstance(Database database) {
+
+            ReflectiveTestRecord object = new ReflectiveTestRecord();
+            object.getState().setDatabase(database);
+            return object;
+        }
+
+        private ReflectiveTestRecord other;
+
+        public ReflectiveTestRecord getOther() {
+            return other;
+        }
+
+        public void setOther(ReflectiveTestRecord other) {
+            this.other = other;
+        }
     }
 
     /*
