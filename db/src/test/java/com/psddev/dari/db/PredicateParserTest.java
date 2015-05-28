@@ -254,8 +254,6 @@ public class PredicateParserTest {
     	assertEquals(null, parser.parse(" ( ) "));
     }
 
-    /** evaluate reflective identity "?" syntax **/
-
     public void evaluate_reflective_syntax(String reflectiveSyntax) {
         for (Database database : DATABASES) {
 
@@ -281,6 +279,8 @@ public class PredicateParserTest {
             assertTrue("\"" + reflectiveSyntax + "\" was evaluated incorrectly!", PredicateParser.Static.evaluate(other, "other = " + reflectiveSyntax, current.getState()));
         }
     }
+
+    /** evaluate reflective identity "?" syntax **/
 
     @Test
     public void evaluate_reflective_identity_syntax_standard() {
