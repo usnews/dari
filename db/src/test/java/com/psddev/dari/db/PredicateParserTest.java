@@ -297,14 +297,12 @@ public class PredicateParserTest {
     /** evaluate reflective identity delimited "?/" syntax **/
 
     @Test
-    @Ignore
     public void evaluate_reflective_identity_delimited_syntax() {
 
         evaluate_reflective_syntax(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
     }
 
     @Test
-    @Ignore
     public void evaluate_reflective_identity_delimited_syntax_state_valued() {
 
         evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
@@ -327,14 +325,12 @@ public class PredicateParserTest {
     /** evaluate reflective identity delimited redundant "?/_id" syntax **/
 
     @Test
-    @Ignore
     public void evaluate_reflective_identity_delimited_redundant_syntax() {
 
         evaluate_reflective_syntax(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
     }
 
     @Test
-    @Ignore
     public void evaluate_reflective_identity_delimited_redundant_syntax_state_valued() {
 
         evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
@@ -371,14 +367,12 @@ public class PredicateParserTest {
     /** evaluate reflective identity indexed redundant "?0_id" syntax **/
 
     @Test
-    @Ignore
     public void evaluate_reflective_identity_indexed_redundant_syntax() {
 
         evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
     }
 
     @Test
-    @Ignore
     public void evaluate_reflective_identity_indexed_redundant_syntax_state_valued() {
 
         evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
