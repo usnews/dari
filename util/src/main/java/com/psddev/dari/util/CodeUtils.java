@@ -664,6 +664,10 @@ public final class CodeUtils {
                     }
                 }
 
+                if (vm == null) {
+                    vm = vmClass.getMethod("attach", String.class).invoke(null, pid);
+                }
+
                 // Create a temporary instrumentation agent JAR.
                 String agentName = Agent.class.getName();
                 File agentDir = new File(System.getProperty("user.home"), ".dari");
