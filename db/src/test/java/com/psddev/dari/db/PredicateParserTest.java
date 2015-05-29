@@ -1,7 +1,6 @@
 package com.psddev.dari.db;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -254,166 +253,182 @@ public class PredicateParserTest {
     	assertEquals(null, parser.parse(" ( ) "));
     }
 
-    public void evaluate_reflective_syntax(String reflectiveSyntax) {
+    /**
+     * Utility method for testing different identity syntax formats.
+     * @param identitySyntax the format string to test
+     */
+    private void parse_identity_syntax_recordable(String identitySyntax) {
+
         for (Database database : DATABASES) {
 
-            ReflectiveTestRecord current = ReflectiveTestRecord.getInstance(database);
-            ReflectiveTestRecord other = ReflectiveTestRecord.getInstance(database);
+            TestRecord current = TestRecord.getInstance(database);
 
-            current.setOther(other);
-            other.setOther(current);
-
-            assertTrue("\"" + reflectiveSyntax + "\" was evaluated incorrectly!", PredicateParser.Static.evaluate(other, "other = " + reflectiveSyntax, current));
+            Predicate predicate = parser.parse("record = " + identitySyntax, current);
+            Predicate expect = new ComparisonPredicate(PredicateParser.EQUALS_ANY_OPERATOR, false, "record", Arrays.asList(current.getId()));
+            assertEquals(expect, predicate);
         }
     }
 
-    public void evaluate_reflective_syntax_state_valued(String reflectiveSyntax) {
+    /**
+     * Utility method for testing different identity syntax formats in parsing predicates with field expressions.
+     * @param identitySyntax the format string to test
+     */
+    private void parse_identity_with_field_syntax_recordable(String identitySyntax) {
         for (Database database : DATABASES) {
 
-            ReflectiveTestRecord current = ReflectiveTestRecord.getInstance(database);
-            ReflectiveTestRecord other = ReflectiveTestRecord.getInstance(database);
+            TestRecord current = TestRecord.getInstance(database);
+            current.setName("testName");
 
-            current.setOther(other);
-            other.setOther(current);
-
-            assertTrue("\"" + reflectiveSyntax + "\" was evaluated incorrectly!", PredicateParser.Static.evaluate(other, "other = " + reflectiveSyntax, current.getState()));
+            Predicate predicate = parser.parse("record = " + identitySyntax + "name", current);
+            Predicate expect = new ComparisonPredicate(PredicateParser.EQUALS_ANY_OPERATOR, false, "record", Arrays.asList(current.getName()));
+            assertEquals(expect, predicate);
         }
     }
 
-    /** evaluate reflective identity "?" syntax **/
-
+    /**
+     * Test the reduction of a {@link State} to a UUID in {@link ComparisonPredicate}
+     */
     @Test
-    public void evaluate_reflective_identity_syntax_standard() {
+    public void parse_identity_state() {
+        for (Database database : DATABASES) {
 
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
+            TestRecord current = TestRecord.getInstance(database);
+
+            Predicate predicate = parser.parse("record = ?", current.getState());
+            Predicate expect = new ComparisonPredicate(PredicateParser.EQUALS_ANY_OPERATOR, false, "record", Arrays.asList(current.getId()));
+            assertEquals(expect, predicate);
+        }
     }
 
-    @Test
-    public void evaluate_reflective_identity_syntax_standard_state_valued() {
-
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
-    }
-
-    /** evaluate reflective identity delimited "?/" syntax **/
-
-    @Test
-    @Ignore
-    public void evaluate_reflective_identity_delimited_syntax() {
-
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
-    }
-
+    /**
+     * Test reduction of a {@link Recordable} to a String field value in {@link ComparisonPredicate}
+     */
     @Test
     @Ignore
-    public void evaluate_reflective_identity_delimited_syntax_state_valued() {
+    public void parse_name_spaced_field_recordable() {
+        for (Database database : DATABASES) {
 
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
+            TestRecord current = TestRecord.getInstance(database);
+            current.setName("testName");
+
+            Predicate predicate = parser.parse("record = ?/" + TestRecord.class.getName() + "/name", current);
+            Predicate expect = new ComparisonPredicate(PredicateParser.EQUALS_ANY_OPERATOR, false, "record", Arrays.asList(current.getName()));
+            assertEquals(expect, predicate);
+        }
     }
 
-    /** evaluate reflective identity redundant "?_id" syntax **/
-
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?" **/
     @Test
-    public void evaluate_reflective_identity_redundant_syntax() {
+    public void parse_identity_standard_syntax() {
 
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
     }
 
+    /** Test reduction of a Recordable to a String field value using the syntax "?field" **/
     @Test
-    public void evaluate_reflective_identity_redundant_syntax_state_valued() {
-
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
+    public void parse_identity_standard_syntax_with_field() {
+        parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
     }
 
-    /** evaluate reflective identity delimited redundant "?/_id" syntax **/
-
-    @Test
-    @Ignore
-    public void evaluate_reflective_identity_delimited_redundant_syntax() {
-
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
-    }
-
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?/" **/
     @Test
     @Ignore
-    public void evaluate_reflective_identity_delimited_redundant_syntax_state_valued() {
+    public void parse_identity_delimited_syntax() {
 
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
     }
 
-    /** evaluate reflective identity indexed "?0" syntax **/
-
-    @Test
-    public void evaluate_reflective_identity_indexed_syntax() {
-
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
-    }
-
-    @Test
-    public void evaluate_reflective_identity_indexed_syntax_state_valued() {
-
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
-    }
-
-    /** evaluate reflective identity indexed delimited "?0/" syntax **/
-
-    @Test
-    public void evaluate_reflective_identity_indexed_delimited_syntax() {
-
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX);
-    }
-
-    @Test
-    public void evaluate_reflective_identity_indexed_delimited_syntax_state_valued() {
-
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX);
-    }
-
-    /** evaluate reflective identity indexed redundant "?0_id" syntax **/
-
+    /** Test reduction of a Recordable to a String field value using the syntax "?/field" **/
     @Test
     @Ignore
-    public void evaluate_reflective_identity_indexed_redundant_syntax() {
-
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
+    public void parse_identity_delimited_syntax_with_field() {
+        parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
     }
 
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?_id" **/
+    @Test
+    public void parse_identity_redundant_syntax() {
+
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
+    }
+
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?/_id" **/
     @Test
     @Ignore
-    public void evaluate_reflective_identity_indexed_redundant_syntax_state_valued() {
+    public void parse_identity_delimited_redundant_syntax() {
 
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
     }
 
-    /** evaluate reflective identity indexed delimited redundant "?0/_id" syntax **/
-
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?0" **/
     @Test
-    public void evaluate_reflective_identity_indexed_delimited_redundant_syntax() {
+    public void parse_identity_indexed_syntax() {
 
-        evaluate_reflective_syntax(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_REDUNDANT_SYNTAX);
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
     }
 
+    /** Test reduction of a Recordable to a String field value using the syntax "?0field" **/
     @Test
-    public void evaluate_reflective_identity_indexed_delimited_redundant_syntax_state_valued() {
-
-        evaluate_reflective_syntax_state_valued(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_REDUNDANT_SYNTAX);
+    @Ignore
+    public void parse_identity_indexed_syntax_with_field() {
+        parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
     }
 
-    public static class ReflectiveTestRecord extends Record {
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?0/" **/
+    @Test
+    public void parse_identity_indexed_delimited_syntax() {
 
-        public static ReflectiveTestRecord getInstance(Database database) {
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX);
+    }
 
-            ReflectiveTestRecord object = new ReflectiveTestRecord();
+    /** Test reduction of a Recordable to a String field value using the syntax "?0/field" **/
+    @Test
+    public void parse_identity_indexed_delimited_syntax_with_field() {
+        parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX);
+    }
+
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?0_id" **/
+    @Test
+    @Ignore
+    public void parse_identity_indexed_redundant_syntax() {
+
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
+    }
+
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?0_id" **/
+    @Test
+    public void parse_identity_indexed_delimited_redundant_syntax() {
+
+        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_REDUNDANT_SYNTAX);
+    }
+
+    /** Test Record type for parser identity syntax tests **/
+    public static class TestRecord extends Record {
+
+        public static TestRecord getInstance(Database database) {
+
+            TestRecord object = new TestRecord();
             object.getState().setDatabase(database);
             return object;
         }
 
-        private ReflectiveTestRecord other;
+        private String name;
 
-        public ReflectiveTestRecord getOther() {
+        private TestRecord other;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public TestRecord getOther() {
             return other;
         }
 
-        public void setOther(ReflectiveTestRecord other) {
+        public void setOther(TestRecord other) {
             this.other = other;
         }
     }
