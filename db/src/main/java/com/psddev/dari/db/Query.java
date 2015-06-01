@@ -116,6 +116,11 @@ public class Query<E> extends Record {
         }
     };
 
+    public static final Map<String, Boolean> SERIALIZED_MISSING_VALUE = new CompactMap<>();
+    static {
+        SERIALIZED_MISSING_VALUE.put("_missing", true);
+    }
+
     public static final String ID_KEY = "_id";
     public static final String TYPE_KEY = "_type";
     public static final String DIMENSION_KEY = "_dimension";
