@@ -270,6 +270,32 @@ public class PredicateParserTest {
     }
 
     /**
+     * Utility method for testing unsupported identity syntax formats.
+     * @param identitySyntax the format string to test
+     */
+    private void illegal_identity_syntax_recordable(String identitySyntax) {
+
+        for (Database database : DATABASES) {
+
+            TestRecord current = TestRecord.getInstance(database);
+            parser.parse("record = " + identitySyntax, current);
+        }
+    }
+
+    /**
+     * Utility method for testing unsupported identity syntax formats in parsing predicates with field expressions.
+     * @param identitySyntax the format string to test
+     */
+    private void illegal_identity_with_field_syntax_recordable(String identitySyntax) {
+        for (Database database : DATABASES) {
+
+            TestRecord current = TestRecord.getInstance(database);
+            current.setName("testName");
+            parser.parse("record = " + identitySyntax + "name", current);
+        }
+    }
+
+    /**
      * Utility method for testing different identity syntax formats in parsing predicates with field expressions.
      * @param identitySyntax the format string to test
      */
@@ -304,7 +330,7 @@ public class PredicateParserTest {
      * Test reduction of a {@link Recordable} to a String field value in {@link ComparisonPredicate}
      */
     @Test
-    @Ignore
+    @Ignore // Unsupported
     public void parse_name_spaced_field_recordable() {
         for (Database database : DATABASES) {
 
@@ -317,6 +343,8 @@ public class PredicateParserTest {
         }
     }
 
+    /** Supported Syntax Tests **/
+
     /** Test reduction of a Recordable to a UUID using the identity syntax "?" **/
     @Test
     public void parse_identity_standard_syntax() {
@@ -326,7 +354,7 @@ public class PredicateParserTest {
 
     /** Test reduction of a Recordable to a UUID using the identity syntax "?/" **/
     @Test
-    @Ignore
+    @Ignore // Unsupported
     public void parse_identity_delimited_syntax() {
 
         parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
@@ -334,14 +362,14 @@ public class PredicateParserTest {
 
     /** Test reduction of a Recordable to a String field value using the syntax "?/field" **/
     @Test
-    @Ignore
+    @Ignore // Unsupported
     public void parse_identity_delimited_syntax_with_field() {
         parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
     }
 
     /** Test reduction of a Recordable to a UUID using the identity syntax "?/_id" **/
     @Test
-    @Ignore
+    @Ignore // Unsupported
     public void parse_identity_delimited_redundant_syntax() {
 
         parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_DELIMITED_REDUNDANT_SYNTAX);
@@ -372,6 +400,38 @@ public class PredicateParserTest {
     public void parse_identity_indexed_delimited_redundant_syntax() {
 
         parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_REDUNDANT_SYNTAX);
+    }
+
+    /** Illegal Syntax Tests, Expected Failures **/
+
+    /** Test reduction of a Recordable to a String field value using the syntax "?field" **/
+    @Test(expected=IllegalArgumentException.class)
+    @Ignore // Unsupported
+    public void illegal_identity_standard_syntax_with_field() {
+        illegal_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
+    }
+
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?_id" **/
+    @Test(expected=IllegalArgumentException.class)
+    @Ignore // Unsupported
+    public void illegal_identity_redundant_syntax() {
+
+        illegal_identity_syntax_recordable(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
+    }
+
+    /** Test reduction of a Recordable to a String field value using the syntax "?0field" **/
+    @Test(expected=IllegalArgumentException.class)
+    @Ignore // Unsupported
+    public void illegal_identity_indexed_syntax_with_field() {
+        illegal_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
+    }
+
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?0_id" **/
+    @Test(expected=IllegalArgumentException.class)
+    @Ignore // Unsupported
+    public void illegal_identity_indexed_redundant_syntax() {
+
+        illegal_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
     }
 
     /** Test Record type for parser identity syntax tests **/
