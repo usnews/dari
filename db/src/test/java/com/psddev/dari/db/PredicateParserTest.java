@@ -400,26 +400,26 @@ public class PredicateParserTest {
 
     /** Illegal Syntax Tests, Expected Failures **/
 
-    /** Test reduction of a Recordable to a String field value using the syntax "?field" **/
+    /** Fail reduction of a Recordable to a String field value using the syntax "?field" **/
     @Test(expected=IllegalArgumentException.class)
     public void illegal_identity_standard_syntax_with_field() {
         illegal_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
     }
 
-    /** Test reduction of a Recordable to a UUID using the identity syntax "?_id" **/
+    /** Fail reduction of a Recordable to a UUID using the identity syntax "?_id" **/
     @Test(expected=IllegalArgumentException.class)
     public void illegal_identity_redundant_syntax() {
 
         illegal_identity_syntax_recordable(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
     }
 
-    /** Test reduction of a Recordable to a String field value using the syntax "?0field" **/
+    /** Fail reduction of a Recordable to a String field value using the syntax "?0field" **/
     @Test(expected=IllegalArgumentException.class)
     public void illegal_identity_indexed_syntax_with_field() {
         illegal_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
     }
 
-    /** Test reduction of a Recordable to a UUID using the identity syntax "?0_id" **/
+    /** Fail reduction of a Recordable to a UUID using the identity syntax "?0_id" **/
     @Test(expected=IllegalArgumentException.class)
     public void illegal_identity_indexed_redundant_syntax() {
 
