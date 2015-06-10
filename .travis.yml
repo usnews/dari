@@ -1,0 +1,5 @@
+language: java
+jdk:
+  -  oraclejdk8
+
+script: mvn -Plibrary clean verify javadoc:aggregate source:aggregate deploy:deploy
