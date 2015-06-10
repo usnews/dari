@@ -404,6 +404,11 @@ public class PredicateParser {
                     // Remove an optional leading forward slash.
                     if (path.indexOf('/') == 0) {
                         path = path.substring(1);
+                    } else if (path.length() > 0) {
+                        throw new IllegalArgumentException(String.format(
+                                "Missing [/] between [%s] and [%s]!",
+                                valueString.substring(0, 1 + indexString.length()),
+                                valueString.substring(1 + indexString.length())));
                     }
 
                     // Obtain parameter from the specified ParameterList using the parameter index.
