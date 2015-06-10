@@ -324,12 +324,6 @@ public class PredicateParserTest {
         parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
     }
 
-    /** Test reduction of a Recordable to a String field value using the syntax "?field" **/
-    @Test
-    public void parse_identity_standard_syntax_with_field() {
-        parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_SYNTAX_STANDARD);
-    }
-
     /** Test reduction of a Recordable to a UUID using the identity syntax "?/" **/
     @Test
     @Ignore
@@ -343,13 +337,6 @@ public class PredicateParserTest {
     @Ignore
     public void parse_identity_delimited_syntax_with_field() {
         parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_DELIMITED_SYNTAX);
-    }
-
-    /** Test reduction of a Recordable to a UUID using the identity syntax "?_id" **/
-    @Test
-    public void parse_identity_redundant_syntax() {
-
-        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_REDUNDANT_SYNTAX);
     }
 
     /** Test reduction of a Recordable to a UUID using the identity syntax "?/_id" **/
@@ -367,13 +354,6 @@ public class PredicateParserTest {
         parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
     }
 
-    /** Test reduction of a Recordable to a String field value using the syntax "?0field" **/
-    @Test
-    @Ignore
-    public void parse_identity_indexed_syntax_with_field() {
-        parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_SYNTAX);
-    }
-
     /** Test reduction of a Recordable to a UUID using the identity syntax "?0/" **/
     @Test
     public void parse_identity_indexed_delimited_syntax() {
@@ -387,15 +367,7 @@ public class PredicateParserTest {
         parse_identity_with_field_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_DELIMITED_SYNTAX);
     }
 
-    /** Test reduction of a Recordable to a UUID using the identity syntax "?0_id" **/
-    @Test
-    @Ignore
-    public void parse_identity_indexed_redundant_syntax() {
-
-        parse_identity_syntax_recordable(REFLECTIVE_IDENTITY_INDEXED_REDUNDANT_SYNTAX);
-    }
-
-    /** Test reduction of a Recordable to a UUID using the identity syntax "?0_id" **/
+    /** Test reduction of a Recordable to a UUID using the identity syntax "?0/_id" **/
     @Test
     public void parse_identity_indexed_delimited_redundant_syntax() {
 
