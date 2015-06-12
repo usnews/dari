@@ -1,0 +1,12 @@
+machine:
+  java:
+    version: oraclejdk8
+
+dependencies:
+  cache_directories:
+    - '~/.m2'
+
+test:
+  override:
+    - mvn -Dmaven.test.skip=true install
+    - mvn -Plibrary verify
