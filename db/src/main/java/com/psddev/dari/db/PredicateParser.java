@@ -572,7 +572,7 @@ public class PredicateParser {
         }
 
         private boolean evaluateOne(State state, Object keyValue, List<Object> values) {
-            if (!(keyValue instanceof Recordable || keyValue instanceof UUID)) {
+            if (!(keyValue instanceof Recordable || keyValue instanceof UUID) && keyValue != null) {
                 Class<?> keyValueClass = keyValue.getClass();
                 for (ListIterator<Object> i = values.listIterator(); i.hasNext();) {
                     i.set(ObjectUtils.to(keyValueClass, i.next()));
