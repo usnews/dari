@@ -560,7 +560,8 @@ public class PredicateParser {
 
             } else if (keyValue instanceof Iterable) {
                 for (Object item : (Iterable<?>) keyValue) {
-                    if (evaluateOne(state, item, values)) {
+                    List<Object> valuesCopy = new ArrayList<>(values);
+                    if (evaluateOne(state, item, valuesCopy)) {
                         return true;
                     }
                 }
