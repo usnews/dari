@@ -458,11 +458,14 @@ public class CodeDebugServlet extends HttpServlet {
 
     @SuppressWarnings("unchecked")
     private void addImports(Set<String> imports, int prefixLength, String path) {
-        for (String subPath : (Set<String>) getServletContext().getResourcePaths(path)) {
-            if (subPath.endsWith("/")) {
-                addImports(imports, prefixLength, subPath);
-            } else if (subPath.endsWith(".class")) {
-                imports.add(path.substring(prefixLength).replace('/', '.') + "*");
+        Set<String> resourcePaths = getServletContext().getResourcePaths(path);
+        if (resourcePaths != null) {
+            for (String subPath : resourcePaths) {
+                if (subPath.endsWith("/")) {
+                    addImports(imports, prefixLength, subPath);
+                } else if (subPath.endsWith(".class")) {
+                    imports.add(path.substring(prefixLength).replace('/', '.') + "*");
+                }
             }
         }
     }
