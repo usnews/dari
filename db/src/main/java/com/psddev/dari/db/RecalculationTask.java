@@ -45,13 +45,13 @@ public class RecalculationTask extends RepeatingTask {
         recordsProcessed = 0L;
         recordsTotal = 0L;
 
-        for (RecalculationContext context : getIndexableMethods()) {
+        /*for (RecalculationContext context : getIndexableMethods()) {
             Stats.Timer timer = STATS.startTimer();
             long recalculated = recalculateIfNecessary(context);
             if (recalculated > 0L) {
                 timer.stop("Recalculate " + context.getKey(), recalculated);
             }
-        }
+        }*/
     }
 
     /**

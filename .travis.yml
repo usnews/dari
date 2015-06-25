@@ -5,10 +5,22 @@ language: java
 jdk:
   - oraclejdk8
 
+env:
+  global:
+    secure: "cwcbZHRjNFAAZvQd8fd8WhDfB7vpzkGED+ANMGxi4gnBsHPbjZrQnrV6Du9KKNb+eQMcrMuuMEO3H23lZ+W2awGQ1FCdNBe9AxkWMcitXOHfRabIeIhqtqDFBfEdlumzAdTEss/UhEBVWTWE+033HstEbgegmoIBsfF7CvhYaCM="
+
+install: mvn dependency:go-offline
+
+script: mvn -Plibrary verify
+
 cache:
   directories:
     - $HOME/.m2
 
-install: mvn -Dmaven.test.skip=true install
+after_success:
+  - git clone git@github.com:perfectsense/travis-maven-deploy.git
+  - travis-maven-deploy/deploy.sh
 
-script: mvn -Plibrary verify
+notifications:
+  slack:
+    secure: "T/kDyELgI9wDJYcn/b5Skb7kr4uizj87J9iphx7Q7FKaHMZ0eXmrG57kKPznZVOD1cWL+26kdR/PWBg9kufpT6N20xjWbTZ+6lmBcpsGa95jOz895TyoffoO7ObFEdOLM2LrtxSAZiTf4ZLTkqQMJqY1teqeibj7ljVobu8fD4g="
