@@ -19,7 +19,3 @@ cache:
 
 after_success:
   - git clone https://github.com/perfectsense/travis-maven-deploy.git && travis-maven-deploy/deploy.sh
-
-notifications:
-  slack:
-    secure: "T/kDyELgI9wDJYcn/b5Skb7kr4uizj87J9iphx7Q7FKaHMZ0eXmrG57kKPznZVOD1cWL+26kdR/PWBg9kufpT6N20xjWbTZ+6lmBcpsGa95jOz895TyoffoO7ObFEdOLM2LrtxSAZiTf4ZLTkqQMJqY1teqeibj7ljVobu8fD4g="
