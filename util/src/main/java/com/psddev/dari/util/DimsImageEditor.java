@@ -4,6 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -356,7 +357,7 @@ public class DimsImageEditor extends AbstractImageEditor {
             }
 
             if (!isDimsUrl) {
-                int bucketIndex = imageUrl.hashCode() % baseUrls.size();
+                int bucketIndex = ByteBuffer.wrap(StringUtils.md5(imageUrl)).getInt() % baseUrls.size();
                 if (bucketIndex < 0) {
                     bucketIndex *= -1;
                 }
