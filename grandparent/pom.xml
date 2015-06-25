@@ -248,6 +248,11 @@ try {
 
     project.properties['newVersion'] = newVersion
     project.properties['generateBackupPoms'] = 'false'
+
+    new File('newVersion').withWriter('UTF-8') {
+        it.write(newVersion);
+    }
+
     log.info("Set newVersion to ${newVersion}.")
 
 } catch (Exception error) {
