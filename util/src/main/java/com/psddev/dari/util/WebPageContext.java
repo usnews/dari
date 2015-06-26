@@ -5,6 +5,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
@@ -122,7 +123,7 @@ public class WebPageContext extends HtmlWriter {
                     writer = response.getWriter();
 
                 } catch (IllegalStateException error) {
-                    writer = new OutputStreamWriter(response.getOutputStream(), StringUtils.UTF_8);
+                    writer = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8);
                 }
 
                 setDelegate(writer);

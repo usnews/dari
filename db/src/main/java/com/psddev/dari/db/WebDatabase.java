@@ -1,6 +1,7 @@
 package com.psddev.dari.db;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -15,7 +16,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.protocol.HTTP;
 
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -177,7 +177,7 @@ public class WebDatabase extends AbstractDatabase<Void> {
 
         try {
             HttpPost post = new HttpPost(getRemoteUrl());
-            post.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
+            post.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
             response = client.execute(post, new BasicResponseHandler());
 
         } catch (IOException ex) {

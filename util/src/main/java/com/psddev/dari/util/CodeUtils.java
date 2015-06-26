@@ -28,6 +28,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -350,7 +351,7 @@ public final class CodeUtils {
                 loader = loader.getParent()) {
             if (loader instanceof URLClassLoader) {
                 for (URL url : ((URLClassLoader) loader).getURLs()) {
-                    classPathsBuilder.append(IoUtils.toFile(url, StringUtils.UTF_8).getPath());
+                    classPathsBuilder.append(IoUtils.toFile(url, StandardCharsets.UTF_8).getPath());
                     classPathsBuilder.append(File.pathSeparator);
                 }
             }

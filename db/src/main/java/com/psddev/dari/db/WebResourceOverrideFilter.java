@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
 
@@ -23,7 +24,6 @@ import com.psddev.dari.util.JspUtils;
 import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.Once;
 import com.psddev.dari.util.PeriodicCache;
-import com.psddev.dari.util.StringUtils;
 
 public class WebResourceOverrideFilter extends AbstractFilter {
 
@@ -168,7 +168,7 @@ public class WebResourceOverrideFilter extends AbstractFilter {
             if (realPath != null) {
                 File curFile = new File(realPath);
                 File newFile = new File(realPath + NEW_FILE_SUFFIX);
-                Writer writer = new OutputStreamWriter(new FileOutputStream(newFile), StringUtils.UTF_8);
+                Writer writer = new OutputStreamWriter(new FileOutputStream(newFile), StandardCharsets.UTF_8);
 
                 try {
                     String content = override.getContent();

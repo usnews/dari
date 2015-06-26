@@ -8,6 +8,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.ref.WeakReference;
+import java.nio.charset.StandardCharsets;
 import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -667,7 +668,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                 Map<String, Integer> symbols = new ConcurrentHashMap<String, Integer>();
                 while (result.next()) {
-                    symbols.put(new String(result.getBytes(2), StringUtils.UTF_8), result.getInt(1));
+                    symbols.put(new String(result.getBytes(2), StandardCharsets.UTF_8), result.getInt(1));
                 }
 
                 return symbols;
@@ -833,7 +834,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             }
         }
 
-        byte[] dataBytes = ObjectUtils.toJson(values).getBytes(StringUtils.UTF_8);
+        byte[] dataBytes = ObjectUtils.toJson(values).getBytes(StandardCharsets.UTF_8);
 
         if (isCompressData()) {
             byte[] compressed = new byte[Snappy.maxCompressedLength(dataBytes.length)];
@@ -2481,7 +2482,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             UUID typeId = state.getVisibilityAwareTypeId();
             byte[] dataBytes = null;
             String inRowIndex = inRowIndexes.get(state);
-            byte[] inRowIndexBytes = inRowIndex != null ? inRowIndex.getBytes(StringUtils.UTF_8) : new byte[0];
+            byte[] inRowIndexBytes = inRowIndex != null ? inRowIndex.getBytes(StandardCharsets.UTF_8) : new byte[0];
 
             while (true) {
                 if (isNew) {
@@ -3052,7 +3053,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         // given index.
         private static void bindParameter(PreparedStatement statement, int index, Object parameter) throws SQLException {
             if (parameter instanceof String) {
-                parameter = ((String) parameter).getBytes(StringUtils.UTF_8);
+                parameter = ((String) parameter).getBytes(StandardCharsets.UTF_8);
             }
 
             if (parameter instanceof StringBuilder) {

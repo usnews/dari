@@ -9,6 +9,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -484,7 +485,7 @@ public abstract class ObjectUtils {
         protected Map<String, String> create() throws IOException {
             Map<String, String> contentTypes = new HashMap<String, String>();
             InputStream mimeInput = getClass().getResourceAsStream("mime.types");
-            BufferedReader mimeInputReader = new BufferedReader(new InputStreamReader(mimeInput, StringUtils.UTF_8));
+            BufferedReader mimeInputReader = new BufferedReader(new InputStreamReader(mimeInput, StandardCharsets.UTF_8));
 
             try {
                 for (String line; (line = mimeInputReader.readLine()) != null;) {

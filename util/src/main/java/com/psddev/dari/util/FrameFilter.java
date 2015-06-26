@@ -3,6 +3,7 @@ package com.psddev.dari.util;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -153,7 +154,7 @@ public class FrameFilter extends AbstractFilter {
         public final String donePath;
 
         private final ServletOutputStream output = new DiscardingOutputStream();
-        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StringUtils.UTF_8));
+        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8));
 
         public DiscardingResponse(HttpServletResponse response, String donePath) {
             super(response);

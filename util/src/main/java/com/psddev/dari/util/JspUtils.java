@@ -14,6 +14,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Enumeration;
@@ -178,10 +179,10 @@ public final class JspUtils {
         try {
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
 
-            sha1.update(name.getBytes(StringUtils.UTF_8));
-            sha1.update(value.getBytes(StringUtils.UTF_8));
+            sha1.update(name.getBytes(StandardCharsets.UTF_8));
+            sha1.update(value.getBytes(StandardCharsets.UTF_8));
             sha1.update(Long.valueOf(timestamp).byteValue());
-            sha1.update(Settings.getSecret().getBytes(StringUtils.UTF_8));
+            sha1.update(Settings.getSecret().getBytes(StandardCharsets.UTF_8));
             return StringUtils.hex(sha1.digest());
 
         } catch (NoSuchAlgorithmException error) {
@@ -483,7 +484,7 @@ public final class JspUtils {
         try {
             return response.getWriter();
         } catch (IllegalStateException error) {
-            return new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StringUtils.UTF_8));
+            return new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
         }
     }
 

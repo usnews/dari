@@ -2,6 +2,7 @@ package com.psddev.dari.db;
 
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -327,7 +328,7 @@ public enum SqlIndex {
         }
 
         protected static byte[] stringToBytes(String value, int length) {
-            byte[] bytes = value.getBytes(StringUtils.UTF_8);
+            byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
 
             if (bytes.length <= length) {
                 return bytes;

@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -143,7 +144,7 @@ public class ClassFinder {
             }
 
         } else {
-            File file = IoUtils.toFile(url, StringUtils.UTF_8);
+            File file = IoUtils.toFile(url, StandardCharsets.UTF_8);
             if (file != null && file.isDirectory()) {
                 processFile(classNames, file, "");
             }

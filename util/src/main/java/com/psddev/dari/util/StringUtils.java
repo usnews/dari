@@ -29,11 +29,40 @@ import org.apache.commons.lang.StringEscapeUtils;
 /** String utility methods. */
 public final class StringUtils {
 
+    /**
+     * @deprecated Use {@link java.nio.charset.StandardCharsets#US_ASCII} instead.
+     */
+    @Deprecated
     public static final Charset US_ASCII = Charset.forName("US-ASCII");
+
+    /**
+     * @deprecated Use {@link java.nio.charset.StandardCharsets#ISO_8859_1} instead.
+     */
+    @Deprecated
     public static final Charset ISO_8859_1 = Charset.forName("ISO-8859-1");
+
+    /**
+     * @deprecated Use {@link java.nio.charset.StandardCharsets#UTF_8} instead.
+     */
+    @Deprecated
     public static final Charset UTF_8 = Charset.forName("UTF-8");
+
+    /**
+     * @deprecated Use {@link java.nio.charset.StandardCharsets#UTF_16BE} instead.
+     */
+    @Deprecated
     public static final Charset UTF_16BE = Charset.forName("UTF-16BE");
+
+    /**
+     * @deprecated Use {@link java.nio.charset.StandardCharsets#UTF_16LE} instead.
+     */
+    @Deprecated
     public static final Charset UTF_16LE = Charset.forName("UTF-16LE");
+
+    /**
+     * @deprecated Use {@link java.nio.charset.StandardCharsets#UTF_16} instead.
+     */
+    @Deprecated
     public static final Charset UTF_16 = Charset.forName("UTF-16");
 
     private static final Set<String>

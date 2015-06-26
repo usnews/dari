@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -143,7 +144,7 @@ public class CodeDebugServlet extends HttpServlet {
                     // Can't edit a directory.
 
                 } else {
-                    codeBuilder.append(IoUtils.toString(file, StringUtils.UTF_8));
+                    codeBuilder.append(IoUtils.toString(file, StandardCharsets.UTF_8));
                 }
 
             } else {

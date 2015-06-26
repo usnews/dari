@@ -12,6 +12,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,7 +162,7 @@ public final class IoUtils {
             return null;
         }
 
-        byte[] encoded = url.getFile().replace('/', File.separatorChar).getBytes(StringUtils.US_ASCII);
+        byte[] encoded = url.getFile().replace('/', File.separatorChar).getBytes(StandardCharsets.US_ASCII);
         int length = encoded.length;
         byte[] decoded = new byte[length];
         int decodedIndex = 0;
@@ -263,7 +264,7 @@ public final class IoUtils {
             Charset charset;
 
             if (encoding == null) {
-                charset = StringUtils.UTF_8;
+                charset = StandardCharsets.UTF_8;
 
             } else {
                 try {

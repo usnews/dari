@@ -4,6 +4,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,7 +19,6 @@ import java.util.UUID;
 import com.psddev.dari.util.ObjectMap;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.StorageItem;
-import com.psddev.dari.util.StringUtils;
 
 /** State value utility methods. */
 abstract class StateValueUtils {
@@ -565,7 +565,7 @@ abstract class StateValueUtils {
                     Object value) {
 
                 if (value instanceof byte[]) {
-                    value = new String((byte[]) value, StringUtils.UTF_8);
+                    value = new String((byte[]) value, StandardCharsets.UTF_8);
                 }
 
                 String enumClassName = field.getJavaEnumClassName();

@@ -15,6 +15,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -620,7 +621,7 @@ public class SourceFilter extends AbstractFilter {
 
                 InputStream pingInput = pingConnection.getInputStream();
                 try {
-                    return "OK".equals(IoUtils.toString(pingInput, StringUtils.UTF_8));
+                    return "OK".equals(IoUtils.toString(pingInput, StandardCharsets.UTF_8));
                 } finally {
                     pingInput.close();
                 }
@@ -753,7 +754,7 @@ public class SourceFilter extends AbstractFilter {
                         loader = loader.getParent()) {
                     if (loader instanceof URLClassLoader) {
                         for (URL url : ((URLClassLoader) loader).getURLs()) {
-                            File file = IoUtils.toFile(url, StringUtils.UTF_8);
+                            File file = IoUtils.toFile(url, StandardCharsets.UTF_8);
 
                             if (file != null) {
                                 classPaths.add(file);
@@ -1143,7 +1144,7 @@ public class SourceFilter extends AbstractFilter {
         public final String jsp;
 
         private final ServletOutputStream output = new IsolatingOutputStream();
-        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StringUtils.UTF_8));
+        private final PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8));
 
         public IsolatingResponse(HttpServletResponse response, String jsp) {
             super(response);
