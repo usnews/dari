@@ -96,7 +96,9 @@ public final class StringUtils {
      * @param returnType The class for the String input(s) to be converted to
      * @param strings the input(s) to be converted
      * @return the converted value
+     * @deprecated Use {@link ObjectUtils#to(Class, Object)} instead.
      */
+    @Deprecated
     public static <T> T fromString(Class<T> returnType, String... strings) {
 
         // heavy voodoo follows...
