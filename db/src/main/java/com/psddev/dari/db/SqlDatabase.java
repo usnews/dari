@@ -45,6 +45,7 @@ import java.util.regex.Matcher;
 
 import javax.sql.DataSource;
 
+import com.zaxxer.hikari.HikariDataSource;
 import org.iq80.snappy.Snappy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +57,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
-import com.jolbox.bonecp.BoneCPDataSource;
 import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.Lazy;
 import com.psddev.dari.util.ObjectUtils;
@@ -695,15 +695,15 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     /** Closes any resources used by this database. */
     public void close() {
         DataSource dataSource = getDataSource();
-        if (dataSource instanceof BoneCPDataSource) {
-            LOGGER.info("Closing BoneCP data source in {}", getName());
-            ((BoneCPDataSource) dataSource).close();
+        if (dataSource instanceof HikariDataSource) {
+            LOGGER.info("Closing connection pool in {}", getName());
+            ((HikariDataSource) dataSource).close();
         }
 
         DataSource readDataSource = getReadDataSource();
-        if (readDataSource instanceof BoneCPDataSource) {
-            LOGGER.info("Closing BoneCP read data source in {}", getName());
-            ((BoneCPDataSource) readDataSource).close();
+        if (readDataSource instanceof HikariDataSource) {
+            LOGGER.info("Closing read connection pool in {}", getName());
+            ((HikariDataSource) readDataSource).close();
         }
 
         setDataSource(null);
@@ -1882,30 +1882,24 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     poolSize = 24;
                 }
 
-                int partitionCount = 3;
-                int connectionsPerPartition = poolSize / partitionCount;
-                LOGGER.info("Automatically creating BoneCP data source:" +
-                        "\n\turl={}" +
-                        "\n\tusername={}" +
-                        "\n\tpoolSize={}" +
-                        "\n\tconnectionsPerPartition={}" +
-                        "\n\tpartitionCount={}", new Object[] {
-                            url,
-                            user,
-                            poolSize,
-                            connectionsPerPartition,
-                            partitionCount
-                        });
+                LOGGER.info(
+                    "Automatically creating connection pool:" +
+                    "\n\turl={}" +
+                    "\n\tusername={}" +
+                    "\n\tpoolSize={}",
+                    url,
+                    user,
+                    poolSize
+                );
 
-                BoneCPDataSource bone = new BoneCPDataSource();
-                bone.setJdbcUrl(url);
-                bone.setUsername(user);
-                bone.setPassword(password);
-                bone.setMinConnectionsPerPartition(connectionsPerPartition);
-                bone.setMaxConnectionsPerPartition(connectionsPerPartition);
-                bone.setPartitionCount(partitionCount);
-                bone.setConnectionTimeoutInMs(5000L);
-                return bone;
+                HikariDataSource ds = new HikariDataSource();
+
+                ds.setJdbcUrl(url);
+                ds.setUsername(user);
+                ds.setPassword(password);
+                ds.setMaximumPoolSize(poolSize);
+
+                return ds;
             }
         }
     }
