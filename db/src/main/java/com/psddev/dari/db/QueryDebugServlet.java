@@ -63,8 +63,7 @@ public class QueryDebugServlet extends HttpServlet {
         private enum SubAction {
 
             RAW("Raw"),
-            EDIT_RAW("Edit Raw"),
-            EDIT_FIELDED("Edit Fielded");
+            EDIT_RAW("Edit Raw");
 
             public final String displayName;
 
@@ -586,28 +585,6 @@ public class QueryDebugServlet extends HttpServlet {
                                     writeHtml(ObjectUtils.toJson(state.getSimpleValues(), true));
                                 writeEnd();
                             writeEnd();
-                            writeStart("div", "class", "form-actions");
-                                writeElement("input", "class", "btn btn-success", "type", "submit", "value", "Save");
-                            writeEnd();
-                        writeEnd();
-
-                    } else if (SubAction.EDIT_FIELDED.equals(subAction)) {
-                        @SuppressWarnings("all")
-                        FormWriter form = new FormWriter(this);
-                        form.putAllStandardInputProcessors();
-
-                        if (page.isFormPost()) {
-                            try {
-                                form.updateAll(state, page.getRequest());
-                                state.save();
-                                writeStart("p", "class", "alert alert-success").writeHtml("Saved successfully at " + new Date() + "!").writeEnd();
-                            } catch (RuntimeException error) {
-                                writeStart("div", "class", "alert alert-error").writeObject(error).writeEnd();
-                            }
-                        }
-
-                        writeStart("form", "method", "post", "action", page.url(""));
-                            form.allInputs(state);
                             writeStart("div", "class", "form-actions");
                                 writeElement("input", "class", "btn btn-success", "type", "submit", "value", "Save");
                             writeEnd();
