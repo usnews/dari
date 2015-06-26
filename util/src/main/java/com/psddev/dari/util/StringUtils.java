@@ -24,6 +24,9 @@ import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.apache.commons.lang.StringEscapeUtils;
 
 /** String utility methods. */
@@ -755,18 +758,21 @@ public final class StringUtils {
     }
 
     // --- Pattern bridge ---
-    private static final Map<String, Pattern> PATTERNS = new PullThroughCache<String, Pattern>() {
-        @Override
-        protected Pattern produce(String pattern) {
-            return Pattern.compile(pattern);
-        }
-    };
+    private static final LoadingCache<String, Pattern> PATTERNS = CacheBuilder.newBuilder().
+        maximumSize(1000).
+        build(new CacheLoader<String, Pattern>() {
+
+            @Override
+            public Pattern load(String pattern) {
+                return Pattern.compile(pattern);
+            }
+        });
 
     /**
      * Gets a cached regular expression pattern object based on the given string.
      */
     public static Pattern getPattern(String pattern) {
-        return PATTERNS.get(pattern);
+        return PATTERNS.getUnchecked(pattern);
     }
 
     /**
