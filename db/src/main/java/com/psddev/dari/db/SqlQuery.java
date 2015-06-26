@@ -1512,16 +1512,10 @@ class SqlQuery {
         vendor.appendIdentifier(statementBuilder, "typeId");
 
         List<String> fields = query.getFields();
-        boolean cacheData = database.isCacheData();
         if (fields == null) {
             if (!needsDistinct || vendor.supportsDistinctBlob()) {
-                if (cacheData) {
-                    statementBuilder.append(", ru.");
-                    vendor.appendIdentifier(statementBuilder, "updateDate");
-                } else {
-                    statementBuilder.append(", r.");
-                    vendor.appendIdentifier(statementBuilder, "data");
-                }
+                statementBuilder.append(", r.");
+                vendor.appendIdentifier(statementBuilder, "data");
             }
         } else if (!fields.isEmpty()) {
             statementBuilder.append(", ");
@@ -1573,18 +1567,6 @@ class SqlQuery {
                 !fromClause.contains("LEFT OUTER JOIN") &&
                 !mysqlIgnoreIndexPrimaryDisabled) {
             statementBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
-        }
-
-        if (cacheData) {
-            statementBuilder.append("\nLEFT OUTER JOIN ");
-            vendor.appendIdentifier(statementBuilder, "RecordUpdate");
-            statementBuilder.append(' ');
-            statementBuilder.append(aliasPrefix);
-            statementBuilder.append("ru");
-            statementBuilder.append(" ON r.");
-            vendor.appendIdentifier(statementBuilder, "id");
-            statementBuilder.append(" = ru.");
-            vendor.appendIdentifier(statementBuilder, "id");
         }
 
         if (hasAnyDeferredMetricPredicates()) {
