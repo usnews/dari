@@ -457,7 +457,10 @@ public abstract class ObjectUtils {
      * @see JsonProcessor#setIndentOutput(boolean)
      * @see JsonProcessor#setTransformer(Transformer)
      * @see JsonProcessor#generate(Object)
+     *
+     * @deprecated No replacement.
      */
+    @Deprecated
     public static String toJson(Object object, boolean isIndentOutput, Transformer transformer) {
         JsonProcessor processor = new JsonProcessor();
         processor.setIndentOutput(isIndentOutput);

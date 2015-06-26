@@ -82,7 +82,10 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
     /**
      * Includes the return value from the given {@code function} into the
      * given {@code name} when converting instances of the given {@code type}.
+     *
+     * @deprecated No replacement.
      */
+    @Deprecated
     public void includeFunction(Type type, String name, TransformationFunction<?> function) {
         getPlan(type).includeFunction(name, function);
     }
@@ -249,7 +252,9 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
             GETTERS_FIELDS;
         }
 
+        @Deprecated
         private final Map<String, TransformationFunction<?>> functions = new HashMap<String, TransformationFunction<?>>();
+
         private final Map<String, Object> constants = new HashMap<String, Object>();
         private final Map<String, String> renames = new HashMap<String, String>();
 
@@ -261,6 +266,7 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
         private final Set<String> includeGetters = new HashSet<String>();
         private final Set<String> excludeGetters = new HashSet<String>();
 
+        @Deprecated
         public void includeFunction(String name, TransformationFunction<?> function) {
             exclude(name);
             functions.put(name, function);
@@ -340,6 +346,7 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
             renames.put(oldName, newName);
         }
 
+        @SuppressWarnings("deprecation")
         public void putValues(Converter converter, Object object, Type keyType, Type valueType, Map<Object, Object> map) throws Exception {
 
             TypeDefinition<?> definition = TypeDefinition.getInstance(object.getClass());

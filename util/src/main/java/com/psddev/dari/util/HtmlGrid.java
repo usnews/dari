@@ -25,7 +25,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * @see <a href="http://www.w3.org/TR/css3-grid-layout/">CSS Grid Layout</a>
+ * @deprecated No replacement.
  */
+@Deprecated
 public class HtmlGrid {
 
     private String selector;

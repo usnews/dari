@@ -1,5 +1,9 @@
 package com.psddev.dari.util;
 
+/**
+ * @deprecated No replacement.
+ */
+@Deprecated
 public class CssUnit {
 
     private final double number;

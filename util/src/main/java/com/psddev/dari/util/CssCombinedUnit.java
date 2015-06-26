@@ -7,6 +7,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+/**
+ * @deprecated No replacement.
+ */
+@Deprecated
 public class CssCombinedUnit {
 
     private final Map<String, CssUnit> combined = new HashMap<String, CssUnit>();
