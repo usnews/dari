@@ -283,8 +283,8 @@ public class SourceFilter extends AbstractFilter {
         copyResources.get();
 
         // Intercept special actions.
-        if (!ObjectUtils.isBlank(request.getParameter("_reload")) &&
-                isReloaderAvailable(request)) {
+        if (!ObjectUtils.isBlank(request.getParameter("_reload"))
+                && isReloaderAvailable(request)) {
             compileJavaSourceFiles();
             response.sendRedirect(StringUtils.addQueryParameters(
                     getReloaderPath(),
@@ -324,10 +324,10 @@ public class SourceFilter extends AbstractFilter {
         }
 
         String contentType = ObjectUtils.getContentType(servletPath);
-        if (contentType.startsWith("image/") ||
-                contentType.startsWith("video/") ||
-                contentType.equals("text/css") ||
-                contentType.equals("text/javascript")) {
+        if (contentType.startsWith("image/")
+                || contentType.startsWith("video/")
+                || contentType.equals("text/css")
+                || contentType.equals("text/javascript")) {
             chain.doFilter(request, response);
             return;
         }
@@ -336,9 +336,9 @@ public class SourceFilter extends AbstractFilter {
         boolean requiresReload;
         boolean hasBackgroundTasks;
 
-        if (diagnostics == null &&
-                !changedClassTimes.isEmpty() &&
-                !JspUtils.isAjaxRequest(request)) {
+        if (diagnostics == null
+                && !changedClassTimes.isEmpty()
+                && !JspUtils.isAjaxRequest(request)) {
 
             requiresReload = true;
 
@@ -373,19 +373,19 @@ public class SourceFilter extends AbstractFilter {
         }
 
         chain.doFilter(request, response);
-        if (diagnostics == null &&
-                analysisResultsByClass.isEmpty() &&
-                (changedClassTimes.isEmpty() ||
-                JspUtils.isAjaxRequest(request) ||
-                isolatingResponse != null)) {
+        if (diagnostics == null
+                && analysisResultsByClass.isEmpty()
+                && (changedClassTimes.isEmpty()
+                || JspUtils.isAjaxRequest(request)
+                || isolatingResponse != null)) {
             return;
         }
 
         // Can't reload automatically so at least let the user know
         // if viewing an HTML page.
         String responseContentType = response.getContentType();
-        if (responseContentType == null ||
-                !responseContentType.startsWith("text/html")) {
+        if (responseContentType == null
+                || !responseContentType.startsWith("text/html")) {
             return;
         }
 
@@ -419,17 +419,17 @@ public class SourceFilter extends AbstractFilter {
 
             noteWriter.writeStart("span",
                     "onclick",
-                            "var notifications = document.querySelectorAll('.dari-sourceFilter-notification');" +
-                            "var notificationsIndex = 0;" +
-                            "var notificationsLength = notifications.length;" +
-                            "for (; notificationsIndex < notificationsLength; ++ notificationsIndex) {" +
-                                "var notification = notifications[notificationsIndex];" +
-                                "notification.parentNode.removeChild(notification);" +
-                            "}" +
-                            "var xhr = new XMLHttpRequest();" +
-                            "xhr.open('get', '" + StringUtils.escapeJavaScript(JspUtils.getAbsolutePath(request, getInterceptPath(), "action", "clear")) + "', true);" +
-                            "xhr.send('');" +
-                            "return false;",
+                            "var notifications = document.querySelectorAll('.dari-sourceFilter-notification');"
+                            + "var notificationsIndex = 0;"
+                            + "var notificationsLength = notifications.length;"
+                            + "for (; notificationsIndex < notificationsLength; ++ notificationsIndex) {"
+                                + "var notification = notifications[notificationsIndex];"
+                                + "notification.parentNode.removeChild(notification);"
+                            + "}"
+                            + "var xhr = new XMLHttpRequest();"
+                            + "xhr.open('get', '" + StringUtils.escapeJavaScript(JspUtils.getAbsolutePath(request, getInterceptPath(), "action", "clear")) + "', true);"
+                            + "xhr.send('');"
+                            + "return false;",
                     "style", noteWriter.cssString(
                             "cursor", "pointer",
                             "font-size", "20px",
@@ -557,9 +557,9 @@ public class SourceFilter extends AbstractFilter {
                 } else {
                     int separatorAt = fileName.lastIndexOf(File.separatorChar);
 
-                    writer.writeHtml(separatorAt > -1 ?
-                            fileName.substring(separatorAt + 1) :
-                            fileName);
+                    writer.writeHtml(separatorAt > -1
+                            ? fileName.substring(separatorAt + 1)
+                            : fileName);
                 }
 
                 if (lineNumber > 0) {
@@ -639,8 +639,8 @@ public class SourceFilter extends AbstractFilter {
     private boolean hasBackgroundTasks() {
         for (TaskExecutor executor : TaskExecutor.Static.getAll()) {
             String executorName = executor.getName();
-            if (!("Periodic Caches".equals(executorName) ||
-                    "Miscellaneous Tasks".equals(executorName))) {
+            if (!("Periodic Caches".equals(executorName)
+                    || "Miscellaneous Tasks".equals(executorName))) {
                 for (Object task : executor.getTasks()) {
                     if (task instanceof Task && !((Task) task).isSafeToStop() && ((Task) task).isRunning()) {
                         return true;
@@ -683,9 +683,9 @@ public class SourceFilter extends AbstractFilter {
                 long resourceModified = resource.lastModified();
                 long outputModified = output.lastModified();
 
-                if ((jarModified == null ||
-                        resourceModified > jarModified) &&
-                        resourceModified > outputModified) {
+                if ((jarModified == null
+                        || resourceModified > jarModified)
+                        && resourceModified > outputModified) {
                     IoUtils.copy(resource, output);
                     LOGGER.info("Copied [{}]", resource);
                 }
@@ -925,8 +925,8 @@ public class SourceFilter extends AbstractFilter {
         File sourceFile = new File(webappSources, path.substring(contextPath.length()).replace('/', File.separatorChar));
         File outputFile = new File(outputFileString);
 
-        if (sourceFile.isDirectory() ||
-                outputFile.isDirectory()) {
+        if (sourceFile.isDirectory()
+                || outputFile.isDirectory()) {
             return;
         }
 
@@ -953,8 +953,8 @@ public class SourceFilter extends AbstractFilter {
             IoUtils.copy(sourceFile, outputFile);
             LOGGER.info("Copied [{}]", sourceFile);
 
-        } else if (outputFile.exists() &&
-                !outputFile.isDirectory()) {
+        } else if (outputFile.exists()
+                && !outputFile.isDirectory()) {
             LOGGER.debug("[{}] disappeared!", sourceFile);
         }
     }
@@ -1084,11 +1084,11 @@ public class SourceFilter extends AbstractFilter {
             try {
 
                 URL warUrl = new URL(
-                        RELOADER_MAVEN_URL +
-                        RELOADER_MAVEN_ARTIFACT_ID + "-" +
-                        RELOADER_MAVEN_VERSION.replace("-SNAPSHOT", "") + "-" +
-                        timestampMatcher.group(1) + "-" +
-                        buildNumberMatcher.group(1) + ".war");
+                        RELOADER_MAVEN_URL
+                        + RELOADER_MAVEN_ARTIFACT_ID + "-"
+                        + RELOADER_MAVEN_VERSION.replace("-SNAPSHOT", "") + "-"
+                        + timestampMatcher.group(1) + "-"
+                        + buildNumberMatcher.group(1) + ".war");
                 addProgress("Downloading it from ", warUrl);
                 addProgress("Saving it to ", war);
 
@@ -1110,10 +1110,10 @@ public class SourceFilter extends AbstractFilter {
 
                 IoUtils.delete(reloaderWar);
                 IoUtils.delete(new File(catalinaBase,
-                        "conf" + File.separator +
-                        "Catalina" + File.separator +
-                        "localhost" + File.separator +
-                        reloaderPath + ".xml"));
+                        "conf" + File.separator
+                        + "Catalina" + File.separator
+                        + "localhost" + File.separator
+                        + reloaderPath + ".xml"));
 
                 addProgress("Deploying it to ", "/" + reloaderPath);
                 IoUtils.rename(war, reloaderWar);

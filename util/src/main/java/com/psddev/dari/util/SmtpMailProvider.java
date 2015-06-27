@@ -134,8 +134,8 @@ public class SmtpMailProvider extends AbstractMailProvider {
             props.put("mail.smtp.port", sslPort);
         }
 
-        if (!StringUtils.isEmpty(username) &&
-                !StringUtils.isEmpty(password)) {
+        if (!StringUtils.isEmpty(username)
+                && !StringUtils.isEmpty(password)) {
             props.put("mail.smtp.auth", "true");
             session = Session.getInstance(props, new javax.mail.Authenticator() {
                 @Override

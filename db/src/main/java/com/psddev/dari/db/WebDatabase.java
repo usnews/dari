@@ -101,14 +101,15 @@ public class WebDatabase extends AbstractDatabase<Void> {
 
     // --- AbstractDatabase support ---
 
-    private static final LoadingCache<WebDatabase, DatabaseEnvironment> ENVIRONMENT_CACHE = CacheBuilder.newBuilder().
-        weakKeys().
-        build(new CacheLoader<WebDatabase, DatabaseEnvironment>() {
-            @Override
-            public DatabaseEnvironment load(WebDatabase database) {
-                return new DatabaseEnvironment(database, false);
-            }
-        });
+    private static final LoadingCache<WebDatabase, DatabaseEnvironment> ENVIRONMENT_CACHE = CacheBuilder.newBuilder()
+            .weakKeys()
+            .build(new CacheLoader<WebDatabase, DatabaseEnvironment>() {
+
+                @Override
+                public DatabaseEnvironment load(WebDatabase database) {
+                    return new DatabaseEnvironment(database, false);
+                }
+            });
 
     @Override
     public DatabaseEnvironment getEnvironment() {
@@ -178,8 +179,8 @@ public class WebDatabase extends AbstractDatabase<Void> {
         String username = getRemoteUsername();
         String password = getRemotePassword();
 
-        if (!ObjectUtils.isBlank(username) ||
-            !ObjectUtils.isBlank(password)) {
+        if (!ObjectUtils.isBlank(username)
+                || !ObjectUtils.isBlank(password)) {
 
             credsProvider.setCredentials(
                 AuthScope.ANY,
@@ -189,14 +190,14 @@ public class WebDatabase extends AbstractDatabase<Void> {
 
         String output;
 
-        try (CloseableHttpClient client = HttpClients.custom().
-            setDefaultCredentialsProvider(credsProvider).
-            build()) {
+        try (CloseableHttpClient client = HttpClients.custom()
+                .setDefaultCredentialsProvider(credsProvider)
+                .build()) {
 
-            HttpUriRequest request = RequestBuilder.post().
-                setUri(getRemoteUrl()).
-                setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8)).
-                build();
+            HttpUriRequest request = RequestBuilder.post()
+                    .setUri(getRemoteUrl())
+                    .setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8))
+                    .build();
 
             try (CloseableHttpResponse response = client.execute(request)) {
                 output = EntityUtils.toString(response.getEntity());
@@ -222,9 +223,9 @@ public class WebDatabase extends AbstractDatabase<Void> {
 
         String message = ObjectUtils.to(String.class, outputMap.get(RESULT_KEY));
 
-        throw new DatabaseException(this, ObjectUtils.isBlank(message) ?
-                String.format("Unknown error! (%s)", output) :
-                message);
+        throw new DatabaseException(this, ObjectUtils.isBlank(message)
+                ? String.format("Unknown error! (%s)", output)
+                : message);
     }
 
     private <T> T createSavedObjectWithMap(Object mapObject, Query<T> query) {
@@ -316,8 +317,8 @@ public class WebDatabase extends AbstractDatabase<Void> {
             return true;
         } else if (other instanceof WebDatabase) {
             WebDatabase otherDatabase = (WebDatabase) other;
-            return ObjectUtils.equals(getRemoteUrl(), otherDatabase.getRemoteUrl()) &&
-                    ObjectUtils.equals(getRemoteDatabase(), otherDatabase.getRemoteDatabase());
+            return ObjectUtils.equals(getRemoteUrl(), otherDatabase.getRemoteUrl())
+                    && ObjectUtils.equals(getRemoteDatabase(), otherDatabase.getRemoteDatabase());
         } else {
             return false;
         }

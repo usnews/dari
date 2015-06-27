@@ -623,9 +623,9 @@ public final class StringUtils {
                             query.append('&');
                             query.append(encodeUri(name));
                             query.append('=');
-                            query.append(encodeUri(item instanceof Enum ?
-                                    ((Enum<?>) item).name() :
-                                    item.toString()));
+                            query.append(encodeUri(item instanceof Enum
+                                    ? ((Enum<?>) item).name()
+                                    : item.toString()));
                         }
                     }
                 }
@@ -676,9 +676,9 @@ public final class StringUtils {
             for (int nameAt = 0; (nameAt = uri.indexOf(prefix, nameAt)) > -1;) {
                 nameAt += prefixLength;
                 int andAt = uri.indexOf('&', nameAt);
-                values.add(decodeUri(andAt > -1 ?
-                        uri.substring(nameAt, andAt) :
-                        uri.substring(nameAt)));
+                values.add(decodeUri(andAt > -1
+                        ? uri.substring(nameAt, andAt)
+                        : uri.substring(nameAt)));
             }
         }
 
@@ -758,9 +758,9 @@ public final class StringUtils {
     }
 
     // --- Pattern bridge ---
-    private static final LoadingCache<String, Pattern> PATTERNS = CacheBuilder.newBuilder().
-        maximumSize(1000).
-        build(new CacheLoader<String, Pattern>() {
+    private static final LoadingCache<String, Pattern> PATTERNS = CacheBuilder.newBuilder()
+        .maximumSize(1000)
+        .build(new CacheLoader<String, Pattern>() {
 
             @Override
             public Pattern load(String pattern) {
@@ -970,9 +970,9 @@ public final class StringUtils {
         StringBuilder sb = new StringBuilder();
         for (int i = 0, s = string.length(); i < s; ++ i) {
             char c = string.charAt(i);
-            if (0x30 <= c && c <= 0x39 ||
-                    0x41 <= c && c <= 0x5A ||
-                    0x61 <= c && c <= 0x7A) {
+            if (0x30 <= c && c <= 0x39
+                    || 0x41 <= c && c <= 0x5A
+                    || 0x61 <= c && c <= 0x7A) {
                 sb.append(c);
             } else {
                 String hex = Integer.toHexString(c);

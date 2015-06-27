@@ -187,9 +187,9 @@ public class WebPageContext extends HtmlWriter {
      * @param defaultValue Can be {@code null}.
      */
     public String h(Object input, Object defaultValue) {
-        return StringUtils.escapeHtml(input != null ?
-                input.toString() :
-                String.valueOf(defaultValue));
+        return StringUtils.escapeHtml(input != null
+                ? input.toString()
+                : String.valueOf(defaultValue));
     }
 
     /**
@@ -515,9 +515,9 @@ public class WebPageContext extends HtmlWriter {
     /** @deprecated No replacement. */
     @Deprecated
     public String hb(Object input, Object defaultValue) {
-        return input != null ?
-                StringUtils.escapeHtmlAndBreak(input.toString()) :
-                defaultValue.toString();
+        return input != null
+                ? StringUtils.escapeHtmlAndBreak(input.toString())
+                : defaultValue.toString();
     }
 
     /** @deprecated No replacement. */

@@ -1,5 +1,6 @@
 package com.psddev.dari.util;
 
+// CHECKSTYLE:OFF
 /**
  * @deprecated No replacement.
  */

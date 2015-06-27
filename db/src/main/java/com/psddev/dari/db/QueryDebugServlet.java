@@ -176,8 +176,8 @@ public class QueryDebugServlet extends HttpServlet {
                 }
             }
 
-            if (ObjectUtils.isBlank(additionalFieldsString) &&
-                    ObjectUtils.isBlank(filter)) {
+            if (ObjectUtils.isBlank(additionalFieldsString)
+                    && ObjectUtils.isBlank(filter)) {
                 query.resolveToReferenceOnly();
             }
 
@@ -789,12 +789,11 @@ public class QueryDebugServlet extends HttpServlet {
                                         writeStart("td");
                                             writeStart("span",
                                                     "class", "link",
-                                                    "onclick",
-                                                            "var $input = $(this).popup('source').prev();" +
-                                                            "$input.val('" + itemState.getId() + "');" +
-                                                            "$input.prev().text('" + StringUtils.escapeJavaScript(itemState.getLabel()) + "');" +
-                                                            "$(this).popup('close');" +
-                                                            "return false;");
+                                                    "onclick", "var $input = $(this).popup('source').prev();"
+                                                            + "$input.val('" + itemState.getId() + "');"
+                                                            + "$input.prev().text('" + StringUtils.escapeJavaScript(itemState.getLabel()) + "');"
+                                                            + "$(this).popup('close');"
+                                                            + "return false;");
                                                 writeHtml(itemState.getId());
                                             writeEnd();
                                         writeEnd();

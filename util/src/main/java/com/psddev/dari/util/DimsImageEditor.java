@@ -262,8 +262,8 @@ public class DimsImageEditor extends AbstractImageEditor {
                         Integer thumbnailWidth = thumbnailCommand.getWidth();
                         Integer thumbnailHeight = thumbnailCommand.getHeight();
 
-                        if (width != null && height != null &&
-                                width.equals(thumbnailWidth) && height.equals(thumbnailHeight)) {
+                        if (width != null && height != null
+                                && width.equals(thumbnailWidth) && height.equals(thumbnailHeight)) {
                             return image;
                         }
                     }
@@ -832,9 +832,9 @@ public class DimsImageEditor extends AbstractImageEditor {
 
         @Override
         public Dimension getOutputDimension(Dimension dimension) {
-            if (dimension != null &&
-                    dimension.width != null && dimension.height != null &&
-                    this.width != null && this.height != null) {
+            if (dimension != null
+                    && dimension.width != null && dimension.height != null
+                    && this.width != null && this.height != null) {
                 return new Dimension(
                         Math.min(this.width, dimension.width),
                         Math.min(this.height, dimension.height));
@@ -895,9 +895,9 @@ public class DimsImageEditor extends AbstractImageEditor {
         @Override
         public Dimension getOutputDimension(Dimension dimension) {
 
-            if (dimension != null &&
-                    dimension.width != null && dimension.height != null &&
-                    this.width != null && this.height != null) {
+            if (dimension != null
+                    && dimension.width != null && dimension.height != null
+                    && this.width != null && this.height != null) {
 
                 if (option == null || option.equals("!") || option.equals("^")) {
                     return new Dimension(this.width, this.height);
@@ -982,9 +982,9 @@ public class DimsImageEditor extends AbstractImageEditor {
                     actualHeight = actualDimension.height;
 
                 } else if (">".equals(option)) { // only shrink larger images
-                    if ((this.height == null && this.width >= original.width) ||
-                            (this.width == null && this.height >= original.height) || //            -->  <-- this is an AND
-                            (this.width != null && this.height != null && this.width >= original.width && this.height >= original.height)) {
+                    if ((this.height == null && this.width >= original.width)
+                            || (this.width == null && this.height >= original.height) //               -->  <-- this is an AND
+                            || (this.width != null && this.height != null && this.width >= original.width && this.height >= original.height)) {
 
                         actualWidth = original.width;
                         actualHeight = original.height;
@@ -996,9 +996,9 @@ public class DimsImageEditor extends AbstractImageEditor {
                     }
 
                 } else if ("<".equals(option)) { // only enlarge smaller images
-                    if ((this.height == null && this.width <= original.width) ||
-                            (this.width == null && this.height <= original.height) || //             -->  <-- This is an OR
-                            (this.width != null && this.height != null && (this.width <= original.width || this.height <= original.height))) {
+                    if ((this.height == null && this.width <= original.width)
+                            || (this.width == null && this.height <= original.height) //                -->  <-- This is an OR
+                            || (this.width != null && this.height != null && (this.width <= original.width || this.height <= original.height))) {
 
                         actualWidth = original.width;
                         actualHeight = original.height;
@@ -1022,8 +1022,8 @@ public class DimsImageEditor extends AbstractImageEditor {
             Integer actualWidth = null;
             Integer actualHeight = null;
 
-            if (originalWidth != null && originalHeight != null &&
-                    (requestedWidth != null || requestedHeight != null)) {
+            if (originalWidth != null && originalHeight != null
+                    && (requestedWidth != null || requestedHeight != null)) {
 
                 float originalRatio = (float) originalWidth / (float) originalHeight;
                 if (requestedWidth != null && requestedHeight != null) {
@@ -1057,8 +1057,8 @@ public class DimsImageEditor extends AbstractImageEditor {
             Integer actualWidth = null;
             Integer actualHeight = null;
 
-            if (originalWidth != null && originalHeight != null &&
-                    (requestedWidth != null || requestedHeight != null)) {
+            if (originalWidth != null && originalHeight != null
+                    && (requestedWidth != null || requestedHeight != null)) {
 
                 float originalRatio = (float) originalWidth / (float) originalHeight;
                 if (requestedWidth != null && requestedHeight != null) {

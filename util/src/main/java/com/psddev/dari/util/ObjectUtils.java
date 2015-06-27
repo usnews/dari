@@ -182,10 +182,10 @@ public abstract class ObjectUtils {
             return null;
 
         } else {
-            return CLASSES_BY_LOADER.
-                    getUnchecked(Optional.fromNullable(loader)).
-                    getUnchecked(name).
-                    orNull();
+            return CLASSES_BY_LOADER
+                    .getUnchecked(Optional.fromNullable(loader))
+                    .getUnchecked(name)
+                    .orNull();
         }
     }
 
@@ -224,14 +224,14 @@ public abstract class ObjectUtils {
             Class<?> object1Class = object1.getClass();
             Class<?> object2Class = object2.getClass();
 
-            if (Comparable.class.isAssignableFrom(object1Class) &&
-                    object1Class.isAssignableFrom(object2Class)) {
+            if (Comparable.class.isAssignableFrom(object1Class)
+                    && object1Class.isAssignableFrom(object2Class)) {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> object1Comparable = (Comparable<Object>) object1;
                 return object1Comparable.compareTo(object2);
 
-            } else if (Comparable.class.isAssignableFrom(object2Class) &&
-                    object2Class.isAssignableFrom(object1Class)) {
+            } else if (Comparable.class.isAssignableFrom(object2Class)
+                    && object2Class.isAssignableFrom(object1Class)) {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> object2Comparable = (Comparable<Object>) object2;
                 return 0 - object2Comparable.compareTo(object1);
@@ -244,9 +244,9 @@ public abstract class ObjectUtils {
 
     /** Sorts the given {@code list} using {@link #compare}. */
     public static void sort(List<?> list, boolean isNullGreatest) {
-        Collections.sort(list, isNullGreatest ?
-                NULL_GREATEST_COMPARATOR :
-                NULL_LEAST_COMPARATOR);
+        Collections.sort(list, isNullGreatest
+                ? NULL_GREATEST_COMPARATOR
+                : NULL_LEAST_COMPARATOR);
     }
 
     private static final Comparator<Object> NULL_GREATEST_COMPARATOR = new Comparator<Object>() {
@@ -589,22 +589,22 @@ public abstract class ObjectUtils {
             Class<?> o1c = object1.getClass();
             Class<?> o2c = object2.getClass();
 
-            if (Comparable.class.isAssignableFrom(o1c) &&
-                    o1c.isAssignableFrom(o2c)) {
+            if (Comparable.class.isAssignableFrom(o1c)
+                    && o1c.isAssignableFrom(o2c)) {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> object1Comparable = (Comparable<Object>) object1;
                 return object1Comparable.compareTo(object2);
 
-            } else if (Comparable.class.isAssignableFrom(o2c) &&
-                    o2c.isAssignableFrom(o1c)) {
+            } else if (Comparable.class.isAssignableFrom(o2c)
+                    && o2c.isAssignableFrom(o1c)) {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> object2Comparable = (Comparable<Object>) object2;
                 return 0 - object2Comparable.compareTo(object1);
 
             } else {
                 throw new IllegalArgumentException(
-                        "The [object1] and [object2] parameters must be" +
-                        " compatible and comparable!");
+                        "The [object1] and [object2] parameters must be"
+                                + " compatible and comparable!");
             }
         }
     }
@@ -662,9 +662,9 @@ public abstract class ObjectUtils {
 
                 } catch (InvocationTargetException ex) {
                     Throwable cause = ex.getCause();
-                    throw cause instanceof RuntimeException ?
-                            (RuntimeException) cause :
-                            new RuntimeException(cause);
+                    throw cause instanceof RuntimeException
+                            ? (RuntimeException) cause
+                            : new RuntimeException(cause);
                 }
 
             } else {
@@ -701,9 +701,9 @@ public abstract class ObjectUtils {
 
     // Captializes the given string.
     private static String capitalize(String string) {
-        return string == null || string.length() == 0 ?
-                string :
-                string.substring(0, 1).toUpperCase(Locale.ENGLISH) + string.substring(1);
+        return string == null || string.length() == 0
+                ? string
+                : string.substring(0, 1).toUpperCase(Locale.ENGLISH) + string.substring(1);
     }
 
     /** @deprecated Use {@link #findClassesFromLoader} instead. */

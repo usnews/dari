@@ -285,9 +285,9 @@ public class JsonProcessor {
         if (transformed == null) {
             generator.writeNull();
 
-        } else if (transformed instanceof String ||
-                transformed instanceof Character ||
-                transformed instanceof CharSequence) {
+        } else if (transformed instanceof String
+                || transformed instanceof Character
+                || transformed instanceof CharSequence) {
             generator.writeString(transformed.toString());
 
         } else if (transformed instanceof Boolean) {
@@ -297,14 +297,14 @@ public class JsonProcessor {
             generator.writeNumber((Double) transformed);
 
         } else if (transformed instanceof Number) {
-            if (transformed instanceof Long ||
-                    transformed instanceof Integer ||
-                    transformed instanceof Short ||
-                    transformed instanceof Byte) {
+            if (transformed instanceof Long
+                    || transformed instanceof Integer
+                    || transformed instanceof Short
+                    || transformed instanceof Byte) {
                 generator.writeNumber(((Number) transformed).longValue());
 
-            } else if (transformed instanceof Double ||
-                    transformed instanceof Float) {
+            } else if (transformed instanceof Double
+                    || transformed instanceof Float) {
                 generator.writeNumber(((Number) transformed).doubleValue());
 
             } else {

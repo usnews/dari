@@ -843,9 +843,9 @@ public class SqlVendor {
 
                         if (statementReplication) {
                             LOGGER.warn(
-                                    "Using REPEATABLE READ transaction isolation due to statement-based replication." +
-                                    " This may cause reduced performance under load." +
-                                    " Please use mixed-mode replication (Add 'binlog_format = mixed' to my.cnf).");
+                                    "Using REPEATABLE READ transaction isolation due to statement-based replication."
+                                            + " This may cause reduced performance under load."
+                                            + " Please use mixed-mode replication (Add 'binlog_format = mixed' to my.cnf).");
                         }
 
                     } finally {
@@ -1687,12 +1687,11 @@ public class SqlVendor {
 
         @Override
         protected String rewriteQueryWithLimitClause(String query, int limit, long offset) {
-            return String.format(
-                    "SELECT * FROM " +
-                    "    (SELECT a.*, ROWNUM rnum FROM " +
-                    "        (%s) a " +
-                    "      WHERE ROWNUM <= %d)" +
-                    " WHERE rnum  >= %d", query, offset + limit, offset);
+            return String.format("SELECT * FROM "
+                    + "    (SELECT a.*, ROWNUM rnum FROM "
+                    + "        (%s) a "
+                    + "      WHERE ROWNUM <= %d)"
+                    + " WHERE rnum  >= %d", query, offset + limit, offset);
         }
 
         @Override

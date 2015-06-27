@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+// CHECKSTYLE:OFF
 /**
  * @deprecated No replacement.
  */

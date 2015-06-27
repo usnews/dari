@@ -192,8 +192,8 @@ public class HtmlWriter extends Writer {
             }
         }
 
-        if (selfClosing &&
-                ObjectUtils.firstNonNull(getSelfClosing(), Settings.get(boolean.class, "dari/selfClosingElements"))) {
+        if (selfClosing
+                && ObjectUtils.firstNonNull(getSelfClosing(), Settings.get(boolean.class, "dari/selfClosingElements"))) {
             delegate.write('/');
         }
 
@@ -1068,9 +1068,9 @@ public class HtmlWriter extends Writer {
                 r += 30000;
             }
 
-            return new CssUnit(top, unit) + " " +
-                    new CssUnit(r, unit) + " 0 " +
-                    new CssUnit(l, unit);
+            return new CssUnit(top, unit) + " "
+                    + new CssUnit(r, unit) + " 0 "
+                    + new CssUnit(l, unit);
         }
     }
 

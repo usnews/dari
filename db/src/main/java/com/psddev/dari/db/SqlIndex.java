@@ -277,8 +277,8 @@ public enum SqlIndex {
             for (String fieldName : indexFieldNames) {
                 ObjectField field = parent.getField(fieldName);
 
-                if (field != null &&
-                        field.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
+                if (field != null
+                        && field.as(SqlDatabase.FieldData.class).isIndexTableSameColumnNames()) {
                     String valueFieldName = indexFieldNames.get(fieldIndex);
                     int dotAt = valueFieldName.lastIndexOf(".");
 
@@ -287,8 +287,8 @@ public enum SqlIndex {
                     }
 
                     return valueFieldName;
-                } else if (field != null &&
-                        field.as(SqlDatabase.FieldData.class).getIndexTableColumnName() != null) {
+                } else if (field != null
+                        && field.as(SqlDatabase.FieldData.class).getIndexTableColumnName() != null) {
                     return field.as(SqlDatabase.FieldData.class).getIndexTableColumnName();
                 }
             }
@@ -306,10 +306,10 @@ public enum SqlIndex {
             ObjectField field = parent.getField(index.getFields().get(fieldIndex));
             String type = field.getInternalItemType();
 
-            if (ObjectField.DATE_TYPE.equals(type) ||
-                    ObjectField.NUMBER_TYPE.equals(type) ||
-                    ObjectField.LOCATION_TYPE.equals(type) ||
-                    ObjectField.REGION_TYPE.equals(type)) {
+            if (ObjectField.DATE_TYPE.equals(type)
+                    || ObjectField.NUMBER_TYPE.equals(type)
+                    || ObjectField.LOCATION_TYPE.equals(type)
+                    || ObjectField.REGION_TYPE.equals(type)) {
                 return value;
 
             } else if (value instanceof UUID) {
@@ -656,8 +656,8 @@ public enum SqlIndex {
          * of the given field {@code type}.
          */
         public static SqlIndex getByType(String type) {
-            if (ObjectField.DATE_TYPE.equals(type) ||
-                    ObjectField.NUMBER_TYPE.equals(type)) {
+            if (ObjectField.DATE_TYPE.equals(type)
+                    || ObjectField.NUMBER_TYPE.equals(type)) {
                 return SqlIndex.NUMBER;
 
             } else if (ObjectField.LOCATION_TYPE.equals(type)) {
@@ -666,8 +666,8 @@ public enum SqlIndex {
             } else if (ObjectField.REGION_TYPE.equals(type)) {
                 return SqlIndex.REGION;
 
-            } else if (ObjectField.RECORD_TYPE.equals(type) ||
-                    ObjectField.UUID_TYPE.equals(type)) {
+            } else if (ObjectField.RECORD_TYPE.equals(type)
+                    || ObjectField.UUID_TYPE.equals(type)) {
                 return SqlIndex.UUID;
 
             } else {
@@ -683,9 +683,9 @@ public enum SqlIndex {
             List<String> fieldNames = index.getFields();
             ObjectField field = index.getParent().getField(fieldNames.get(0));
 
-            if (fieldNames.size() > 1 ||
-                    (field != null &&
-                    field.as(SqlDatabase.FieldData.class).getIndexTable() != null)) {
+            if (fieldNames.size() > 1
+                    || (field != null
+                    && field.as(SqlDatabase.FieldData.class).getIndexTable() != null)) {
                 return SqlIndex.CUSTOM;
 
             } else {
@@ -739,9 +739,9 @@ public enum SqlIndex {
             for (ObjectStruct struct : structs) {
                 for (ObjectIndex index : struct.getIndexes()) {
                     ObjectField field = index.getParent().getField(index.getFields().get(0));
-                    if (field != null &&
-                            (index.getFields().size() > 1 ||
-                            field.as(SqlDatabase.FieldData.class).getIndexTable() != null)) {
+                    if (field != null
+                            && (index.getFields().size() > 1
+                            || field.as(SqlDatabase.FieldData.class).getIndexTable() != null)) {
                         customIndexes.add(index);
                     }
                 }
@@ -1119,8 +1119,8 @@ public enum SqlIndex {
                 if (ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
                     ObjectType valueType = valueState.getType();
 
-                    if (field.isEmbedded() ||
-                            (valueType != null && valueType.isEmbedded())) {
+                    if (field.isEmbedded()
+                            || (valueType != null && valueType.isEmbedded())) {
                         int last;
                         ObjectField[] newPrefixes;
 
@@ -1146,10 +1146,10 @@ public enum SqlIndex {
                     values.add(valueState.getId());
                 }
 
-            } else if (value instanceof Character ||
-                    value instanceof CharSequence ||
-                    value instanceof URI ||
-                    value instanceof URL) {
+            } else if (value instanceof Character
+                    || value instanceof CharSequence
+                    || value instanceof URI
+                    || value instanceof URL) {
                 values.add(value.toString());
 
             } else if (value instanceof Date) {

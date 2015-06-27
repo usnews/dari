@@ -353,8 +353,8 @@ public interface StorageItem extends SettingsBackedObject {
                                         if (childPath.length() == 0) {
                                             newCssBuilder.append("''");
 
-                                        } else if (childPath.startsWith("data:") ||
-                                                childPath.endsWith(".htc")) {
+                                        } else if (childPath.startsWith("data:")
+                                                || childPath.endsWith(".htc")) {
                                             newCssBuilder.append(childPath);
 
                                         } else {
@@ -431,10 +431,10 @@ public interface StorageItem extends SettingsBackedObject {
                 return null;
             }
 
-            StorageItem item = resources.
-                    get(storage != null ? storage : "").
-                    get(servletContext).
-                    get(servletPath);
+            StorageItem item = resources
+                    .get(storage != null ? storage : "")
+                    .get(servletContext)
+                    .get(servletPath);
 
             return item;
         }

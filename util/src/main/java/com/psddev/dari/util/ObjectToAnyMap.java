@@ -278,8 +278,8 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
         }
 
         public void includeAllFields() {
-            if (allOrder == AllOrder.GETTERS ||
-                    allOrder == AllOrder.GETTERS_FIELDS) {
+            if (allOrder == AllOrder.GETTERS
+                    || allOrder == AllOrder.GETTERS_FIELDS) {
                 allOrder = AllOrder.FIELDS_GETTERS;
             } else {
                 allOrder = AllOrder.FIELDS;
@@ -296,8 +296,8 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
         }
 
         public void includeAllGetters() {
-            if (allOrder == AllOrder.FIELDS ||
-                    allOrder == AllOrder.FIELDS_GETTERS) {
+            if (allOrder == AllOrder.FIELDS
+                    || allOrder == AllOrder.FIELDS_GETTERS) {
                 allOrder = AllOrder.GETTERS_FIELDS;
             } else {
                 allOrder = AllOrder.GETTERS;
@@ -327,8 +327,8 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
         public void excludeAllFields() {
             if (allOrder == AllOrder.FIELDS) {
                 allOrder = null;
-            } else if (allOrder == AllOrder.FIELDS_GETTERS ||
-                    allOrder == AllOrder.GETTERS_FIELDS) {
+            } else if (allOrder == AllOrder.FIELDS_GETTERS
+                    || allOrder == AllOrder.GETTERS_FIELDS) {
                 allOrder = AllOrder.GETTERS;
             }
         }
@@ -336,8 +336,8 @@ public class ObjectToAnyMap implements ConversionFunction<Object, Map<Object, Ob
         public void excludeAllGetters() {
             if (allOrder == AllOrder.GETTERS) {
                 allOrder = null;
-            } else if (allOrder == AllOrder.FIELDS_GETTERS ||
-                    allOrder == AllOrder.GETTERS_FIELDS) {
+            } else if (allOrder == AllOrder.FIELDS_GETTERS
+                    || allOrder == AllOrder.GETTERS_FIELDS) {
                 allOrder = AllOrder.FIELDS;
             }
         }

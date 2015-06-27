@@ -88,8 +88,8 @@ public class FrameFilter extends AbstractFilter {
             if (body != null) {
                 PrintWriter writer = response.getWriter();
 
-                if (JspUtils.isAjaxRequest(request) ||
-                        "html".equals(request.getParameter("_result"))) {
+                if (JspUtils.isAjaxRequest(request)
+                        || "html".equals(request.getParameter("_result"))) {
                     response.setContentType("text/plain");
                     writer.write(body);
 
@@ -142,8 +142,8 @@ public class FrameFilter extends AbstractFilter {
         } finally {
             DiscardingResponse discarding = (DiscardingResponse) request.getAttribute(DISCARDING_RESPONSE_ATTRIBUTE);
 
-            if (discarding != null &&
-                    JspUtils.getCurrentServletPath(request).equals(discarding.donePath)) {
+            if (discarding != null
+                    && JspUtils.getCurrentServletPath(request).equals(discarding.donePath)) {
                 request.setAttribute(DISCARDING_DONE_ATTRIBUTE, Boolean.TRUE);
             }
         }

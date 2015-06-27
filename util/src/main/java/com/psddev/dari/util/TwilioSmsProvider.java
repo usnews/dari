@@ -62,9 +62,9 @@ public class TwilioSmsProvider implements SmsProvider {
 
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(
-                    "https://api.twilio.com/2010-04-01/Accounts/" +
-                    getAccountSid() +
-                    "/SMS/Messages.json").openConnection();
+                    "https://api.twilio.com/2010-04-01/Accounts/"
+                    + getAccountSid()
+                    + "/SMS/Messages.json").openConnection();
 
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Authorization", "Basic " + DatatypeConverter.printBase64Binary((getAccountSid() + ":" + getAuthToken()).getBytes(StandardCharsets.UTF_8)));

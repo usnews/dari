@@ -15,6 +15,7 @@ import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.TypeDefinition;
 
+// CHECKSTYLE:OFF
 /**
  * @deprecated No replacement.
  */

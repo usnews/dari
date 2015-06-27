@@ -397,9 +397,9 @@ public final class CodeUtils {
         if (result instanceof Set) {
             for (Class<?> c : (Set<Class<?>>) result) {
                 for (Method method : c.getDeclaredMethods()) {
-                    if (Modifier.isStatic(method.getModifiers()) &&
-                            method.getReturnType() != Void.class &&
-                            method.getParameterTypes().length == 0) {
+                    if (Modifier.isStatic(method.getModifiers())
+                            && method.getReturnType() != Void.class
+                            && method.getParameterTypes().length == 0) {
 
                         method.setAccessible(true);
                         try {
@@ -438,8 +438,8 @@ public final class CodeUtils {
 
         @Override
         public boolean hasLocation(Location location) {
-            return location == StandardLocation.CLASS_OUTPUT ||
-                    location == StandardLocation.CLASS_PATH;
+            return location == StandardLocation.CLASS_OUTPUT
+                    || location == StandardLocation.CLASS_PATH;
         }
 
         private class ByteArrayClass extends SimpleJavaFileObject {
@@ -484,8 +484,7 @@ public final class CodeUtils {
     private static class StringSource extends SimpleJavaFileObject {
 
         private static final Pattern CLASS_NAME_PATTERN = Pattern.compile(
-                "(?m)^[\\s\\p{javaJavaIdentifierPart}]*(?:class|interface)\\s+" +
-                "(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*)");
+                "(?m)^[\\s\\p{javaJavaIdentifierPart}]*(?:class|interface)\\s+(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*)");
 
         private final String code;
 

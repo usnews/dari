@@ -332,8 +332,8 @@ public final class IoUtils {
     public static void createFile(File file) throws IOException {
         createParentDirectories(file);
 
-        if (!file.createNewFile() &&
-                !file.isFile()) {
+        if (!file.createNewFile()
+                && !file.isFile()) {
             throw new IOException("[" + file + "] already exists but isn't a file!");
         }
     }
@@ -358,10 +358,10 @@ public final class IoUtils {
      * @throws IOException If the given {@code file} couldn't be deleted.
      */
     public static void delete(File fileOrDirectory) throws IOException {
-        if (fileOrDirectory != null &&
-                fileOrDirectory.exists() &&
-                !fileOrDirectory.delete() &&
-                fileOrDirectory.exists()) {
+        if (fileOrDirectory != null
+                && fileOrDirectory.exists()
+                && !fileOrDirectory.delete()
+                && fileOrDirectory.exists()) {
             throw new IOException("Can't delete [" + fileOrDirectory + "]!");
         }
     }
