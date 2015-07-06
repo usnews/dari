@@ -103,6 +103,7 @@ public class ObjectField extends Record {
         CLASS_TO_TYPE.put(URL.class, URL_TYPE);
         CLASS_TO_TYPE.put(UUID.class, UUID_TYPE);
         CLASS_TO_TYPE.put(Locale.class, LOCALE_TYPE);
+        CLASS_TO_TYPE.put(Object.class, ANY_TYPE);
 
         for (Map.Entry<Class<?>, String> e : CLASS_TO_TYPE.entrySet()) {
             Class<?> type = e.getKey();
@@ -434,8 +435,8 @@ public class ObjectField extends Record {
 
         name = StringUtils.toLabel(name);
 
-        if (!name.endsWith("?") &&
-                BOOLEAN_TYPE.equals(getInternalItemType())) {
+        if (!name.endsWith("?")
+                && BOOLEAN_TYPE.equals(getInternalItemType())) {
             name += "?";
         }
 
@@ -496,10 +497,9 @@ public class ObjectField extends Record {
         Set<ObjectField> denormalizedFields = null;
 
         if (valueType != null) {
-            Set<String> denormalizedFieldNames =
-                    isDenormalized() ? getDenormalizedFields() :
-                    valueType.isDenormalized() ? valueType.getDenormalizedFields() :
-                    null;
+            Set<String> denormalizedFieldNames = isDenormalized() ? getDenormalizedFields()
+                    : valueType.isDenormalized() ? valueType.getDenormalizedFields()
+                    : null;
 
             if (denormalizedFieldNames != null) {
                 denormalizedFields = new HashSet<ObjectField>();
@@ -573,9 +573,9 @@ public class ObjectField extends Record {
         } else {
             ObjectType type = types.iterator().next();
             Predicate resolveInvisiblePredicate = null;
-            Query<Object> query = Query.
-                    fromType(type).
-                    where(getJunctionField() + " = ?", state.getId());
+            Query<Object> query = Query
+                    .fromType(type)
+                    .where(getJunctionField() + " = ?", state.getId());
 
             if (state.isResolveInvisible()) {
                 DatabaseEnvironment environment = Database.Static.getDefault().getEnvironment();
@@ -734,14 +734,14 @@ public class ObjectField extends Record {
 
         Class<?> declaringClass = ObjectUtils.getClassByName(getJavaDeclaringClassName());
 
-        return declaringClass != null && declaringClass.isAssignableFrom(objectClass) ?
-                javaFieldCache.getUnchecked(objectClass).orNull() :
-                null;
+        return declaringClass != null && declaringClass.isAssignableFrom(objectClass)
+                ? javaFieldCache.getUnchecked(objectClass).orNull()
+                : null;
     }
 
-    private final transient LoadingCache<Class<?>, Optional<Field>> javaFieldCache = CacheBuilder.
-            newBuilder().
-            build(new CacheLoader<Class<?>, Optional<Field>>() {
+    private final transient LoadingCache<Class<?>, Optional<Field>> javaFieldCache = CacheBuilder
+            .newBuilder()
+            .build(new CacheLoader<Class<?>, Optional<Field>>() {
 
         @Override
         public Optional<Field> load(Class<?> objectClass) {
@@ -855,9 +855,9 @@ public class ObjectField extends Record {
         }
 
         String predicate = getPredicate();
-        if (!ObjectUtils.isBlank(predicate) &&
-                RECORD_TYPE.equals(internalType) &&
-                !PredicateParser.Static.evaluate(value, predicate, state)) {
+        if (!ObjectUtils.isBlank(predicate)
+                && RECORD_TYPE.equals(internalType)
+                && !PredicateParser.Static.evaluate(value, predicate, state)) {
             state.addError(this, String.format("Must match %s!", predicate));
         }
 
@@ -1009,26 +1009,26 @@ public class ObjectField extends Record {
             String type = CLASS_TO_TYPE.get(javaTypeClass);
 
             if (type != null) {
-                if (javaTypeClass.equals(long.class) ||
-                        javaTypeClass.equals(Long.class)) {
+                if (javaTypeClass.equals(long.class)
+                        || javaTypeClass.equals(Long.class)) {
                     setMinimum(Long.MIN_VALUE);
                     setStep(1);
                     setMaximum(Long.MAX_VALUE);
 
-                } else if (javaTypeClass.equals(int.class) ||
-                        javaTypeClass.equals(Integer.class)) {
+                } else if (javaTypeClass.equals(int.class)
+                        || javaTypeClass.equals(Integer.class)) {
                     setMinimum(Integer.MIN_VALUE);
                     setStep(1);
                     setMaximum(Integer.MAX_VALUE);
 
-                } else if (javaTypeClass.equals(short.class) ||
-                        javaTypeClass.equals(Short.class)) {
+                } else if (javaTypeClass.equals(short.class)
+                        || javaTypeClass.equals(Short.class)) {
                     setMinimum(Short.MIN_VALUE);
                     setStep(1);
                     setMaximum(Short.MAX_VALUE);
 
-                } else if (javaTypeClass.equals(byte.class) ||
-                        javaTypeClass.equals(Byte.class)) {
+                } else if (javaTypeClass.equals(byte.class)
+                        || javaTypeClass.equals(Byte.class)) {
                     setMinimum(Byte.MIN_VALUE);
                     setStep(1);
                     setMaximum(Byte.MAX_VALUE);
@@ -1193,10 +1193,10 @@ public class ObjectField extends Record {
     public boolean isMetric() {
         Set<ObjectType> types = getTypes();
 
-        return getInternalItemType().equals(METRIC_TYPE) ||
-                (types != null &&
-                !types.isEmpty() &&
-                Metric.class.equals(types.iterator().next().getObjectClass()));
+        return getInternalItemType().equals(METRIC_TYPE)
+                || (types != null
+                && !types.isEmpty()
+                && Metric.class.equals(types.iterator().next().getObjectClass()));
     }
 
     // --- Object support ---
@@ -1209,8 +1209,8 @@ public class ObjectField extends Record {
 
         } else if (other instanceof ObjectField) {
             ObjectField otherField = (ObjectField) other;
-            return ObjectUtils.equals(getParent(), otherField.getParent()) &&
-                    ObjectUtils.equals(getInternalName(), otherField.getInternalName());
+            return ObjectUtils.equals(getParent(), otherField.getParent())
+                    && ObjectUtils.equals(getInternalName(), otherField.getInternalName());
 
         } else {
             return false;
@@ -1343,8 +1343,8 @@ public class ObjectField extends Record {
             if (definitions != null) {
                 for (Map<String, Object> definition : definitions) {
                     ObjectField instance;
-                    if (definition.get(JAVA_FIELD_NAME_KEY) == null &&
-                            definition.get(ObjectMethod.JAVA_METHOD_NAME_KEY) != null) {
+                    if (definition.get(JAVA_FIELD_NAME_KEY) == null
+                            && definition.get(ObjectMethod.JAVA_METHOD_NAME_KEY) != null) {
                         instance = new ObjectMethod(parent, definition);
                     } else {
                         instance = new ObjectField(parent, definition);

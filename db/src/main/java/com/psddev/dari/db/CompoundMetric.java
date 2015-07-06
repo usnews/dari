@@ -49,15 +49,15 @@ public class CompoundMetric extends Metric {
 
     @Override
     public double getByDimensionBetween(String dimension, DateTime start, DateTime end) {
-        double leftAmount = left != null ? left.getByDimensionBetween(dimension, start, end) : fixedLeft;
-        double rightAmount = right != null ? right.getByDimensionBetween(dimension, start, end) : fixedRight;
+        double leftAmount = left != null ? left.getByDimensionBetween(dimension, start, end) : fixedLeft != null ? fixedLeft : 0d;
+        double rightAmount = right != null ? right.getByDimensionBetween(dimension, start, end) : fixedRight != null ? fixedRight : 0d;
         return reduce(leftAmount, rightAmount);
     }
 
     @Override
     public boolean isEmptyByDimensionBetween(String dimension, DateTime start, DateTime end) {
-        return (left != null ? left.isEmptyByDimensionBetween(dimension, start, end) : false) &&
-            (right != null ? right.isEmptyByDimensionBetween(dimension, start, end) : false);
+        return (left != null ? left.isEmptyByDimensionBetween(dimension, start, end) : false)
+                && (right != null ? right.isEmptyByDimensionBetween(dimension, start, end) : false);
     }
 
     @Override

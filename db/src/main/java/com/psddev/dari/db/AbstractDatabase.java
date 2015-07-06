@@ -142,9 +142,9 @@ public abstract class AbstractDatabase<C> implements Database {
 
                                 oldItems.remove(item);
 
-                                if (junction == null ||
-                                        (junction instanceof Recordable &&
-                                        !State.getInstance(junction).equals(state))) {
+                                if (junction == null
+                                        || (junction instanceof Recordable
+                                        && !State.getInstance(junction).equals(state))) {
                                     save = true;
 
                                     itemState.put(junctionField, state.getOriginalObject());
@@ -202,7 +202,9 @@ public abstract class AbstractDatabase<C> implements Database {
                                 }
 
                                 if (save) {
-                                    addToSaves(itemState);
+                                    if (!saves.contains(itemState)) {
+                                        itemState.save();
+                                    }
                                 }
                             }
                         }
@@ -212,7 +214,9 @@ public abstract class AbstractDatabase<C> implements Database {
                         State itemState = State.getInstance(item);
 
                         itemState.remove(junctionField);
-                        addToSaves(itemState);
+                        if (!saves.contains(itemState)) {
+                            itemState.save();
+                        }
                     }
                 }
             }
@@ -324,9 +328,9 @@ public abstract class AbstractDatabase<C> implements Database {
      */
     @SuppressWarnings("deprecation")
     public final C openReadConnection() {
-        return Database.Static.isIgnoreReadConnection() ?
-                openConnection() :
-                doOpenReadConnection();
+        return Database.Static.isIgnoreReadConnection()
+                ? openConnection()
+                : doOpenReadConnection();
     }
 
     /**
@@ -346,9 +350,9 @@ public abstract class AbstractDatabase<C> implements Database {
      * {@code query}.
      */
     public C openQueryConnection(Query<?> query) {
-        return query != null && query.isMaster() ?
-                openConnection() :
-                openReadConnection();
+        return query != null && query.isMaster()
+                ? openConnection()
+                : openReadConnection();
     }
 
     /**
@@ -415,12 +419,6 @@ public abstract class AbstractDatabase<C> implements Database {
         return readPartialGrouped(query, 0L, MAXIMUM_LIMIT, fields).getItems();
     }
 
-    @Deprecated
-    @Override
-    public <T> List<T> readList(Query<T> query) {
-        return readAll(query);
-    }
-
     @Override
     public long readCount(Query<?> query) {
         return readPartial(query, 0L, 1).getCount();
@@ -451,9 +449,9 @@ public abstract class AbstractDatabase<C> implements Database {
 
         @Override
         public Iterator<T> iterator() {
-            return query.getSorters().isEmpty() ?
-                    new ByIdIterator<T>(query, fetchSize) :
-                    new PaginatedIterator<T>(query, fetchSize);
+            return query.getSorters().isEmpty()
+                    ? new ByIdIterator<T>(query, fetchSize)
+                    : new PaginatedIterator<T>(query, fetchSize);
         }
     }
 
@@ -676,16 +674,6 @@ public abstract class AbstractDatabase<C> implements Database {
         public long getCount() {
             return count;
         }
-    }
-
-    @Deprecated
-    @Override
-    public Map<Object, Long> readGroupedCount(Query<?> query, String field) {
-        Map<Object, Long> counts = new CompactMap<Object, Long>();
-        for (Grouping<?> grouping : readAllGrouped(query, field)) {
-            counts.put(grouping.getKeys().get(0), grouping.getCount());
-        }
-        return counts;
     }
 
     private final Deque<Writes> getOrCreateWritesQueue() {
@@ -1027,8 +1015,8 @@ public abstract class AbstractDatabase<C> implements Database {
                 } catch (Exception error) {
                     lastError = error;
 
-                    if (error instanceof RecoverableDatabaseException ||
-                            isRecoverableError(error)) {
+                    if (error instanceof RecoverableDatabaseException
+                            || isRecoverableError(error)) {
                         try {
                             long initialPause = Settings.getOrDefault(long.class, "dari/databaseWriteRetryInitialPause", 10L);
                             long finalPause = Settings.getOrDefault(long.class, "dari/databaseWriteRetryFinalPause", 1000L);
@@ -1138,9 +1126,9 @@ public abstract class AbstractDatabase<C> implements Database {
                 }
 
                 ObjectType type = state.getType();
-                for (ObjectStruct struct : type != null ?
-                        new ObjectStruct[] { type, environment } :
-                        new ObjectStruct[] { environment }) {
+                for (ObjectStruct struct : type != null
+                        ? new ObjectStruct[] { type, environment }
+                        : new ObjectStruct[] { environment }) {
 
                     for (ObjectIndex index : struct.getIndexes()) {
                         if (!index.isUnique()) {
@@ -1157,13 +1145,13 @@ public abstract class AbstractDatabase<C> implements Database {
                         List<String> fields = index.getFields();
 
                         for (int i = 0, ps = valuePermutations.length; i < ps; ++ i) {
-                            Query<Object> duplicateQuery = Query.
-                                    from(Object.class).
-                                    where("id != ?", state.getId()).
-                                    using(state.getDatabase()).
-                                    referenceOnly().
-                                    noCache().
-                                    master();
+                            Query<Object> duplicateQuery = Query
+                                    .from(Object.class)
+                                    .where("id != ?", state.getId())
+                                    .using(state.getDatabase())
+                                    .referenceOnly()
+                                    .noCache()
+                                    .master();
 
                             StringBuilder keyBuilder = new StringBuilder();
                             keyBuilder.append(indexName);
@@ -1214,9 +1202,9 @@ public abstract class AbstractDatabase<C> implements Database {
                             errors.add(state);
                             state.addError(
                                     state.getField(index.getField()),
-                                    "Must be unique but duplicate at " +
-                                    (State.getInstance(duplicate).getId()) +
-                                    "!");
+                                    "Must be unique but duplicate at "
+                                            + (State.getInstance(duplicate).getId())
+                                            + "!");
                         }
                     }
                 }

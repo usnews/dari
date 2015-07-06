@@ -9,13 +9,13 @@
     <parent>
         <groupId>com.psddev</groupId>
         <artifactId>dari</artifactId>
-        <version>3.0-SNAPSHOT</version>
+        <version>3.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>com.psddev</groupId>
     <artifactId>dari-util</artifactId>
-    <version>3.0-SNAPSHOT</version>
+    <version>3.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Dari: Utility Library</name>
@@ -111,7 +111,7 @@
 
         <!-- Storage -->
         <dependency>
-            <groupId>org.jclouds</groupId>
+            <groupId>org.apache.jclouds</groupId>
             <artifactId>jclouds-all</artifactId>
             <optional>true</optional>
         </dependency>
@@ -138,6 +138,12 @@
 
         <!-- Test -->
         <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-testlib</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
             <scope>test</scope>
@@ -153,14 +159,6 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-jdk14</artifactId>
             <scope>test</scope>
-        </dependency>
-
-        <!-- ImageIO Tiff Support -->
-        <dependency>
-            <groupId>com.sun.media</groupId>
-            <artifactId>jai_imageio</artifactId>
-            <version>1.1</version>
-            <optional>true</optional>
         </dependency>
     </dependencies>
 

@@ -74,8 +74,8 @@ public class CachingDatabase extends ForwardingDatabase {
 
             } else if (other instanceof Range) {
                 Range otherRange = (Range) other;
-                return offset == otherRange.offset &&
-                        limit == otherRange.limit;
+                return offset == otherRange.offset
+                        && limit == otherRange.limit;
 
             } else {
                 return false;
@@ -374,10 +374,4 @@ public class CachingDatabase extends ForwardingDatabase {
     /** @deprecated Use {@link QueryOptions} instead. */
     @Deprecated
     public static final String IS_DISABLED_QUERY_OPTION = "caching.isDisabled";
-
-    @Deprecated
-    @Override
-    public <T> List<T> readList(Query<T> query) {
-        return readAll(query);
-    }
 }

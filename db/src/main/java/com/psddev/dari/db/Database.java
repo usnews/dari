@@ -14,6 +14,7 @@ import java.util.UUID;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.psddev.dari.util.CompactMap;
 import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
@@ -169,8 +170,8 @@ public interface Database extends SettingsBackedObject {
         private static final ThreadLocal<Deque<Database>> DEFAULT_OVERRIDES = new ThreadLocal<Deque<Database>>();
         private static final ThreadLocal<Boolean> IGNORE_READ_CONNECTION = new ThreadLocal<Boolean>();
 
-        private static final LoadingCache<String, Database> INSTANCES = CacheBuilder.newBuilder().
-                build(new CacheLoader<String, Database>() {
+        private static final LoadingCache<String, Database> INSTANCES = CacheBuilder.newBuilder()
+                .build(new CacheLoader<String, Database>() {
                     @Override
                     public Database load(String name) {
                         Database database = Settings.newInstance(Database.class, SETTING_PREFIX + "/" + name);
@@ -466,11 +467,26 @@ public interface Database extends SettingsBackedObject {
 
     // --- Deprecated ---
 
-    /** @deprecated Use {@link #readAll} instead. */
+    /**
+     * @deprecated Use {@link #readAll} instead.
+     */
     @Deprecated
-    public <T> List<T> readList(Query<T> query);
+    default <T> List<T> readList(Query<T> query) {
+        return readAll(query);
+    }
 
-    /** @deprecated Use {@link #readAllGrouped} or {@link #readPartialGrouped} instead. */
+    /**
+     * @deprecated Use {@link #readAllGrouped} or {@link #readPartialGrouped}
+     * instead.
+     */
     @Deprecated
-    public Map<Object, Long> readGroupedCount(Query<?> query, String field);
+    default Map<Object, Long> readGroupedCount(Query<?> query, String field) {
+        Map<Object, Long> counts = new CompactMap<>();
+
+        for (Grouping<?> grouping : readAllGrouped(query, field)) {
+            counts.put(grouping.getKeys().get(0), grouping.getCount());
+        }
+
+        return counts;
+    }
 }

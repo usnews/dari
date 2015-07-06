@@ -66,9 +66,9 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
     /** Returns the unmodifiable map of all delegate databases. */
     public Map<String, Database> getDelegates() {
-        return delegates == null ?
-                Collections.<String, Database>emptyMap() :
-                delegates;
+        return delegates == null
+                ? Collections.<String, Database>emptyMap()
+                : delegates;
     }
 
     /**
@@ -116,9 +116,9 @@ public class AggregateDatabase implements Database, Iterable<Database> {
     public void addDelegate(Database delegate, Set<String> groups) {
         delegate.setEnvironment(getEnvironment());
 
-        Map<String, Database> newDelegates = delegates != null ?
-                new CompactMap<String, Database>(delegates) :
-                new CompactMap<String, Database>();
+        Map<String, Database> newDelegates = delegates != null
+                ? new CompactMap<String, Database>(delegates)
+                : new CompactMap<String, Database>();
 
         newDelegates.put(delegate.getName(), delegate);
         delegateGroupsMap.put(delegate, groups);
@@ -128,9 +128,9 @@ public class AggregateDatabase implements Database, Iterable<Database> {
 
     /** Returns the unmodifiable map of all delegate databases used for reading. */
     public Map<String, Database> getReadDelegates() {
-        return readDelegates == null ?
-                Collections.<String, Database>emptyMap() :
-                readDelegates;
+        return readDelegates == null
+                ? Collections.<String, Database>emptyMap()
+                : readDelegates;
     }
 
     /** Sets the map of all delegate databases used for reading. */
@@ -221,9 +221,9 @@ public class AggregateDatabase implements Database, Iterable<Database> {
         this.name = name;
     }
 
-    private static final LoadingCache<Database, DatabaseEnvironment> DEFAULT_ENVIRONMENTS = CacheBuilder.
-            newBuilder().
-            build(new CacheLoader<Database, DatabaseEnvironment>() {
+    private static final LoadingCache<Database, DatabaseEnvironment> DEFAULT_ENVIRONMENTS = CacheBuilder
+            .newBuilder()
+            .build(new CacheLoader<Database, DatabaseEnvironment>() {
                 @Override
                 public DatabaseEnvironment load(Database database) {
                     return new DatabaseEnvironment(database);
@@ -510,14 +510,6 @@ public class AggregateDatabase implements Database, Iterable<Database> {
         }
     };
 
-    private static final ReadOperation READ_GROUPED_COUNT = new ReadOperation() {
-        @Override
-        @SuppressWarnings("deprecation")
-        protected Object read(Database delegate, Query<?> query, Object... arguments) {
-            return delegate.readGroupedCount(query, (String) arguments[0]);
-        }
-    };
-
     private static final ReadOperation READ_FIRST = new ReadOperation() {
         @Override
         protected Object read(Database delegate, Query<?> query, Object... arguments) {
@@ -679,29 +671,5 @@ public class AggregateDatabase implements Database, Iterable<Database> {
         }
 
         return sb.toString();
-    }
-
-    // --- Deprecated ---
-
-    @Deprecated
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> List<T> readList(Query<T> query) {
-        return (List<T>) READ_LIST.execute(this, query);
-    }
-
-    private static final ReadOperation READ_LIST = new ReadOperation() {
-        @Override
-        @SuppressWarnings("deprecation")
-        protected Object read(Database delegate, Query<?> query, Object... arguments) {
-            return delegate.readList(query);
-        }
-    };
-
-    @Deprecated
-    @Override
-    @SuppressWarnings("unchecked")
-    public Map<Object, Long> readGroupedCount(Query<?> query, String field) {
-        return (Map<Object, Long>) READ_GROUPED_COUNT.execute(this, query, field);
     }
 }
