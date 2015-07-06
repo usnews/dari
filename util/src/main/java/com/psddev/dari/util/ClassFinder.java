@@ -244,10 +244,10 @@ public class ClassFinder {
          * @return Never {@code null}.
          */
         public static <T> Set<Class<? extends T>> findConcreteClasses(Class<T> baseClass) {
-            return findClasses(baseClass).
-                    stream().
-                    filter((clazz) -> (!clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers()))).
-                    collect(Collectors.toSet());
+            return findClasses(baseClass)
+                    .stream()
+                    .filter((clazz) -> (!clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers())))
+                    .collect(Collectors.toSet());
         }
     }
 }
