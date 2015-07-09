@@ -164,6 +164,14 @@ public interface Database extends SettingsBackedObject {
     /** Deletes all objects matching the given {@code query}. */
     public void deleteByQuery(Query<?> query);
 
+    default void addUpdateNotifier(UpdateNotifier<?> notifier) {
+        throw new UnsupportedOperationException();
+    }
+
+    default void removeUpdateNotifier(UpdateNotifier<?> notifier) {
+        throw new UnsupportedOperationException();
+    }
+
     /** {@link Database} utility methods. */
     public static final class Static {
 
