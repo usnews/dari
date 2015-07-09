@@ -1102,7 +1102,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
         objectState.setValues(cloneDataJson(dataJson));
 
-        Boolean returnOriginal = ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION));
+        Boolean returnOriginal = query != null ? ObjectUtils.to(Boolean.class, query.getOptions().get(RETURN_ORIGINAL_DATA_QUERY_OPTION)) : null;
 
         if (returnOriginal == null) {
             returnOriginal = Boolean.FALSE;
