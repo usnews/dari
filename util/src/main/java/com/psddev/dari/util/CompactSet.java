@@ -1,5 +1,7 @@
 package com.psddev.dari.util;
 
+import com.google.common.base.Preconditions;
+
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Iterator;
@@ -26,6 +28,66 @@ public class CompactSet<E> extends AbstractSet<E> {
 
     private Object delegate;
     private int size;
+
+    /**
+     * Creates an empty instance.
+     */
+    public CompactSet() {
+    }
+
+    /**
+     * Creates an instance initialized with the elements in the given
+     * {@code collection}.
+     *
+     * @param collection Can't be {@code null}.
+     */
+    public CompactSet(Collection<? extends E> collection) {
+        Preconditions.checkNotNull(collection, "[collection] can't be null!");
+
+        int collectionSize = collection.size();
+
+        if (collectionSize > ARRAY_SIZE) {
+            delegate = new LinkedHashSet<>(collectionSize);
+            size = -1;
+        }
+
+        addAll(collection);
+    }
+
+    /**
+     * Creates an empty instance with the given {@code initialCapacity}.
+     * If the initial capacity is greater than 8, switches to using
+     * {@link LinkedHashSet} immediately.
+     *
+     * @param initialCapacity Must be greater than or equal to {@code 0}.
+     */
+    public CompactSet(int initialCapacity) {
+        Preconditions.checkArgument(initialCapacity >= 0, "[initialCapacity] must be greater than or equal to 0!");
+
+        if (initialCapacity > ARRAY_SIZE) {
+            delegate = new LinkedHashSet<>(initialCapacity);
+            size = -1;
+        }
+    }
+
+    /**
+     * Creates an empty instance with the given {@code initialCapacity}
+     * and {@code loadFactor}. If the initial capacity is greater than 8,
+     * switches to using {@link LinkedHashSet} immediately.
+     *
+     * @param initialCapacity Must be greater than or equal to {@code 0}.
+     * @param loadFactor Must be greater than {@code 0.0f}. Only used if the
+     * initial capacity is greater than 8.
+     */
+    public CompactSet(int initialCapacity, float loadFactor) {
+        Preconditions.checkArgument(initialCapacity >= 0, "[initialCapacity] must be greater than or equal to 0!");
+        Preconditions.checkArgument(loadFactor > 0.0f, "[loadFactor] must be greater than 0.0f!");
+
+        if (initialCapacity > ARRAY_SIZE) {
+            delegate = new LinkedHashSet<>(initialCapacity, loadFactor);
+            size = -1;
+        }
+    }
 
     private int indexOfElement(Object element) {
         int elementHash = ObjectUtils.hashCode(element);
