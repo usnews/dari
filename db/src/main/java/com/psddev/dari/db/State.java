@@ -1260,7 +1260,7 @@ public class State implements Map<String, Object> {
         if (type != null) {
             String field = type.getPreviewField();
             if (!ObjectUtils.isBlank(field)) {
-                return (StorageItem) getValue(field);
+                return ObjectUtils.to(StorageItem.class, getByPath(field));
             }
         }
         return null;
