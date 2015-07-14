@@ -11,11 +11,11 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.CompactMap;
-import com.psddev.dari.util.ErrorUtils;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.PaginatedResult;
 import com.psddev.dari.util.Settings;
@@ -257,7 +257,7 @@ public interface Database extends SettingsBackedObject {
          * @return Current default database before overriding.
          */
         public static Database overrideDefault(Database override) {
-            ErrorUtils.errorIfNull(override, "override");
+            Preconditions.checkNotNull(override);
 
             Database old = getDefaultOverride();
 
