@@ -32,7 +32,9 @@ public class ObjectToConstant<T> implements ConversionFunction<Object, T> {
      * Returns an instance that will convert any object into the given
      * {@code constant}.
      *
-     * @param constant May be {@code null}.
+     * @param constant
+     *        May be {@code null}.
+     *
      * @return Never {@code null}.
      */
     @SuppressWarnings("unchecked")
@@ -44,7 +46,8 @@ public class ObjectToConstant<T> implements ConversionFunction<Object, T> {
      * Creates a instance that will convert any object into the given
      * {@code constant}.
      *
-     * @param constant May be {@code null}.
+     * @param constant
+     *        May be {@code null}.
      */
     protected ObjectToConstant(T constant) {
         this.constant = constant;
