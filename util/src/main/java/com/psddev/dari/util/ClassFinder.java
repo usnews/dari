@@ -222,7 +222,7 @@ public class ClassFinder {
                 loader = ObjectUtils.getCurrentClassLoader();
             }
 
-            return (Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER.getUnchecked(loader).getUnchecked(baseClass);
+            return new HashSet<>((Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER.getUnchecked(loader).getUnchecked(baseClass));
         }
 
         /**
