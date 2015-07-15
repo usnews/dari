@@ -16,13 +16,11 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.tools.JavaFileObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -244,10 +242,9 @@ public class ClassFinder {
          * @return Never {@code null}.
          */
         public static <T> Set<Class<? extends T>> findConcreteClasses(Class<T> baseClass) {
-            return findClasses(baseClass)
-                    .stream()
-                    .filter((clazz) -> (!clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers())))
-                    .collect(Collectors.toSet());
+            Set<Class<? extends T>> concreteClasses = findClasses(baseClass);
+            concreteClasses.removeIf(c -> c.isInterface() || Modifier.isAbstract(c.getModifiers()));
+            return concreteClasses;
         }
     }
 }
