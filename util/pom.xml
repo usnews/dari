@@ -188,8 +188,6 @@
                                     <shadedPattern>com.psddev.dari.util.asm</shadedPattern>
                                 </relocation>
                             </relocations>
-
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
                         </configuration>
                     </execution>
                 </executions>
