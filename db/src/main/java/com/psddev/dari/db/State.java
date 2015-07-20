@@ -319,6 +319,7 @@ public class State implements Map<String, Object> {
      * fields are {@code null}).
      */
     public boolean isVisible() {
+        getVisibilityAwareTypeId();
         return ObjectUtils.isBlank(get("dari.visibilities"));
     }
 
