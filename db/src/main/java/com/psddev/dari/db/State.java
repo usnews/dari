@@ -1690,6 +1690,16 @@ public class State implements Map<String, Object> {
         resolveReference(null);
     }
 
+    private static class OnValidateTrigger extends TriggerOnce {
+
+        @Override
+        public void executeOnce(Object object) {
+            if (object instanceof Record) {
+                ((Record) object).onValidate();
+            }
+        }
+    }
+
     /**
      * Returns {@code true} if the field values in this state is valid.
      * The validation rules are typically read from annotations such as
@@ -1708,6 +1718,8 @@ public class State implements Map<String, Object> {
         for (ObjectField field : environment.getFields()) {
             field.validate(this);
         }
+
+        fireTrigger(new OnValidateTrigger());
 
         return !hasAnyErrors();
     }
