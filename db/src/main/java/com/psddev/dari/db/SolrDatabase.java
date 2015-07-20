@@ -1506,7 +1506,9 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                         entry.getValue());
             }
 
-            for (ObjectMethod method : state.getType().getMethods()) {
+            List<ObjectMethod> methods = new ArrayList<>(state.getType().getMethods());
+            methods.addAll(getEnvironment().getMethods());
+            for (ObjectMethod method : methods) {
                 addDocumentValues(
                         document,
                         allBuilder,
