@@ -247,13 +247,10 @@ public abstract class AbstractStorageItem implements StorageItem {
 
         if (!ObjectUtils.isBlank(path)) {
 
-            int queryIndex = path.indexOf("?");
-            if (queryIndex > -1) {
-                path = path.substring(0, queryIndex);
-            }
-            int hashIndex = path.indexOf("#");
-            if (hashIndex > -1) {
-                path = path.substring(0, hashIndex);
+            try {
+                path = new URI(path).getPath();
+            } catch (URISyntaxException e) {
+                return null;
             }
 
             return ObjectUtils.getContentType(path);
