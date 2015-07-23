@@ -242,8 +242,20 @@ public abstract class AbstractStorageItem implements StorageItem {
         if (!ObjectUtils.isBlank(contentType)) {
             return contentType;
         }
+
         String path = getPath();
+
         if (!ObjectUtils.isBlank(path)) {
+
+            int queryIndex = path.indexOf("?");
+            if (queryIndex > -1) {
+                path = path.substring(0, queryIndex);
+            }
+            int hashIndex = path.indexOf("#");
+            if (hashIndex > -1) {
+                path = path.substring(0, hashIndex);
+            }
+
             return ObjectUtils.getContentType(path);
         } else {
             return null;
