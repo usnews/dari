@@ -37,7 +37,7 @@ public interface Ping {
         public static Map<Class<?>, Throwable> pingAll() {
             Map<Class<?>, Throwable> errors = new HashMap<Class<?>, Throwable>();
 
-            for (Class<? extends Ping> pingClass : ClassFinder.Static.findClasses(Ping.class)) {
+            for (Class<? extends Ping> pingClass : ClassFinder.findClasses(Ping.class)) {
                 errors.put(pingClass, ping(pingClass));
             }
 

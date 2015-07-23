@@ -231,7 +231,7 @@ public abstract class AbstractFilter implements Filter {
                 }
             }
 
-            for (Class<? extends Auto> autoClass : ClassFinder.Static.findClasses(Auto.class)) {
+            for (Class<? extends Auto> autoClass : ClassFinder.findClasses(Auto.class)) {
                 getFilter(autoClass).updateDependencies(getClass(), dependencyClasses);
             }
 
