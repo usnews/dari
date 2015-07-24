@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import javax.annotation.ParametersAreNonnullByDefault;
 import javax.tools.JavaFileObject;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,30 +43,40 @@ public class ClassFinder {
     private static final String CLASS_FILE_SUFFIX = JavaFileObject.Kind.CLASS.extension;
     private static final Logger LOGGER = LoggerFactory.getLogger(ClassFinder.class);
 
-    private static final ClassFinder INSTANCE = new ClassFinder();
+    private static final ThreadLocalStack<ClassFinder> THREAD_DEFAULT = new ThreadLocalStack<>();
+    private static final ClassFinder DEFAULT = new ClassFinder();
 
-    private static final LoadingCache<ClassLoader, LoadingCache<Class<?>, Set<?>>> CLASSES_BY_BASE_CLASS_BY_LOADER = CacheBuilder.newBuilder()
+    private static final LoadingCache<ClassFinder, LoadingCache<ClassLoader, LoadingCache<Class<?>, Set<?>>>> CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER = CacheBuilder.newBuilder()
             .weakKeys()
-            .build(new CacheLoader<ClassLoader, LoadingCache<Class<?>, Set<?>>>() {
+            .build(new CacheLoader<ClassFinder, LoadingCache<ClassLoader, LoadingCache<Class<?>, Set<?>>>>() {
 
                 @Override
                 @ParametersAreNonnullByDefault
-                public LoadingCache<Class<?>, Set<?>> load(final ClassLoader loader) {
+                public LoadingCache<ClassLoader, LoadingCache<Class<?>, Set<?>>> load(ClassFinder finder) {
                     return CacheBuilder.newBuilder()
                             .weakKeys()
-                            .build(new CacheLoader<Class<?>, Set<?>>() {
+                            .build(new CacheLoader<ClassLoader, LoadingCache<Class<?>, Set<?>>>() {
 
                                 @Override
                                 @ParametersAreNonnullByDefault
-                                public Set<?> load(Class<?> baseClass) {
-                                    return INSTANCE.find(loader, baseClass);
+                                public LoadingCache<Class<?>, Set<?>> load(final ClassLoader loader) {
+                                    return CacheBuilder.newBuilder()
+                                            .weakKeys()
+                                            .build(new CacheLoader<Class<?>, Set<?>>() {
+
+                                                @Override
+                                                @ParametersAreNonnullByDefault
+                                                public Set<?> load(Class<?> baseClass) {
+                                                    return finder.find(loader, baseClass);
+                                                }
+                                            });
                                 }
                             });
                 }
             });
 
     static {
-        CodeUtils.addRedefineClassesListener(classes -> CLASSES_BY_BASE_CLASS_BY_LOADER.invalidateAll());
+        CodeUtils.addRedefineClassesListener(classes -> CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER.invalidateAll());
     }
 
     private Set<String> classLoaderExclusions = new HashSet<>(Arrays.asList(
@@ -73,6 +84,16 @@ public class ClassFinder {
             "sun.misc.Launcher$AppClassLoader",
             "org.apache.catalina.loader.StandardClassLoader",
             "org.apache.jasper.servlet.JasperLoader"));
+
+    /**
+     * Returns the thread local stack for overriding the default instance
+     * used by the static methods.
+     *
+     * @return Never {@code null}.
+     */
+    public static ThreadLocalStack<ClassFinder> getThreadDefault() {
+        return THREAD_DEFAULT;
+    }
 
     /**
      * Finds all classes that are compatible with the given {@code baseClass}
@@ -93,7 +114,8 @@ public class ClassFinder {
             loader = ObjectUtils.getCurrentClassLoader();
         }
 
-        return new HashSet<>((Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER
+        return new HashSet<>((Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER
+                .getUnchecked(MoreObjects.firstNonNull(THREAD_DEFAULT.get(), DEFAULT))
                 .getUnchecked(loader)
                 .getUnchecked(baseClass));
     }
