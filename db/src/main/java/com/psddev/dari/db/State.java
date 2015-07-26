@@ -1914,7 +1914,6 @@ public class State implements Map<String, Object> {
     @Override
     public boolean containsValue(Object value) {
         copyJavaFieldsToRawValues();
-        return rawValues.containsKey(value);
     }
 
     @Override
