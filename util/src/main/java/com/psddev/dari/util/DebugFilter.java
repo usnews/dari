@@ -332,7 +332,7 @@ public class DebugFilter extends AbstractFilter {
                                 writeEnd();
                             writeEnd();
                             writeStart("tbody");
-                                for (Map.Entry<Class<?>, Throwable> entry : Ping.Static.pingAll().entrySet()) {
+                                for (Map.Entry<Class<?>, Throwable> entry : Ping.pingAll().entrySet()) {
                                     String name = entry.getKey().getName();
                                     Throwable error = entry.getValue();
 
