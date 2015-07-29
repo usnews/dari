@@ -3252,14 +3252,24 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     return affected;
                 } catch (SQLException sqlEx) {
                     if (savePoint != null) {
-                        connection.rollback(savePoint);
+                        try {
+                            connection.rollback(savePoint);
+
+                        } catch (SQLException error) {
+                            // Safe to ignore?
+                        }
                     }
 
                     throw sqlEx;
 
                 } finally {
                     if (savePoint != null) {
-                        connection.releaseSavepoint(savePoint);
+                        try {
+                            connection.releaseSavepoint(savePoint);
+
+                        } catch (SQLException error) {
+                            // Safe to ignore?
+                        }
                     }
 
                     double time = timer.stop(UPDATE_STATS_OPERATION);
