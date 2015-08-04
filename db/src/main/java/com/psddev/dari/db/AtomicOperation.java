@@ -81,7 +81,6 @@ public abstract class AtomicOperation {
 
         @Override
         public boolean equals(Object other) {
-            System.out.println(other);
             return this == other
                     || (other instanceof Increment
                     && Objects.equals(getField(), ((Increment) other).getField())
