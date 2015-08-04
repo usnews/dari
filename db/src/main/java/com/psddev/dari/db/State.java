@@ -1931,11 +1931,19 @@ public class State implements Map<String, Object> {
 
         resolveReferences();
 
+        Object originalObject = getOriginalObjectOrNull();
+
         for (Object object : linkedObjects.values()) {
             Class<?> objectClass = object.getClass();
 
             ObjectType type = getDatabase().getEnvironment().getTypeByClass(objectClass);
             if (type == null) {
+                continue;
+            }
+
+            if (!Modification.class.isAssignableFrom(objectClass)
+                    && (originalObject == null
+                    || !originalObject.getClass().equals(objectClass))) {
                 continue;
             }
 
