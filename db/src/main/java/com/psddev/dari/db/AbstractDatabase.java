@@ -410,29 +410,6 @@ public abstract class AbstractDatabase<C> implements Database {
     }
 
     @Override
-    public <T> List<T> readAll(Query<T> query) {
-        return readPartial(query, 0L, MAXIMUM_LIMIT).getItems();
-    }
-
-    @Override
-    public <T> List<Grouping<T>> readAllGrouped(Query<T> query, String... fields) {
-        return readPartialGrouped(query, 0L, MAXIMUM_LIMIT, fields).getItems();
-    }
-
-    @Override
-    public long readCount(Query<?> query) {
-        return readPartial(query, 0L, 1).getCount();
-    }
-
-    @Override
-    public <T> T readFirst(Query<T> query) {
-        for (T item : readPartial(query, 0L, 1).getItems()) {
-            return item;
-        }
-        return null;
-    }
-
-    @Override
     public <T> Iterable<T> readIterable(Query<T> query, int fetchSize) {
         return new PaginatedIterable<T>(query, fetchSize);
     }
