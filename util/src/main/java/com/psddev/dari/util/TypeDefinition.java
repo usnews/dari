@@ -354,6 +354,10 @@ public class TypeDefinition<T> {
                 methods.addAll(getInstance(superClass).getAllMethods());
             }
 
+            for (Class<?> interfaceClass : objectClass.getInterfaces()) {
+                methods.addAll(getInstance(interfaceClass).getAllMethods());
+            }
+
             return Collections.unmodifiableList(methods);
         }
     };
