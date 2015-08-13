@@ -7,14 +7,20 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -434,6 +440,263 @@ public class TypeDefinition<T> {
             });
 
             return Collections.unmodifiableMap(setters);
+        }
+    };
+
+    /**
+     * Gets the inferred generic type argument class of this type for a given
+     * {@code superClass} and {@code genericTypeArgumentIndex}.
+     *
+     * @param superClass a super class (or interface) of this type.
+     * @param genericTypeArgumentIndex the generic type argument index of the
+     *      {@code superClass}.
+     * @return the inferred generic type argument class for given
+     *      {@code superClass} and {@code genericTypeArgumentIndex}.
+     */
+    public Class<?> getInferredGenericTypeArgumentClass(Class<?> superClass, int genericTypeArgumentIndex) {
+        Map<Integer, Class<?>> indexMap = allInferredGenericTypeArguments.get().get(superClass);
+        return indexMap != null ? indexMap.get(genericTypeArgumentIndex) : null;
+    }
+
+    // Map of super types, to map of the super type's generic variable index to inferred generic type at that index for this TypeDefinition's type.
+    private final transient Lazy<Map<Class<?>, Map<Integer, Class<?>>>> allInferredGenericTypeArguments = new Lazy<Map<Class<?>, Map<Integer, Class<?>>>>() {
+
+        @Override
+        protected Map<Class<?>, Map<Integer, Class<?>>> create() throws Exception {
+
+            Map<Class<?>, Map<Integer, Class<?>>> map = new HashMap<>();
+
+            if (TypeDefinition.this.type instanceof Class) {
+                for (Class<?> superType : getAllSuperTypesWithTypeVariables((Class<?>) TypeDefinition.this.type)) {
+
+                    Map<Integer, Class<?>> indexMap = new HashMap<>();
+                    map.put(superType, indexMap);
+
+                    int typeParamCount = superType.getTypeParameters().length;
+                    for (int i = 0; i < typeParamCount; i++) {
+                        indexMap.put(i, getInferredGenericTypeArgumentClass((Class<?>) TypeDefinition.this.type, superType, i));
+                    }
+                }
+            }
+
+            return map;
+        }
+
+        /**
+         * Gets all super classes with type variables defined starting from the
+         * {@code sourceClass}.
+         *
+         * @param sourceClass the class to check.
+         * @return a set of all super types of the {@code sourceClass} that has
+         *      type variables.
+         */
+        private Set<Class<?>> getAllSuperTypesWithTypeVariables(Class<?> sourceClass) {
+
+            Set<Class<?>> superTypes = new HashSet<>();
+
+            // check super class
+            Class<?> superClass = sourceClass.getSuperclass();
+
+            if (superClass != null) {
+                if (superClass.getTypeParameters().length > 0) {
+                    superTypes.add(superClass);
+                }
+                superTypes.addAll(getAllSuperTypesWithTypeVariables(superClass));
+            }
+
+            // check interfaces
+            List<Class<?>> interfaces = Arrays.asList(sourceClass.getInterfaces());
+
+            superTypes.addAll(interfaces.stream().filter((i) -> i.getTypeParameters().length > 0).collect(Collectors.toList()));
+            interfaces.forEach((i) -> superTypes.addAll(getAllSuperTypesWithTypeVariables(i)));
+
+            return superTypes;
+        }
+
+        /**
+         *
+         * @param sourceClass the class that extends/implements
+         *      {@code superClass} whose actual generic type argument class
+         *      should be fetched.
+         * @param superClass the class defining the generics.
+         * @param genericTypeArgumentIndex the index of the generic to fetch.
+         * @return the generic type argument class for the given
+         *      {@code sourceClass}.
+         */
+        private Class<?> getInferredGenericTypeArgumentClass(Class<?> sourceClass, Class<?> superClass, int genericTypeArgumentIndex) {
+
+            List<Map.Entry<Class<?>, Type>> hierarchy = getClassAndGenericSuperTypeHierarchy(sourceClass, superClass);
+
+            int argIndex = genericTypeArgumentIndex;
+
+            for (Map.Entry<Class<?>, Type> entry : hierarchy) {
+
+                // get list of super class type parameters
+                List<Type> superClassTypeVars;
+
+                Type hierarchyGenericSuperClass = entry.getValue();
+
+                if (hierarchyGenericSuperClass instanceof ParameterizedType) {
+                    ParameterizedType pt = (ParameterizedType) hierarchyGenericSuperClass;
+                    superClassTypeVars = Arrays.asList(pt.getActualTypeArguments());
+                } else {
+                    superClassTypeVars = Collections.emptyList();
+                }
+
+                // make sure the var list size is greater than the arg index.
+                if (superClassTypeVars.size() > argIndex) {
+
+                    Type superClassTypeVar = superClassTypeVars.get(argIndex);
+
+                    if (superClassTypeVar instanceof Class) {
+                        return (Class<?>) superClassTypeVar;
+
+                    } else if (superClassTypeVar instanceof TypeVariable) {
+
+                        Class<?> hierarchyClass = entry.getKey();
+
+                        String superClassTypeVarName = ((TypeVariable) superClassTypeVar).getName();
+
+                        int index = 0;
+                        for (TypeVariable classTypeVar : hierarchyClass.getTypeParameters()) {
+
+                            if (superClassTypeVarName.equals(classTypeVar.getName())) {
+                                argIndex = index;
+                                break;
+                            }
+                            index++;
+                        }
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Returns the list of ClassInfo objects in the class hierarchy from
+         * {@code sourceClass} class to {@code superClass} class, where the
+         * first element in the list is {@code sourceClass}. If the two classes
+         * are not in the same hierarchy, an empty list returned.
+         *
+         * @param sourceClass the bottom starting class in the hierarchy.
+         * @param superClass the top most parent class or interface in the
+         *      hierarchy.
+         * @return the ClassInfo hierarchy list between the two class arguments.
+         */
+        private List<Map.Entry<Class<?>, Type>> getClassAndGenericSuperTypeHierarchy(Class<?> sourceClass, Class<?> superClass) {
+
+            List<Class<?>> classes = getClassHierarchy(sourceClass, superClass);
+
+            List<Class<?>> classesReversed = new ArrayList<>(classes);
+            Collections.reverse(classesReversed);
+            classesReversed.add(superClass);
+
+            List<Map.Entry<Class<?>, Type>> hierarchy = new ArrayList<>();
+
+            Class<?> prevClass = null;
+            for (Class<?> nextClass : classesReversed) {
+
+                if (prevClass != null) {
+                    Type superType = getGenericSuperType(prevClass, nextClass);
+
+                    if (superType != null) {
+                        hierarchy.add(new AbstractMap.SimpleImmutableEntry<>(prevClass, superType));
+                    }
+                }
+
+                prevClass = nextClass;
+            }
+
+            Collections.reverse(hierarchy);
+
+            return hierarchy;
+        }
+
+        /**
+         * Returns the list of classes in the class hierarchy from
+         * {@code sourceClass} class to {@code superClass} class, where the
+         * first element in the list is {@code sourceClass}. If the two classes
+         * are not in the same hierarchy, {@code null} is returned.
+         *
+         * @param sourceClass the bottom starting class in the hierarchy.
+         * @param superClass the top most parent class or interface in the
+         *      hierarchy.
+         * @return the class hierarchy list between the two class arguments.
+         */
+        private List<Class<?>> getClassHierarchy(Class<?> sourceClass, Class<?> superClass) {
+
+            if (Object.class.equals(sourceClass)) {
+                return null;
+
+            } else if (superClass.equals(sourceClass)) {
+                return new ArrayList<>();
+            }
+
+            List<Class<?>> superTypes = new ArrayList<>();
+
+            Class<?> sourceSuperClass = sourceClass.getSuperclass();
+            if (sourceSuperClass != null) {
+                superTypes.add(sourceSuperClass);
+            }
+
+            List<Class<?>> interfaceClasses = Arrays.asList(sourceClass.getInterfaces());
+            superTypes.addAll(interfaceClasses);
+
+            for (Class<?> superType : superTypes) {
+
+                List<Class<?>> hierarchy = getClassHierarchy(superType, superClass);
+
+                if (hierarchy != null) {
+
+                    List<Class<?>> classes = new ArrayList<>();
+
+                    classes.addAll(hierarchy);
+                    classes.add(sourceClass);
+
+                    return classes;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Returns the generic super type of the for the given
+         * {@code sourceClass} matching the specified {@code superClass}.
+         *
+         * @param sourceClass the class containing a generic super type.
+         * @param superClass the non-generic super class of {@code sourceClass}.
+         * @return the generic super type of {@code sourceClass}.
+         */
+        private Type getGenericSuperType(Class<?> sourceClass, Class<?> superClass) {
+
+            if (superClass.isInterface()) {
+                for (Type genericInterface : sourceClass.getGenericInterfaces()) {
+
+                    if (genericInterface instanceof Class) {
+                        if (superClass.equals(genericInterface)) {
+                            return genericInterface;
+                        }
+
+                    } else if (genericInterface instanceof ParameterizedType) {
+
+                        Type rawType = ((ParameterizedType) genericInterface).getRawType();
+                        if (superClass.equals(rawType)) {
+                            return genericInterface;
+                        }
+                    }
+                }
+
+            } else {
+                return sourceClass.getGenericSuperclass();
+            }
+
+            return null;
         }
     };
 
