@@ -424,6 +424,13 @@ public class TypeDefinitionTest {
         assertEquals(Yellow.class, gigtac(Zero.class, Kappa.class, 0));
     }
 
+    @Test
+    public void test_getInferredGenericTypeArgumentClass_noGenerics() {
+        assertEquals(Charlie.class, gigtac(Bravo.class, Foxtrot.class, 0));
+        assertEquals(Charlie.class, gigtac(Charlie.class, Foxtrot.class, 0));
+        assertEquals(Bravo.class, gigtac(Echo.class, Foxtrot.class, 0));
+    }
+
     // Helper method for test_getInferredGenericTypeArgumentClass* tests
     private Class<?> gigtac(Class<?> sourceClass, Class<?> superClass, int argIndex) {
         return TypeDefinition.getInstance(sourceClass).getInferredGenericTypeArgumentClass(superClass, argIndex);
@@ -477,5 +484,14 @@ public class TypeDefinitionTest {
     private static class Blue extends Purple {
     }
     private static class Purple {
+    }
+
+    private static class Bravo extends Charlie {
+    }
+    private static class Charlie extends Echo {
+    }
+    private static class Echo<T extends Bravo> implements Foxtrot<T> {
+    }
+    private static interface Foxtrot<T extends Charlie> {
     }
 }

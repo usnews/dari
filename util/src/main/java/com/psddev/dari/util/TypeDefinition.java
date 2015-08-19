@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -529,7 +530,9 @@ public class TypeDefinition<T> {
 
             int argIndex = genericTypeArgumentIndex;
 
-            for (Map.Entry<Class<?>, Type> entry : hierarchy) {
+            for (Iterator<Map.Entry<Class<?>, Type>> it = hierarchy.iterator(); it.hasNext();) {
+
+                Map.Entry<Class<?>, Type> entry = it.next();
 
                 // get list of super class type parameters
                 List<Type> superClassTypeVars;
@@ -539,8 +542,9 @@ public class TypeDefinition<T> {
                 if (hierarchyGenericSuperClass instanceof ParameterizedType) {
                     ParameterizedType pt = (ParameterizedType) hierarchyGenericSuperClass;
                     superClassTypeVars = Arrays.asList(pt.getActualTypeArguments());
+
                 } else {
-                    superClassTypeVars = Collections.emptyList();
+                    break;
                 }
 
                 // make sure the var list size is greater than the arg index.
@@ -561,7 +565,14 @@ public class TypeDefinition<T> {
                         for (TypeVariable classTypeVar : hierarchyClass.getTypeParameters()) {
 
                             if (superClassTypeVarName.equals(classTypeVar.getName())) {
-                                argIndex = index;
+
+                                if (it.hasNext()) {
+                                    argIndex = index;
+
+                                } else {
+                                    superClass = hierarchyClass;
+                                    genericTypeArgumentIndex = index;
+                                }
                                 break;
                             }
                             index++;
@@ -571,6 +582,18 @@ public class TypeDefinition<T> {
                     }
                 } else {
                     break;
+                }
+            }
+
+            TypeVariable[] typeParameters = superClass.getTypeParameters();
+            if (typeParameters.length > genericTypeArgumentIndex) {
+
+                Type[] bounds = typeParameters[genericTypeArgumentIndex].getBounds();
+                if (bounds.length > 0) {
+                    Type bound = bounds[0];
+                    if (bound instanceof Class) {
+                        return (Class<?>) bound;
+                    }
                 }
             }
 
