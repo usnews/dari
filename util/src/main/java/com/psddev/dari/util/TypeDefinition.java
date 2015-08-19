@@ -483,14 +483,7 @@ public class TypeDefinition<T> {
             return map;
         }
 
-        /**
-         * Gets all super classes with type variables defined starting from the
-         * {@code sourceClass}.
-         *
-         * @param sourceClass the class to check.
-         * @return a set of all super types of the {@code sourceClass} that has
-         *      type variables.
-         */
+        // Gets all super classes with type variables defined starting from the {@code sourceClass}
         private Set<Class<?>> getAllSuperTypesWithTypeVariables(Class<?> sourceClass) {
 
             Set<Class<?>> superTypes = new HashSet<>();
@@ -514,16 +507,8 @@ public class TypeDefinition<T> {
             return superTypes;
         }
 
-        /**
-         *
-         * @param sourceClass the class that extends/implements
-         *      {@code superClass} whose actual generic type argument class
-         *      should be fetched.
-         * @param superClass the class defining the generics.
-         * @param genericTypeArgumentIndex the index of the generic to fetch.
-         * @return the generic type argument class for the given
-         *      {@code sourceClass}.
-         */
+        // gets the inferred generic type argument class for the given {@code sourceClass}
+        // based on the give {@code superClass} generic type argument at the specified index.
         private Class<?> getInferredGenericTypeArgumentClass(Class<?> sourceClass, Class<?> superClass, int genericTypeArgumentIndex) {
 
             List<Map.Entry<Class<?>, Type>> hierarchy = getClassAndGenericSuperTypeHierarchy(sourceClass, superClass);
@@ -600,17 +585,9 @@ public class TypeDefinition<T> {
             return null;
         }
 
-        /**
-         * Returns the list of ClassInfo objects in the class hierarchy from
-         * {@code sourceClass} class to {@code superClass} class, where the
-         * first element in the list is {@code sourceClass}. If the two classes
-         * are not in the same hierarchy, an empty list returned.
-         *
-         * @param sourceClass the bottom starting class in the hierarchy.
-         * @param superClass the top most parent class or interface in the
-         *      hierarchy.
-         * @return the ClassInfo hierarchy list between the two class arguments.
-         */
+        // Returns the list of ClassInfo objects in the class hierarchy from {@code sourceClass}
+        // class to {@code superClass} class, where the first element in the list is {@code sourceClass}.
+        // If the two classes are not in the same hierarchy, an empty list returned.
         private List<Map.Entry<Class<?>, Type>> getClassAndGenericSuperTypeHierarchy(Class<?> sourceClass, Class<?> superClass) {
 
             List<Class<?>> classes = getClassHierarchy(sourceClass, superClass);
@@ -640,17 +617,9 @@ public class TypeDefinition<T> {
             return hierarchy;
         }
 
-        /**
-         * Returns the list of classes in the class hierarchy from
-         * {@code sourceClass} class to {@code superClass} class, where the
-         * first element in the list is {@code sourceClass}. If the two classes
-         * are not in the same hierarchy, {@code null} is returned.
-         *
-         * @param sourceClass the bottom starting class in the hierarchy.
-         * @param superClass the top most parent class or interface in the
-         *      hierarchy.
-         * @return the class hierarchy list between the two class arguments.
-         */
+        // Returns the list of classes in the class hierarchy from {@code sourceClass} class
+        // to {@code superClass} class, where the first element in the list is {@code sourceClass}.
+        // If the two classes are not in the same hierarchy, {@code null} is returned.
         private List<Class<?>> getClassHierarchy(Class<?> sourceClass, Class<?> superClass) {
 
             if (Object.class.equals(sourceClass)) {
@@ -688,14 +657,7 @@ public class TypeDefinition<T> {
             return null;
         }
 
-        /**
-         * Returns the generic super type of the for the given
-         * {@code sourceClass} matching the specified {@code superClass}.
-         *
-         * @param sourceClass the class containing a generic super type.
-         * @param superClass the non-generic super class of {@code sourceClass}.
-         * @return the generic super type of {@code sourceClass}.
-         */
+        // Returns the generic super type of the for the given {@code sourceClass} matching the specified {@code superClass}.
         private Type getGenericSuperType(Class<?> sourceClass, Class<?> superClass) {
 
             if (superClass.isInterface()) {
