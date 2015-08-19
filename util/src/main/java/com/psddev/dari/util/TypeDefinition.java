@@ -592,7 +592,10 @@ public class TypeDefinition<T> {
 
             List<Class<?>> classes = getClassHierarchy(sourceClass, superClass);
 
-            List<Class<?>> classesReversed = new ArrayList<>(classes);
+            List<Class<?>> classesReversed = new ArrayList<>();
+            if (classes != null) {
+                classesReversed.addAll(classes);
+            }
             Collections.reverse(classesReversed);
             classesReversed.add(superClass);
 
