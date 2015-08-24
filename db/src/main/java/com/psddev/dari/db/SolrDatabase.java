@@ -91,7 +91,7 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
     private static final String COMMIT_PROFILER_EVENT = SHORT_NAME + " " + COMMIT_STATS_OPERATION;
     private static final String DELETE_PROFILER_EVENT = SHORT_NAME + " " + DELETE_STATS_OPERATION;
     private static final String QUERY_PROFILER_EVENT = SHORT_NAME + " " + QUERY_STATS_OPERATION;
-    private static final int MAX_BINARY_FIELD_LENGTH = 32766;
+    private static final int MAX_BINARY_FIELD_LENGTH = 500;
     private static final Set<String> TRUNCATE_FIELD_PREFIXES = new HashSet<>();
 
     static {
