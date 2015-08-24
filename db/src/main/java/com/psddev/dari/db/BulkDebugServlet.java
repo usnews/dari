@@ -3,7 +3,9 @@ package com.psddev.dari.db;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.servlet.ServletException;
@@ -85,6 +87,25 @@ public class BulkDebugServlet extends HttpServlet {
                 Query<Object> query = Query
                         .fromType(selectedType)
                         .resolveToReferenceOnly();
+
+                if (destination instanceof AbstractDatabase) {
+                    Set<String> destinationGroups = ((AbstractDatabase<?>) destination).getGroups();
+
+                    if (!destinationGroups.contains(UUID.randomUUID().toString())) {
+                        Set<UUID> savableTypeIds = new HashSet<>();
+
+                        for (ObjectType type : source.getEnvironment().getTypes()) {
+                            for (String typeGroup : type.getGroups()) {
+                                if (destinationGroups.contains(typeGroup)) {
+                                    savableTypeIds.add(type.getId());
+                                    break;
+                                }
+                            }
+                        }
+
+                        query.and("_type = ?", savableTypeIds);
+                    }
+                }
 
                 query.getOptions().put(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
 
