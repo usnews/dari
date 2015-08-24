@@ -95,9 +95,7 @@ public abstract class AbstractDatabase<C> implements Database {
         public void addToValidates(State state) {
             validates.remove(state);
             validates.add(state);
-        }
 
-        public void addToSaves(State state) {
             saveJunctions(state, state.getDatabase().getEnvironment());
 
             ObjectType type = state.getType();
@@ -105,7 +103,9 @@ public abstract class AbstractDatabase<C> implements Database {
             if (type != null) {
                 saveJunctions(state, type);
             }
+        }
 
+        public void addToSaves(State state) {
             for (Iterator<State> i = saves.iterator(); i.hasNext();) {
                 State s = i.next();
 
