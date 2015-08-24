@@ -136,11 +136,19 @@ public class BulkDebugServlet extends HttpServlet {
                 }).submit();
 
                 queue.closeAutomatically();
+                System.gc();
+
+                long maximumDataLength = Runtime.getRuntime().freeMemory() / 10 / writersCount / commitSize;
+
+                System.out.println("maximum data length: " + maximumDataLength);
 
                 for (int i = 0; i < writersCount; ++ i) {
-                    new AsyncDatabaseWriter<Object>(
-                            executor, queue, destination, WriteOperation.SAVE_UNSAFELY, commitSize, true)
-                            .submit();
+                    AsyncDatabaseWriter<Object> writer = new AsyncDatabaseWriter<>(
+                            executor, queue, destination, WriteOperation.SAVE_UNSAFELY, commitSize, true);
+
+                    writer.setCommitSizeJitter(0.2);
+                    writer.setMaximumDataLength(maximumDataLength);
+                    writer.submit();
                 }
             }
 
