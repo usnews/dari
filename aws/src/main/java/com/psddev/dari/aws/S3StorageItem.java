@@ -1,4 +1,4 @@
-package com.psddev.dari.util.aws;
+package com.psddev.dari.aws;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
