@@ -14,7 +14,7 @@
     </parent>
 
     <groupId>com.psddev</groupId>
-    <artifactId>dari-aws</artifactId>
+    <artifactId>dari-util-aws</artifactId>
     <version>3.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
