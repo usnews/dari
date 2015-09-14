@@ -261,6 +261,7 @@ public class TypeDefinitionTest {
         expected.add(Bar.class.getDeclaredMethod("getBar"));
         expected.add(Foo.class.getDeclaredMethod("setFoo", Object.class));
         Collections.addAll(expected, Object.class.getDeclaredMethods());
+        expected.add(Baz.class.getDeclaredMethod("getBaz"));
 
         assertEquals(
                 expected,
@@ -280,6 +281,7 @@ public class TypeDefinitionTest {
         expected.put("qux", Qux.class.getDeclaredMethod("getQux"));
         expected.put("hasQux", Qux.class.getDeclaredMethod("hasQux"));
         expected.put("bar", Bar.class.getDeclaredMethod("getBar"));
+        expected.put("baz", Baz.class.getDeclaredMethod("getBaz"));
 
         assertEquals(
                 expected,
@@ -314,7 +316,14 @@ public class TypeDefinitionTest {
     /**
      * utility code for testing
      */
-    private static class Foo {
+    private static interface Baz {
+
+        default Object getBaz() {
+            return null;
+        }
+    }
+
+    private static class Foo implements Baz {
 
         private static Object staticField;
         private Object _privateField;
