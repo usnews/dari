@@ -249,7 +249,8 @@ try {
     }
 
     def newVersion = project.version.toString().replace('-SNAPSHOT', '') +
-            '.' + ([ git, 'rev-list', '--count', 'HEAD' ].execute().in.text.trim())
+            '.' + ([ git, 'rev-list', '--count', 'HEAD' ].execute().in.text.trim()) +
+            '-' + ([ git, 'rev-parse', 'HEAD' ].execute().in.text.trim().substring(0, 6))
 
     project.properties['newVersion'] = newVersion
     project.properties['generateBackupPoms'] = 'false'
