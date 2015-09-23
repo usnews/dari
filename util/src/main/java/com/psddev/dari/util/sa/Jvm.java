@@ -49,7 +49,7 @@ public class Jvm {
     public void analyze(Class<?> objectClass) throws IOException {
         Preconditions.checkNotNull(objectClass, "objectClass");
 
-        URL classUrl = objectClass.getResource("/" + objectClass.getName().replace('.', File.separatorChar) + ".class");
+        URL classUrl = objectClass.getResource("/" + objectClass.getName().replace('.', '/') + ".class");
 
         if (classUrl != null) {
             InputStream classInput = classUrl.openStream();
