@@ -3,10 +3,10 @@ package com.psddev.dari.util.sa;
 import java.lang.reflect.Method;
 import java.util.Map;
 
-import org.objectweb.asm.Label;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.MethodNode;
+import com.psddev.dari.util.asm.Label;
+import com.psddev.dari.util.asm.Type;
+import com.psddev.dari.util.asm.tree.LabelNode;
+import com.psddev.dari.util.asm.tree.MethodNode;
 
 import com.psddev.dari.util.CompactMap;
 

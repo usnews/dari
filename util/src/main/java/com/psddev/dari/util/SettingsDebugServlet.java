@@ -21,15 +21,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.Attribute;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
+import com.psddev.dari.util.asm.AnnotationVisitor;
+import com.psddev.dari.util.asm.Attribute;
+import com.psddev.dari.util.asm.ClassReader;
+import com.psddev.dari.util.asm.ClassVisitor;
+import com.psddev.dari.util.asm.FieldVisitor;
+import com.psddev.dari.util.asm.Label;
+import com.psddev.dari.util.asm.MethodVisitor;
+import com.psddev.dari.util.asm.Opcodes;
+import com.psddev.dari.util.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

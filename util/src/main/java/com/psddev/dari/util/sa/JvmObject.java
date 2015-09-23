@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.objectweb.asm.Type;
+import com.psddev.dari.util.asm.Type;
 
 public abstract class JvmObject implements Cloneable {
 

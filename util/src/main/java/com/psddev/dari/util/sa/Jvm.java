@@ -9,10 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.objectweb.asm.ClassReader;
-
 import com.google.common.base.Preconditions;
 import com.psddev.dari.util.CompactMap;
+import com.psddev.dari.util.asm.ClassReader;
 
 /**
  * JVM that's used to run static analysis.
