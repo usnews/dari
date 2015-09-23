@@ -13,21 +13,21 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>dari-elasticsearch</artifactId>
+    <artifactId>dari-twilio</artifactId>
     <version>3.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Dari: Integration - Elasticsearch</name>
+    <name>Dari: Integration - Twilio</name>
 
     <dependencies>
         <dependency>
             <groupId>com.psddev</groupId>
-            <artifactId>dari-db</artifactId>
+            <artifactId>dari-sms</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
+            <groupId>com.psddev</groupId>
+            <artifactId>dari-util</artifactId>
         </dependency>
     </dependencies>
 

@@ -13,21 +13,21 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>dari-elasticsearch</artifactId>
+    <artifactId>dari-jclouds</artifactId>
     <version>3.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Dari: Integration - Elasticsearch</name>
+    <name>Dari: Integration - Apache jclouds</name>
 
     <dependencies>
         <dependency>
             <groupId>com.psddev</groupId>
-            <artifactId>dari-db</artifactId>
+            <artifactId>dari-storage</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
+            <groupId>org.apache.jclouds</groupId>
+            <artifactId>jclouds-all</artifactId>
         </dependency>
     </dependencies>
 
