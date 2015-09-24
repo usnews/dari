@@ -566,7 +566,7 @@ class JvmRunner extends MethodVisitor {
     }
 
     @Override
-    public void visitMethodInsn(int opcode, String owner, String name, String desc) {
+    public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
         Type[] calledArgumentTypes = Type.getArgumentTypes(desc);
         List<Class<?>> calledArgumentClasses = new ArrayList<Class<?>>();
         List<JvmObject> calledArguments = new ArrayList<JvmObject>();

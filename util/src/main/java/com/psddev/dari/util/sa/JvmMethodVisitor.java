@@ -4,6 +4,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 import com.psddev.dari.util.asm.Label;
+import com.psddev.dari.util.asm.Opcodes;
 import com.psddev.dari.util.asm.Type;
 import com.psddev.dari.util.asm.tree.LabelNode;
 import com.psddev.dari.util.asm.tree.MethodNode;
@@ -26,7 +27,7 @@ class JvmMethodVisitor extends MethodNode {
             Jvm jvm,
             Method callingMethod) {
 
-        super(access, name, desc, signature, exceptions);
+        super(Opcodes.ASM5, access, name, desc, signature, exceptions);
 
         this.jvm = jvm;
         this.callingMethod = callingMethod;

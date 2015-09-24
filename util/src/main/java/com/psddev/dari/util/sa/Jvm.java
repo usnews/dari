@@ -1,6 +1,5 @@
 package com.psddev.dari.util.sa;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
