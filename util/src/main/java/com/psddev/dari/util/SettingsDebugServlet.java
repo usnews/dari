@@ -93,8 +93,9 @@ public class SettingsDebugServlet extends HttpServlet {
                 if (!Settings.class.isAssignableFrom(objectClass)) {
                     try {
                         jvm.analyze(objectClass);
-                    } catch (Exception error) {
 
+                    } catch (Exception error) {
+                        // Ignore errors.
                     }
                 }
             }
