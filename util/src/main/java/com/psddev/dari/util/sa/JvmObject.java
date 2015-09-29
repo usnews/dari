@@ -1,6 +1,5 @@
 package com.psddev.dari.util.sa;
 
-import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.AccessibleObject;
@@ -58,7 +57,7 @@ public abstract class JvmObject implements Cloneable {
                         }
                     }
 
-                } catch (IntrospectionException error) {
+                } catch (Exception e) {
                     // Can't get getter information, but that's OK.
                 }
             }
