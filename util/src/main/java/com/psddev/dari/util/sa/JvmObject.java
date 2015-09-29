@@ -58,7 +58,7 @@ public abstract class JvmObject implements Cloneable {
                         }
                     }
 
-                } catch (IntrospectionException error) {
+                } catch (Exception e) {
                     // Can't get getter information, but that's OK.
                 }
             }
