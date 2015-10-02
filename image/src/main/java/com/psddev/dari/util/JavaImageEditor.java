@@ -305,7 +305,7 @@ public class JavaImageEditor extends AbstractImageEditor {
         }
 
         storageItemUrlBuilder.append("?url=")
-                .append(imageUrl);
+                .append(StringUtils.encodeUri(imageUrl));
 
         UrlStorageItem newStorageItem = StorageItem.Static.createUrl(storageItemUrlBuilder.toString());
         String contentType = DEFAULT_IMAGE_CONTENT_TYPE;
