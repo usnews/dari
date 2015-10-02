@@ -694,6 +694,10 @@ class SqlQuery {
                         }
 
                     } else if (value instanceof Region) {
+                        if (!database.isIndexSpatial()) {
+                            throw new UnsupportedOperationException();
+                        }
+
                         List<Location> locations = ((Region) value).getLocations();
                         if (!locations.isEmpty()) {
                             ++ subClauseCount;
@@ -710,6 +714,10 @@ class SqlQuery {
                         }
 
                     } else {
+                        if (!database.isIndexSpatial() && value instanceof Location) {
+                            throw new UnsupportedOperationException();
+                        }
+
                         ++ subClauseCount;
 
                         if (isNotEqualsAll) {
@@ -794,6 +802,10 @@ class SqlQuery {
                             comparisonBuilder.append("0 = 1");
 
                         } else if (value instanceof Location) {
+                            if (!database.isIndexSpatial()) {
+                                throw new UnsupportedOperationException();
+                            }
+
                             ++ subClauseCount;
 
                             if (isNotEqualsAll) {
@@ -916,6 +928,10 @@ class SqlQuery {
                 }
 
             } else if (closest || farthest) {
+                if (!database.isIndexSpatial()) {
+                    throw new UnsupportedOperationException();
+                }
+
                 Location location = (Location) sorter.getOptions().get(1);
 
                 StringBuilder selectBuilder = new StringBuilder();

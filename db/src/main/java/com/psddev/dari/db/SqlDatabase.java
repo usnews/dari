@@ -100,6 +100,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     public static final String ENABLE_REPLICATION_CACHE_SUB_SETTING = "enableReplicationCache";
     public static final String ENABLE_FUNNEL_CACHE_SUB_SETTING = "enableFunnelCache";
     public static final String REPLICATION_CACHE_SIZE_SUB_SETTING = "replicationCacheSize";
+    public static final String INDEX_SPATIAL_SUB_SETTING = "indexSpatial";
 
     public static final String RECORD_TABLE = "Record";
     public static final String RECORD_UPDATE_TABLE = "RecordUpdate";
@@ -163,6 +164,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     private volatile boolean enableReplicationCache;
     private volatile boolean enableFunnelCache;
     private volatile long replicationCacheMaximumSize;
+    private volatile boolean indexSpatial;
 
     private final transient ConcurrentMap<Class<?>, UUID> singletonIds = new ConcurrentHashMap<>();
     private transient volatile Cache<UUID, Object[]> replicationCache;
@@ -411,6 +413,14 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
     public long getReplicationCacheMaximumSize() {
         return this.replicationCacheMaximumSize;
+    }
+
+    public boolean isIndexSpatial() {
+        return indexSpatial;
+    }
+
+    public void setIndexSpatial(boolean indexSpatial) {
+        this.indexSpatial = indexSpatial;
     }
 
     /**
@@ -1767,6 +1777,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         setEnableFunnelCache(ObjectUtils.to(boolean.class, settings.get(ENABLE_FUNNEL_CACHE_SUB_SETTING)));
         Long replicationCacheMaxSize = ObjectUtils.to(Long.class, settings.get(REPLICATION_CACHE_SIZE_SUB_SETTING));
         setReplicationCacheMaximumSize(replicationCacheMaxSize != null ? replicationCacheMaxSize : DEFAULT_REPLICATION_CACHE_SIZE);
+        setIndexSpatial(ObjectUtils.firstNonNull(ObjectUtils.to(Boolean.class, settings.get(INDEX_SPATIAL_SUB_SETTING)), Boolean.TRUE));
 
         if (isEnableReplicationCache() &&
                 vendor instanceof SqlVendor.MySQL &&
