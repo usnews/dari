@@ -761,7 +761,7 @@ public enum SqlIndex {
                             deleteBuilder.append(" = ");
                             deleteBuilder.append(database.getSymbolId(onlyIndex.getUniqueName()));
                         }
-                        SqlDatabase.Static.executeUpdateWithArray(connection, deleteBuilder.toString());
+                        SqlDatabase.Static.executeUpdateWithArray(vendor, connection, deleteBuilder.toString());
                     }
                 }
             }
@@ -783,7 +783,7 @@ public enum SqlIndex {
                         deleteBuilder.append(" = ");
                         deleteBuilder.append(database.getSymbolId(onlyIndex.getUniqueName()));
                     }
-                    SqlDatabase.Static.executeUpdateWithArray(connection, deleteBuilder.toString());
+                    SqlDatabase.Static.executeUpdateWithArray(vendor, connection, deleteBuilder.toString());
                 }
             }
         }

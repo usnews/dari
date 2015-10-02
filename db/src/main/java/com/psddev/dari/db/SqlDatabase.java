@@ -550,7 +550,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
 
                 String insertSql = insertBuilder.toString();
                 try {
-                    Static.executeUpdateWithList(connection, insertSql, parameters);
+                    Static.executeUpdateWithList(vendor, connection, insertSql, parameters);
 
                 } catch (SQLException ex) {
                     if (!Static.isIntegrityConstraintViolation(ex)) {
@@ -1532,7 +1532,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
     @Deprecated
     public int executeUpdate(String sqlQuery, Object... parameters) {
         try {
-            return Static.executeUpdateWithArray(getConnection(), sqlQuery, parameters);
+            return Static.executeUpdateWithArray(getVendor(), getConnection(), sqlQuery, parameters);
         } catch (SQLException ex) {
             throw createQueryException(ex, fillPlaceholders(sqlQuery, parameters), null);
         }
@@ -2521,7 +2521,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         }
 
                         insertBuilder.append(')');
-                        Static.executeUpdateWithList(connection, insertBuilder.toString(), parameters);
+                        Static.executeUpdateWithList(vendor, connection, insertBuilder.toString(), parameters);
 
                     } catch (SQLException ex) {
                         if (Static.isIntegrityConstraintViolation(ex)) {
@@ -2565,7 +2565,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, id, parameters);
 
-                        if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
+                        if (Static.executeUpdateWithList(vendor, connection, updateBuilder.toString(), parameters) < 1) {
                             isNew = true;
                             continue;
                         }
@@ -2635,7 +2635,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                         updateBuilder.append('=');
                         vendor.appendBindValue(updateBuilder, oldData, parameters);
 
-                        if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
+                        if (Static.executeUpdateWithList(vendor, connection, updateBuilder.toString(), parameters) < 1) {
                             retryWrites();
                             break;
                         }
@@ -2667,7 +2667,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     insertBuilder.append(')');
 
                     try {
-                        Static.executeUpdateWithList(connection, insertBuilder.toString(), parameters);
+                        Static.executeUpdateWithList(vendor, connection, insertBuilder.toString(), parameters);
 
                     } catch (SQLException ex) {
                         if (Static.isIntegrityConstraintViolation(ex)) {
@@ -2697,7 +2697,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     updateBuilder.append('=');
                     vendor.appendBindValue(updateBuilder, id, parameters);
 
-                    if (Static.executeUpdateWithList(connection, updateBuilder.toString(), parameters) < 1) {
+                    if (Static.executeUpdateWithList(vendor, connection, updateBuilder.toString(), parameters) < 1) {
                         isNew = true;
                         continue;
                     }
@@ -2730,7 +2730,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
             vendor.appendIdentifier(updateBuilder, ID_COLUMN);
             updateBuilder.append('=');
             vendor.appendValue(updateBuilder, entry.getKey().getId());
-            Static.executeUpdateWithArray(connection, updateBuilder.toString());
+            Static.executeUpdateWithArray(vendor, connection, updateBuilder.toString());
         }
     }
 
@@ -2780,7 +2780,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         deleteBuilder.append("DELETE FROM ");
         vendor.appendIdentifier(deleteBuilder, RECORD_TABLE);
         deleteBuilder.append(whereBuilder);
-        Static.executeUpdateWithArray(connection, deleteBuilder.toString());
+        Static.executeUpdateWithArray(vendor, connection, deleteBuilder.toString());
 
         SqlIndex.Static.deleteByStates(this, connection, states);
 
@@ -2792,7 +2792,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
         updateBuilder.append('=');
         vendor.appendValue(updateBuilder, System.currentTimeMillis() / 1000.0);
         updateBuilder.append(whereBuilder);
-        Static.executeUpdateWithArray(connection, updateBuilder.toString());
+        Static.executeUpdateWithArray(vendor, connection, updateBuilder.toString());
     }
 
     @FieldData.FieldInternalNamePrefix("sql.")
@@ -3137,20 +3137,57 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
          * {@code parameters} within the given {@code connection}.
          *
          * @return Number of rows affected by the update query.
+         *
+         * @deprecated Use {@link #executeUpdateWithList(SqlVendor, Connection, String, List)} instead.
          */
+        @Deprecated
         public static int executeUpdateWithList(
                 Connection connection,
                 String sqlQuery,
                 List<?> parameters)
                 throws SQLException {
 
+            return executeUpdateWithList(null, connection, sqlQuery, parameters);
+        }
+
+        /**
+         * Executes the given update {@code sqlQuery} with the given
+         * {@code parameters} within the given {@code connection}.
+         *
+         * @return Number of rows affected by the update query.
+         */
+        public static int executeUpdateWithList(
+                SqlVendor vendor,
+                Connection connection,
+                String sqlQuery,
+                List<?> parameters)
+                throws SQLException {
+
             if (parameters == null) {
-                return executeUpdateWithArray(connection, sqlQuery);
+                return executeUpdateWithArray(vendor, connection, sqlQuery);
 
             } else {
                 Object[] array = parameters.toArray(new Object[parameters.size()]);
-                return executeUpdateWithArray(connection, sqlQuery, array);
+                return executeUpdateWithArray(vendor, connection, sqlQuery, array);
             }
+        }
+
+        /**
+         * Executes the given update {@code sqlQuery} with the given
+         * {@code parameters} within the given {@code connection}.
+         *
+         * @return Number of rows affected by the update query.
+         *
+         * @deprecated Use {@link #executeUpdateWithArray(SqlVendor, Connection, String, Object...)} instead.
+         */
+        @Deprecated
+        public static int executeUpdateWithArray(
+                Connection connection,
+                String sqlQuery,
+                Object... parameters)
+                throws SQLException {
+
+            return executeUpdateWithArray(null, connection, sqlQuery, parameters);
         }
 
         /**
@@ -3160,6 +3197,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
          * @return Number of rows affected by the update query.
          */
         public static int executeUpdateWithArray(
+                SqlVendor vendor,
                 Connection connection,
                 String sqlQuery,
                 Object... parameters)
@@ -3191,7 +3229,7 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                 Savepoint savePoint = null;
 
                 try {
-                    if (!connection.getAutoCommit()) {
+                    if ((vendor == null || vendor.useSavepoint()) && !connection.getAutoCommit()) {
                         savePoint = connection.setSavepoint();
                     }
 
