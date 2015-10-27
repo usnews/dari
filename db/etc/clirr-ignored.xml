@@ -17,4 +17,10 @@
         <differenceType>7012</differenceType>
         <method>java.util.List findIndexedFields(com.psddev.dari.db.ObjectStruct)</method>
     </difference>
+
+    <difference>
+        <className>com/psddev/dari/db/RecalculationDelay</className>
+        <differenceType>7012</differenceType>
+        <method>org.joda.time.DateTime metricAfterDate(org.joda.time.DateTime)</method>
+    </difference>
 </differences>
