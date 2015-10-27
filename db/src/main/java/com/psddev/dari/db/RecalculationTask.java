@@ -164,6 +164,9 @@ public class RecalculationTask extends RepeatingTask {
                     if (interval != null) {
                         processedLastRunDate = new DateTime(interval.process(processedLastRunDate));
                     }
+                    if (context.delay != null) {
+                        processedLastRunDate = context.delay.metricAfterDate(processedLastRunDate);
+                    }
                 }
                 iterator = Metric.Static.getDistinctIdsBetween(Database.Static.getDefault(), null, metricField, processedLastRunDate, null);
 
