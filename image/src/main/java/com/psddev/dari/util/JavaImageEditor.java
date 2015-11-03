@@ -126,8 +126,8 @@ public class JavaImageEditor extends AbstractImageEditor {
     @Override
     public StorageItem edit(StorageItem storageItem, String command, Map<String, Object> options, Object... arguments) {
 
-        if (StringUtils.isBlank(this.getBasePath()) && PageContextFilter.Static.getRequest() != null) {
-            setBaseUrlFromRequest(PageContextFilter.Static.getRequest());
+        if (StringUtils.isBlank(this.getBasePath())) {
+            setBaseUrlFromRequest(PageContextFilter.Static.getRequestOrNull());
         }
 
         if (ImageEditor.CROP_COMMAND.equals(command)
@@ -404,17 +404,20 @@ public class JavaImageEditor extends AbstractImageEditor {
     protected void setBaseUrlFromRequest(HttpServletRequest request) {
 
         StringBuilder baseUrlBuilder = new StringBuilder();
-        baseUrlBuilder.append("http");
-        if (request.isSecure()) {
-            baseUrlBuilder.append("s");
-        }
 
-        baseUrlBuilder.append("://")
-                .append(request.getServerName());
+        if (request != null) {
+            baseUrlBuilder.append("http");
+            if (request.isSecure()) {
+                baseUrlBuilder.append("s");
+            }
 
-        if (request.getServerPort() != 80 && request.getServerPort() != 443) {
-            baseUrlBuilder.append(":")
-                    .append(request.getServerPort());
+            baseUrlBuilder.append("://")
+                    .append(request.getServerName());
+
+            if (request.getServerPort() != 80 && request.getServerPort() != 443) {
+                baseUrlBuilder.append(":")
+                        .append(request.getServerPort());
+            }
         }
 
         baseUrlBuilder.append(JavaImageServlet.SERVLET_PATH);
