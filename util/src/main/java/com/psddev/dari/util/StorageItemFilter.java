@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.FilterChain;
@@ -42,7 +44,11 @@ public class StorageItemFilter extends AbstractFilter {
             String fileParam = page.param(String.class, FILE_PARAM);
             String storageName = page.param(String.class, STORAGE_PARAM);
 
-            Object responseObject = StorageItemFilter.getParameter(request, fileParam, storageName);
+            Object responseObject = StorageItemFilter.getMultiple(request, fileParam, storageName);
+
+            if (responseObject != null && ((List) responseObject).size() == 1) {
+                responseObject = ((List) responseObject).get(0);
+            }
 
             response.setContentType("application/json");
             page.write(ObjectUtils.toJson(responseObject));
@@ -85,6 +91,51 @@ public class StorageItemFilter extends AbstractFilter {
         }
 
         return storageItem;
+    }
+
+    /**
+     * Creates a {@link List} of {@link StorageItem} from a request and request parameter.
+     *
+     * @param request     Can't be {@code null}. May be multipart or otherwise.
+     * @param paramName   The parameter name for the file inputs. Can't be {@code null} or blank.
+     * @param storageName Optional storageName, will default to using {@code StorageItem.DEFAULT_STORAGE_SETTING}.
+     * @return the {@link List} of created {@link StorageItem}(s).
+     * @throws IOException
+     */
+    public static List<StorageItem> getMultiple(HttpServletRequest request, String paramName, String storageName) throws IOException {
+        Preconditions.checkNotNull(request);
+        Preconditions.checkArgument(!StringUtils.isBlank(paramName));
+
+        List<StorageItem> storageItems = new ArrayList<>();
+
+        MultipartRequest mpRequest = MultipartRequestFilter.Static.getInstance(request);
+
+        if (mpRequest != null) {
+
+            FileItem[] items = mpRequest.getFileItems(paramName);
+
+            if (!ObjectUtils.isBlank(items)) {
+                for (int i = 0; i < items.length; i++) {
+                    FileItem item = items[i];
+                    if (item == null) {
+                        continue;
+                    }
+
+                    if (item.isFormField()) {
+                        storageItems.add(createStorageItem(request.getParameterValues(paramName)[i]));
+                        continue;
+                    }
+
+                    storageItems.add(createStorageItem(item, storageName));
+                }
+            }
+        } else {
+            for (String json : request.getParameterValues(paramName)) {
+                storageItems.add(createStorageItem(json));
+            }
+        }
+
+        return storageItems;
     }
 
     private static StorageItem createStorageItem(String jsonString) {

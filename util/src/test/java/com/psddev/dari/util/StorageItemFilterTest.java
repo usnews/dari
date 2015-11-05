@@ -93,7 +93,7 @@ public class StorageItemFilterTest {
             map.put(CONTENT_TYPE_KEY, contentTypeValue);
             map.put(METADATA_KEY, metadataValue);
 
-            when(request.getParameter("file")).thenReturn(ObjectUtils.toJson(map));
+            when(request.getParameterValues("file")).thenReturn(new String[] {ObjectUtils.toJson(map)});
             assertEquals(getJsonResponse(request, response, chain), map);
         }
 
