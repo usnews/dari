@@ -23,9 +23,7 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import com.google.common.collect.ImmutableMap;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -99,36 +97,37 @@ public class StorageItemFilterTest {
             assertEquals(getJsonResponse(request, response, chain), map);
         }
 
-        @Test
-        public void fileRequest() throws Exception {
-
-            HttpServletRequest request = getUploadRequest();
-            MultipartRequest mpRequest = mock(MultipartRequest.class);
-            HttpServletResponse response = mock(HttpServletResponse.class);
-            FilterChain chain = mock(FilterChain.class);
-
-            String storageValue = "testStorage";
-            String contentType = "image/png";
-            String fileName = "image.png";
-
-            setSettingsOverrides(storageValue);
-
-            FileItem fileItem = spy(Utils.getFileItem(
-                    "image/png",
-                    fileName,
-                    "com/psddev/dari/util/StorageItemFilter_Test/" + fileName));
-
-            when(fileItem.isFormField()).thenReturn(false);
-            when(mpRequest.getMethod()).thenReturn("POST");
-            when(request.getAttribute(MultipartRequestFilter.class.getName() + ".instance")).thenReturn(mpRequest);
-            when(mpRequest.getFileItem("file")).thenReturn(fileItem);
-
-            Map<String, Object> jsonResponse = getJsonResponse(request, response, chain);
-
-            assertEquals(jsonResponse.get(STORAGE_KEY), storageValue);
-            assertEquals(jsonResponse.get(CONTENT_TYPE_KEY), contentType);
-            assertTrue(jsonResponse.get(PATH_KEY).toString().endsWith(fileName));
-        }
+// TODO: Add this test back in version 3.2
+//        @Test
+//        public void fileRequest() throws Exception {
+//
+//            HttpServletRequest request = getUploadRequest();
+//            MultipartRequest mpRequest = mock(MultipartRequest.class);
+//            HttpServletResponse response = mock(HttpServletResponse.class);
+//            FilterChain chain = mock(FilterChain.class);
+//
+//            String storageValue = "testStorage";
+//            String contentType = "image/png";
+//            String fileName = "image.png";
+//
+//            setSettingsOverrides(storageValue);
+//
+//            FileItem fileItem = spy(Utils.getFileItem(
+//                    "image/png",
+//                    fileName,
+//                    "com/psddev/dari/util/StorageItemFilter_Test/" + fileName));
+//
+//            when(fileItem.isFormField()).thenReturn(false);
+//            when(mpRequest.getMethod()).thenReturn("POST");
+//            when(request.getAttribute(MultipartRequestFilter.class.getName() + ".instance")).thenReturn(mpRequest);
+//            when(mpRequest.getFileItem("file")).thenReturn(fileItem);
+//
+//            Map<String, Object> jsonResponse = getJsonResponse(request, response, chain);
+//
+//            assertEquals(jsonResponse.get(STORAGE_KEY), storageValue);
+//            assertEquals(jsonResponse.get(CONTENT_TYPE_KEY), contentType);
+//            assertTrue(jsonResponse.get(PATH_KEY).toString().endsWith(fileName));
+//        }
 
         private void setSettingsOverrides(String storage) {
             Settings.setOverride(StorageItem.DEFAULT_STORAGE_SETTING, storage);
