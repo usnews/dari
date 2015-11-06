@@ -58,4 +58,11 @@
         <className>com/psddev/dari/util/sa/**</className>
         <differenceType>8001</differenceType>
     </difference>
+
+    <difference>
+        <className>com/psddev/dari/util/ImageResizeStorageItemListener</className>
+        <differenceType>4001</differenceType>
+        <method>**</method>
+        <to>**</to>
+    </difference>
 </differences>
