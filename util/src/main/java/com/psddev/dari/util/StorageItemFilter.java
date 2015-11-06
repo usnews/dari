@@ -61,50 +61,28 @@ public class StorageItemFilter extends AbstractFilter {
     /**
      * Creates {@link StorageItem} from a request and request parameter.
      *
-     * @param request       Can't be {@code null}.
-     * @param parameterName The parameter name for the file input. Can't be {@code null} or blank.
-     * @param storageName   Optionally accepts a storageName, will default to using {@code StorageItem.DEFAULT_STORAGE_SETTING}
+     * @param request     Can't be {@code null}. May be multipart or otherwise.
+     * @param parameterName   The parameter name for the file input. Can't be {@code null} or blank.
+     * @param storageName Optionally accepts a storageName, will default to using {@code StorageItem.DEFAULT_STORAGE_SETTING}
      * @return the created {@link StorageItem}
+     * @throws IOException
      */
     public static StorageItem getParameter(HttpServletRequest request, String parameterName, String storageName) throws IOException {
-        Preconditions.checkNotNull(request);
-        Preconditions.checkArgument(!StringUtils.isBlank(parameterName));
-
-        StorageItem storageItem = null;
-
-        MultipartRequest mpRequest = MultipartRequestFilter.Static.getInstance(request);
-
-        if (mpRequest != null) {
-            FileItem item = mpRequest.getFileItem(parameterName);
-
-            if (item != null) {
-                if (item.isFormField()) {
-                    storageItem = createStorageItem(mpRequest.getParameter(parameterName));
-                } else {
-                    storageItem = createStorageItem(item, StringUtils.isBlank(storageName)
-                            ? Settings.get(String.class, StorageItem.DEFAULT_STORAGE_SETTING)
-                            : storageName);
-                }
-            }
-        } else {
-            storageItem = createStorageItem(request.getParameter(parameterName));
-        }
-
-        return storageItem;
+        return getMultiple(request, parameterName, storageName).get(0);
     }
 
     /**
      * Creates a {@link List} of {@link StorageItem} from a request and request parameter.
      *
      * @param request     Can't be {@code null}. May be multipart or otherwise.
-     * @param paramName   The parameter name for the file inputs. Can't be {@code null} or blank.
+     * @param parameterName   The parameter name for the file inputs. Can't be {@code null} or blank.
      * @param storageName Optional storageName, will default to using {@code StorageItem.DEFAULT_STORAGE_SETTING}.
      * @return the {@link List} of created {@link StorageItem}(s).
      * @throws IOException
      */
-    public static List<StorageItem> getMultiple(HttpServletRequest request, String paramName, String storageName) throws IOException {
+    public static List<StorageItem> getMultiple(HttpServletRequest request, String parameterName, String storageName) throws IOException {
         Preconditions.checkNotNull(request);
-        Preconditions.checkArgument(!StringUtils.isBlank(paramName));
+        Preconditions.checkArgument(!StringUtils.isBlank(parameterName));
 
         List<StorageItem> storageItems = new ArrayList<>();
 
@@ -112,7 +90,7 @@ public class StorageItemFilter extends AbstractFilter {
 
         if (mpRequest != null) {
 
-            FileItem[] items = mpRequest.getFileItems(paramName);
+            FileItem[] items = mpRequest.getFileItems(parameterName);
 
             if (!ObjectUtils.isBlank(items)) {
                 for (int i = 0; i < items.length; i++) {
@@ -123,7 +101,7 @@ public class StorageItemFilter extends AbstractFilter {
 
                     // handles input non-file input types in case of mixed input scenario
                     if (item.isFormField()) {
-                        storageItems.add(createStorageItem(request.getParameterValues(paramName)[i]));
+                        storageItems.add(createStorageItem(request.getParameterValues(parameterName)[i]));
                         continue;
                     }
 
@@ -131,7 +109,7 @@ public class StorageItemFilter extends AbstractFilter {
                 }
             }
         } else {
-            for (String json : request.getParameterValues(paramName)) {
+            for (String json : request.getParameterValues(parameterName)) {
                 storageItems.add(createStorageItem(json));
             }
         }
