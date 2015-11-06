@@ -121,6 +121,7 @@ public class StorageItemFilter extends AbstractFilter {
                         continue;
                     }
 
+                    // handles input non-file input types in case of mixed input scenario
                     if (item.isFormField()) {
                         storageItems.add(createStorageItem(request.getParameterValues(paramName)[i]));
                         continue;
