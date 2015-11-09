@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -164,11 +165,23 @@ public class RecalculationTask extends RepeatingTask {
                     if (interval != null) {
                         processedLastRunDate = new DateTime(interval.process(processedLastRunDate));
                     }
+                    if (context.delay != null) {
+                        processedLastRunDate = context.delay.metricAfterDate(processedLastRunDate);
+                    }
                 }
                 iterator = Metric.Static.getDistinctIdsBetween(Database.Static.getDefault(), null, metricField, processedLastRunDate, null);
 
             } else {
                 Query<?> query = Query.fromAll().using(db).noCache().resolveToReferenceOnly().option(SqlDatabase.USE_JDBC_FETCH_SIZE_QUERY_OPTION, false);
+                if (!isGlobal) {
+                    Set<ObjectType> concreteTypes = new HashSet<>();
+                    for (String group : context.groups) {
+                        concreteTypes.addAll(db.getEnvironment().getTypesByGroup(group).stream().filter(ObjectType::isConcrete).collect(Collectors.toSet()));
+                    }
+                    if (!concreteTypes.isEmpty()) {
+                        query.where("_type = ?", concreteTypes);
+                    }
+                }
                 iterator = query.iterable(QUERY_ITERABLE_SIZE).iterator();
             }
 
