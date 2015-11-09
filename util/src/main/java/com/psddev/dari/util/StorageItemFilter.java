@@ -148,35 +148,44 @@ public class StorageItemFilter extends AbstractFilter {
 
     private static StorageItem createStorageItem(FileItem fileItem, String storageName) throws IOException {
 
-        File file;
+        File file = null;
+
         try {
-            file = File.createTempFile("cms.", ".tmp");
-            fileItem.write(file);
-        } catch (Exception e) {
-            throw new IOException("Unable to write [" + (StringUtils.isBlank(fileItem.getName()) ? fileItem.getName() : "fileItem") + "] to temporary file.", e);
+
+            try {
+                file = File.createTempFile("cms.", ".tmp");
+                fileItem.write(file);
+            } catch (Exception e) {
+                throw new IOException("Unable to write [" + (StringUtils.isBlank(fileItem.getName()) ? fileItem.getName() : "fileItem") + "] to temporary file.", e);
+            }
+
+            StorageItemUploadPart part = new StorageItemUploadPart();
+            part.setContentType(fileItem.getContentType());
+            part.setName(fileItem.getName());
+            part.setFile(file);
+            part.setStorageName(storageName);
+
+            // Add additional beforeCreate logic by creating StorageItemBeforeCreate implementations
+            beforeCreate(part);
+
+            StorageItem storageItem = StorageItem.Static.createIn(part.getStorageName());
+            storageItem.setContentType(part.getContentType());
+            storageItem.setPath(createPath(part));
+            storageItem.setData(new FileInputStream(file));
+
+            if (storageItem instanceof AbstractStorageItem) {
+                ((AbstractStorageItem) storageItem).setPart(part);
+            }
+
+            storageItem.save();
+
+            return storageItem;
+
+        } finally {
+            if (file != null && file.exists()) {
+                file.delete();
+            }
         }
-
-        StorageItemUploadPart part = new StorageItemUploadPart();
-        part.setContentType(fileItem.getContentType());
-        part.setName(fileItem.getName());
-        part.setFile(file);
-        part.setStorageName(storageName);
-
-        // Add additional beforeCreate logic by creating StorageItemBeforeCreate implementations
-        beforeCreate(part);
-
-        StorageItem storageItem = StorageItem.Static.createIn(part.getStorageName());
-        storageItem.setContentType(part.getContentType());
-        storageItem.setPath(createPath(part));
-        storageItem.setData(new FileInputStream(file));
-
-        if (storageItem instanceof AbstractStorageItem) {
-            ((AbstractStorageItem) storageItem).setPart(part);
-        }
-
-        storageItem.save();
-
-        return storageItem;
     }
 
     private static void beforeCreate(final StorageItemUploadPart part) {
