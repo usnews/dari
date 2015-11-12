@@ -14,7 +14,7 @@ import javax.imageio.ImageIO;
 
 import org.imgscalr.Scalr;
 
-public class ImageResizeStorageItemListener implements StorageItemAfterSave {
+public class ImageResizeStorageItemListener implements StorageItemListener {
 
     @SuppressWarnings("unchecked")
     public static boolean overridePathWithNearestSize(StorageItem item, Integer width, Integer height) {

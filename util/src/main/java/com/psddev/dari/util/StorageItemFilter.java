@@ -175,9 +175,34 @@ public class StorageItemFilter extends AbstractFilter {
 
             if (storageItem instanceof AbstractStorageItem) {
                 ((AbstractStorageItem) storageItem).setPart(part);
+
+                //TODO: move to AbstractStorageItem#save in dari 3.2
+                // Add additional beforeSave functionality through StorageItemBeforeSave implementations
+                ClassFinder.findConcreteClasses(StorageItemBeforeSave.class)
+                        .forEach(c -> {
+                            try {
+                                TypeDefinition.getInstance(c).newInstance().beforeSave(storageItem);
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                        });
             }
 
             storageItem.save();
+
+            if (storageItem instanceof AbstractStorageItem) {
+
+                //TODO: move to AbstractStorageItem#save in dari 3.2
+                // Add additional afterSave functionality through StorageItemAfterSave implementations
+                ClassFinder.findConcreteClasses(StorageItemAfterSave.class)
+                        .forEach(c -> {
+                            try {
+                                TypeDefinition.getInstance(c).newInstance().afterSave(storageItem);
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                        });
+            }
 
             return storageItem;
 
