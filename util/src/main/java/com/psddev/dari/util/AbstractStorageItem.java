@@ -72,7 +72,6 @@ public abstract class AbstractStorageItem implements StorageItem {
     private transient InputStream data;
     private transient List<StorageItemListener> listeners;
     private transient StorageItemHash hashAlgorithm;
-    private transient StorageItemUploadPart part;
 
     /**
      * Returns the base URL that's used to construct the
@@ -195,13 +194,6 @@ public abstract class AbstractStorageItem implements StorageItem {
 
     }
 
-    public StorageItemUploadPart getPart() {
-        return part;
-    }
-
-    public void setPart(StorageItemUploadPart part) {
-        this.part = part;
-    }
     // --- StorageItem support ---
 
     @Override
