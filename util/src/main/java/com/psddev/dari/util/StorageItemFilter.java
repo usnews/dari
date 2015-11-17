@@ -165,23 +165,16 @@ public class StorageItemFilter extends AbstractFilter {
             part.setFile(file);
             part.setStorageName(storageName);
 
-            // Add additional beforeCreate logic by creating StorageItemBeforeCreate implementations
-            beforeCreate(part);
-
             StorageItem storageItem = StorageItem.Static.createIn(part.getStorageName());
             storageItem.setContentType(part.getContentType());
             storageItem.setPath(createPath(part));
             storageItem.setData(new FileInputStream(file));
 
-            if (storageItem instanceof AbstractStorageItem) {
-                ((AbstractStorageItem) storageItem).setPart(part);
-            }
-
             // Add additional beforeSave functionality through StorageItemBeforeSave implementations
             ClassFinder.findConcreteClasses(StorageItemBeforeSave.class)
                     .forEach(c -> {
                         try {
-                            TypeDefinition.getInstance(c).newInstance().beforeSave(storageItem);
+                            TypeDefinition.getInstance(c).newInstance().beforeSave(storageItem, part);
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
                         }
@@ -206,22 +199,6 @@ public class StorageItemFilter extends AbstractFilter {
                 file.delete();
             }
         }
-    }
-
-    private static void beforeCreate(final StorageItemUploadPart part) {
-        String fileName = Preconditions.checkNotNull(part.getName());
-
-        Preconditions.checkState(part.getSize() > 0,
-                "File [" + fileName + "] is empty");
-
-        ClassFinder.findConcreteClasses(StorageItemBeforeCreate.class)
-                .forEach(c -> {
-                    try {
-                        TypeDefinition.getInstance(c).newInstance().beforeCreate(part);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
     }
 
     private static String createPath(StorageItemUploadPart part) {
