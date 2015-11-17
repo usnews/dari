@@ -44,7 +44,7 @@ public class StorageItemFilter extends AbstractFilter {
             String fileParam = page.param(String.class, FILE_PARAM);
             String storageName = page.param(String.class, STORAGE_PARAM);
 
-            Object responseObject = StorageItemFilter.getMultiple(request, fileParam, storageName);
+            Object responseObject = StorageItemFilter.getParameters(request, fileParam, storageName);
 
             if (responseObject != null && ((List) responseObject).size() == 1) {
                 responseObject = ((List) responseObject).get(0);
@@ -68,7 +68,7 @@ public class StorageItemFilter extends AbstractFilter {
      * @throws IOException
      */
     public static StorageItem getParameter(HttpServletRequest request, String parameterName, String storageName) throws IOException {
-        return getMultiple(request, parameterName, storageName).get(0);
+        return getParameters(request, parameterName, storageName).get(0);
     }
 
     /**
@@ -80,7 +80,7 @@ public class StorageItemFilter extends AbstractFilter {
      * @return the {@link List} of created {@link StorageItem}(s).
      * @throws IOException
      */
-    public static List<StorageItem> getMultiple(HttpServletRequest request, String parameterName, String storageName) throws IOException {
+    public static List<StorageItem> getParameters(HttpServletRequest request, String parameterName, String storageName) throws IOException {
         Preconditions.checkNotNull(request);
         Preconditions.checkArgument(!StringUtils.isBlank(parameterName));
 
