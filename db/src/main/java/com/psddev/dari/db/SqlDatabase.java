@@ -546,6 +546,20 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
      */
     public int getReadSymbolId(String symbol) {
         Integer id = symbols.get().get(symbol);
+
+        if (id == null) {
+            Connection connection = openConnection();
+            try {
+                id = selectSymbolId(connection, symbol);
+                if (id != null) {
+                    symbols.get().put(symbol, id);
+                }
+            } finally {
+                closeConnection(connection);
+            }
+            sqlQueryCache.invalidateAll();
+        }
+
         return id != null ? id : -1;
     }
 
@@ -581,37 +595,51 @@ public class SqlDatabase extends AbstractDatabase<Connection> {
                     }
                 }
 
-                StringBuilder selectBuilder = new StringBuilder();
-                selectBuilder.append("SELECT ");
-                vendor.appendIdentifier(selectBuilder, SYMBOL_ID_COLUMN);
-                selectBuilder.append(" FROM ");
-                vendor.appendIdentifier(selectBuilder, SYMBOL_TABLE);
-                selectBuilder.append(" WHERE ");
-                vendor.appendIdentifier(selectBuilder, VALUE_COLUMN);
-                selectBuilder.append('=');
-                vendor.appendValue(selectBuilder, symbol);
-
-                String selectSql = selectBuilder.toString();
-                Statement statement = null;
-                ResultSet result = null;
-
-                try {
-                    statement = connection.createStatement();
-                    result = statement.executeQuery(selectSql);
-                    result.next();
-                    id = result.getInt(1);
-                    symbols.get().put(symbol, id);
-
-                } catch (SQLException ex) {
-                    throw createQueryException(ex, selectSql, null);
-
-                } finally {
-                    closeResources(null, null, statement, result);
-                }
+                id = selectSymbolId(connection, symbol);
+                symbols.get().put(symbol, id);
 
             } finally {
                 closeConnection(connection);
             }
+        }
+
+        return id;
+    }
+
+    private Integer selectSymbolId(Connection connection, String symbol) {
+        Integer id = null;
+
+        try {
+            StringBuilder selectBuilder = new StringBuilder();
+            selectBuilder.append("SELECT ");
+            vendor.appendIdentifier(selectBuilder, SYMBOL_ID_COLUMN);
+            selectBuilder.append(" FROM ");
+            vendor.appendIdentifier(selectBuilder, SYMBOL_TABLE);
+            selectBuilder.append(" WHERE ");
+            vendor.appendIdentifier(selectBuilder, VALUE_COLUMN);
+            selectBuilder.append('=');
+            vendor.appendValue(selectBuilder, symbol);
+
+            String selectSql = selectBuilder.toString();
+            Statement statement = null;
+            ResultSet result = null;
+
+            try {
+                statement = connection.createStatement();
+                result = statement.executeQuery(selectSql);
+                if (result.next()) {
+                    id = result.getInt(1);
+                }
+
+            } catch (SQLException ex) {
+                throw createQueryException(ex, selectSql, null);
+
+            } finally {
+                closeResources(null, null, statement, result);
+            }
+
+        } finally {
+            closeConnection(connection);
         }
 
         return id;
