@@ -547,12 +547,12 @@ try {
     <distributionManagement>
         <repository>
             <id>psddev-releases</id>
-            <url>http://nexus.psddev.com/content/repositories/releases</url>
+            <url>https://artifactory.psdops.com/psddev-releases</url>
         </repository>
 
         <snapshotRepository>
             <id>psddev-snapshots</id>
-            <url>http://nexus.psddev.com/content/repositories/snapshots</url>
+            <url>https://artifactory.psdops.com/psddev-snapshots</url>
         </snapshotRepository>
     </distributionManagement>
 
@@ -564,7 +564,7 @@ try {
     <repositories>
         <repository>
             <id>public.psddev</id>
-            <url>http://public.psddev.com/maven</url>
+            <url>https://artifactory.psdops.com/public</url>
             <snapshots>
                 <updatePolicy>always</updatePolicy>
             </snapshots>
@@ -574,7 +574,7 @@ try {
     <pluginRepositories>
         <pluginRepository>
             <id>public.psddev</id>
-            <url>http://public.psddev.com/maven</url>
+            <url>https://artifactory.psdops.com/public</url>
             <snapshots>
                 <updatePolicy>always</updatePolicy>
             </snapshots>
