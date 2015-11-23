@@ -14,7 +14,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.io.IOUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -178,7 +177,7 @@ public class StorageItemFilterTest {
 
             if (!StringUtils.isBlank(filePath)) {
                 OutputStream os = fileItem.getOutputStream();
-                os.write(IOUtils.toByteArray(StorageItemFilterTest.class.getClassLoader().getResourceAsStream(filePath)));
+                os.write(IoUtils.toByteArray(StorageItemFilterTest.class.getClassLoader().getResourceAsStream(filePath)));
                 os.close();
             }
 
