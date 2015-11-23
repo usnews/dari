@@ -337,6 +337,7 @@ public abstract class AbstractStorageItem implements StorageItem {
 
     @Override
     public void save() throws IOException {
+
         InputStream data = getData();
         try {
             saveData(data);
