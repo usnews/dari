@@ -807,11 +807,29 @@ public class ObjectField extends Record {
 
     /** Validates the field value in the given record. */
     public void validate(State state) {
-        Object value = state.get(getInternalName());
-        if (isRequired() && ObjectUtils.isBlank(value)) {
-            state.addError(this, "Required!");
-        } else {
-            validateValue(state, getInternalType(), value);
+
+        boolean shouldValidate = true;
+
+        if (state.getType() != null && state.getType().getGroups().contains(ConditionalValidation.class.getName())) {
+            for (String className : state.getType().getModificationClassNames()) {
+                Class<?> modificationClass = ObjectUtils.getClassByName(className);
+                if (modificationClass != null && ConditionalValidation.class.isAssignableFrom(modificationClass)) {
+                    shouldValidate = shouldValidate && ((ConditionalValidation) state.as(modificationClass)).shouldValidate(this);
+                }
+            }
+            Object obj = state.getOriginalObjectOrNull();
+            if (obj instanceof ConditionalValidation) {
+                shouldValidate = shouldValidate && ((ConditionalValidation) obj).shouldValidate(this);
+            }
+        }
+
+        if (shouldValidate) {
+            Object value = state.get(getInternalName());
+            if (isRequired() && ObjectUtils.isBlank(value)) {
+                state.addError(this, "Required!");
+            } else {
+                validateValue(state, getInternalType(), value);
+            }
         }
     }
 
