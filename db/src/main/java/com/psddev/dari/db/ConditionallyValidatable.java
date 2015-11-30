@@ -1,5 +1,5 @@
 package com.psddev.dari.db;
 
-public interface ConditionalValidation extends Recordable {
+public interface ConditionallyValidatable extends Recordable {
     boolean shouldValidate(ObjectField field);
 }

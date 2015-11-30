@@ -809,27 +809,36 @@ public class ObjectField extends Record {
     public void validate(State state) {
 
         boolean shouldValidate = true;
+        ObjectType type = state.getType();
 
-        if (state.getType() != null && state.getType().getGroups().contains(ConditionalValidation.class.getName())) {
-            for (String className : state.getType().getModificationClassNames()) {
+        if (type != null) {
+            for (String className : type.getModificationClassNames()) {
                 Class<?> modificationClass = ObjectUtils.getClassByName(className);
-                if (modificationClass != null && ConditionalValidation.class.isAssignableFrom(modificationClass)) {
-                    shouldValidate = shouldValidate && ((ConditionalValidation) state.as(modificationClass)).shouldValidate(this);
+                if (modificationClass != null && ConditionallyValidatable.class.isAssignableFrom(modificationClass)) {
+                    if (!((ConditionallyValidatable) state.as(modificationClass)).shouldValidate(this)) {
+                        shouldValidate = false;
+                        break;
+                    }
                 }
-            }
-            Object obj = state.getOriginalObjectOrNull();
-            if (obj instanceof ConditionalValidation) {
-                shouldValidate = shouldValidate && ((ConditionalValidation) obj).shouldValidate(this);
             }
         }
 
         if (shouldValidate) {
-            Object value = state.get(getInternalName());
-            if (isRequired() && ObjectUtils.isBlank(value)) {
-                state.addError(this, "Required!");
-            } else {
-                validateValue(state, getInternalType(), value);
+            Object obj = state.getOriginalObjectOrNull();
+            if (obj instanceof ConditionallyValidatable) {
+                shouldValidate = ((ConditionallyValidatable) obj).shouldValidate(this);
             }
+        }
+
+        if (!shouldValidate) {
+            return;
+        }
+
+        Object value = state.get(getInternalName());
+        if (isRequired() && ObjectUtils.isBlank(value)) {
+            state.addError(this, "Required!");
+        } else {
+            validateValue(state, getInternalType(), value);
         }
     }
 
