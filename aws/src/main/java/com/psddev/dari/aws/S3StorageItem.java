@@ -108,13 +108,13 @@ public class S3StorageItem extends AbstractStorageItem {
                 if (values != null) {
                     switch (key) {
 
-                    case Headers.CONTENT_LENGTH:
-                        values.forEach(value -> metadata.setHeader(key, ObjectUtils.to(Long.class, value)));
-                        break;
+                        case Headers.CONTENT_LENGTH:
+                            values.forEach(value -> metadata.setHeader(key, ObjectUtils.to(Long.class, value)));
+                            break;
 
-                    default:
-                        values.forEach(value -> metadata.setHeader(key, value));
-                        break;
+                        default:
+                            values.forEach(value -> metadata.setHeader(key, value));
+                            break;
                     }
 
                 }
