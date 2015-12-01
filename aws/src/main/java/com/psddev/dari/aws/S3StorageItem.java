@@ -116,7 +116,6 @@ public class S3StorageItem extends AbstractStorageItem {
                             values.forEach(value -> metadata.setHeader(key, value));
                             break;
                     }
-
                 }
             });
         }
