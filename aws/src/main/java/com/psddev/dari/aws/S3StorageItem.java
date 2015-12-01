@@ -4,6 +4,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.Headers;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -105,7 +106,16 @@ public class S3StorageItem extends AbstractStorageItem {
         if (headers != null) {
             headers.forEach((key, values) -> {
                 if (values != null) {
-                    values.forEach(value -> metadata.setHeader(key, value));
+                    switch (key) {
+
+                        case Headers.CONTENT_LENGTH:
+                            values.forEach(value -> metadata.setHeader(key, ObjectUtils.to(Long.class, value)));
+                            break;
+
+                        default:
+                            values.forEach(value -> metadata.setHeader(key, value));
+                            break;
+                    }
                 }
             });
         }
