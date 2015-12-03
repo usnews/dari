@@ -761,6 +761,16 @@ public abstract class AbstractDatabase<C> implements Database {
         }
     };
 
+    private static class BeforeCommitTrigger extends TriggerOnce {
+
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record) {
+                ((Record) object).beforeCommit();
+            }
+        }
+    }
+
     private static class AfterSaveTrigger extends TriggerOnce {
 
         @Override
@@ -965,6 +975,12 @@ public abstract class AbstractDatabase<C> implements Database {
                     lock.lock();
                 }
                 validate(validates, false);
+            }
+
+            if (validates != null) {
+                for (State state : validates) {
+                    state.fireTrigger(new BeforeCommitTrigger());
+                }
             }
 
             boolean isCommitted = false;
