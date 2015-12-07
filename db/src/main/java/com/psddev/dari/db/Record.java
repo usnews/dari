@@ -86,6 +86,14 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
     }
 
     /**
+     * Triggers right before this record is committed to the database.
+     *
+     * <p>Default implementation doesn't do anything.</p>
+     */
+    protected void beforeCommit() {
+    }
+
+    /**
      * Triggers right after this record is saved to the given
      * {@code database}. Default implementation of this method
      * doesn't do anything.
