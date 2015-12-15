@@ -97,14 +97,18 @@ public class StorageItemFilter extends AbstractFilter {
                 for (int i = 0; i < items.length; i++) {
                     FileItem item = items[i];
 
-                    // FileItem is never null, have to check for name
-                    if (item == null || StringUtils.isBlank(item.getName())) {
+                    if (item == null) {
                         continue;
                     }
 
                     // handles input non-file input types in case of mixed input scenario
                     if (item.isFormField()) {
                         storageItems.add(createStorageItem(request.getParameterValues(parameterName)[i]));
+                        continue;
+                    }
+
+                    // No file value found attached to input
+                    if (StringUtils.isBlank(item.getName())) {
                         continue;
                     }
 
