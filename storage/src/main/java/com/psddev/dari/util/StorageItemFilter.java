@@ -68,7 +68,8 @@ public class StorageItemFilter extends AbstractFilter {
      * @throws IOException
      */
     public static StorageItem getParameter(HttpServletRequest request, String parameterName, String storageName) throws IOException {
-        return getParameters(request, parameterName, storageName).get(0);
+        List<StorageItem> storageItems = getParameters(request, parameterName, storageName);
+        return !ObjectUtils.isBlank(storageItems) ? storageItems.get(0) : null;
     }
 
     /**
@@ -95,6 +96,7 @@ public class StorageItemFilter extends AbstractFilter {
             if (!ObjectUtils.isBlank(items)) {
                 for (int i = 0; i < items.length; i++) {
                     FileItem item = items[i];
+
                     if (item == null) {
                         continue;
                     }
@@ -102,6 +104,11 @@ public class StorageItemFilter extends AbstractFilter {
                     // handles input non-file input types in case of mixed input scenario
                     if (item.isFormField()) {
                         storageItems.add(createStorageItem(request.getParameterValues(parameterName)[i]));
+                        continue;
+                    }
+
+                    // No file value found attached to input
+                    if (StringUtils.isBlank(item.getName())) {
                         continue;
                     }
 
