@@ -120,6 +120,42 @@ public class Record implements BeanInfo, Cloneable, Comparable<Record>, HtmlObje
         afterDelete(getState().getDatabase());
     }
 
+    /**
+     * Fire {@link MessageTrigger} with the supplied parameters.
+     */
+    public final void sendMessage(String key, Object... args) {
+        getState().fireTrigger(new MessageTrigger(key, args));
+    }
+
+    /**
+     * Triggers with the parameters of {@link #sendMessage}. Default
+     * implementation of this method doesn't do anything.
+     */
+    protected void receiveMessage(String key, Object... args) {
+    }
+
+    private static class MessageTrigger extends TriggerOnce {
+
+        private final String key;
+        private final Object[] args;
+
+        MessageTrigger(String key, Object[] args) {
+            this.key = key;
+            this.args = args;
+        }
+
+        @Override
+        protected void executeOnce(Object object) {
+            if (object instanceof Record && key != null) {
+                if (args == null || args.length == 0) {
+                    ((Record) object).receiveMessage(key);
+                } else {
+                    ((Record) object).receiveMessage(key, args);
+                }
+            }
+        }
+    }
+
     // --- BeanInfo support ---
 
     @Override
