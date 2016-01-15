@@ -1656,8 +1656,17 @@ public class SolrDatabase extends AbstractDatabase<SolrServer> {
                 UUID valueTypeId = ObjectUtils.to(UUID.class, valueMap.get(StateValueUtils.TYPE_KEY));
 
                 if (valueTypeId == null) {
-                    for (Object item : valueMap.values()) {
-                        addDocumentValues(document, allBuilder, includeInAny, field, name, item);
+                    if (field != null && ObjectField.RECORD_TYPE.equals(field.getInternalItemType())) {
+                        for (Object item : valueMap.values()) {
+                            if (item instanceof Map) {
+                                addDocumentValues(document, allBuilder, includeInAny, field, name, item);
+                            }
+                        }
+
+                    } else {
+                        for (Object item : valueMap.values()) {
+                            addDocumentValues(document, allBuilder, includeInAny, field, name, item);
+                        }
                     }
                     return;
 
