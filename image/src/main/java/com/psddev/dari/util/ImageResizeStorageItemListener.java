@@ -127,7 +127,7 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
             pathBuilder.append('/');
             pathBuilder.append(parts.get(parts.size() - 1));
 
-            StorageItem dimsItem = StorageItem.Static.create();
+            StorageItem dimsItem = StorageItem.Static.createIn(item.getStorage());
             StorageItem.Static.resetListeners(dimsItem);
 
             dimsItem.setPath(pathBuilder.toString());
