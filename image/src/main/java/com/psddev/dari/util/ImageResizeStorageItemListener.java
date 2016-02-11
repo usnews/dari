@@ -97,8 +97,6 @@ public class ImageResizeStorageItemListener implements StorageItemListener {
             if (data != null) {
                 data.close();
             }
-
-            item.setData(null);
         }
     }
 
