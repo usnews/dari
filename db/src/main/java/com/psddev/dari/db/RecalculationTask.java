@@ -1,5 +1,7 @@
 package com.psddev.dari.db;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,11 +21,14 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.psddev.dari.util.ObjectUtils;
 import com.psddev.dari.util.RepeatingTask;
+import com.psddev.dari.util.Settings;
 import com.psddev.dari.util.Stats;
 import com.psddev.dari.util.StringUtils;
 
 /**
  * Periodically updates indexes annotated with {@code \@Recalculate}.
+ *
+ * Optionally specify a task host with the setting "dari/recalculationTaskHost".
  */
 public class RecalculationTask extends RepeatingTask {
 
@@ -32,6 +37,7 @@ public class RecalculationTask extends RepeatingTask {
     private static final int COMMIT_SIZE = 200;
     private static final Logger LOGGER = LoggerFactory.getLogger(RecalculationTask.class);
     private static final Stats STATS = new Stats("Recalculation Task");
+    private static final String TASK_HOST_SETTING = "dari/recalculationTaskHost";
 
     private long recordsProcessed = 0L;
     private long recordsTotal = 0L;
@@ -45,6 +51,11 @@ public class RecalculationTask extends RepeatingTask {
     protected void doRepeatingTask(DateTime runTime) throws Exception {
         recordsProcessed = 0L;
         recordsTotal = 0L;
+
+        String hostname = Settings.get(String.class, TASK_HOST_SETTING);
+        if (!isTaskHost(hostname)) {
+            return;
+        }
 
         for (RecalculationContext context : getIndexableMethods()) {
             Stats.Timer timer = STATS.startTimer();
@@ -245,6 +256,20 @@ public class RecalculationTask extends RepeatingTask {
     @Override
     public String getProgress() {
         return new StringBuilder("Recalculated ").append(recordsProcessed).append(", checked ").append(recordsTotal).toString();
+    }
+
+    private static boolean isTaskHost(String hostname) {
+        if (hostname == null || "localhost".equals(hostname)) {
+            return true;
+        }
+        try {
+            InetAddress allowed = InetAddress.getByName(hostname);
+            InetAddress local = InetAddress.getLocalHost();
+            return local.getHostAddress().equals(allowed.getHostAddress());
+        } catch (UnknownHostException e) {
+            LOGGER.error("Unknown host exception during Recalculation", e);
+            return false;
+        }
     }
 
     /**
