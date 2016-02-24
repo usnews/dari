@@ -672,7 +672,11 @@ class SqlQuery {
                     return;
                 }
 
+                List<Object> inValues = new ArrayList<>();
+
                 for (Object value : comparisonPredicate.resolveValues(database)) {
+                    boolean isInValue = false;
+
                     if (value == null) {
                         ++ subClauseCount;
                         comparisonBuilder.append("0 = 1");
@@ -739,17 +743,36 @@ class SqlQuery {
                             comparisonBuilder.append(')');
 
                         } else {
-                            comparisonBuilder.append(joinValueField);
                             if (join.likeValuePrefix != null) {
+                                comparisonBuilder.append(joinValueField);
                                 comparisonBuilder.append(" LIKE ");
                                 join.appendValue(comparisonBuilder, comparisonPredicate, join.likeValuePrefix + database.getReadSymbolId(value.toString()) + ";%");
+
                             } else {
-                                comparisonBuilder.append(" = ");
-                                join.appendValue(comparisonBuilder, comparisonPredicate, value);
+                                isInValue = true;
+
+                                inValues.add(value);
                             }
                         }
                     }
 
+                    if (!isInValue) {
+                        comparisonBuilder.append(isNotEqualsAll ? " AND " : " OR  ");
+                    }
+                }
+
+                if (!inValues.isEmpty()) {
+                    comparisonBuilder.append(joinValueField);
+                    comparisonBuilder.append(" IN (");
+
+                    for (Object inValue : inValues) {
+                        join.appendValue(comparisonBuilder, comparisonPredicate, inValue);
+                        comparisonBuilder.append(", ");
+                    }
+
+                    comparisonBuilder.setLength(comparisonBuilder.length() - 2);
+
+                    comparisonBuilder.append(")");
                     comparisonBuilder.append(isNotEqualsAll ? " AND " : " OR  ");
                 }
 
