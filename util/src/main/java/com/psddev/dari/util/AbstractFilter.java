@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -234,7 +235,12 @@ public abstract class AbstractFilter implements Filter {
                 }
             }
 
-            for (Class<? extends Auto> autoClass : ClassFinder.findClasses(Auto.class)) {
+            Set<Class<? extends Auto>> autoClasses = new HashSet<>();
+            ClassFinder.getThreadDefaultServletContext().with(Optional.ofNullable(getServletContext()), () -> {
+                autoClasses.addAll(ClassFinder.findClasses(Auto.class));
+            });
+
+            for (Class<? extends Auto> autoClass : autoClasses) {
                 getFilter(autoClass).updateDependencies(getClass(), dependencyClasses);
             }
 
