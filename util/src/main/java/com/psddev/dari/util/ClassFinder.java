@@ -12,12 +12,12 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import javax.tools.JavaFileObject;
@@ -191,7 +191,7 @@ public class ClassFinder {
         Preconditions.checkNotNull(loader);
         Preconditions.checkNotNull(baseClass);
 
-        Set<String> classNames = new LinkedHashSet<>();
+        Set<String> classNames = new TreeSet<>();
 
         for (ClassLoader l = loader; l != null; l = l.getParent()) {
             if (l instanceof URLClassLoader
@@ -217,7 +217,7 @@ public class ClassFinder {
 
         Set<Class<? extends T>> classes = new LinkedHashSet<>();
 
-        for (String className : classNames.stream().sorted().collect(Collectors.toCollection(LinkedHashSet::new))) {
+        for (String className : classNames) {
             try {
                 Class<?> c = Class.forName(className, false, loader);
 
