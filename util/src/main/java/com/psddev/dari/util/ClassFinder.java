@@ -20,6 +20,7 @@ import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+import javax.servlet.ServletContext;
 import javax.tools.JavaFileObject;
 
 import com.google.common.base.MoreObjects;
@@ -47,6 +48,12 @@ public class ClassFinder {
 
     private static final ThreadLocalStack<ClassFinder> THREAD_DEFAULT = new ThreadLocalStack<>();
     private static final ClassFinder DEFAULT = new ClassFinder();
+
+    private static final ThreadLocalStack<ServletContext> THREAD_DEFAULT_SERVLET_CONTEXT = new ThreadLocalStack<>();
+    private static final String[] RESOURCE_PATHS = {
+            "/WEB-INF/classes",
+            "/WEB-INF/lib"
+    };
 
     private static final LoadingCache<ClassFinder, LoadingCache<ClassLoader, LoadingCache<Class<?>, Set<?>>>> CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER = CacheBuilder.newBuilder()
             .weakKeys()
@@ -86,6 +93,15 @@ public class ClassFinder {
             "sun.misc.Launcher$AppClassLoader",
             "org.apache.catalina.loader.StandardClassLoader",
             "org.apache.jasper.servlet.JasperLoader"));
+
+    /**
+     * Returns the thread local stack for overriding the default ServletContext.
+     *
+     * @return Never {@code null}.
+     */
+    public static ThreadLocalStack<ServletContext> getThreadDefaultServletContext() {
+        return THREAD_DEFAULT_SERVLET_CONTEXT;
+    }
 
     /**
      * Returns the thread local stack for overriding the default instance
@@ -215,6 +231,15 @@ public class ClassFinder {
             }
         }
 
+        if (classNames.isEmpty()) {
+            ServletContext context = findServletContext();
+            if (context != null) {
+                for (String path : RESOURCE_PATHS) {
+                    processResourcePath(classNames, context, path);
+                }
+            }
+        }
+
         Set<Class<? extends T>> classes = new LinkedHashSet<>();
 
         for (String className : classNames) {
@@ -304,6 +329,43 @@ public class ClassFinder {
                 classNames.add(className);
             }
         }
+    }
+
+    private void processResourcePath(Set<String> classNames, ServletContext context, String path) {
+        if (path == null) {
+            return;
+        }
+        URL url;
+        try {
+            url = context.getResource(path);
+        } catch (MalformedURLException ignored) {
+            // Ignore
+            return;
+        }
+
+        processUrl(classNames, url);
+
+        Set<String> paths = context.getResourcePaths(path);
+        if (paths != null) {
+            for (String p : paths) {
+                processResourcePath(classNames, context, p);
+            }
+        }
+    }
+
+    /**
+     * @return Never {@code null}.
+     */
+    private static ServletContext findServletContext() {
+        ServletContext context = THREAD_DEFAULT_SERVLET_CONTEXT.get();
+        if (context == null) {
+            try {
+                context = PageContextFilter.Static.getServletContext();
+            } catch (IllegalStateException ignored) {
+                // ignored
+            }
+        }
+        return context;
     }
 
     /**
