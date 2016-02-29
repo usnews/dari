@@ -235,9 +235,16 @@ public abstract class AbstractFilter implements Filter {
             }
 
             Set<Class<? extends Auto>> autoClasses = new HashSet<>();
-            ClassFinder.getThreadDefaultServletContext().with(getServletContext(), () -> {
+            ServletContext context = getServletContext();
+
+            if (context != null) {
+                ClassFinder.getThreadDefaultServletContext().with(context, () -> {
+                    autoClasses.addAll(ClassFinder.findClasses(Auto.class));
+                });
+
+            } else {
                 autoClasses.addAll(ClassFinder.findClasses(Auto.class));
-            });
+            }
 
             for (Class<? extends Auto> autoClass : autoClasses) {
                 getFilter(autoClass).updateDependencies(getClass(), dependencyClasses);
