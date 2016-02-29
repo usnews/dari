@@ -11,7 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -131,7 +133,7 @@ public class ClassFinder {
             loader = ObjectUtils.getCurrentClassLoader();
         }
 
-        return new HashSet<>((Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER
+        return new LinkedHashSet<>((Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER
                 .getUnchecked(MoreObjects.firstNonNull(THREAD_DEFAULT.get(), DEFAULT))
                 .getUnchecked(loader)
                 .getUnchecked(baseClass));
@@ -206,7 +208,7 @@ public class ClassFinder {
         Preconditions.checkNotNull(loader);
         Preconditions.checkNotNull(baseClass);
 
-        Set<String> classNames = new HashSet<>();
+        Set<String> classNames = new TreeSet<>();
 
         for (ClassLoader l = loader; l != null; l = l.getParent()) {
             if (l instanceof URLClassLoader
@@ -240,7 +242,7 @@ public class ClassFinder {
             }
         }
 
-        Set<Class<? extends T>> classes = new HashSet<>();
+        Set<Class<? extends T>> classes = new LinkedHashSet<>();
 
         for (String className : classNames) {
             try {
