@@ -612,6 +612,24 @@ public class Query<E> extends Record {
         return sortRelevant(weight, PredicateParser.Static.parse(predicateString, parameters));
     }
 
+    /**
+     * Adds a sorter that prioritizes the newest values
+     * with the given {@code key} weighted by the given {@code weight} which defaults to 1.0.
+     */
+    public Query<E> sortNewestRelevant(Double weight, String key) {
+        sort(new Sorter(Sorter.NEWEST_OPERATOR, Arrays.asList(weight != null ? weight : 1.0, key)));
+        return this;
+    }
+
+    /**
+     * Adds a sorter that prioritizes the oldest values
+     * with the given {@code key} weighted by the given {@code weight} which defaults to 1.0
+     */
+    public Query<E> sortOldestRelevant(Double weight, String key) {
+        sort(new Sorter(Sorter.OLDEST_OPERATOR, Arrays.asList(weight != null ? weight : 1.0, key)));
+        return this;
+    }
+
     public Query<E> fields(String... fields) {
         if (this.fields == null) {
             this.fields = new ArrayList<String>();
