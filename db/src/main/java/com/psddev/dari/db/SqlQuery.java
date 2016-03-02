@@ -57,6 +57,7 @@ class SqlQuery {
     private Join mysqlIndexHint;
     private boolean mysqlIgnoreIndexPrimaryDisabled;
     private boolean forceLeftJoins;
+    private boolean allNotEqualsAll;
 
     private final List<Predicate> recordMetricDatePredicates = new ArrayList<Predicate>();
     private final List<Predicate> recordMetricParentDatePredicates = new ArrayList<Predicate>();
@@ -644,6 +645,7 @@ class SqlQuery {
             boolean hasMissing = false;
             int subClauseCount = 0;
             boolean isNotEqualsAll = PredicateParser.NOT_EQUALS_ALL_OPERATOR.equals(operator);
+            allNotEqualsAll |= isNotEqualsAll;
 
             if (isNotEqualsAll || PredicateParser.EQUALS_ANY_OPERATOR.equals(operator)) {
                 Query<?> valueQuery = mappedKey.getSubQueryWithComparison(comparisonPredicate);
@@ -1603,6 +1605,7 @@ class SqlQuery {
 
         if (fromClause.length() > 0
                 && !fromClause.contains("LEFT OUTER JOIN")
+                && !allNotEqualsAll
                 && !mysqlIgnoreIndexPrimaryDisabled) {
             statementBuilder.append(" /*! IGNORE INDEX (PRIMARY) */");
         }
