@@ -398,6 +398,14 @@ public class ReferentialText extends AbstractList<Object> {
                     paragraph.before(enhancement);
                 }
             }
+
+            // Remove <p><br /></p>
+            for (Element paragraph : body.getElementsByTag(P_TAG.getName())) {
+                if (paragraph.children().size() == 1 && BR_TAG.getName().equals(paragraph.child(0).tagName())
+                        && StringUtils.isBlank(paragraph.text())) {
+                    paragraph.remove();
+                }
+            }
         }
 
         if (cleaner != null) {
