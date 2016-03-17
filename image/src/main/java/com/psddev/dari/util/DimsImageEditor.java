@@ -154,7 +154,8 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
         StorageItem newImage = null;
 
         boolean usePrivateUrl = false;
-        if (options != null && options.containsKey(ImageEditorPrivateUrl.PRIVATE_URL_OPTION)) {
+        if (options != null && options.containsKey(ImageEditorPrivateUrl.PRIVATE_URL_OPTION)
+                && ObjectUtils.to(Boolean.class, options.get(ImageEditorPrivateUrl.PRIVATE_URL_OPTION))) {
             usePrivateUrl = true;
         }
 

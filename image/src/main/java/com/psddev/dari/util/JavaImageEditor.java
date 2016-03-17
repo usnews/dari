@@ -132,7 +132,9 @@ public class JavaImageEditor extends AbstractUrlImageEditor {
         List<String> commands = new ArrayList<String>();
 
         String baseUrl = getPrivateBaseUrl();
-        if (options != null && options.containsKey(ImageEditorPrivateUrl.PRIVATE_URL_OPTION) || baseUrl == null) {
+        if ((options != null && options.containsKey(ImageEditorPrivateUrl.PRIVATE_URL_OPTION)
+                && ObjectUtils.to(Boolean.class, options.get(ImageEditorPrivateUrl.PRIVATE_URL_OPTION)))
+                || baseUrl == null) {
             baseUrl = getBaseUrl();
         }
 
