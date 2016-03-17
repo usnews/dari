@@ -20,19 +20,9 @@ import org.slf4j.LoggerFactory;
  * Image editor backed by
  * <a href="https://github.com/beetlebugorg/mod_dims">mod_dims</a>.
  */
-public class DimsImageEditor extends AbstractImageEditor {
+public class DimsImageEditor extends AbstractUrlImageEditor {
 
     protected static final Logger LOGGER = LoggerFactory.getLogger(DimsImageEditor.class);
-
-    /** Setting key for the base URL to the mod_dims installation. */
-    public static final String BASE_URL_SETTING = "baseUrl";
-
-    /**
-     * Sub-setting key for the base URL that's used to construct the
-     * {@linkplain #getBaseUrl base URL} by distributing it across the
-     * defined base URLs.
-     */
-    public static final String BASE_URLS_SUB_SETTING = "baseUrls";
 
     /** Setting key for the shared secret to use when signing URLs. */
     public static final String SHARED_SECRET_SETTING = "sharedSecret";
@@ -61,8 +51,6 @@ public class DimsImageEditor extends AbstractImageEditor {
     /** Setting key for enabling appending image URLs instead of passing them as a parameter. */
     public static final String APPEND_IMAGE_URLS_SETTING = "appendImageUrls";
 
-    private String baseUrl;
-    private List<String> baseUrls;
     private String sharedSecret;
 
     private Date expireTimestamp;
@@ -73,31 +61,6 @@ public class DimsImageEditor extends AbstractImageEditor {
     private boolean useLegacyThumbnail;
     private boolean preserveMetadata;
     private boolean appendImageUrls;
-
-    /** Returns the base URL. */
-    public String getBaseUrl() {
-        if (baseUrl == null && !ObjectUtils.isBlank(getBaseUrls())) {
-            return getBaseUrls().get(0);
-        }
-
-        return baseUrl;
-    }
-
-    /** Sets the base URL. */
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-
-    public List<String> getBaseUrls() {
-        if (baseUrls == null) {
-            baseUrls = new ArrayList<String>();
-        }
-        return baseUrls;
-    }
-
-    public void setBaseUrls(List<String> baseUrls) {
-        this.baseUrls = baseUrls;
-    }
 
     public String getSharedSecret() {
         return sharedSecret;
@@ -167,13 +130,7 @@ public class DimsImageEditor extends AbstractImageEditor {
 
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
-        setBaseUrl(ObjectUtils.to(String.class, settings.get(BASE_URL_SETTING)));
-
-        @SuppressWarnings("unchecked")
-        Map<String, String> baseUrls = (Map<String, String>) settings.get(BASE_URLS_SUB_SETTING);
-        if (baseUrls != null) {
-            setBaseUrls(new ArrayList<String>(baseUrls.values()));
-        }
+        super.initialize(settingsKey, settings);
 
         setSharedSecret(ObjectUtils.to(String.class, settings.get(SHARED_SECRET_SETTING)));
 
@@ -340,29 +297,16 @@ public class DimsImageEditor extends AbstractImageEditor {
      * @param imageUrl the image URL to check.
      * @return the base DIMS URL.
      */
-    private String getBaseUrlForImageUrl(String imageUrl) {
-
-        String baseUrl = getBaseUrl();
+    public String getBaseUrlForImageUrl(String imageUrl) {
+        String baseUrl = super.getBaseUrlForImageUrl(imageUrl);
 
         List<String> baseUrls = getBaseUrls();
         if (!baseUrls.isEmpty()) {
-
-            boolean isDimsUrl = false;
             for (String baseUrlItem : baseUrls) {
                 if (imageUrl.startsWith(StringUtils.removeEnd(baseUrlItem, "/"))) {
-                    isDimsUrl = true;
                     baseUrl = baseUrlItem;
                     break;
                 }
-            }
-
-            if (!isDimsUrl) {
-                int bucketIndex = ByteBuffer.wrap(StringUtils.md5(imageUrl)).getInt() % baseUrls.size();
-                if (bucketIndex < 0) {
-                    bucketIndex *= -1;
-                }
-
-                baseUrl = baseUrls.get(bucketIndex);
             }
         }
 
