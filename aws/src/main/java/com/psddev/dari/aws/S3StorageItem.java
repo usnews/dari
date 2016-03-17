@@ -10,7 +10,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.psddev.dari.util.AbstractStorageItem;
 import com.psddev.dari.util.ObjectUtils;
-import com.psddev.dari.util.StorageItemPrivateUrl;
+import com.psddev.dari.util.StorageItemOriginUrl;
 import com.psddev.dari.util.SettingsException;
 
 import java.io.IOException;
@@ -22,7 +22,7 @@ import java.util.Map;
  * {@link com.psddev.dari.util.StorageItem} implementation that uses
  * <a href="http://aws.amazon.com/s3/">Amazon S3</a>.
  */
-public class S3StorageItem extends AbstractStorageItem implements StorageItemPrivateUrl {
+public class S3StorageItem extends AbstractStorageItem implements StorageItemOriginUrl {
 
     /**
      * Sub-setting key for S3 bucket name.
@@ -41,14 +41,14 @@ public class S3StorageItem extends AbstractStorageItem implements StorageItemPri
 
     /**
      * Sub-setting key for the private base URL that's used to construct the
-     * {@linkplain #getPrivateUrl private URL}.
+     * {@linkplain #getOriginUrl private URL}.
      */
-    public static final String PRIVATE_BASE_URL_SUB_SETTING = "privateBaseUrl";
+    public static final String ORIGIN_BASE_URL_SUB_SETTING = "originBaseUrl";
 
     private transient String secret;
     private transient String bucket;
     private transient String access;
-    private transient String privateBaseUrl;
+    private transient String originBaseUrl;
 
     public String getBucket() {
         return bucket;
@@ -74,12 +74,12 @@ public class S3StorageItem extends AbstractStorageItem implements StorageItemPri
         this.secret = secret;
     }
 
-    public String getPrivateBaseUrl() {
-        return privateBaseUrl;
+    public String getOriginBaseUrl() {
+        return originBaseUrl;
     }
 
-    public void setPrivateBaseUrl(String privateBaseUrl) {
-        this.privateBaseUrl = privateBaseUrl;
+    public void setOriginBaseUrl(String originBaseUrl) {
+        this.originBaseUrl = originBaseUrl;
     }
 
     @Override
@@ -94,7 +94,7 @@ public class S3StorageItem extends AbstractStorageItem implements StorageItemPri
 
         setAccess(ObjectUtils.to(String.class, settings.get(ACCESS_SUB_SETTING)));
         setSecret(ObjectUtils.to(String.class, settings.get(SECRET_SUB_SETTING)));
-        setPrivateBaseUrl(ObjectUtils.to(String.class, settings.get(PRIVATE_BASE_URL_SUB_SETTING)));
+        setOriginBaseUrl(ObjectUtils.to(String.class, settings.get(ORIGIN_BASE_URL_SUB_SETTING)));
     }
 
     private AmazonS3Client createClient() {
@@ -161,12 +161,12 @@ public class S3StorageItem extends AbstractStorageItem implements StorageItemPri
     }
 
     @Override
-    public String getPrivateUrl() {
-        if (ObjectUtils.isBlank(getPrivateBaseUrl())) {
+    public String getOriginUrl() {
+        if (ObjectUtils.isBlank(getOriginBaseUrl())) {
             return null;
         }
 
-        return createPublicUrl(getPrivateBaseUrl(), getPath());
+        return createPublicUrl(getOriginBaseUrl(), getPath());
     }
 
 }

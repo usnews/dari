@@ -5,11 +5,11 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
 
-public class PrivateStorageItem implements StorageItem {
+public class OriginStorageItem implements StorageItem {
 
     private StorageItem item;
 
-    public PrivateStorageItem(StorageItem item) {
+    public OriginStorageItem(StorageItem item) {
         this.item = item;
     }
 
@@ -91,8 +91,8 @@ public class PrivateStorageItem implements StorageItem {
     @Override
     public String getPublicUrl() {
         String url = null;
-        if (item instanceof StorageItemPrivateUrl) {
-            url = ((StorageItemPrivateUrl) item).getPrivateUrl();
+        if (item instanceof StorageItemOriginUrl) {
+            url = ((StorageItemOriginUrl) item).getOriginUrl();
         }
 
         if (url == null) {
