@@ -10,6 +10,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.psddev.dari.util.AbstractStorageItem;
 import com.psddev.dari.util.ObjectUtils;
+import com.psddev.dari.util.StorageItemPrivateUrl;
 import com.psddev.dari.util.SettingsException;
 
 import java.io.IOException;
@@ -21,7 +22,7 @@ import java.util.Map;
  * {@link com.psddev.dari.util.StorageItem} implementation that uses
  * <a href="http://aws.amazon.com/s3/">Amazon S3</a>.
  */
-public class S3StorageItem extends AbstractStorageItem {
+public class S3StorageItem extends AbstractStorageItem implements StorageItemPrivateUrl {
 
     /**
      * Sub-setting key for S3 bucket name.
@@ -38,9 +39,16 @@ public class S3StorageItem extends AbstractStorageItem {
      */
     public static final String SECRET_SUB_SETTING = "secret";
 
+    /**
+     * Sub-setting key for the private base URL that's used to construct the
+     * {@linkplain #getPrivateUrl private URL}.
+     */
+    public static final String PRIVATE_BASE_URL_SUB_SETTING = "privateBaseUrl";
+
     private transient String secret;
     private transient String bucket;
     private transient String access;
+    private transient String privateBaseUrl;
 
     public String getBucket() {
         return bucket;
@@ -66,6 +74,14 @@ public class S3StorageItem extends AbstractStorageItem {
         this.secret = secret;
     }
 
+    public String getPrivateBaseUrl() {
+        return privateBaseUrl;
+    }
+
+    public void setPrivateBaseUrl(String privateBaseUrl) {
+        this.privateBaseUrl = privateBaseUrl;
+    }
+
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
         super.initialize(settingsKey, settings);
@@ -78,6 +94,7 @@ public class S3StorageItem extends AbstractStorageItem {
 
         setAccess(ObjectUtils.to(String.class, settings.get(ACCESS_SUB_SETTING)));
         setSecret(ObjectUtils.to(String.class, settings.get(SECRET_SUB_SETTING)));
+        setPrivateBaseUrl(ObjectUtils.to(String.class, settings.get(PRIVATE_BASE_URL_SUB_SETTING)));
     }
 
     private AmazonS3Client createClient() {
@@ -142,4 +159,10 @@ public class S3StorageItem extends AbstractStorageItem {
             }
         }
     }
+
+    @Override
+    public String getPrivateUrl() {
+        return createPublicUrl(getPrivateBaseUrl(), getPath());
+    }
+
 }

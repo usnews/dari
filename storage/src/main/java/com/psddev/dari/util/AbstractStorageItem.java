@@ -315,7 +315,7 @@ public abstract class AbstractStorageItem implements StorageItem {
         return createPublicUrl(getSecureBaseUrl(), getPath());
     }
 
-    private String createPublicUrl(String baseUrl, String path) {
+    protected String createPublicUrl(String baseUrl, String path) {
         if (!ObjectUtils.isBlank(baseUrl)) {
             path = StringUtils.ensureEnd(baseUrl, "/") + path;
             try {
