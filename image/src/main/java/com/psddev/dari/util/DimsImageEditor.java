@@ -162,7 +162,7 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
         try {
             dimsUrl = this.new DimsUrl(image, usePrivateUrl);
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("Failed to generate a DIMS URL.", e);
         }
         if (dimsUrl != null) {
             Object resizeOption = options != null ? options.get(RESIZE_OPTION) : null;
@@ -355,7 +355,9 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
             String baseUrl = null;
             if (isUsePrivateUrl()) {
                 baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getPrivateBaseUrl(), "/");
-            } else {
+            }
+
+            if (!isUsePrivateUrl() || baseUrl == null) {
                 baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getBaseUrlForImageUrl(url), "/");
             }
 
@@ -627,7 +629,9 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
             String baseUrl = null;
             if (isUsePrivateUrl()) {
                 baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getPrivateBaseUrl(), "/");
-            } else {
+            }
+
+            if (!isUsePrivateUrl() || baseUrl == null) {
                 baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getBaseUrlForImageUrl(imageUrl), "/");
             }
 
