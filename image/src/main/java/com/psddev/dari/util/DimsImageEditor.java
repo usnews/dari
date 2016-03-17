@@ -161,7 +161,7 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
 
         DimsUrl dimsUrl = null;
         try {
-            dimsUrl = this.new DimsUrl(image, usePrivateUrl);
+            dimsUrl = this.new DimsUrl(new OriginStorageItem(image), usePrivateUrl);
         } catch (Exception e) {
             LOGGER.error("Failed to generate a DIMS URL.", e);
         }
