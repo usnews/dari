@@ -1,7 +1,5 @@
 package com.psddev.dari.util;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -106,6 +104,6 @@ public class PrivateStorageItem implements StorageItem {
 
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
-        throw new NotImplementedException();
+        throw new UnsupportedOperationException();
     }
 }
