@@ -131,11 +131,16 @@ public class JavaImageEditor extends AbstractUrlImageEditor {
         String imageUrl = storageItem.getPublicUrl();
         List<String> commands = new ArrayList<String>();
 
-        if (imageUrl.startsWith(this.getBaseUrl()) && imageUrl.contains("?url=")) {
+        String baseUrl = getPrivateBaseUrl();
+        if (options != null && options.containsKey(ImageEditorPrivateUrl.PRIVATE_URL_OPTION) || baseUrl == null) {
+            baseUrl = getBaseUrl();
+        }
+
+        if (imageUrl.startsWith(baseUrl) && imageUrl.contains("?url=")) {
             String[] imageComponents = imageUrl.split("\\?url=");
             imageUrl = StringUtils.decodeUri(imageComponents[1]);
 
-            String path = imageComponents[0].substring(this.getBaseUrl().length());
+            String path = imageComponents[0].substring(baseUrl.length());
             for (String parameter : path.split("/")) {
                 if (!EXTRA_CROPS.contains(parameter)) {
                     commands.add(parameter);
@@ -269,7 +274,7 @@ public class JavaImageEditor extends AbstractUrlImageEditor {
         }
 
         StringBuilder storageItemUrlBuilder = new StringBuilder();
-        storageItemUrlBuilder.append(this.getBaseUrl());
+        storageItemUrlBuilder.append(baseUrl);
         if (!StringUtils.isBlank(this.getSharedSecret())) {
             StringBuilder commandsBuilder = new StringBuilder();
 

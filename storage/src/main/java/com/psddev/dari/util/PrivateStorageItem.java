@@ -34,11 +34,16 @@ public class PrivateStorageItem extends AbstractStorageItem {
 
     @Override
     public String getPublicUrl() {
+        String url = null;
         if (item instanceof StorageItemPrivateUrl) {
-            return ((StorageItemPrivateUrl) item).getPrivateUrl();
+            url = ((StorageItemPrivateUrl) item).getPrivateUrl();
         }
 
-        return item.getPublicUrl();
+        if (url == null) {
+            url = item.getPublicUrl();
+        }
+
+        return url;
     }
 
 }

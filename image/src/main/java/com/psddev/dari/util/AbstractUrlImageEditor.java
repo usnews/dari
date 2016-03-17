@@ -2,10 +2,11 @@ package com.psddev.dari.util;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-public abstract class AbstractUrlImageEditor extends AbstractImageEditor {
+public abstract class AbstractUrlImageEditor extends AbstractImageEditor implements ImageEditorPrivateUrl {
 
     /** Setting key for the base URL to the image editor implementation. */
     public static final String BASE_URL_SETTING = "baseUrl";
@@ -17,8 +18,12 @@ public abstract class AbstractUrlImageEditor extends AbstractImageEditor {
      */
     public static final String BASE_URLS_SUB_SETTING = "baseUrls";
 
+    /** Setting key for the private base URL to the image editor implementation. */
+    public static final String PRIVATE_BASE_URL_SETTING = "privateBaseUrl";
+
     protected String baseUrl;
     protected List<String> baseUrls;
+    protected String privateBaseUrl;
 
     /** Returns the base URL. */
     public String getBaseUrl() {
@@ -43,6 +48,14 @@ public abstract class AbstractUrlImageEditor extends AbstractImageEditor {
 
     public void setBaseUrls(List<String> baseUrls) {
         this.baseUrls = baseUrls;
+    }
+
+    public String getPrivateBaseUrl() {
+        return privateBaseUrl;
+    }
+
+    public void setPrivateBaseUrl(String privateBaseUrl) {
+        this.privateBaseUrl = privateBaseUrl;
     }
 
     /**
@@ -71,6 +84,7 @@ public abstract class AbstractUrlImageEditor extends AbstractImageEditor {
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
         setBaseUrl(ObjectUtils.to(String.class, settings.get(BASE_URL_SETTING)));
+        setPrivateBaseUrl(ObjectUtils.to(String.class, settings.get(PRIVATE_BASE_URL_SETTING)));
 
         @SuppressWarnings("unchecked")
         Map<String, String> baseUrls = (Map<String, String>) settings.get(BASE_URLS_SUB_SETTING);

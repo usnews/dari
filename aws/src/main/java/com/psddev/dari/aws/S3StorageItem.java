@@ -162,6 +162,10 @@ public class S3StorageItem extends AbstractStorageItem implements StorageItemPri
 
     @Override
     public String getPrivateUrl() {
+        if (ObjectUtils.isBlank(getPrivateBaseUrl())) {
+            return null;
+        }
+
         return createPublicUrl(getPrivateBaseUrl(), getPath());
     }
 

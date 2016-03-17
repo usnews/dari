@@ -4,7 +4,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -154,9 +153,14 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
 
         StorageItem newImage = null;
 
+        boolean usePrivateUrl = false;
+        if (options != null && options.containsKey(ImageEditorPrivateUrl.PRIVATE_URL_OPTION)) {
+            usePrivateUrl = true;
+        }
+
         DimsUrl dimsUrl = null;
         try {
-            dimsUrl = this.new DimsUrl(image);
+            dimsUrl = this.new DimsUrl(image, usePrivateUrl);
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
         }
@@ -324,13 +328,19 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
         private List<Command> commands;
         private final StorageItem item;
         private URL imageUrl;
+        private boolean usePrivateUrl;
 
         public void setImageUrl(URL imageUrl) {
             this.imageUrl = imageUrl;
         }
 
         public DimsUrl(StorageItem item) throws MalformedURLException {
+            this(item, false);
+        }
+
+        public DimsUrl(StorageItem item, boolean usePrivateUrl) throws MalformedURLException {
             this.item = item;
+            this.usePrivateUrl = usePrivateUrl;
 
             String url = item.getPublicUrl();
             LOGGER.trace("Creating new DIMS URL from [" + url + "]");
@@ -342,7 +352,13 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
                 url = "file:" + url;
             }
 
-            String baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getBaseUrlForImageUrl(url), "/");
+            String baseUrl = null;
+            if (isUsePrivateUrl()) {
+                baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getPrivateBaseUrl(), "/");
+            } else {
+                baseUrl = StringUtils.removeEnd(DimsImageEditor.this.getBaseUrlForImageUrl(url), "/");
+            }
+
             if (url.startsWith(baseUrl)) {
 
                 // It's an existing DIMS URL that we're further modifying
@@ -599,12 +615,21 @@ public class DimsImageEditor extends AbstractUrlImageEditor {
             return item;
         }
 
+        public boolean isUsePrivateUrl() {
+            return usePrivateUrl;
+        }
+
         @Override
         public String toString() {
             StringBuilder dimsUrlBuilder = new StringBuilder();
 
             String imageUrl = this.imageUrl.toString();
-            String baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getBaseUrlForImageUrl(imageUrl), "/");
+            String baseUrl = null;
+            if (isUsePrivateUrl()) {
+                baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getPrivateBaseUrl(), "/");
+            } else {
+                baseUrl = StringUtils.ensureEnd(DimsImageEditor.this.getBaseUrlForImageUrl(imageUrl), "/");
+            }
 
             if (imageUrl.startsWith("file:")) {
                 imageUrl = imageUrl.substring(5);
