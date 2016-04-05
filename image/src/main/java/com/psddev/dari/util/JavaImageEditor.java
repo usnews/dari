@@ -338,6 +338,7 @@ public class JavaImageEditor extends AbstractUrlImageEditor {
 
     @Override
     public void initialize(String settingsKey, Map<String, Object> settings) {
+        super.initialize(settingsKey, settings);
 
         if (!ObjectUtils.isBlank(settings.get(QUALITY_SETTING))) {
             Object qualitySetting = settings.get(QUALITY_SETTING);
