@@ -9,6 +9,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -132,10 +133,15 @@ public class ClassFinder {
             loader = ObjectUtils.getCurrentClassLoader();
         }
 
-        return new LinkedHashSet<>((Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER
-                .getUnchecked(MoreObjects.firstNonNull(THREAD_DEFAULT.get(), DEFAULT))
-                .getUnchecked(loader)
-                .getUnchecked(baseClass));
+        try {
+            return new LinkedHashSet<>((Set<Class<? extends T>>) CLASSES_BY_BASE_CLASS_BY_LOADER_BY_FINDER
+                    .getUnchecked(MoreObjects.firstNonNull(THREAD_DEFAULT.get(), DEFAULT))
+                    .getUnchecked(loader)
+                    .getUnchecked(baseClass));
+
+        } catch (RuntimeException e) {
+            return Collections.emptySet();
+        }
     }
 
     /**
@@ -237,6 +243,10 @@ public class ClassFinder {
                 for (String path : RESOURCE_PATHS) {
                     processResourcePath(classNames, context, path);
                 }
+            }
+
+            if (classNames.isEmpty()) {
+                throw new RuntimeException("No classes were found.");
             }
         }
 
