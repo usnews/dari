@@ -497,7 +497,8 @@ abstract class StateValueUtils {
                     return value;
 
                 } else {
-                    ReferentialText text = new ReferentialText();
+                    //Use a lazy ReferentialText to defer resolution
+                    ReferentialText text = new ReferentialText.Lazy();
 
                     if (value instanceof Iterable) {
                         boolean isFirst = false;
