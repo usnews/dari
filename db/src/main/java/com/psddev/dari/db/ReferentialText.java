@@ -496,7 +496,7 @@ public class ReferentialText extends AbstractList<Object> {
 
     // --- AbstractList support ---
 
-    protected final Object checkItem(Object item) {
+    protected Object checkItem(Object item) {
         Preconditions.checkNotNull(item);
 
         if (item instanceof Reference) {
