@@ -500,6 +500,8 @@ abstract class StateValueUtils {
                     //Use a lazy ReferentialText to defer resolution
                     ReferentialText text = new ReferentialText.Lazy();
 
+                    text.setResolveInvisible(State.getInstance(object).isResolveInvisible());
+
                     if (value instanceof Iterable) {
                         boolean isFirst = false;
 
